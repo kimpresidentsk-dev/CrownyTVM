@@ -23,27 +23,24 @@
 
     // Default feature flags (can be overridden from Firestore)
     const DEFAULT_FEATURES = {
-        // 안정 (일반 유저에게 노출)
         home: true,
         wallet: true,
         social: true,
         messenger: true,
         settings: true,
-        
-        // 베타 (기본 숨김, 관리자가 활성화)
-        trading: false,
-        ai_assistant: false,
-        beauty: false,
-        brain: false,
-        movement: false,
-        care: false,
-        reels: false,
-        art: false,
-        books: false,
-        mall: false,
-        energy: false,
-        business: false,
-        artist: false,
+        trading: true,
+        ai_assistant: true,
+        beauty: true,
+        brain: true,
+        movement: true,
+        care: true,
+        reels: true,
+        art: true,
+        books: true,
+        mall: true,
+        energy: true,
+        business: true,
+        artist: true,
     };
 
     let featureFlags = { ...DEFAULT_FEATURES };

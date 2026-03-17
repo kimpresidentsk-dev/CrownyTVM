@@ -293,7 +293,7 @@
         </div>
         
         <nav class="nav">
-            <a href="#" onclick="showPage('today')" class="nav-item active"><i data-lucide="home" style="width:20px;height:20px;margin-right:8px;"></i>TODAY<span class="nav-sub" data-i18n="nav.today">투데이</span></a>
+            <a href="#" onclick="showPage('today')" class="nav-item active"><i data-lucide="home" style="width:20px;height:20px;margin-right:8px;"></i>HOME<span class="nav-sub">홈</span></a>
             <a href="#" onclick="showPage('dashboard')" class="nav-item"><i data-lucide="bar-chart-3" style="width:20px;height:20px;margin-right:8px;"></i>DASHBOARD<span class="nav-sub" data-i18n="nav.dashboard">대시보드</span></a>
             <hr class="nav-divider">
             <div class="nav-group-label">SOCIAL</div>
@@ -2466,7 +2466,7 @@
     <!-- ===== BOTTOM TAB BAR (Mobile) ===== -->
     <nav class="bottom-tab-bar" id="bottom-tab-bar">
         <div class="bottom-tab-bar-inner">
-            <button class="bottom-tab-item" onclick="showPage('dashboard')" data-page="dashboard">
+            <button class="bottom-tab-item" onclick="showPage('today')" data-page="today">
                 <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
                 <span>홈</span>
             </button>
@@ -2558,12 +2558,13 @@
     <script>
     /* ═══ CrownyTVM API Bridge ═══ */
     const CTVM_API = location.origin + '/api';
-    let ctvmToken = localStorage.getItem('ctvm_token');
+    let ctvmToken = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
     let ctvmMe = null;
 
     async function ctvmApi(path, opts = {}) {
         const headers = { 'Content-Type': 'application/json' };
-        if (ctvmToken) headers['Authorization'] = 'Bearer ' + ctvmToken;
+        const token = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        if (token) { ctvmToken = token; headers['Authorization'] = 'Bearer ' + token; }
         try {
             const res = await fetch(CTVM_API + path, { method: opts.method || 'GET', headers,
                 body: opts.body ? JSON.stringify(opts.body) : undefined });
@@ -2588,6 +2589,7 @@
                 }
                 if (r.token) {
                     ctvmToken = r.token;
+                    localStorage.setItem('crowny_token', ctvmToken);
                     localStorage.setItem('ctvm_token', ctvmToken);
                     const profile = await ctvmApi('/profile');
                     if (!profile.error) ctvmMe = profile;
@@ -2605,7 +2607,7 @@
     if (window.auth) {
         window.auth.onAuthStateChanged(user => {
             if (user) setTimeout(ctvmAutoLogin, 1000);
-            else { ctvmToken = null; ctvmMe = null; localStorage.removeItem('ctvm_token'); }
+            else { ctvmToken = null; ctvmMe = null; localStorage.removeItem('ctvm_token'); localStorage.removeItem('crowny_token'); }
         });
     }
 
@@ -2648,6 +2650,7 @@
     let ctvmQuiz = null, ctvmQuizSel = -1, ctvmQuizLocked = false;
 
     async function ctvmLoadQuiz() {
+        ctvmToken = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
         if (!ctvmToken) { document.getElementById('ctvm-quiz-area').innerHTML='<p style="text-align:center;padding:2rem;color:#7A5C47">CrownyTVM 로그인 필요</p>'; return; }
         const q = await ctvmApi('/bible/quiz');
         ctvmQuiz = q; ctvmQuizSel = -1; ctvmQuizLocked = false;
@@ -2693,6 +2696,7 @@
 
     async function ctvmLoadMail(folder) {
         if(folder) ctvmMailFolder=folder;
+        ctvmToken = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
         if(!ctvmToken) { document.getElementById('ctvm-mail-area').innerHTML='<p style="text-align:center;padding:2rem;color:#7A5C47">CrownyTVM 로그인 필요</p>'; return; }
         if(ctvmMe) document.getElementById('ctvm-mail-sub').textContent=ctvmMe.email||'';
         const [mails,cnt] = await Promise.all([ctvmApi('/mail/inbox?folder='+ctvmMailFolder), ctvmApi('/mail/count')]);
@@ -2735,6 +2739,7 @@
 
     // ═══ Contacts CRM ═══
     async function ctvmLoadContacts() {
+        ctvmToken = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
         if(!ctvmToken){document.getElementById('ctvm-contacts-area').innerHTML='<p style="text-align:center;padding:2rem;color:#7A5C47">CrownyTVM 로그인 필요</p>';return;}
         const contacts=await ctvmApi('/contacts');
         const list=Array.isArray(contacts)?contacts:[];
@@ -2814,6 +2819,7 @@
 
     // ═══ Admin ═══
     async function ctvmLoadAdmin() {
+        ctvmToken = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
         if(!ctvmToken||!ctvmMe?.isAdmin){document.getElementById('ctvm-admin-area').innerHTML='<p style="text-align:center;padding:2rem;color:#7A5C47">관리자 권한 필요</p>';return;}
         const [status,userList]=await Promise.all([ctvmApi('/admin/status'),ctvmApi('/admin/users')]);
         if(status.error){document.getElementById('ctvm-admin-area').innerHTML=`<p style="color:#B54534">${ctvmEsc(status.error)}</p>`;return;}

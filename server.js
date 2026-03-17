@@ -623,6 +623,8 @@ function createUser(username, password, displayName) {
 }
 
 function loginUser(username, password) {
+    // 이메일로 로그인 시 username 추출: "user@crowny.org" → "user"
+    if (username && username.includes('@')) username = username.split('@')[0];
     const user = users[username];
     if (!user || user.password !== hashPassword(password))
         return { error: '아이디 또는 비밀번호가 틀렸습니다' };
@@ -1384,7 +1386,7 @@ const server = http.createServer(async (req, res) => {
     const path = url.pathname;
 
     // ── 정적 파일 서빙 ──
-    if (!path.startsWith('/api')) {
+    if (!path.startsWith('/api') && !path.startsWith('/v2/')) {
         const filePath = pathModule.join(PUBLIC_DIR, path === '/' ? 'index.html' : path);
         const safe = pathModule.resolve(filePath).startsWith(PUBLIC_DIR);
         if (safe && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
@@ -1418,6 +1420,22 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/login' && req.method === 'POST') {
             const result = loginUser(body.username, body.password);
             res.end(JSON.stringify(result));
+            return;
+        }
+
+        // CrownyOS 호환: /v2/auth/me (crownybus.com 통합 인증)
+        if (path === '/v2/auth/me' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"authenticated":false}'); return; }
+            res.end(JSON.stringify({
+                authenticated: true,
+                user: {
+                    email: user.email,
+                    displayName: user.displayName || user.username,
+                    username: user.username,
+                    role: user.isAdmin ? 'ADMIN' : 'USER'
+                }
+            }));
             return;
         }
 
@@ -1543,6 +1561,7 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/mail/send' && req.method === 'POST') {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!body.to) { res.statusCode = 400; res.end('{"error":"수신자(to) 필수"}'); return; }
             const r = sendEmail(user.username, body.to, body.subject || '(제목 없음)', body.body || '', body.replyTo);
             res.end(JSON.stringify(r));
             return;

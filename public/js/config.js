@@ -344,7 +344,7 @@ auth.onAuthStateChanged(async (user) => {
         }
         
         // ★ 대시보드를 기본 랜딩 페이지로
-        if (typeof showPage === 'function') showPage('dashboard');
+        if (typeof showPage === 'function') showPage('today');
         
         // ★ 검색 캐시 로드
         if (typeof loadSearchCache === 'function') loadSearchCache();

@@ -90,7 +90,9 @@ async function signup() {
 
         // 자동 로그인
         localStorage.setItem('crowny_token', data.token);
+        localStorage.setItem('ctvm_token', data.token);
         localStorage.setItem('crowny_username', username);
+        if (typeof ctvmToken !== 'undefined') window.ctvmToken = data.token;
 
         // Firebase에도 계정 생성 (기존 시스템 호환)
         try {
@@ -103,6 +105,9 @@ async function signup() {
         // UI 업데이트
         if (typeof onLoginSuccess === 'function') onLoginSuccess(data);
         document.getElementById('auth-modal').style.display = 'none';
+        // 랜딩 페이지 숨기기 & 스크롤 복원
+        if (typeof updateLandingState === 'function') updateLandingState({ username });
+        else { document.body.style.overflow = ''; const lp = document.getElementById('landing-page'); if (lp) lp.classList.add('hidden'); }
 
     } catch (error) {
         console.error(error);
@@ -136,7 +141,10 @@ async function login() {
         if (data.token) {
             console.log('[AUTH] CrownyTVM login success');
             localStorage.setItem('crowny_token', data.token);
+            localStorage.setItem('ctvm_token', data.token);
             localStorage.setItem('crowny_username', username);
+            // CrownyTVM 브릿지 토큰 동기화
+            if (typeof ctvmToken !== 'undefined') window.ctvmToken = data.token;
 
             // Firebase에도 로그인 (기존 시스템 호환)
             try {
@@ -147,6 +155,9 @@ async function login() {
 
             if (typeof onLoginSuccess === 'function') onLoginSuccess(data);
             document.getElementById('auth-modal').style.display = 'none';
+            // 랜딩 페이지 숨기기 & 스크롤 복원
+            if (typeof updateLandingState === 'function') updateLandingState({ username });
+            else { document.body.style.overflow = ''; const lp = document.getElementById('landing-page'); if (lp) lp.classList.add('hidden'); }
             showToast(`<i data-lucide="check-circle"></i> 로그인 성공`, 'success');
             return;
         }
