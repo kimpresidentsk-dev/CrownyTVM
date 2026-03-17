@@ -26,6 +26,14 @@ const { execFile } = require('child_process');
 
 const https = require('https');
 
+// 독립 메일 서버 (한선씨 고유코드 · 4상균형3진법)
+let mailServer = null;
+try {
+    mailServer = require('./mail-server/index');
+} catch (e) {
+    console.warn('[MAIL] 독립 메일 서버 로드 실패:', e.message);
+}
+
 const PORT = 7730;
 const DATA_DIR = './data';
 const DOMAIN = 'crowny.org';
@@ -1062,6 +1070,17 @@ function sendEmail(fromUsername, toAddress, subject, body, replyTo = null) {
         saveCells();
     }
 
+    // 외부 메일: 독립 메일 서버 큐에 추가
+    if (!isInternal && mailServer) {
+        try {
+            const extResult = mailServer.apiSendMail(fromUsername, toEmail, subject, body);
+            if (extResult.error) console.warn('[MAIL] 외부 발송 큐 오류:', extResult.error);
+            else console.log('[MAIL] 외부 발송 큐 추가:', extResult.id);
+        } catch (e) {
+            console.warn('[MAIL] 외부 발송 큐 실패:', e.message);
+        }
+    }
+
     return { success: true, mailId: mail.id, to: toEmail, internal: isInternal };
 }
 
@@ -1589,6 +1608,45 @@ const server = http.createServer(async (req, res) => {
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             const id = parseInt(path.split('/')[3]);
             res.end(JSON.stringify(moveMail(id, user.username, body.folder || 'trash')));
+            return;
+        }
+
+        // ── 외부 메일 (독립 메일 서버) ──
+        if (path === '/api/mail/external' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (mailServer) {
+                const folder = url.searchParams.get('folder') || 'inbox';
+                const mails = mailServer.apiListMails(user.username, folder);
+                res.end(JSON.stringify(mails));
+            } else {
+                res.end('[]');
+            }
+            return;
+        }
+
+        if (path.match(/^\/api\/mail\/ext\//) && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (mailServer) {
+                const mailId = path.split('/')[4];
+                const folder = url.searchParams.get('folder') || 'inbox';
+                const mail = mailServer.apiReadMail(mailId, folder);
+                res.end(JSON.stringify(mail || { error: '메일 없음' }));
+            } else {
+                res.end('{"error":"메일서버 없음"}');
+            }
+            return;
+        }
+
+        if (path === '/api/mail/stats' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (mailServer) {
+                res.end(JSON.stringify(mailServer.apiStats(user.username)));
+            } else {
+                res.end(JSON.stringify(getMailCount(user.username)));
+            }
             return;
         }
 
@@ -2138,4 +2196,21 @@ server.listen(PORT, () => {
     console.log('');
     console.log('  회원가입: POST /api/register {username, password, displayName}');
     console.log(`  결과: username@${DOMAIN} 이메일 생성`);
+
+    // 독립 메일 서버 시작
+    if (mailServer) {
+        try {
+            mailServer.init();
+            // SMTP 수신 (포트 25 — ISP 차단 시 2525로 대체)
+            try { mailServer.startInbound(); } catch (e) {
+                console.warn('[MAIL] SMTP 수신 서버:', e.message);
+                console.log('[MAIL] 포트 25 사용 불가 — 외부 수신은 DNS MX + 포트포워딩 필요');
+            }
+            // 발신 큐 프로세서 시작
+            mailServer.startOutbound();
+            console.log('[MAIL] 독립 메일 서버 연동 완료');
+        } catch (e) {
+            console.warn('[MAIL] 메일 서버 시작 실패:', e.message);
+        }
+    }
 });

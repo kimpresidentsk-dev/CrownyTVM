@@ -2612,32 +2612,52 @@
     }
 
     // ═══ Extend showPage for CrownyTVM pages ═══
-    const _origShowPage = window.showPage;
     const ctvmPages = ['bible-quiz','crowny-mail','contacts-crm','hanseon-vm','crowny-admin'];
+    const ctvmLoaders = {
+        'bible-quiz': () => ctvmLoadQuiz(),
+        'crowny-mail': () => ctvmLoadMail(),
+        'contacts-crm': () => ctvmLoadContacts(),
+        'hanseon-vm': () => ctvmLoadHanseon(),
+        'crowny-admin': () => ctvmLoadAdmin()
+    };
 
-    // Patch showPage after it's defined
-    function patchShowPage() {
-        if (typeof showPage === 'function' && !showPage._patched) {
-            const orig = showPage;
-            window.showPage = function(pageId) {
-                orig(pageId);
-                // Also show CrownyTVM pages
-                ctvmPages.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.classList.toggle('active', id === pageId);
-                });
-                // Load CrownyTVM content
-                if (pageId === 'bible-quiz') ctvmLoadQuiz();
-                else if (pageId === 'crowny-mail') ctvmLoadMail();
-                else if (pageId === 'contacts-crm') ctvmLoadContacts();
-                else if (pageId === 'hanseon-vm') ctvmLoadHanseon();
-                else if (pageId === 'crowny-admin') ctvmLoadAdmin();
-            };
-            showPage._patched = true;
-        }
+    // showPage를 직접 오버라이드 (타이밍 문제 방지)
+    function ctvmPatchShowPage() {
+        const orig = window.showPage;
+        if (!orig || orig._ctvmPatched) return;
+        window.showPage = function(pageId) {
+            orig(pageId);
+            ctvmPages.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('active', id === pageId);
+            });
+            if (ctvmLoaders[pageId]) ctvmLoaders[pageId]();
+        };
+        window.showPage._ctvmPatched = true;
     }
-    setTimeout(patchShowPage, 500);
-    setTimeout(patchShowPage, 2000);
+
+    // 즉시 + 지연 + DOMContentLoaded 모두 시도
+    ctvmPatchShowPage();
+    setTimeout(ctvmPatchShowPage, 100);
+    setTimeout(ctvmPatchShowPage, 500);
+    setTimeout(ctvmPatchShowPage, 2000);
+    document.addEventListener('DOMContentLoaded', ctvmPatchShowPage);
+
+    // 백업: CrownyTVM 페이지가 active 될 때 자동 로딩 (showPage 패치 실패 대비)
+    const ctvmObserver = new MutationObserver(mutations => {
+        mutations.forEach(m => {
+            if (m.type === 'attributes' && m.attributeName === 'class') {
+                const el = m.target;
+                if (el.classList.contains('active') && ctvmLoaders[el.id]) {
+                    ctvmLoaders[el.id]();
+                }
+            }
+        });
+    });
+    ctvmPages.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) ctvmObserver.observe(el, { attributes: true, attributeFilter: ['class'] });
+    });
 
     const CTVM_COLORS = ['#5C4033','#3D2B1F','#7A5C47','#8B6914','#6B5B4F','#4A3728','#8B7355','#5D4E37'];
     function ctvmColor(n) { let h=0; for(let i=0;i<(n||'').length;i++) h=(n||'').charCodeAt(i)+((h<<5)-h); return CTVM_COLORS[Math.abs(h)%CTVM_COLORS.length]; }
@@ -2828,6 +2848,24 @@
         let statsHtml=[{n:stats.users,l:'사용자'},{n:stats.cells,l:'셀'},{n:stats.messages,l:'메시지'},{n:stats.contacts,l:'연락처'},{n:stats.transactions,l:'거래'},{n:stats.quizAnswered,l:'퀴즈'}].map(s=>`<div style="background:#fff;border-radius:10px;padding:12px 16px;border:1px solid rgba(139,105,20,.12);text-align:center;min-width:80px"><div style="font-size:1.3rem;font-weight:700;color:#8B6914">${ctvmFmtNum(s.n)}</div><div style="font-size:0.7rem;color:#7A5C47;margin-top:2px">${s.l}</div></div>`).join('');
         document.getElementById('ctvm-admin-area').innerHTML=`<div style="margin-bottom:16px"><h4 style="font-size:0.95rem;font-weight:700;margin-bottom:8px;color:#3D2B1F">서비스 상태</h4><div style="font-size:0.8rem;color:#7A5C47;margin-bottom:8px">업타임: ${ctvmEsc(status.uptimeStr)} | 메모리: ${ctvmEsc(status.memory?.heap)}</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">${svcHtml}</div></div><div style="margin-bottom:16px"><h4 style="font-size:0.95rem;font-weight:700;margin-bottom:8px;color:#3D2B1F">통계</h4><div style="display:flex;gap:8px;flex-wrap:wrap">${statsHtml}</div></div>`;
     }
+
+    // onclick에서 접근 가능하도록 window에 노출
+    window.ctvmShowCompose = ctvmShowCompose;
+    window.ctvmLoadMail = ctvmLoadMail;
+    window.ctvmOpenMail = ctvmOpenMail;
+    window.ctvmSendMail = ctvmSendMail;
+    window.ctvmCloudSync = ctvmCloudSync;
+    window.ctvmLoadContacts = ctvmLoadContacts;
+    window.ctvmShowAddContact = ctvmShowAddContact;
+    window.ctvmAddContact = ctvmAddContact;
+    window.ctvmRunHs = ctvmRunHs;
+    window.ctvmDisHs = ctvmDisHs;
+    window.ctvmLoadHsExample = ctvmLoadHsExample;
+    window.ctvmLoadAdmin = ctvmLoadAdmin;
+    window.ctvmLoadQuiz = ctvmLoadQuiz;
+    window.ctvmLoadHanseon = ctvmLoadHanseon;
+    window.ctvmSubmitQuiz = ctvmSubmitQuiz;
+    window.ctvmSelectQuiz = ctvmSelectQuiz;
 
     console.log('[CrownyTVM] 통합 엔진 로드 완료');
     </script>
