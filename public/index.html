@@ -240,35 +240,25 @@
             
             <div id="login-form" class="auth-form">
                 <h3 data-i18n="auth.login">로그인</h3>
-                <input type="email" id="login-email" placeholder="이메일" data-i18n-placeholder="placeholder.email" class="input">
+                <input type="text" id="login-email" placeholder="아이디 또는 이메일" class="input" autocomplete="username">
                 <input type="password" id="login-password" placeholder="비밀번호" data-i18n-placeholder="placeholder.password" class="input">
                 <button onclick="login()" class="btn-primary" data-i18n="auth.login">로그인</button>
-                <div style="display:flex; align-items:center; gap:0.5rem; margin:1rem 0;">
-                    <hr style="flex:1; border:none; border-top:1px solid #E8E0D8;">
-                    <span style="color:#6B5744; font-size:0.85rem;" data-i18n="common.or">또는</span>
-                    <hr style="flex:1; border:none; border-top:1px solid #E8E0D8;">
-                </div>
-                <button onclick="loginWithGoogle()" class="btn-google" style="background:#FFF8F0; color:#3D2B1F; border:1px solid #E8E0D8; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-size:0.95rem; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
-                    <img loading="lazy" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:18px; height:18px;" data-i18n="auth.google_login"> Google로 로그인
-                </button>
                 <p style="margin-top:1rem;" data-i18n-html="auth.no_account_link">계정이 없으신가요? <a href="#" onclick="showSignup()">회원가입</a></p>
                 <p><a href="#" onclick="resetPassword()" style="font-size:0.85rem; color:#6B5744;" data-i18n="auth.forgot_password">비밀번호를 잊으셨나요?</a></p>
             </div>
             
             <div id="signup-form" class="auth-form" style="display:none;">
                 <h3 data-i18n="auth.signup">회원가입</h3>
-                <input type="email" id="signup-email" placeholder="이메일" data-i18n-placeholder="placeholder.email" class="input">
+                <input type="text" id="signup-username" placeholder="아이디 (영문/숫자)" class="input" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._-]/g,''); document.getElementById('signup-email-preview').textContent=this.value?this.value+'@crowny.org':'';" autocomplete="username">
+                <div id="signup-email-preview" style="font-size:0.8rem; color:#8B6914; margin-top:-0.3rem; margin-bottom:0.5rem; min-height:1.2em;"></div>
+                <input type="text" id="signup-displayname" placeholder="표시 이름 (닉네임)" class="input">
                 <input type="password" id="signup-password" placeholder="비밀번호 (6자 이상)" data-i18n-placeholder="auth.password_hint" class="input">
                 <div id="password-strength" style="font-size:0.75rem; margin-top:-0.3rem; margin-bottom:0.5rem;"></div>
                 <button onclick="signup()" class="btn-primary" data-i18n="auth.signup_btn">가입하기</button>
-                <div style="display:flex; align-items:center; gap:0.5rem; margin:1rem 0;">
-                    <hr style="flex:1; border:none; border-top:1px solid #E8E0D8;">
-                    <span style="color:#6B5744; font-size:0.85rem;">또는</span>
-                    <hr style="flex:1; border:none; border-top:1px solid #E8E0D8;">
+                <div style="background:#F5F0E8; border:1px solid #E8D5C4; border-radius:8px; padding:0.8rem; margin-top:0.8rem; font-size:0.85rem; color:#6B5744;">
+                    <i data-lucide="mail" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"></i>
+                    가입 시 <strong>아이디@crowny.org</strong> 이메일이 자동 생성됩니다.
                 </div>
-                <button onclick="loginWithGoogle()" class="btn-google" style="background:#FFF8F0; color:#3D2B1F; border:1px solid #E8E0D8; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-size:0.95rem; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
-                    <img loading="lazy" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:18px; height:18px;" data-i18n="auth.google_signup"> Google로 가입
-                </button>
                 <p style="margin-top:1rem;" data-i18n-html="auth.has_account_link">이미 계정이 있으신가요? <a href="#" onclick="showLogin()">로그인</a></p>
             </div>
             
@@ -2470,8 +2460,7 @@
         });
     </script>
     
-    <!-- Kakao SDK -->
-    <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
+    <!-- Kakao SDK 제거됨 — crowny.org 자체 인증 사용 -->
     <!-- Facebook SDK -->
     <script async defer crossorigin="anonymous" src="https://connect.facebook.net/ko_KR/sdk.js"></script>
     <!-- ===== BOTTOM TAB BAR (Mobile) ===== -->

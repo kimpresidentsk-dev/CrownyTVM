@@ -16,15 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Google 로그인 버튼
-    const googleBtn = document.querySelector('#login-form .btn-google');
-    if (googleBtn) {
-        googleBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            loginWithGoogle();
-        });
-    }
+    // Google 로그인 버튼 제거됨
     
     // Enter 키로 로그인
     const pwInput = document.getElementById('login-password');
@@ -58,200 +50,130 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// 이메일 회원가입
+// 회원가입 — CrownyTVM API 기반
 async function signup() {
-    const email = document.getElementById('signup-email').value.trim();
+    const username = (document.getElementById('signup-username') || {}).value?.trim();
+    const displayName = (document.getElementById('signup-displayname') || {}).value?.trim();
     const password = document.getElementById('signup-password').value;
-    
-    if (!email || !password) {
-        showToast(t('auth.enter_email_pw','이메일과 비밀번호를 입력하세요'), 'warning');
+
+    if (!username || !password) {
+        showToast(t('auth.enter_id_pw','아이디와 비밀번호를 입력하세요'), 'warning');
         return;
     }
-    
+
+    if (!/^[a-z0-9._-]{2,30}$/.test(username)) {
+        showToast('아이디: 영문 소문자, 숫자, ._- 만 가능 (2~30자)', 'warning');
+        return;
+    }
+
     if (password.length < 6) {
         showToast(t('auth.pw_min_6','비밀번호는 최소 6자 이상이어야 합니다'), 'warning');
         return;
     }
-    
-    // 기존 Google 계정 존재 여부 체크
+
     try {
-        const methods = await auth.fetchSignInMethodsForEmail(email);
-        if (methods.includes('google.com')) {
-            showToast(t('auth.already_google','이미 Google로 가입된 이메일입니다. Google 로그인을 이용해주세요.'), 'warning');
+        // CrownyTVM API로 가입
+        const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, displayName: displayName || username })
+        });
+        const data = await res.json();
+
+        if (data.error) {
+            showToast('가입 실패: ' + data.error, 'error');
             return;
         }
-    } catch (e) {
-        // fetchSignInMethods 실패 시 가입 계속 진행
-        console.warn('fetchSignInMethodsForEmail error:', e);
-    }
-    
-    const nickname = await showPromptModal(t('auth.nickname_title','닉네임'), t('auth.enter_nickname','닉네임을 입력하세요 (SNS에 표시됨)'), '');
-    if (!nickname || !nickname.trim()) {
-        showToast(t('auth.nickname_required','닉네임은 필수입니다'), 'warning');
-        return;
-    }
-    
-    const savedInviteCode = localStorage.getItem('crowny_invite_code') || '';
-    const referralCode = await showPromptModal(t('auth.referral_title','소개 코드'), t('auth.enter_referral','소개 코드가 있으면 입력하세요 (없으면 빈칸)'), savedInviteCode) || '';
-    
-    try {
-        const result = await auth.createUserWithEmailAndPassword(email, password);
-        
-        // 이메일 인증 발송
-        await result.user.sendEmailVerification();
-        
-        // Create wallet
-        const wallet = web3.eth.accounts.create();
-        
-        // Save to Firestore
-        await db.collection('users').doc(result.user.uid).set({
-            email: email,
-            nickname: nickname.trim(),
-            walletAddress: wallet.address,
-            privateKey: wallet.privateKey,
-            adminLevel: -1,
-            balances: { crny: 0, fnc: 0, crfn: 0 },
-            offchainBalances: { crtd: 0, crac: 0, crgc: 0, creb: 0 },
-            createdAt: new Date(),
-            provider: 'email'
-        });
-        
-        // Create first wallet in subcollection
-        await db.collection('users').doc(result.user.uid)
-            .collection('wallets').add({
-                name: t('wallet.default_name','크라우니 지갑 1'),
-                walletAddress: wallet.address,
-                privateKey: wallet.privateKey,
-                isImported: false,
-                totalGasSubsidy: 0,
-                balances: { crny: 0, fnc: 0, crfn: 0 },
-                createdAt: new Date()
-            });
-        
-        // 소개 코드 적용 + 초대/가입 리워드
-        if (typeof INVITE !== 'undefined') {
-            await INVITE.processSignupReferral(result.user.uid, referralCode.trim());
-        } else if (referralCode.trim() && typeof applyReferralCode === 'function') {
-            await applyReferralCode(result.user.uid, referralCode.trim());
+
+        const email = username + '@crowny.org';
+        showToast(`<i data-lucide="check-circle"></i> 가입 완료! ${displayName || username} · <i data-lucide="mail"></i> ${email}`, 'success');
+
+        // 자동 로그인
+        localStorage.setItem('crowny_token', data.token);
+        localStorage.setItem('crowny_username', username);
+
+        // Firebase에도 계정 생성 (기존 시스템 호환)
+        try {
+            await auth.createUserWithEmailAndPassword(email, password);
+        } catch (e) {
+            // Firebase 실패해도 CrownyTVM 가입은 성공
+            console.warn('Firebase sync:', e.message);
         }
-        
-        showToast(`<i data-lucide="check-circle"></i> ${t('auth.signup_done','가입 완료!')} ${nickname} · <i data-lucide="mail"></i> ${email}`, 'success');
-        
+
+        // UI 업데이트
+        if (typeof onLoginSuccess === 'function') onLoginSuccess(data);
+        document.getElementById('auth-modal').style.display = 'none';
+
     } catch (error) {
         console.error(error);
-        const msg = {
-            'auth/email-already-in-use': t('auth.email_in_use','이미 사용 중인 이메일입니다'),
-            'auth/invalid-email': t('auth.invalid_email_fmt','유효하지 않은 이메일 형식입니다'),
-            'auth/weak-password': t('auth.weak_pw','비밀번호가 너무 약합니다 (최소 6자)')
-        }[error.code] || error.message;
-        showToast(t('auth.signup_failed','가입 실패: ') + msg, 'error');
+        showToast('가입 실패: ' + error.message, 'error');
     }
 }
 
-// 이메일 로그인
+// 로그인 — CrownyTVM API 우선, Firebase 폴백
 async function login() {
     console.log('[AUTH] login() called');
-    const email = document.getElementById('login-email').value.trim();
+    const emailOrUsername = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
-    console.log('[AUTH] email:', email, 'pw length:', password?.length);
-    
-    if (!email || !password) {
-        showToast(t('auth.enter_email_pw','이메일과 비밀번호를 입력하세요'), 'warning');
+
+    if (!emailOrUsername || !password) {
+        showToast(t('auth.enter_email_pw','이메일/아이디와 비밀번호를 입력하세요'), 'warning');
         return;
     }
-    
+
+    // username인지 email인지 판별
+    const username = emailOrUsername.includes('@') ? emailOrUsername.split('@')[0] : emailOrUsername;
+
     try {
-        console.log('[AUTH] calling signInWithEmailAndPassword...');
+        // CrownyTVM API로 로그인 시도
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (data.token) {
+            console.log('[AUTH] CrownyTVM login success');
+            localStorage.setItem('crowny_token', data.token);
+            localStorage.setItem('crowny_username', username);
+
+            // Firebase에도 로그인 (기존 시스템 호환)
+            try {
+                await auth.signInWithEmailAndPassword(username + '@crowny.org', password);
+            } catch (e) {
+                console.warn('Firebase sync:', e.message);
+            }
+
+            if (typeof onLoginSuccess === 'function') onLoginSuccess(data);
+            document.getElementById('auth-modal').style.display = 'none';
+            showToast(`<i data-lucide="check-circle"></i> 로그인 성공`, 'success');
+            return;
+        }
+    } catch (e) {
+        console.warn('[AUTH] CrownyTVM API error, trying Firebase:', e.message);
+    }
+
+    // Firebase 폴백
+    try {
+        const email = emailOrUsername.includes('@') ? emailOrUsername : emailOrUsername + '@crowny.org';
         await auth.signInWithEmailAndPassword(email, password);
-        console.log('[AUTH] login success');
+        console.log('[AUTH] Firebase login success');
     } catch (error) {
         console.error('[AUTH] login error:', error);
         const msg = {
             'auth/user-not-found': t('auth.user_not_found','등록되지 않은 이메일입니다'),
             'auth/wrong-password': t('auth.wrong_pw','비밀번호가 틀립니다'),
-            'auth/invalid-credential': t('auth.invalid_credential','이메일 또는 비밀번호가 올바르지 않습니다'),
+            'auth/invalid-credential': t('auth.invalid_credential','아이디 또는 비밀번호가 올바르지 않습니다'),
             'auth/too-many-requests': t('auth.too_many','너무 많은 시도. 잠시 후 다시 시도해주세요')
         }[error.code] || error.message;
         showToast(t('auth.login_failed','로그인 실패: ') + msg, 'error');
     }
 }
 
-// Google 로그인
+// Google 로그인 — 비활성화 (crowny.org 자체 인증 사용)
 async function loginWithGoogle() {
-    try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        provider.addScope('email');
-        provider.addScope('profile');
-        
-        // 먼저 팝업으로 Google 계정 선택 (아직 로그인 X)
-        // credential만 얻기 위해 signInWithPopup 사용 후 충돌 체크
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
-        const isNewUser = result.additionalUserInfo?.isNewUser;
-        
-        // 기존 이메일/비밀번호 계정 충돌 체크
-        if (isNewUser || result.additionalUserInfo) {
-            try {
-                const methods = await auth.fetchSignInMethodsForEmail(user.email);
-                // 기존 이메일/비밀번호 계정이 있고, Google 계정이 아닌 경우
-                if (methods.includes('password') && !methods.includes('google.com')) {
-                    // Google 로그인으로 만들어진 계정 삭제 (덮어쓰기 방지)
-                    await user.delete();
-                    showToast(t('auth.already_email','이미 이메일로 가입된 계정입니다. 이메일/비밀번호로 로그인해주세요.'), 'warning');
-                    return;
-                }
-            } catch (e) {
-                console.warn('fetchSignInMethodsForEmail error:', e);
-            }
-        }
-        
-        if (isNewUser) {
-            // 신규 가입 → Firestore 프로필 + 지갑 생성
-            const wallet = web3.eth.accounts.create();
-            const nickname = user.displayName || user.email.split('@')[0];
-            
-            await db.collection('users').doc(user.uid).set({
-                email: user.email,
-                nickname: nickname,
-                walletAddress: wallet.address,
-                privateKey: wallet.privateKey,
-                adminLevel: -1,
-                balances: { crny: 0, fnc: 0, crfn: 0 },
-                offchainBalances: { crtd: 0, crac: 0, crgc: 0, creb: 0 },
-                photoURL: user.photoURL || '',
-                createdAt: new Date(),
-                provider: 'google'
-            });
-            
-            await db.collection('users').doc(user.uid)
-                .collection('wallets').add({
-                    name: t('wallet.default_name','크라우니 지갑 1'),
-                    walletAddress: wallet.address,
-                    privateKey: wallet.privateKey,
-                    isImported: false,
-                    totalGasSubsidy: 0,
-                    balances: { crny: 0, fnc: 0, crfn: 0 },
-                    createdAt: new Date()
-                });
-            
-            // 소개 코드 적용 + 초대/가입 리워드 (Google 가입)
-            if (typeof INVITE !== 'undefined') {
-                await INVITE.processSignupReferral(user.uid, '');
-            }
-            
-            console.log('✅ Google 신규 가입:', user.email);
-        } else {
-            console.log('✅ Google 로그인:', user.email);
-        }
-    } catch (error) {
-        if (error.code === 'auth/popup-closed-by-user') return;
-        if (error.code === 'auth/popup-blocked') {
-            showToast(t('auth.popup_blocked','팝업이 차단되었습니다. 팝업 차단을 해제해주세요.'), 'warning');
-            return;
-        }
-        console.error('Google 로그인 실패:', error);
-        showToast(t('auth.google_failed','Google 로그인 실패: ') + error.message, 'error');
-    }
+    showToast('Google 로그인은 더 이상 지원되지 않습니다. 아이디/비밀번호로 로그인하세요.', 'info');
 }
 
 // 비밀번호 재설정
@@ -299,38 +221,9 @@ async function resendVerification() {
     }
 }
 
-// Google 계정 연동 (기존 이메일 계정에 Google 로그인 추가)
+// Google 계정 연동 — 비활성화
 async function linkGoogleAccount() {
-    const user = auth.currentUser;
-    if (!user) { showToast(t('common.login_required','로그인이 필요합니다'), 'warning'); return; }
-    
-    // 이미 Google 연동 여부 체크
-    const hasGoogle = user.providerData.some(p => p.providerId === 'google.com');
-    if (hasGoogle) {
-        showToast(t('auth.google_already_linked','이미 Google 계정이 연동되어 있습니다'), 'info');
-        return;
-    }
-    
-    try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        await user.linkWithPopup(provider);
-        
-        // Firestore에 provider 업데이트
-        await db.collection('users').doc(user.uid).update({
-            provider: 'email+google',
-            photoURL: user.photoURL || ''
-        });
-        
-        showToast(`<i data-lucide="check-circle"></i> ${t('auth.google_linked','Google 계정 연동 완료! 이제 Google로도 로그인할 수 있습니다.')}`, 'success');
-    } catch (error) {
-        if (error.code === 'auth/popup-closed-by-user') return;
-        if (error.code === 'auth/credential-already-in-use') {
-            showToast(t('auth.google_used','이 Google 계정은 이미 다른 계정에 연결되어 있습니다.'), 'error');
-            return;
-        }
-        console.error('Google 연동 실패:', error);
-        showToast(t('auth.google_link_fail','Google 연동 실패: ') + error.message, 'error');
-    }
+    showToast('Google 계정 연동은 더 이상 지원되지 않습니다.', 'info');
 }
 
 // 비밀번호 설정 (Google-only 사용자가 이메일/비밀번호 추가)
