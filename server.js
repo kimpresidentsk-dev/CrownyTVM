@@ -1584,11 +1584,16 @@ const server = http.createServer(async (req, res) => {
             if (!chat || !chat.participants.includes(user.username)) { res.statusCode = 403; res.end('{"error":"권한 없음"}'); return; }
             const msg = chatStore.addMessage(chatId, user.username, body.text, body.msgType || 'text', body.replyTo);
             // CRMM 팁
-            if (body.crmm && body.crmm > 0 && chat.type === 'dm') {
+            if (body.crmm && body.crmm > 0) {
                 const toUser = chat.participants.find(p => p !== user.username);
                 if (toUser) {
                     const tipResult = walletTransact(user.username, 'send', body.crmm, toUser, '메시지 팁', 'CRM');
-                    msg.crmmTip = tipResult.error ? null : body.crmm;
+                    if (!tipResult.error) {
+                        msg.crmmTip = body.crmm;
+                        // 파일에도 저장
+                        const msgPath = require('path').join(chatStore.MSG_DIR, chatId, msg.id + '.json');
+                        require('fs').writeFileSync(msgPath, JSON.stringify(msg));
+                    }
                 }
             }
             // WebSocket으로 실시간 전달

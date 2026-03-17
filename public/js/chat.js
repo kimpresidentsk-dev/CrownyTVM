@@ -24,14 +24,13 @@ function chatInit() {
 function chatConnect() {
     const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
     if (!token) return;
+    if (chatWs && (chatWs.readyState === 0 || chatWs.readyState === 1)) return;
 
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const url = proto + '//' + location.host + '/ws/chat';
 
-    try {
-        chatWs = new WebSocket(url);
-    } catch (e) {
-        console.warn('[CHAT] WS 연결 실패:', e);
+    try { chatWs = new WebSocket(url); } catch (e) {
+        console.warn('[CHAT] WS:', e);
         chatScheduleReconnect();
         return;
     }
@@ -40,14 +39,7 @@ function chatConnect() {
         chatReconnectDelay = 1000;
         chatWs.send(JSON.stringify({ type: 'auth', token }));
     };
-
-    chatWs.onmessage = (e) => {
-        try {
-            const data = JSON.parse(e.data);
-            chatHandleWs(data);
-        } catch {}
-    };
-
+    chatWs.onmessage = (e) => { try { chatHandleWs(JSON.parse(e.data)); } catch {} };
     chatWs.onclose = () => chatScheduleReconnect();
     chatWs.onerror = () => {};
 }
@@ -62,7 +54,8 @@ function chatScheduleReconnect() {
 }
 
 function chatSendWs(data) {
-    if (chatWs && chatWs.readyState === 1) chatWs.send(JSON.stringify(data));
+    if (chatWs && chatWs.readyState === 1) { chatWs.send(JSON.stringify(data)); return true; }
+    return false;
 }
 
 // ── WS 수신 핸들러 ──
@@ -74,26 +67,21 @@ function chatHandleWs(data) {
             chatOnlineUsers = new Set(data.online || []);
             chatLoadList();
             break;
-
         case 'chat:message':
         case 'chat:sent':
             chatOnMessage(data.msg);
             break;
-
         case 'chat:typing':
             chatOnTyping(data.chatId, data.username, data.isTyping);
             break;
-
         case 'chat:read':
-            // 읽음 처리 UI 업데이트
+            chatOnRead(data.chatId, data.username);
             break;
-
         case 'presence':
             if (data.isOnline) chatOnlineUsers.add(data.username);
             else chatOnlineUsers.delete(data.username);
-            chatUpdatePresenceUI();
+            chatLoadList();
             break;
-
         case 'error':
             console.warn('[CHAT]', data.error);
             break;
@@ -114,7 +102,6 @@ async function chatApi(path, opts) {
         });
         return await r.json();
     } catch (e) {
-        console.warn('[CHAT] API error:', e);
         return { error: e.message };
     }
 }
@@ -127,20 +114,19 @@ async function chatLoadList() {
     if (!container) return;
 
     if (!Array.isArray(list) || list.length === 0) {
-        container.innerHTML = '<div class="chat-empty">대화가 없습니다<br><small>새 채팅을 시작해보세요</small></div>';
+        container.innerHTML = '<div class="chat-empty">대화가 없습니다<br><small>+ 버튼으로 시작하세요</small></div>';
         return;
     }
 
     container.innerHTML = list.map(c => {
-        const name = c.displayName || '알 수 없음';
+        const name = c.displayName || '?';
         const isOnline = c.type === 'dm' && chatOnlineUsers.has(name);
-        const initial = name[0] || '?';
         const unread = c.unread > 0 ? `<span class="chat-badge">${c.unread}</span>` : '';
         const time = c.lastMessageTime ? chatFmtTime(c.lastMessageTime) : '';
         const preview = chatEsc(c.lastMessageText || '');
         const isGroup = c.type === 'group';
         return `<div class="chat-item${chatCurrentId === c.id ? ' active' : ''}${c.unread > 0 ? ' unread' : ''}" onclick="chatOpen('${c.id}')">
-            <div class="chat-avatar${isOnline ? ' online' : ''}">${isGroup ? '👥' : initial.toUpperCase()}</div>
+            <div class="chat-avatar${isOnline ? ' online' : ''}">${isGroup ? 'G' : (name[0] || '?').toUpperCase()}</div>
             <div class="chat-item-body">
                 <div class="chat-item-top"><span class="chat-item-name">${chatEsc(name)}</span><span class="chat-item-time">${time}</span></div>
                 <div class="chat-item-preview">${preview}${unread}</div>
@@ -161,17 +147,12 @@ async function chatOpen(chatId) {
     messagesEl.innerHTML = '<div class="chat-loading">불러오는 중...</div>';
     if (inputArea) inputArea.style.display = 'flex';
 
-    // 목록에서 active 표시
-    document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
-    const items = document.querySelectorAll('.chat-item');
-    items.forEach(el => { if (el.getAttribute('onclick')?.includes(chatId)) el.classList.add('active'); });
-
     // 채팅방 정보
     const info = await chatApi('/' + chatId + '/info');
     if (headerEl && info && !info.error) {
         const name = info.groupName || info.participants.filter(p => p !== chatMyUsername)[0] || '';
         const isOnline = info.type === 'dm' && info.participantStatus?.some(p => p.username !== chatMyUsername && p.isOnline);
-        headerEl.innerHTML = `<strong>${chatEsc(name)}</strong> <span class="chat-status">${isOnline ? '온라인' : ''}</span>`;
+        headerEl.innerHTML = `<strong>${chatEsc(name)}</strong><span class="chat-status">${isOnline ? ' 온라인' : ''}</span>`;
     }
 
     // 메시지 로드
@@ -184,25 +165,34 @@ async function chatOpen(chatId) {
     // 읽음 처리
     chatSendWs({ type: 'chat:read', chatId });
 
-    // 모바일: 채팅 영역 표시
+    // 모바일
     document.getElementById('chat-panel')?.classList.add('open');
-    chatLoadList(); // 뱃지 업데이트
+    chatLoadList();
 }
+
+// ── 메시지 렌더링 ──
 
 function chatRenderMsg(m) {
     const isMine = m.senderId === chatMyUsername;
     const time = chatFmtTime(m.timestamp);
-    const replyHtml = m.replyTo ? `<div class="chat-reply-ref">↩ ${chatEsc(m.replyTo.slice(0, 40))}</div>` : '';
-    const tipHtml = m.crmmTip ? `<span class="chat-tip-badge">${m.crmmTip} CRM</span>` : '';
-    return `<div class="chat-msg ${isMine ? 'mine' : 'theirs'}">
+    const replyHtml = m.replyTo ? `<div class="chat-reply-ref">↩ ${chatEsc(String(m.replyTo).slice(0, 40))}</div>` : '';
+    const tipHtml = m.crmmTip ? `<span class="chat-tip-badge">${m.crmmTip} 맘</span>` : '';
+    // 읽음/전송 상태 (내 메시지만)
+    let statusHtml = '';
+    if (isMine) {
+        const readByOthers = (m.readBy || []).filter(u => u !== chatMyUsername);
+        if (readByOthers.length > 0) statusHtml = '<span class="chat-read">읽음</span>';
+        else statusHtml = '<span class="chat-sent">전송됨</span>';
+    }
+    return `<div class="chat-msg ${isMine ? 'mine' : 'theirs'}" data-id="${m.id}">
         ${!isMine ? `<div class="chat-msg-sender">${chatEsc(m.senderId)}</div>` : ''}
         ${replyHtml}
         <div class="chat-bubble">${chatEsc(m.text)}${tipHtml}</div>
-        <div class="chat-msg-time">${time}</div>
+        <div class="chat-msg-meta">${statusHtml}<span class="chat-msg-time">${time}</span></div>
     </div>`;
 }
 
-// ── 메시지 전송 ──
+// ── 메시지 전송 (항상 REST — CRMM 팁 + 상태 확실) ──
 
 async function chatSend() {
     const input = document.getElementById('chat-input');
@@ -210,55 +200,69 @@ async function chatSend() {
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
-    input.style.height = 'auto';
 
-    // CRMM 팁 금액
     const crmmInput = document.getElementById('chat-crmm');
     const crmm = crmmInput ? parseInt(crmmInput.value) || 0 : 0;
     if (crmmInput) crmmInput.value = '';
+    // CRM 패널 숨기기
+    const crmmWrap = document.getElementById('chat-crmm-wrap');
+    if (crmmWrap) crmmWrap.style.display = 'none';
 
-    // WebSocket 연결되어 있으면 WS로, 아니면 REST로
-    if (chatWs && chatWs.readyState === 1 && !crmm) {
-        chatSendWs({ type: 'chat:send', chatId: chatCurrentId, text });
-    } else {
-        // REST 전송 (CRMM 팁 포함 가능)
-        const body = { text };
-        if (crmm > 0) body.crmm = crmm;
-        const r = await chatApi('/' + chatCurrentId + '/send', { method: 'POST', body });
-        if (r.msg) {
-            chatOnMessage(r.msg);
-            if (crmm > 0 && r.msg.crmmTip) {
-                if (typeof showToast === 'function') showToast(crmm + ' CRM 전송 완료', 'success');
-            }
-        } else if (r.error) {
-            if (typeof showToast === 'function') showToast(r.error, 'error');
+    const body = { text };
+    if (crmm > 0) body.crmm = crmm;
+
+    const r = await chatApi('/' + chatCurrentId + '/send', { method: 'POST', body });
+    if (r.msg) {
+        chatOnMessage(r.msg);
+        if (crmm > 0 && r.msg.crmmTip) {
+            if (typeof showToast === 'function') showToast(crmm + ' 맘 전송 완료', 'success');
+        } else if (crmm > 0 && !r.msg.crmmTip) {
+            if (typeof showToast === 'function') showToast('맘 전송 실패 (잔액 부족?)', 'error');
         }
+    } else if (r.error) {
+        if (typeof showToast === 'function') showToast(r.error, 'error');
     }
 }
 
 function chatToggleCrmm() {
     const el = document.getElementById('chat-crmm-wrap');
-    if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+    if (el) {
+        const show = el.style.display === 'none';
+        el.style.display = show ? 'flex' : 'none';
+        if (show) document.getElementById('chat-crmm')?.focus();
+    }
 }
 
+// ── 수신 메시지 처리 ──
+
 function chatOnMessage(msg) {
-    // 현재 열린 채팅이면 DOM에 추가
     if (msg.chatId === chatCurrentId) {
         const messagesEl = document.getElementById('chat-messages');
         if (messagesEl) {
-            // 로딩 메시지 제거
             const loading = messagesEl.querySelector('.chat-loading');
             if (loading) loading.remove();
-            messagesEl.insertAdjacentHTML('beforeend', chatRenderMsg(msg));
-            messagesEl.scrollTop = messagesEl.scrollHeight;
+            // 중복 체크
+            if (!messagesEl.querySelector(`[data-id="${msg.id}"]`)) {
+                messagesEl.insertAdjacentHTML('beforeend', chatRenderMsg(msg));
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
         }
-        // 읽음 표시
         if (msg.senderId !== chatMyUsername) {
             chatSendWs({ type: 'chat:read', chatId: msg.chatId });
         }
     }
-    // 목록 업데이트
     chatLoadList();
+}
+
+// ── 읽음 수신 ──
+
+function chatOnRead(chatId, username) {
+    if (chatId !== chatCurrentId || username === chatMyUsername) return;
+    // 내 메시지들의 '전송됨' → '읽음' 업데이트
+    document.querySelectorAll('.chat-msg.mine .chat-sent').forEach(el => {
+        el.textContent = '읽음';
+        el.className = 'chat-read';
+    });
 }
 
 // ── 타이핑 ──
@@ -292,12 +296,8 @@ async function chatNewDm() {
     const to = prompt('대화할 상대 아이디:');
     if (!to || !to.trim()) return;
     const chat = await chatApi('/create', { method: 'POST', body: { to: to.trim(), type: 'dm' } });
-    if (chat && chat.id) {
-        chatOpen(chat.id);
-        chatLoadList();
-    } else {
-        if (typeof showToast === 'function') showToast(chat?.error || '생성 실패', 'error');
-    }
+    if (chat && chat.id) { chatOpen(chat.id); chatLoadList(); }
+    else if (typeof showToast === 'function') showToast(chat?.error || '생성 실패', 'error');
 }
 
 async function chatNewGroup() {
@@ -307,10 +307,7 @@ async function chatNewGroup() {
     if (!members) return;
     const to = members.split(',').map(s => s.trim()).filter(Boolean);
     const chat = await chatApi('/create', { method: 'POST', body: { to, type: 'group', groupName: name } });
-    if (chat && chat.id) {
-        chatOpen(chat.id);
-        chatLoadList();
-    }
+    if (chat && chat.id) { chatOpen(chat.id); chatLoadList(); }
 }
 
 // ── 검색 ──
@@ -323,10 +320,7 @@ async function chatSearch() {
     const results = await chatApi('/search?q=' + encodeURIComponent(q));
     const container = document.getElementById('chat-list-items');
     if (!container || !Array.isArray(results)) return;
-    if (results.length === 0) {
-        container.innerHTML = '<div class="chat-empty">검색 결과 없음</div>';
-        return;
-    }
+    if (results.length === 0) { container.innerHTML = '<div class="chat-empty">검색 결과 없음</div>'; return; }
     container.innerHTML = results.map(m => `<div class="chat-item" onclick="chatOpen('${m.chatId}')">
         <div class="chat-avatar">${(m.senderId || '?')[0].toUpperCase()}</div>
         <div class="chat-item-body">
@@ -341,14 +335,6 @@ async function chatSearch() {
 function chatBack() {
     chatCurrentId = null;
     document.getElementById('chat-panel')?.classList.remove('open');
-}
-
-// ── 프레즌스 UI 업데이트 ──
-
-function chatUpdatePresenceUI() {
-    document.querySelectorAll('.chat-avatar').forEach(el => {
-        // 간소화: 목록 다시 그리기
-    });
 }
 
 // ── 유틸 ──

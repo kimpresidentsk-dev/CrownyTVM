@@ -86,9 +86,12 @@
     .chat-bubble{padding:10px 14px;border-radius:16px;font-size:0.9rem;line-height:1.5;word-break:break-word;white-space:pre-wrap}
     .chat-msg.mine .chat-bubble{background:#3D2B1F;color:#FFF8F0;border-bottom-right-radius:4px}
     .chat-msg.theirs .chat-bubble{background:#fff;color:#3D2B1F;border:1px solid #E8E0D8;border-bottom-left-radius:4px}
-    .chat-msg-time{font-size:0.65rem;color:#A08060;margin-top:2px;padding:0 4px}
+    .chat-msg-meta{display:flex;align-items:center;gap:6px;margin-top:2px;padding:0 4px}
+    .chat-msg-time{font-size:0.65rem;color:#A08060}
+    .chat-sent{font-size:0.6rem;color:#A08060}
+    .chat-read{font-size:0.6rem;color:#6B8F3C;font-weight:600}
     .chat-reply-ref{font-size:0.75rem;color:#8B6914;padding:4px 8px;margin-bottom:4px;border-left:2px solid #8B6914;background:rgba(139,105,20,.06);border-radius:4px}
-    .crny-chat-typing{padding:4px 20px;font-size:0.8rem;color:#7A5C47}
+    .crny-chat-typing{padding:4px 20px;font-size:0.8rem;color:#7A5C47;font-style:italic}
     .crny-chat-input{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid #E8E0D8;background:#fff}
     .crny-chat-input input{flex:1;padding:10px 14px;border:1px solid #E8E0D8;border-radius:20px;font-size:0.9rem;background:#F7F3ED;outline:none}
     .crny-chat-input input:focus{border-color:#8B6914}
@@ -100,11 +103,17 @@
     .chat-tip-badge{display:inline-block;background:#8B6914;color:#FFF8F0;font-size:0.7rem;padding:2px 8px;border-radius:10px;margin-left:8px;font-weight:600}
     /* 모바일 */
     @media(max-width:768px){
-        .crny-chat-sidebar{width:100%}
-        .crny-chat-panel{position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;transform:translateX(100%);transition:transform .2s ease}
+        .crny-chat{border:none;border-radius:0;height:calc(100vh - 60px)}
+        .crny-chat-sidebar{width:100%;border-right:none}
+        .crny-chat-panel{position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;transform:translateX(100%);transition:transform .2s ease;background:#FFF8F0}
         .crny-chat-panel.open{transform:translateX(0)}
         .crny-chat{position:relative;overflow:hidden}
         .crny-btn-back{display:block}
+        .crny-chat-sidebar-header{padding:12px}
+        .chat-item{padding:10px 12px}
+        .crny-chat-messages{padding:10px}
+        .crny-chat-input{padding:8px 10px}
+        .crny-chat-input input{font-size:16px}
     }
     </style>
     <link rel="stylesheet" href="/css/trading.css?v=23.4">
