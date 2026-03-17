@@ -1,0 +1,361 @@
+// ═══════════════════════════════════════════════════════════════
+// 시드생성 — ISA729 바이트코드 → x86-64 AOT 컴파일 (Linux ELF)
+//
+// 값 스택: r13 (위로 성장, mmap 영역)
+// 슬롯:   r14 (변수 저장, mmap 영역)
+// 호출:   rsp (x86 네이티브 call/ret)
+//
+// PUSH → [r13] = val; r13 += 8
+// POP  → r13 -= 8; rax = [r13]
+// ═══════════════════════════════════════════════════════════════
+가져오기 "비트"
+가져오기 "한선기계어"
+
+함수 _인쇄루틴() {
+    변수 c = []
+    c = c + [85]                             // push rbp
+    c = c + [72, 137, 229]                   // mov rbp, rsp
+    c = c + [72, 131, 236, 32]              // sub rsp, 32
+    c = c + [73, 137, 232]                   // mov r8, rbp
+    c = c + [73, 255, 200]                   // dec r8
+    c = c + [65, 198, 0, 10]                // '\n'
+    c = c + [73, 255, 200]                   // dec r8
+    c = c + [72, 49, 210]                    // xor rdx, rdx
+    c = c + [72, 199, 193, 10, 0, 0, 0]    // mov rcx, 10
+    c = c + [72, 247, 241]                   // div rcx
+    c = c + [128, 194, 48]                   // add dl, '0'
+    c = c + [65, 136, 16]                    // mov [r8], dl
+    c = c + [72, 133, 192]                   // test rax, rax
+    c = c + [117, 229]                        // jnz -27
+    c = c + [72, 199, 192, 1, 0, 0, 0]     // mov rax, 1
+    c = c + [72, 199, 199, 1, 0, 0, 0]     // mov rdi, 1
+    c = c + [76, 137, 198]                   // mov rsi, r8
+    c = c + [72, 137, 234]                   // mov rdx, rbp
+    c = c + [76, 41, 194]                    // sub rdx, r8
+    c = c + [15, 5]                           // syscall
+    c = c + [72, 137, 236]                   // mov rsp, rbp
+    c = c + [93]                              // pop rbp
+    c = c + [195]                             // ret
+    반환 c
+}
+
+// ═══ 값 스택 매크로 (r13 기반) ═══
+// vpush rax: mov [r13], rax; add r13, 8
+함수 _vpush() { 반환 [73, 137, 69, 0, 73, 131, 197, 8] }
+// vpop → rax: sub r13, 8; mov rax, [r13]
+함수 _vpop_rax() { 반환 [73, 131, 237, 8, 73, 139, 69, 0] }
+// vpop → rdi: sub r13, 8; mov rdi, [r13]
+함수 _vpop_rdi() { 반환 [73, 131, 237, 8, 73, 139, 125, 0] }
+
+함수 aot_컴파일(코드, 상수풀) {
+    변수 mc = []
+    변수 codelen = __내장__(30, 코드)
+    변수 constlen = __내장__(30, 상수풀)
+
+    // ─── 프롤로그: mmap 값스택(r13) + 슬롯(r14) ───
+    // mmap(NULL, 65536, RW, ANON|PRIVATE, -1, 0)
+    mc = mc + [72, 199, 192, 9, 0, 0, 0]        // mov rax, 9
+    mc = mc + [72, 49, 255]                        // xor rdi, rdi
+    mc = mc + [72, 199, 198, 0, 0, 1, 0]         // mov rsi, 65536
+    mc = mc + [72, 199, 194, 3, 0, 0, 0]         // mov rdx, 3
+    mc = mc + [73, 199, 194, 34, 0, 0, 0]        // mov r10, 34
+    mc = mc + [73, 199, 192, 255, 255, 255, 255] // mov r8, -1
+    mc = mc + [73, 199, 193, 0, 0, 0, 0]         // mov r9, 0
+    mc = mc + [15, 5]                              // syscall
+    mc = mc + [73, 137, 197]                       // mov r13, rax (값 스택)
+
+    // mmap 슬롯 영역
+    mc = mc + [72, 199, 192, 9, 0, 0, 0]
+    mc = mc + [72, 49, 255]
+    mc = mc + [72, 199, 198, 0, 0, 1, 0]
+    mc = mc + [72, 199, 194, 3, 0, 0, 0]
+    mc = mc + [73, 199, 194, 34, 0, 0, 0]
+    mc = mc + [73, 199, 192, 255, 255, 255, 255]
+    mc = mc + [73, 199, 193, 0, 0, 0, 0]
+    mc = mc + [15, 5]
+    mc = mc + [73, 137, 198]                       // mov r14, rax (슬롯)
+
+    // 인쇄 루틴 삽입
+    변수 인쇄코드 = _인쇄루틴()
+    mc = mc + [233]                                // jmp over
+    mc = mc + le32(__내장__(30, 인쇄코드))
+    변수 인쇄주소 = __내장__(30, mc)
+    mc = mc + 인쇄코드
+
+    // ─── FuncRef 탐색: 상수풀에서 함수 참조 추출 ───
+    // FuncRef는 정수로 저장되어 있고 명령어 주소를 가리킴
+    변수 funcref맵 = []
+    변수 fi = 0
+    동안 (fi < constlen) {
+        funcref맵 = funcref맵 + [0]  // 기본: 일반 상수
+        fi = fi + 1
+    }
+    // 패턴 탐색: PUSH_CONST[ci] 바로 뒤에 CALL이면 ci는 FuncRef
+    변수 si = 0
+    동안 (si < codelen - 1) {
+        만약 (코드[si][0] == 27 && 코드[si + 1][0] == 20) {
+            변수 ci = 코드[si][1]
+            funcref맵[ci] = 1  // FuncRef로 표시
+        }
+        si = si + 1
+    }
+
+    // ─── 코드 생성 (1차 패스) ───
+    변수 오프셋 = []
+    변수 i = 0
+    동안 (i < codelen) {
+        오프셋 = 오프셋 + [__내장__(30, mc)]
+
+        변수 inst = 코드[i]
+        변수 op = inst[0]
+        변수 oa = inst[1]
+
+        // 25 = HALT
+        만약 (op == 25) {
+            mc = mc + [72, 199, 192, 60, 0, 0, 0]
+            mc = mc + [72, 49, 255]
+            mc = mc + [15, 5]
+        }
+        // 27 = PUSH_CONST
+        혹시 (op == 27) {
+            만약 (funcref맵[oa] == 1) {
+                // FuncRef → 건너뛰기 (CALL에서 직접 처리)
+            } 아니면 {
+                변수 val = 상수풀[oa]
+                mc = mc + x86_mov_rax(val)
+                mc = mc + _vpush()
+            }
+        }
+        // 28 = POP
+        혹시 (op == 28) {
+            mc = mc + _vpop_rax()
+        }
+        // 29 = DUP
+        혹시 (op == 29) {
+            mc = mc + [73, 139, 69, 248]           // mov rax, [r13-8]
+            mc = mc + _vpush()
+        }
+        // 9 = ADD
+        혹시 (op == 9) {
+            mc = mc + _vpop_rdi()
+            mc = mc + _vpop_rax()
+            mc = mc + [72, 1, 248]                  // add rax, rdi
+            mc = mc + _vpush()
+        }
+        // 10 = SUB
+        혹시 (op == 10) {
+            mc = mc + _vpop_rdi()
+            mc = mc + _vpop_rax()
+            mc = mc + [72, 41, 248]                 // sub rax, rdi
+            mc = mc + _vpush()
+        }
+        // 11 = MUL
+        혹시 (op == 11) {
+            mc = mc + _vpop_rdi()
+            mc = mc + _vpop_rax()
+            mc = mc + [72, 15, 175, 199]            // imul rax, rdi
+            mc = mc + _vpush()
+        }
+        // 12 = DIV
+        혹시 (op == 12) {
+            mc = mc + _vpop_rdi()
+            mc = mc + _vpop_rax()
+            mc = mc + [72, 153]                      // cqo
+            mc = mc + [72, 247, 255]                 // idiv rdi
+            mc = mc + _vpush()
+        }
+        // 13 = MOD
+        혹시 (op == 13) {
+            mc = mc + _vpop_rdi()
+            mc = mc + _vpop_rax()
+            mc = mc + [72, 153]
+            mc = mc + [72, 247, 255]
+            mc = mc + [72, 137, 208]                 // mov rax, rdx
+            mc = mc + _vpush()
+        }
+        // 14 = NEG
+        혹시 (op == 14) {
+            mc = mc + _vpop_rax()
+            mc = mc + [72, 247, 216]                 // neg rax
+            mc = mc + _vpush()
+        }
+        // 34 = STORE slot
+        혹시 (op == 34) {
+            mc = mc + _vpop_rax()
+            mc = mc + [73, 137, 134]                 // mov [r14+disp32], rax
+            mc = mc + le32(oa * 8)
+        }
+        // 35 = LOAD slot
+        혹시 (op == 35) {
+            mc = mc + [73, 139, 134]                 // mov rax, [r14+disp32]
+            mc = mc + le32(oa * 8)
+            mc = mc + _vpush()
+        }
+        // 3 = EQ → cmp+sete → 1 or 0
+        혹시 (op == 3) {
+            mc = mc + _vpop_rdi()
+            mc = mc + _vpop_rax()
+            mc = mc + [72, 49, 201]                  // xor rcx, rcx
+            mc = mc + [72, 57, 248]                  // cmp rax, rdi
+            mc = mc + [15, 148, 193]                 // sete cl
+            mc = mc + [72, 137, 200]                 // mov rax, rcx
+            mc = mc + _vpush()
+        }
+        // 5 = GT
+        혹시 (op == 5) {
+            mc = mc + _vpop_rdi()
+            mc = mc + _vpop_rax()
+            mc = mc + [72, 49, 201]
+            mc = mc + [72, 57, 248]
+            mc = mc + [15, 159, 193]                 // setg cl
+            mc = mc + [72, 137, 200]
+            mc = mc + _vpush()
+        }
+        // 6 = LT
+        혹시 (op == 6) {
+            mc = mc + _vpop_rdi()
+            mc = mc + _vpop_rax()
+            mc = mc + [72, 49, 201]
+            mc = mc + [72, 57, 248]
+            mc = mc + [15, 156, 193]                 // setl cl
+            mc = mc + [72, 137, 200]
+            mc = mc + _vpush()
+        }
+        // 7 = NOT
+        혹시 (op == 7) {
+            mc = mc + _vpop_rax()
+            mc = mc + [72, 49, 201]
+            mc = mc + [72, 133, 192]                 // test rax, rax
+            mc = mc + [15, 148, 193]                 // sete cl
+            mc = mc + [72, 137, 200]
+            mc = mc + _vpush()
+        }
+        // 0 = TRUE (push 1)
+        혹시 (op == 0) { mc = mc + x86_mov_rax(1) + _vpush() }
+        // 1 = FALSE (push -1)
+        혹시 (op == 1) { mc = mc + x86_mov_rax(0) + _vpush() }
+        // 2 = UNKNOWN (push 0)
+        혹시 (op == 2) { mc = mc + [72, 49, 192] + _vpush() }
+
+        // 36 = FUNC (마커)
+        혹시 (op == 36) { }
+
+        // 20 = CALL nargs
+        혹시 (op == 20) {
+            변수 nargs = oa
+            // 이전 PUSH가 FuncRef였으므로 건너뛰었음
+            // FuncRef 상수에서 대상 PC 추출
+            변수 target_ci = 코드[i - 1][1]  // 직전 PUSH의 상수 인덱스
+            변수 target_pc = 상수풀[target_ci]
+
+            // r14 저장 (현재 슬롯 베이스)
+            mc = mc + [65, 86]                       // push r14
+            // 새 슬롯 영역 = r14 + 2048
+            mc = mc + [73, 129, 198, 0, 8, 0, 0]    // add r14, 2048
+
+            // 값 스택에서 인자를 새 슬롯으로 복사 (역순)
+            변수 ai = nargs - 1
+            동안 (ai >= 0) {
+                mc = mc + _vpop_rax()
+                mc = mc + [73, 137, 134]             // mov [r14+ai*8], rax
+                mc = mc + le32(ai * 8)
+                ai = ai - 1
+            }
+
+            // call (placeholder)
+            mc = mc + [232, 0, 0, 0, 0]              // call rel32
+
+            // r14 복원
+            mc = mc + [65, 94]                       // pop r14
+        }
+
+        // 21 = RET
+        혹시 (op == 21) {
+            // 반환값은 값 스택 탑에 이미 있음
+            mc = mc + [195]                           // ret
+        }
+
+        // 18 = JMP
+        혹시 (op == 18) {
+            mc = mc + [233, 0, 0, 0, 0]              // jmp rel32
+        }
+        // 19 = JMPIF (truthy → jump)
+        혹시 (op == 19) {
+            mc = mc + _vpop_rax()
+            mc = mc + [72, 133, 192]                  // test rax, rax
+            mc = mc + [15, 133, 0, 0, 0, 0]          // jnz rel32
+        }
+        // 32 = PRINT
+        혹시 (op == 32) {
+            mc = mc + _vpop_rax()
+            변수 현재 = __내장__(30, mc) + 5
+            mc = mc + [232]                            // call rel32
+            mc = mc + le32(인쇄주소 - 현재)
+        }
+
+        i = i + 1
+    }
+
+    // ─── 2차 패스: JMP/JMPIF/CALL 패치 ───
+    변수 mc_len = __내장__(30, mc)
+    i = 0
+    동안 (i < codelen) {
+        변수 op = 코드[i][0]
+        변수 oa = 코드[i][1]
+
+        만약 (op == 18) {   // JMP
+            변수 from = 오프셋[i]
+            변수 end = from + 5
+            변수 target = 0
+            만약 (oa < __내장__(30, 오프셋)) { target = 오프셋[oa] }
+            아니면 { target = mc_len }
+            변수 rel = target - end
+            변수 bytes = le32(rel)
+            mc[from + 1] = bytes[0]
+            mc[from + 2] = bytes[1]
+            mc[from + 3] = bytes[2]
+            mc[from + 4] = bytes[3]
+        }
+        혹시 (op == 19) {   // JMPIF
+            변수 from = 오프셋[i]
+            // vpop(8) + test(3) + jnz(6) = 17, end=from+17
+            변수 end = from + 17
+            변수 target = 0
+            만약 (oa < __내장__(30, 오프셋)) { target = 오프셋[oa] }
+            아니면 { target = mc_len }
+            변수 rel = target - end
+            변수 bytes = le32(rel)
+            mc[from + 13] = bytes[0]
+            mc[from + 14] = bytes[1]
+            mc[from + 15] = bytes[2]
+            mc[from + 16] = bytes[3]
+        }
+        혹시 (op == 20) {   // CALL
+            변수 from = 오프셋[i]
+            변수 target_ci = 코드[i - 1][1]
+            변수 target_pc = 상수풀[target_ci]
+            변수 target = 0
+            만약 (target_pc < __내장__(30, 오프셋)) { target = 오프셋[target_pc] }
+            // call rel32: find the call instruction within this block
+            // call is after: push r14(2) + add r14(7) + nargs*(vpop+mov = 8+7=15) 
+            변수 nargs = oa
+            변수 call_offset = from + 2 + 7 + nargs * 15
+            변수 call_end = call_offset + 5
+            변수 rel = target - call_end
+            변수 bytes = le32(rel)
+            mc[call_offset + 1] = bytes[0]
+            mc[call_offset + 2] = bytes[1]
+            mc[call_offset + 3] = bytes[2]
+            mc[call_offset + 4] = bytes[3]
+        }
+        i = i + 1
+    }
+
+    반환 mc
+}
+
+함수 네이티브_생성(소스) {
+    변수 bc = 컴파일(소스)
+    변수 mc = aot_컴파일(bc[0], bc[1])
+    반환 elf64_생성(mc)
+}

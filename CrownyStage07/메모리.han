@@ -1,0 +1,100 @@
+// ═══════════════════════════════════════════════════════════════
+// 메모리 관리 — 기계어 시드용 할당기 + SYSCALL 번호
+//
+// Linux x86-64 시스콜 번호:
+//   0=read, 1=write, 2=open, 3=close, 9=mmap, 11=munmap, 60=exit
+//
+// macOS ARM64 시스콜 번호 (BSD):
+//   1=exit, 3=read, 4=write, 5=open, 6=close
+//   197=mmap (x16000000 + 197)
+// ═══════════════════════════════════════════════════════════════
+가져오기 "비트"
+
+// ─── Linux x86-64 시스콜 번호 ───
+상수 SYS_READ_LINUX = 0
+상수 SYS_WRITE_LINUX = 1
+상수 SYS_OPEN_LINUX = 2
+상수 SYS_CLOSE_LINUX = 3
+상수 SYS_MMAP_LINUX = 9
+상수 SYS_EXIT_LINUX = 60
+
+// ─── macOS ARM64 시스콜 번호 ───
+상수 SYS_EXIT_MAC = 1
+상수 SYS_READ_MAC = 3
+상수 SYS_WRITE_MAC = 4
+상수 SYS_OPEN_MAC = 5
+상수 SYS_CLOSE_MAC = 6
+
+// ─── x86-64 시스콜 기계어 생성 ───
+
+// sys_open(path, flags, mode) → fd
+함수 x86_sys_open(경로오프셋) {
+    변수 code = []
+    code = code + [72, 199, 192, 2, 0, 0, 0]    // mov rax, 2 (open)
+    // rdi = 경로 주소 (LEA rdi, [rip+offset])
+    code = code + [72, 141, 61]                    // lea rdi, [rip+offset]
+    code = code + le32(경로오프셋)
+    code = code + [72, 199, 198, 0, 0, 0, 0]    // mov rsi, 0 (O_RDONLY)
+    code = code + [72, 199, 194, 0, 0, 0, 0]    // mov rdx, 0
+    code = code + [15, 5]                          // syscall
+    반환 code
+}
+
+// sys_read(fd, buf, count) → bytes_read
+// fd는 rdi에 있다고 가정
+함수 x86_sys_read() {
+    변수 code = []
+    code = code + [72, 137, 199]                   // mov rdi, rax (fd)
+    code = code + [72, 199, 192, 0, 0, 0, 0]    // mov rax, 0 (read)
+    // rsi = 버퍼 주소, rdx = 크기는 호출 전 설정 필요
+    code = code + [15, 5]                          // syscall
+    반환 code
+}
+
+// sys_mmap(addr=0, len, prot=RW, flags=ANON|PRIVATE, fd=-1, off=0)
+함수 x86_sys_mmap(크기) {
+    변수 code = []
+    code = code + [72, 199, 192, 9, 0, 0, 0]      // mov rax, 9 (mmap)
+    code = code + [72, 49, 255]                      // xor rdi, rdi (addr=NULL)
+    code = code + [72, 199, 198]                     // mov rsi, 크기
+    code = code + le32(크기)
+    code = code + [72, 199, 194, 3, 0, 0, 0]      // mov rdx, 3 (PROT_READ|PROT_WRITE)
+    code = code + [73, 199, 194, 34, 0, 0, 0]     // mov r10, 0x22 (MAP_ANON|MAP_PRIVATE)
+    code = code + [73, 199, 192, 255, 255, 255, 255] // mov r8, -1 (fd)
+    code = code + [73, 199, 193, 0, 0, 0, 0]      // mov r9, 0 (offset)
+    code = code + [15, 5]                            // syscall
+    반환 code
+}
+
+// ─── 한선씨 레벨 메모리 관리 ───
+// (현재는 배열로 시뮬레이션, 기계어 시드에서 실제 mmap 사용)
+
+함수 힙_생성(크기) {
+    변수 i = 0
+    변수 블록 = []
+    동안 (i < 크기) { 블록 = 블록 + [0]  i = i + 1 }
+    // [블록, 다음위치, 전체크기]
+    반환 [블록, 0, 크기]
+}
+
+함수 힙_할당(힙, 크기) {
+    변수 시작 = 힙[1]
+    만약 (시작 + 크기 > 힙[2]) { 반환 [힙, 0 - 1] }
+    힙[1] = 시작 + 크기
+    반환 [힙, 시작]
+}
+
+함수 힙_읽기(힙, 주소) {
+    만약 (주소 < 0) { 반환 0 }
+    만약 (주소 >= 힙[2]) { 반환 0 }
+    반환 힙[0][주소]
+}
+
+함수 힙_쓰기(힙, 주소, 값) {
+    만약 (주소 < 0) { 반환 힙 }
+    만약 (주소 >= 힙[2]) { 반환 힙 }
+    변수 블록 = 힙[0]
+    블록[주소] = 값
+    힙[0] = 블록
+    반환 힙
+}

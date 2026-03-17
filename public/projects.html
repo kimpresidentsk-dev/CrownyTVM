@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#3D2B1F">
+<title>Crowny Projects</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#FFF8F0;--bg2:#FFF3E6;--bg3:#FFE8CC;--bg4:#F5DEB3;
+  --dark:#3D2B1F;--dark2:#5C4033;--dark3:#7A5C47;
+  --gold:#8B6914;--gold2:#C9A84C;--gold3:#D4AF37;--gold-light:#F0E4C8;
+  --text:#3D2B1F;--text2:#7A5C47;--text3:#A08060;
+  --green:#6B8F3C;--red:#B54534;--blue:#2E6BA4;
+  --white:#FFFFFF;--border:rgba(139,105,20,.12);
+  --radius:10px;--radius-lg:16px;
+  --shadow:0 1px 3px rgba(61,43,31,.08);--shadow-lg:0 4px 16px rgba(61,43,31,.12);
+}
+html,body{height:100%;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg);color:var(--text);overflow:hidden}
+button{cursor:pointer;border:none;font-family:inherit;font-size:inherit}
+input,textarea,select{font-family:inherit;font-size:inherit;outline:none}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
+
+/* ═══ Layout ═══ */
+.app{display:flex;height:100vh}
+.sidebar{width:260px;background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+
+/* Top bar */
+.topbar{background:var(--dark);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px}
+.topbar .brand{font-size:18px;font-weight:700;color:var(--gold2);letter-spacing:.5px}
+.topbar .brand a{color:var(--gold2);text-decoration:none}
+.topbar .spacer{flex:1}
+.topbar-btn{background:rgba(255,255,255,.1);color:var(--gold2);border-radius:8px;padding:10px 18px;font-size:14px;font-weight:600}
+.topbar-btn:hover{background:rgba(255,255,255,.2)}
+
+/* Sidebar nav */
+.side-nav{padding:8px}
+.side-nav-item{display:flex;align-items:center;gap:12px;padding:14px 14px;border-radius:8px;
+  cursor:pointer;font-size:15px;font-weight:500;color:var(--text2);transition:all .15s}
+.side-nav-item:hover{background:var(--bg2);color:var(--dark)}
+.side-nav-item.active{background:var(--gold-light);color:var(--gold);font-weight:600}
+.side-nav-item .icon{width:22px;text-align:center;font-size:17px}
+.side-nav-item .badge{margin-left:auto;background:var(--gold);color:#fff;font-size:11px;
+  padding:3px 8px;border-radius:8px;font-weight:600}
+.side-divider{height:1px;background:var(--border);margin:10px 14px}
+.side-label{padding:10px 14px 4px;font-size:12px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+
+/* Project list in sidebar */
+.project-item{display:flex;align-items:center;gap:10px;padding:12px 14px 12px 28px;
+  border-radius:8px;cursor:pointer;font-size:15px;color:var(--text2);transition:all .15s}
+.project-item:hover{background:var(--bg2)}
+.project-item.active{background:var(--gold-light);color:var(--gold);font-weight:600}
+.project-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.project-progress{font-size:12px;margin-left:auto;color:var(--text3)}
+
+/* Main header */
+.main-header{padding:18px 24px;background:var(--white);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:14px}
+.main-header h2{font-size:20px;font-weight:700;color:var(--dark)}
+.main-header .sub{font-size:13px;color:var(--text3);margin-left:8px}
+.main-header .spacer{flex:1}
+.action-btn{background:var(--gold);color:#fff;border-radius:8px;padding:12px 20px;font-size:15px;font-weight:600;
+  box-shadow:0 2px 8px rgba(139,105,20,.2)}
+.action-btn:hover{background:var(--gold2)}
+.action-btn.secondary{background:var(--bg3);color:var(--dark2);box-shadow:none}
+
+/* Content */
+.content{flex:1;overflow-y:auto;padding:20px 24px}
+
+/* ═══ Inbox ═══ */
+.inbox-input{display:flex;gap:8px;margin-bottom:20px}
+.inbox-input input{flex:1;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 18px;font-size:16px;box-shadow:var(--shadow)}
+.inbox-input input:focus{border-color:var(--gold2)}
+.inbox-input button{background:var(--gold);color:#fff;border-radius:var(--radius);padding:14px 24px;font-size:16px;font-weight:600}
+.inbox-item{display:flex;align-items:center;gap:14px;padding:16px;background:var(--white);
+  border-radius:var(--radius);margin-bottom:8px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.inbox-item .text{flex:1;font-size:16px}
+.inbox-item .date{font-size:12px;color:var(--text3)}
+.inbox-actions{display:flex;gap:6px}
+.inbox-actions button{padding:10px 16px;border-radius:6px;font-size:13px;font-weight:600}
+.inbox-actions .convert{background:var(--gold);color:#fff}
+.inbox-actions .drop{background:var(--bg3);color:var(--text3)}
+
+/* ═══ Task list ═══ */
+.task-item{display:flex;align-items:flex-start;gap:14px;padding:16px;background:var(--white);
+  border-radius:var(--radius);margin-bottom:8px;border:1px solid var(--border);box-shadow:var(--shadow);
+  transition:all .15s;cursor:pointer}
+.task-item:hover{border-color:var(--gold2)}
+.task-item.done{opacity:.5}
+.task-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;margin-top:1px;transition:all .15s}
+.task-check:hover{border-color:var(--gold)}
+.task-check.checked{background:var(--gold);border-color:var(--gold);color:#fff;font-size:13px}
+.task-body{flex:1;min-width:0}
+.task-name{font-size:16px;font-weight:500}
+.task-name.done{text-decoration:line-through;color:var(--text3)}
+.task-meta{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap}
+.task-tag{font-size:12px;padding:3px 10px;border-radius:4px;font-weight:500}
+.task-tag.due{background:rgba(61,43,31,.06);color:var(--dark3)}
+.task-tag.due.soon{background:rgba(139,105,20,.1);color:var(--gold)}
+.task-tag.context{background:rgba(61,43,31,.06);color:var(--dark3)}
+.task-tag.project{background:rgba(139,105,20,.08);color:var(--gold)}
+.task-tag.flagged{background:rgba(139,105,20,.1);color:var(--gold)}
+.task-tag.milestone{background:rgba(61,43,31,.06);color:var(--dark3)}
+.task-priority{font-size:13px;color:var(--text3)}
+
+/* ═══ Gantt ═══ */
+.gantt-container{overflow-x:auto;background:var(--white);border-radius:var(--radius-lg);
+  border:1px solid var(--border);box-shadow:var(--shadow-lg)}
+.gantt-header{display:flex;border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);font-weight:600;position:sticky;top:0;background:var(--white);z-index:2}
+.gantt-label-col{width:200px;padding:10px 12px;border-right:1px solid var(--border);flex-shrink:0}
+.gantt-timeline{flex:1;display:flex;min-width:600px}
+.gantt-day{flex:1;min-width:40px;text-align:center;padding:8px 2px;border-right:1px solid rgba(0,0,0,.03)}
+.gantt-day.weekend{background:rgba(0,0,0,.02)}
+.gantt-day.today{background:rgba(139,105,20,.08);font-weight:700;color:var(--gold)}
+.gantt-row{display:flex;border-bottom:1px solid rgba(0,0,0,.03);min-height:36px;align-items:center}
+.gantt-row-label{width:200px;padding:6px 12px;font-size:13px;border-right:1px solid var(--border);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.gantt-row-timeline{flex:1;position:relative;min-width:600px;height:36px}
+.gantt-bar{position:absolute;height:20px;top:8px;border-radius:4px;min-width:8px;
+  display:flex;align-items:center;padding:0 6px;font-size:10px;color:#fff;font-weight:600;
+  transition:all .2s}
+.gantt-bar.task{background:var(--gold)}
+.gantt-bar.milestone{background:var(--green);width:20px!important;height:20px;border-radius:50%;
+  transform:rotate(45deg);padding:0}
+.gantt-bar.done{opacity:.5}
+.gantt-dep-line{position:absolute;border-left:2px solid var(--text3);border-bottom:2px solid var(--text3);opacity:.3}
+.gantt-progress{position:absolute;left:0;top:0;height:100%;background:rgba(255,255,255,.3);border-radius:4px}
+.gantt-today-line{position:absolute;top:0;bottom:0;width:2px;background:var(--red);z-index:1;opacity:.5}
+
+/* ═══ Outline ═══ */
+.outline-tree{background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--border);
+  box-shadow:var(--shadow-lg);overflow:hidden}
+.outline-node{border-bottom:1px solid rgba(0,0,0,.03)}
+.outline-node-header{display:flex;align-items:center;gap:10px;padding:14px 14px;cursor:pointer;transition:background .1s}
+.outline-node-header:hover{background:var(--bg2)}
+.outline-toggle{width:20px;height:20px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;color:var(--text3);transition:transform .2s;flex-shrink:0}
+.outline-toggle.open{transform:rotate(90deg)}
+.outline-name{flex:1;font-size:16px;font-weight:500}
+.outline-name input{background:transparent;border:none;font-size:16px;font-weight:500;color:var(--text);width:100%}
+.outline-notes{font-size:14px;color:var(--text2);padding:0 14px 10px 48px}
+.outline-children{padding-left:20px}
+.outline-add{padding:8px 12px;display:flex;gap:8px}
+.outline-add input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px}
+.outline-add button{background:var(--gold);color:#fff;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600}
+
+/* ═══ Review ═══ */
+.review-card{background:var(--white);border-radius:var(--radius-lg);padding:24px;text-align:center;
+  border:1px solid var(--border);box-shadow:var(--shadow-lg);margin-bottom:16px}
+.review-card .rname{font-size:20px;font-weight:700;margin-bottom:4px}
+.review-card .rtype{font-size:13px;color:var(--text3);margin-bottom:12px}
+.review-card .rnotes{font-size:16px;color:var(--text2);margin-bottom:16px;line-height:1.5}
+.review-card .rstatus{display:flex;gap:12px;justify-content:center}
+.review-card .rstatus span{font-size:12px;color:var(--text3)}
+.review-btns{display:flex;gap:8px;justify-content:center;margin-top:16px}
+.review-btns button{padding:12px 24px;border-radius:8px;font-size:15px;font-weight:600}
+.review-btns .reviewed{background:var(--gold);color:#fff}
+.review-btns .complete{background:var(--dark2);color:#fff}
+.review-btns .drop-it{background:var(--bg3);color:var(--text3)}
+
+/* ═══ Forecast ═══ */
+.forecast-day{margin-bottom:16px}
+.forecast-day-label{font-size:15px;font-weight:700;color:var(--dark);margin-bottom:10px;
+  padding-bottom:6px;border-bottom:2px solid var(--gold)}
+.forecast-day-label.overdue{border-color:var(--dark3);color:var(--dark3)}
+.forecast-day-label.today{border-color:var(--gold);color:var(--gold)}
+
+/* ═══ Backup ═══ */
+.backup-section{background:var(--white);border-radius:var(--radius-lg);padding:24px;
+  border:1px solid var(--border);box-shadow:var(--shadow-lg);margin-bottom:16px}
+.backup-section h3{font-size:17px;font-weight:700;margin-bottom:12px}
+.backup-section p{font-size:14px;color:var(--text2);margin-bottom:12px;line-height:1.5}
+.backup-section .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.backup-section input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px}
+.backup-section input:focus{border-color:var(--gold2)}
+
+/* ═══ Modal ═══ */
+.modal-overlay{position:fixed;inset:0;background:rgba(61,43,31,.5);z-index:50;display:flex;
+  align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay.hidden{display:none}
+.modal{background:var(--white);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:440px;box-shadow:var(--shadow-lg)}
+.modal h3{font-size:17px;margin-bottom:16px;font-weight:700}
+.modal-field{margin-bottom:12px}
+.modal-field label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:600}
+.modal-field input,.modal-field select,.modal-field textarea{width:100%;background:var(--bg2);border:1px solid var(--border);
+  border-radius:8px;padding:12px 14px;color:var(--text);font-size:16px}
+.modal-field input:focus,.modal-field select:focus,.modal-field textarea:focus{border-color:var(--gold2)}
+.modal-field textarea{resize:vertical;min-height:60px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.modal-btns button{padding:12px 24px;border-radius:8px;font-size:15px;font-weight:600}
+.modal-btns .cancel{background:var(--bg3);color:var(--dark2)}
+.modal-btns .confirm{background:var(--gold);color:#fff}
+
+/* ═══ Empty ═══ */
+.empty{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty .icon{font-size:48px;margin-bottom:12px;color:var(--dark3)}
+.empty p{font-size:16px;line-height:1.5}
+
+/* ═══ Mobile ═══ */
+@media(max-width:768px){
+  .sidebar{position:fixed;inset:0;width:100%;z-index:10;transition:transform .3s}
+  .sidebar.hidden{transform:translateX(-100%)}
+  .gantt-label-col{width:120px}
+}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.task-item,.inbox-item,.outline-node,.review-card{animation:fadeIn .2s ease}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="topbar">
+      <span class="brand"><a href="/">CROWNY</a></span>
+      <span class="spacer"></span>
+      <button class="topbar-btn" onclick="showNewProject()">+ 프로젝트</button>
+    </div>
+
+    <div class="side-nav" id="sideNav">
+      <div class="side-nav-item active" data-view="inbox" onclick="setView('inbox')">
+        <span class="icon">&#9776;</span> 인박스 <span class="badge" id="inboxBadge" style="display:none">0</span>
+      </div>
+      <div class="side-nav-item" data-view="forecast" onclick="setView('forecast')">
+        <span class="icon">&#9201;</span> 예측
+      </div>
+      <div class="side-nav-item" data-view="review" onclick="setView('review')">
+        <span class="icon">&#9711;</span> 리뷰 <span class="badge" id="reviewBadge" style="display:none">0</span>
+      </div>
+      <div class="side-nav-item" data-view="flagged" onclick="setView('flagged')">
+        <span class="icon">&#9733;</span> 중요
+      </div>
+      <div class="side-divider"></div>
+      <div class="side-label">프로젝트</div>
+      <div id="projectList"></div>
+      <div class="side-divider"></div>
+      <div class="side-nav-item" data-view="outline" onclick="setView('outline')">
+        <span class="icon">&#9776;</span> 아웃라인
+      </div>
+      <div class="side-nav-item" data-view="contexts" onclick="setView('contexts')">
+        <span class="icon">&#9670;</span> 컨텍스트
+      </div>
+      <div class="side-nav-item" data-view="backup" onclick="setView('backup')">
+        <span class="icon">&#8693;</span> 백업/싱크
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="main-header" id="mainHeader">
+      <h2 id="viewTitle">인박스</h2>
+      <span class="sub" id="viewSub"></span>
+      <span class="spacer"></span>
+      <div id="headerActions"></div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="modalTitle"></h3>
+    <div id="modalBody"></div>
+    <div class="modal-btns">
+      <button class="cancel" onclick="closeModal()">취소</button>
+      <button id="modalConfirm" class="confirm">확인</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = location.origin + '/api';
+let token = localStorage.getItem('crowny_token');
+if (!token) { location.href = '/'; }
+
+let currentView = 'inbox';
+let currentProjectId = null;
+let projects = [];
+let contexts = [];
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  try {
+    const res = await fetch(API + path, { method: opts.method || 'GET', headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined });
+    return await res.json();
+  } catch(e) { return { error: e.message }; }
+}
+
+// ═══ Navigation ═══
+async function setView(view, projectId) {
+  currentView = view;
+  currentProjectId = projectId || null;
+  document.querySelectorAll('.side-nav-item,.project-item').forEach(el => el.classList.remove('active'));
+  const navItem = document.querySelector(`[data-view="${view}"]`);
+  if (navItem) navItem.classList.add('active');
+  if (projectId) {
+    const pi = document.querySelector(`[data-project="${projectId}"]`);
+    if (pi) pi.classList.add('active');
+  }
+
+  const content = document.getElementById('content');
+  const title = document.getElementById('viewTitle');
+  const sub = document.getElementById('viewSub');
+  const actions = document.getElementById('headerActions');
+  actions.innerHTML = '';
+
+  switch(view) {
+    case 'inbox': await renderInbox(content, title, sub, actions); break;
+    case 'forecast': await renderForecast(content, title, sub); break;
+    case 'review': await renderReview(content, title, sub); break;
+    case 'flagged': await renderFlagged(content, title, sub); break;
+    case 'project': await renderProject(content, title, sub, actions, projectId); break;
+    case 'gantt': await renderGantt(content, title, sub, projectId); break;
+    case 'outline': await renderOutline(content, title, sub, actions); break;
+    case 'contexts': await renderContexts(content, title, sub, actions); break;
+    case 'backup': await renderBackup(content, title, sub); break;
+  }
+}
+
+// ═══ Sidebar ═══
+async function loadSidebar() {
+  projects = await api('/projects');
+  if (!Array.isArray(projects)) projects = [];
+  contexts = await api('/contexts');
+  if (!Array.isArray(contexts)) contexts = [];
+
+  const inbox = await api('/inbox');
+  const inboxBadge = document.getElementById('inboxBadge');
+  if (Array.isArray(inbox) && inbox.length > 0) {
+    inboxBadge.textContent = inbox.length; inboxBadge.style.display = '';
+  } else { inboxBadge.style.display = 'none'; }
+
+  const review = await api('/review');
+  const reviewBadge = document.getElementById('reviewBadge');
+  if (Array.isArray(review) && review.length > 0) {
+    reviewBadge.textContent = review.length; reviewBadge.style.display = '';
+  } else { reviewBadge.style.display = 'none'; }
+
+  const list = document.getElementById('projectList');
+  list.innerHTML = projects.map(p => `
+    <div class="project-item${currentProjectId===p.id?' active':''}" data-project="${p.id}" onclick="setView('project',${p.id})">
+      <span class="project-dot" style="background:${p.color||'var(--gold)'}"></span>
+      ${esc(p.name)}
+      <span class="project-progress">${p.progress||0}%</span>
+    </div>
+  `).join('');
+}
+
+// ═══ Inbox ═══
+async function renderInbox(el, title, sub, actions) {
+  title.textContent = '인박스'; sub.textContent = '빠른 캡처 → 정리';
+  actions.innerHTML = '';
+  const items = await api('/inbox');
+  const list = Array.isArray(items) ? items : [];
+
+  el.innerHTML = `
+    <div class="inbox-input">
+      <input id="inboxText" placeholder="할 일, 아이디어, 메모를 빠르게 입력..." onkeydown="if(event.key==='Enter')addInbox()">
+      <button onclick="addInbox()">추가</button>
+    </div>
+    ${list.length === 0 ? '<div class="empty"><div class="icon">&#9776;</div><p>인박스가 비어 있습니다<br>위에서 빠르게 캡처하세요</p></div>' :
+      list.map(item => `
+        <div class="inbox-item">
+          <div class="text">${esc(item.name)}</div>
+          <div class="date">${timeAgo(item.created)}</div>
+          <div class="inbox-actions">
+            <button class="convert" onclick="processInbox(${item.id},'convert')">&#10148; 작업으로</button>
+            <button class="drop" onclick="processInbox(${item.id},'drop')">&#10005;</button>
+          </div>
+        </div>
+      `).join('')}`;
+}
+
+async function addInbox() {
+  const input = document.getElementById('inboxText');
+  if (!input.value.trim()) return;
+  await api('/inbox', { method: 'POST', body: { text: input.value.trim() } });
+  input.value = '';
+  loadSidebar();
+  setView('inbox');
+}
+
+async function processInbox(id, action) {
+  if (action === 'convert') {
+    showConvertModal(id);
+  } else {
+    await api('/inbox/process', { method: 'POST', body: { id, action: 'drop' } });
+    loadSidebar(); setView('inbox');
+  }
+}
+
+function showConvertModal(id) {
+  document.getElementById('modalTitle').textContent = '작업으로 전환';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-field"><label>프로젝트</label>
+      <select id="mProject"><option value="">없음</option>
+        ${projects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}
+      </select></div>
+    <div class="modal-field"><label>마감일</label><input id="mDue" type="date"></div>
+    <div class="modal-field"><label>컨텍스트</label>
+      <select id="mCtx"><option value="">없음</option>
+        ${contexts.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+      </select></div>`;
+  document.getElementById('modalConfirm').onclick = async () => {
+    await api('/inbox/process', { method: 'POST', body: {
+      id, action: 'convert',
+      projectId: parseInt(document.getElementById('mProject').value) || null,
+      dueDate: document.getElementById('mDue').value ? new Date(document.getElementById('mDue').value).getTime() : null,
+      contextId: parseInt(document.getElementById('mCtx').value) || null,
+    }});
+    closeModal(); loadSidebar(); setView('inbox');
+  };
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+// ═══ Project (task list) ═══
+async function renderProject(el, title, sub, actions, projectId) {
+  const data = await api(`/projects/${projectId}`);
+  if (!data || data.error) { el.innerHTML = '<div class="empty"><p>프로젝트를 찾을 수 없습니다</p></div>'; return; }
+  title.textContent = data.project.name;
+  sub.textContent = `${data.project.progress}% 완료`;
+  actions.innerHTML = `
+    <button class="action-btn secondary" onclick="setView('gantt',${projectId})">&#9776; 타임라인</button>
+    <button class="action-btn" onclick="showNewTask(${projectId})">+ 작업</button>`;
+
+  const tasks = data.tasks || [];
+  el.innerHTML = tasks.length === 0
+    ? '<div class="empty"><div class="icon">&#9744;</div><p>작업이 없습니다<br>+ 작업 버튼으로 추가하세요</p></div>'
+    : tasks.map(t => renderTaskItem(t)).join('');
+}
+
+function renderTaskItem(t) {
+  const isDone = t.status === 'done';
+  const dueTag = t.due ? `<span class="task-tag due${isOverdue(t.due)?' overdue':isDueSoon(t.due)?' soon':''}">${formatDateShort(t.due)}</span>` : '';
+  const ctxName = contexts.find(c => c.id === t.contextId);
+  const ctxTag = ctxName ? `<span class="task-tag context">${esc(ctxName.name)}</span>` : '';
+  const flagTag = t.flagged ? '<span class="task-tag flagged">&#9873; 중요</span>' : '';
+  const msTag = t.type === 'milestone' ? '<span class="task-tag milestone">&#9670; 마일스톤</span>' : '';
+  const pri = t.priority > 0 ? ' !' : t.priority < 0 ? '' : '';
+
+  return `<div class="task-item${isDone?' done':''}">
+    <div class="task-check${isDone?' checked':''}" onclick="toggleTask(${t.id},'${t.status}')">${isDone?'&#10003;':''}</div>
+    <div class="task-body" onclick="showEditTask(${t.id})">
+      <div class="task-name${isDone?' done':''}">${pri}${esc(t.name)}</div>
+      <div class="task-meta">${dueTag}${ctxTag}${flagTag}${msTag}</div>
+    </div>
+  </div>`;
+}
+
+async function toggleTask(id, status) {
+  if (status !== 'done') {
+    await api(`/tasks/${id}/complete`, { method: 'POST' });
+  } else {
+    await api(`/tasks/${id}`, { method: 'PATCH', body: { status: 'active' } });
+  }
+  loadSidebar();
+  if (currentProjectId) setView('project', currentProjectId);
+  else setView(currentView);
+}
+
+// ═══ Gantt ═══
+async function renderGantt(el, title, sub, projectId) {
+  const data = await api(`/projects/${projectId}`);
+  if (!data || data.error) return;
+  title.textContent = data.project.name + ' — 타임라인';
+  sub.textContent = '';
+
+  const tasks = data.tasks || [];
+  if (tasks.length === 0) {
+    el.innerHTML = '<div class="empty"><p>작업이 없어 타임라인을 표시할 수 없습니다</p></div>';
+    return;
+  }
+
+  // 날짜 범위 계산
+  const now = Date.now();
+  const allDates = tasks.flatMap(t => [t.start, t.due].filter(Boolean));
+  allDates.push(now);
+  const minDate = Math.min(...allDates) - 86400000 * 2;
+  const maxDate = Math.max(...allDates) + 86400000 * 7;
+  const days = [];
+  for (let d = startOfDay(minDate); d <= maxDate; d += 86400000) days.push(d);
+
+  const todayIdx = days.findIndex(d => isSameDay(d, now));
+
+  // 헤더
+  let header = '<div class="gantt-label-col">작업</div><div class="gantt-timeline">';
+  days.forEach((d, i) => {
+    const dt = new Date(d);
+    const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+    const isToday = isSameDay(d, now);
+    header += `<div class="gantt-day${isWeekend?' weekend':''}${isToday?' today':''}">${dt.getDate()}</div>`;
+  });
+  header += '</div>';
+
+  // 행
+  let rows = '';
+  tasks.forEach(t => {
+    const start = t.start || now;
+    const end = t.due || (start + (t.duration || 60) * 60000);
+    const startIdx = Math.max(0, days.findIndex(d => d >= startOfDay(start)));
+    const endIdx = Math.max(startIdx + 1, days.findIndex(d => d >= startOfDay(end)));
+    const left = (startIdx / days.length * 100);
+    const width = ((endIdx - startIdx) / days.length * 100);
+    const isDone = t.status === 'done';
+    const barClass = t.type === 'milestone' ? 'milestone' : 'task';
+
+    rows += `<div class="gantt-row">
+      <div class="gantt-row-label">${esc(t.name)}</div>
+      <div class="gantt-row-timeline">
+        <div class="gantt-bar ${barClass}${isDone?' done':''}" style="left:${left}%;width:${Math.max(width, 1)}%">
+          ${t.type !== 'milestone' ? esc(t.name) : ''}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  // 오늘 선
+  const todayLeft = todayIdx >= 0 ? (todayIdx / days.length * 100) : -1;
+
+  el.innerHTML = `<div class="gantt-container">
+    <div class="gantt-header">${header}</div>
+    ${rows}
+  </div>
+  <div style="margin-top:12px;text-align:center">
+    <button class="action-btn secondary" onclick="setView('project',${projectId})">&larr; 작업 목록</button>
+  </div>`;
+}
+
+// ═══ Forecast ═══
+async function renderForecast(el, title, sub) {
+  title.textContent = '예측'; sub.textContent = '다가오는 마감';
+  const tasks = await api('/forecast?days=14');
+  const list = Array.isArray(tasks) ? tasks : [];
+
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="icon">&#9201;</div><p>2주 내 마감 작업이 없습니다</p></div>';
+    return;
+  }
+
+  // 날짜별 그룹
+  const groups = {};
+  const now = Date.now();
+  list.forEach(t => {
+    const key = new Date(t.dueDate).toLocaleDateString('ko-KR');
+    if (!groups[key]) groups[key] = { date: t.dueDate, tasks: [] };
+    groups[key].tasks.push(t);
+  });
+
+  el.innerHTML = Object.entries(groups).map(([label, g]) => {
+    const isToday = isSameDay(g.date, now);
+    const isOverdueDay = g.date < now;
+    return `<div class="forecast-day">
+      <div class="forecast-day-label${isOverdueDay?' overdue':''}${isToday?' today':''}">${label}${isToday?' (오늘)':''}${isOverdueDay&&!isToday?' (지남)':''}</div>
+      ${g.tasks.map(t => renderTaskItem(t)).join('')}
+    </div>`;
+  }).join('');
+}
+
+// ═══ Review ═══
+async function renderReview(el, title, sub) {
+  title.textContent = '리뷰'; sub.textContent = '주기적 점검';
+  const items = await api('/review');
+  const list = Array.isArray(items) ? items : [];
+
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="icon">&#9711;</div><p>리뷰할 항목이 없습니다</p></div>';
+    return;
+  }
+
+  const item = list[0]; // 하나씩 리뷰
+  const typeLabel = item.type === 500 ? '프로젝트' : '작업';
+  el.innerHTML = `
+    <div style="text-align:center;color:var(--text3);margin-bottom:8px">${list.length}개 리뷰 대기</div>
+    <div class="review-card">
+      <div class="rtype">${typeLabel}</div>
+      <div class="rname">${esc(item.name)}</div>
+      <div class="rnotes">${esc(item.notes || '메모 없음')}</div>
+      <div class="rstatus">
+        <span>근거: ${item.evidence}/${item.evidence+item.tag}</span>
+        <span>신뢰: ${item.trust}%</span>
+        <span>마지막 리뷰: ${timeAgo(item.lastReview || item.created)}</span>
+      </div>
+      <div class="review-btns">
+        <button class="reviewed" onclick="reviewDone(${item.id})">&#10003; 리뷰 완료</button>
+        <button class="complete" onclick="toggleTask(${item.id},'${item.status}')">완료 처리</button>
+        <button class="drop-it" onclick="dropItem(${item.id})">&#10005; 중단</button>
+      </div>
+    </div>`;
+}
+
+async function reviewDone(id) {
+  await api('/review/done', { method: 'POST', body: { id } });
+  loadSidebar(); setView('review');
+}
+
+async function dropItem(id) {
+  await api(`/tasks/${id}`, { method: 'PATCH', body: { status: 'dropped' } });
+  loadSidebar(); setView('review');
+}
+
+// ═══ Flagged ═══
+async function renderFlagged(el, title, sub) {
+  title.textContent = '중요'; sub.textContent = '플래그 표시된 작업';
+  const result = await api('/perspective', { method: 'POST', body: { flagged: true } });
+  const list = Array.isArray(result) ? result : [];
+  el.innerHTML = list.length === 0
+    ? '<div class="empty"><div class="icon">&#9873;</div><p>중요 표시된 작업이 없습니다</p></div>'
+    : list.map(t => renderTaskItem(t)).join('');
+}
+
+// ═══ Outline ═══
+async function renderOutline(el, title, sub, actions) {
+  title.textContent = '아웃라인'; sub.textContent = '계층 노트';
+  actions.innerHTML = '<button class="action-btn" onclick="showNewOutline(null)">+ 노드</button>';
+  const tree = await api('/outline');
+  const list = Array.isArray(tree) ? tree : [];
+  el.innerHTML = list.length === 0
+    ? '<div class="empty"><div class="icon">&#9776;</div><p>아웃라인이 비어 있습니다<br>+ 노드로 시작하세요</p></div>'
+    : '<div class="outline-tree">' + renderOutlineNodes(list) + '</div>';
+}
+
+function renderOutlineNodes(nodes) {
+  return nodes.map(n => {
+    const hasChildren = n.children && n.children.length > 0;
+    const collapsed = n.collapsed;
+    return `<div class="outline-node">
+      <div class="outline-node-header">
+        <span class="outline-toggle${!collapsed?' open':''}" onclick="toggleOutline(${n.id},${collapsed})">${hasChildren?'&#9654;':'&bull;'}</span>
+        <span class="outline-name" ondblclick="editOutlineName(this,${n.id})">${esc(n.name)}</span>
+        <button style="background:transparent;color:var(--text3);font-size:16px" onclick="showNewOutline(${n.id})">+</button>
+      </div>
+      ${n.notes ? `<div class="outline-notes">${esc(n.notes)}</div>` : ''}
+      ${hasChildren && !collapsed ? `<div class="outline-children">${renderOutlineNodes(n.children)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function toggleOutline(id, collapsed) {
+  await api(`/outline/${id}`, { method: 'PATCH', body: { collapsed: !collapsed } });
+  setView('outline');
+}
+
+async function editOutlineName(el, id) {
+  const current = el.textContent;
+  el.innerHTML = `<input value="${esc(current)}" onblur="saveOutlineName(this,${id})" onkeydown="if(event.key==='Enter')this.blur()">`;
+  el.querySelector('input').focus();
+}
+
+async function saveOutlineName(input, id) {
+  await api(`/outline/${id}`, { method: 'PATCH', body: { name: input.value } });
+  setView('outline');
+}
+
+function showNewOutline(parentId) {
+  document.getElementById('modalTitle').textContent = '새 노드';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-field"><label>제목</label><input id="mName" placeholder="노드 제목"></div>
+    <div class="modal-field"><label>메모</label><textarea id="mNotes" placeholder="내용..."></textarea></div>`;
+  document.getElementById('modalConfirm').onclick = async () => {
+    const name = document.getElementById('mName').value.trim();
+    if (!name) return;
+    await api('/outline', { method: 'POST', body: { parentId, name, notes: document.getElementById('mNotes').value } });
+    closeModal(); setView('outline');
+  };
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+// ═══ Contexts ═══
+async function renderContexts(el, title, sub, actions) {
+  title.textContent = '컨텍스트'; sub.textContent = '장소/상황별 정리';
+  actions.innerHTML = '<button class="action-btn" onclick="showNewContext()">+ 컨텍스트</button>';
+  const ctxs = await api('/contexts');
+  const list = Array.isArray(ctxs) ? ctxs : [];
+  el.innerHTML = list.length === 0
+    ? '<div class="empty"><div class="icon">&#127991;</div><p>컨텍스트가 없습니다</p></div>'
+    : list.map(c => `<div class="task-item" onclick="viewContext(${c.id})">
+        <div class="task-body"><div class="task-name">${c.icon||''} ${esc(c.name)}</div></div>
+      </div>`).join('');
+}
+
+async function viewContext(ctxId) {
+  const result = await api('/perspective', { method: 'POST', body: { contextId: ctxId } });
+  const list = Array.isArray(result) ? result : [];
+  const ctx = contexts.find(c => c.id === ctxId);
+  const el = document.getElementById('content');
+  document.getElementById('viewTitle').textContent = ctx ? ctx.name : '컨텍스트';
+  document.getElementById('viewSub').textContent = list.length + '개 작업';
+  el.innerHTML = list.length === 0
+    ? '<div class="empty"><p>이 컨텍스트에 작업이 없습니다</p></div>'
+    : list.map(t => renderTaskItem(t)).join('');
+}
+
+function showNewContext() {
+  document.getElementById('modalTitle').textContent = '새 컨텍스트';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-field"><label>이름</label><input id="mName" placeholder="예: 사무실, 집, 전화"></div>
+    <div class="modal-field"><label>아이콘</label><input id="mIcon" placeholder="예: &#127970;"></div>`;
+  document.getElementById('modalConfirm').onclick = async () => {
+    const name = document.getElementById('mName').value.trim();
+    if (!name) return;
+    await api('/contexts', { method: 'POST', body: { name, icon: document.getElementById('mIcon').value } });
+    closeModal(); loadSidebar(); setView('contexts');
+  };
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+// ═══ Backup ═══
+async function renderBackup(el, title, sub) {
+  title.textContent = '백업 / 싱크'; sub.textContent = '다른 서버와 동기화';
+  el.innerHTML = `
+    <div class="backup-section">
+      <h3>&#8693; 데이터 백업</h3>
+      <p>현재 서버의 모든 데이터를 JSON으로 내보냅니다. 이 파일로 다른 컴퓨터에서 복원할 수 있습니다.</p>
+      <button class="action-btn" onclick="downloadBackup()">백업 다운로드</button>
+    </div>
+    <div class="backup-section">
+      <h3>&#8593; 데이터 복원</h3>
+      <p>백업 JSON 파일을 업로드하면 기존 데이터와 병합됩니다. (최신 수정 우선)</p>
+      <input type="file" id="restoreFile" accept=".json" onchange="uploadRestore(this)">
+      <div id="restoreResult"></div>
+    </div>
+    <div class="backup-section">
+      <h3>&#8644; 원격 싱크</h3>
+      <p>다른 Crowny 서버와 양방향 동기화합니다. 파일을 복사해서 설치한 백업 서버 주소를 입력하세요.</p>
+      <div class="row">
+        <input id="syncUrl" placeholder="http://192.168.1.100:7730">
+        <button class="action-btn" onclick="doSync()">싱크</button>
+      </div>
+      <div id="syncResult"></div>
+    </div>
+    <div class="backup-section">
+      <h3>&#9881; 백업 서버 만들기</h3>
+      <p>이 서버의 전체 파일을 다른 컴퓨터에 복사하면 즉시 백업 서버가 됩니다:</p>
+      <pre style="background:var(--bg2);padding:12px;border-radius:8px;font-size:12px;overflow-x:auto;margin-top:8px">
+# 1. 전체 복사
+scp -r ${location.hostname}:~/CrownyTVM user@backup-server:~/CrownyTVM
+
+# 2. 백업 서버 시작
+ssh user@backup-server
+cd ~/CrownyTVM && node server.js
+
+# 3. 싱크 (이 서버에서)
+curl -X POST ${location.origin}/api/sync \\
+  -H "Authorization: Bearer TOKEN" \\
+  -d '{"remoteUrl":"http://backup-server:7730"}'</pre>
+    </div>`;
+}
+
+async function downloadBackup() {
+  const data = await api('/backup');
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `crowny-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+async function uploadRestore(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const text = await file.text();
+  const data = JSON.parse(text);
+  const result = await api('/restore', { method: 'POST', body: data });
+  document.getElementById('restoreResult').innerHTML = result.success
+    ? `<p style="color:var(--green);margin-top:8px">&#10003; 복원 완료: ${result.added}개 추가, ${result.merged}개 병합</p>`
+    : `<p style="color:var(--red);margin-top:8px">${result.error}</p>`;
+}
+
+async function doSync() {
+  const url = document.getElementById('syncUrl').value.trim();
+  if (!url) return;
+  document.getElementById('syncResult').innerHTML = '<p style="margin-top:8px">싱크 중...</p>';
+  const result = await api('/sync', { method: 'POST', body: { remoteUrl: url } });
+  document.getElementById('syncResult').innerHTML = result.success
+    ? `<p style="color:var(--green);margin-top:8px">&#10003; 싱크 완료: ${result.sync.added}개 추가, ${result.sync.merged}개 병합</p>`
+    : `<p style="color:var(--red);margin-top:8px">${result.error}</p>`;
+}
+
+// ═══ Modals ═══
+function showNewProject() {
+  document.getElementById('modalTitle').textContent = '새 프로젝트';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-field"><label>프로젝트 이름</label><input id="mName" placeholder="프로젝트 이름"></div>
+    <div class="modal-field"><label>메모</label><textarea id="mNotes" placeholder="목표, 범위, 배경..."></textarea></div>
+    <div class="modal-field"><label>색상</label>
+      <div style="display:flex;gap:8px;margin-top:4px" id="mColors">
+        ${['#8B6914','#6B8F3C','#B54534','#2E6BA4','#D4AF37','#5C4033','#9B59B6','#E67E22'].map(c =>
+          `<span style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;border:2px solid transparent"
+            onclick="selectColor(this,'${c}')"></span>`
+        ).join('')}
+      </div>
+      <input type="hidden" id="mColor" value="#8B6914">
+    </div>`;
+  document.getElementById('modalConfirm').onclick = async () => {
+    const name = document.getElementById('mName').value.trim();
+    if (!name) return;
+    await api('/projects', { method: 'POST', body: {
+      name, notes: document.getElementById('mNotes').value, color: document.getElementById('mColor').value
+    }});
+    closeModal(); loadSidebar();
+  };
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function selectColor(el, color) {
+  document.querySelectorAll('#mColors span').forEach(s => s.style.borderColor = 'transparent');
+  el.style.borderColor = 'var(--dark)';
+  document.getElementById('mColor').value = color;
+}
+
+function showNewTask(projectId) {
+  document.getElementById('modalTitle').textContent = '새 작업';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-field"><label>작업 이름</label><input id="mName" placeholder="무엇을 해야 하나요?"></div>
+    <div class="modal-field"><label>메모</label><textarea id="mNotes" placeholder="세부 사항..."></textarea></div>
+    <div style="display:flex;gap:8px">
+      <div class="modal-field" style="flex:1"><label>시작일</label><input id="mStart" type="date"></div>
+      <div class="modal-field" style="flex:1"><label>마감일</label><input id="mDue" type="date"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div class="modal-field" style="flex:1"><label>소요시간 (분)</label><input id="mDuration" type="number" value="60"></div>
+      <div class="modal-field" style="flex:1"><label>우선순위</label>
+        <select id="mPriority"><option value="0">보통</option><option value="1">높음</option><option value="-1">낮음</option></select></div>
+    </div>
+    <div class="modal-field"><label>컨텍스트</label>
+      <select id="mCtx"><option value="">없음</option>
+        ${contexts.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+      </select></div>
+    <div class="modal-field"><label><input type="checkbox" id="mFlag"> 중요 표시</label></div>`;
+  document.getElementById('modalConfirm').onclick = async () => {
+    const name = document.getElementById('mName').value.trim();
+    if (!name) return;
+    await api('/tasks', { method: 'POST', body: {
+      projectId, name, notes: document.getElementById('mNotes').value,
+      startDate: document.getElementById('mStart').value ? new Date(document.getElementById('mStart').value).getTime() : Date.now(),
+      dueDate: document.getElementById('mDue').value ? new Date(document.getElementById('mDue').value).getTime() : null,
+      duration: parseInt(document.getElementById('mDuration').value) || 60,
+      priority: parseInt(document.getElementById('mPriority').value) || 0,
+      contextId: parseInt(document.getElementById('mCtx').value) || null,
+      flagged: document.getElementById('mFlag').checked,
+    }});
+    closeModal(); loadSidebar(); setView('project', projectId);
+  };
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function showEditTask(id) {
+  // TODO: edit modal with current values
+}
+
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+// ═══ Helpers ═══
+function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+function formatDateShort(ts) { return new Date(ts).toLocaleDateString('ko-KR', { month:'short', day:'numeric' }); }
+function isOverdue(ts) { return ts && ts < Date.now(); }
+function isDueSoon(ts) { return ts && ts < Date.now() + 3 * 86400000; }
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  if (diff < 60000) return '방금';
+  if (diff < 3600000) return Math.floor(diff/60000) + '분 전';
+  if (diff < 86400000) return Math.floor(diff/3600000) + '시간 전';
+  return Math.floor(diff/86400000) + '일 전';
+}
+function startOfDay(ts) { const d = new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
+function isSameDay(a, b) { return startOfDay(a) === startOfDay(b); }
+
+// ═══ Init ═══
+loadSidebar();
+setView('inbox');
+</script>
+</body>
+</html>

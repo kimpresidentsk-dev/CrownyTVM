@@ -1,0 +1,13 @@
+[package]
+name = "crowny-tvm"
+version = "0.32.0"
+edition = "2021"
+description = "4세대 온톨로직 균형3진 가상머신 + 한선씨(HanSeon-C) 컴파일러"
+
+[[bin]]
+name = "crowny"
+path = "src/main.rs"
+
+[lib]
+name = "crowny_tvm"
+path = "src/lib.rs"

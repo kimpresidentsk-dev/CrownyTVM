@@ -1,0 +1,31 @@
+# Build artifacts
+target/
+Cargo.lock
+
+# Data (runtime generated)
+data/
+
+# Archives
+*.zip
+*.tar.gz
+
+# macOS
+.DS_Store
+*.rtfd/
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code
+.claude/
+
+# Node
+node_modules/
+
+# Binary/docs
+*.o
+*.elf
+*.docx
+*.pdf
+InterM-API_Doc_v1.6.1/

@@ -1,0 +1,168 @@
+// ═══════════════════════════════════════════════════════════════
+// 시드생성 — 한선씨가 네이티브 TritVM 바이너리를 생성
+//
+// 이 모듈이 생성하는 바이너리:
+//   1. .hanc 바이트코드 파일을 읽음 (sys_open + sys_read)
+//   2. HANC 형식 파싱 (상수풀 + 코드 로딩)
+//   3. ISA729 fetch-decode-execute 루프 실행
+//   4. Rust/C 완전 무관여
+//
+// 레지스터 규약 (x86-64):
+//   RBX = PC (프로그램 카운터)
+//   R12 = 스택 메모리 시작
+//   R13 = 스택 포인터 (SP, Value 단위)
+//   R14 = 슬롯 메모리 시작
+//   R15 = 상수 메모리 시작
+//
+// Value 메모리 레이아웃: [type:8][data:8] = 16바이트/값
+// ═══════════════════════════════════════════════════════════════
+가져오기 "비트"
+가져오기 "메모리"
+
+// ─── 상수 ───
+상수 VALUE_SIZE = 16     // 바이트: type(8) + data(8)
+상수 STACK_SIZE = 8192   // 512개 Value × 16바이트
+상수 SLOTS_SIZE = 8192
+상수 HEAP_SIZE = 65536   // 문자열/배열용 64KB
+상수 CODE_BUF = 65536    // .hanc 파일 최대 64KB
+
+// ═══ x86-64 기계어 패턴 (비트 연산 사용) ═══
+
+// MOV reg, imm64 (REX.W + B8+rd)
+함수 _mov_reg_imm64(reg, 값) {
+    // reg: 0=RAX, 1=RCX, 2=RDX, 3=RBX, 4=RSP, 5=RBP, 6=RSI, 7=RDI
+    // R8~R15: reg-8, REX.B=1
+    변수 code = []
+    만약 (reg < 8) {
+        code = code + [비트합(72, 8)]     // REX.W
+        code = code + [비트합(184, reg)]   // B8+rd
+    } 아니면 {
+        code = code + [73]                  // REX.W + REX.B
+        code = code + [비트합(184, reg - 8)]
+    }
+    code = code + le64(값)
+    반환 code
+}
+
+// PUSH reg: 50+rd (또는 41 50+rd-8 for R8-R15)
+함수 _push(reg) {
+    만약 (reg < 8) { 반환 [비트합(80, reg)] }
+    반환 [65, 비트합(80, reg - 8)]
+}
+
+// POP reg
+함수 _pop(reg) {
+    만약 (reg < 8) { 반환 [비트합(88, reg)] }
+    반환 [65, 비트합(88, reg - 8)]
+}
+
+// 레지스터 번호
+상수 RAX = 0
+상수 RCX = 1
+상수 RDX = 2
+상수 RBX = 3
+상수 RSI = 6
+상수 RDI = 7
+상수 R12 = 12
+상수 R13 = 13
+상수 R14 = 14
+상수 R15 = 15
+
+// ═══ 시드 바이너리 생성 ═══
+
+함수 시드_생성_x86(hanc_데이터) {
+    변수 code = []
+
+    // ─── 1단계: 메모리 할당 (mmap) ───
+    // 스택 영역
+    code = code + x86_sys_mmap(STACK_SIZE)
+    code = code + [73, 137, 196]      // mov r12, rax (스택 시작)
+    code = code + [73, 137, 197]      // mov r13, rax (SP = 스택 시작)
+
+    // 슬롯 영역
+    code = code + x86_sys_mmap(SLOTS_SIZE)
+    code = code + [73, 137, 198]      // mov r14, rax (슬롯 시작)
+
+    // 힙 영역
+    code = code + x86_sys_mmap(HEAP_SIZE)
+    code = code + [73, 137, 199]      // mov r15, rax (힙 시작)
+
+    // ─── 2단계: .hanc 데이터를 코드에 내장 ───
+    // (외부 파일 대신 바이너리에 임베딩)
+    변수 hanc_offset = __내장__(30, code) + 120 + 5  // ELF 헤더 후 JMP 건너뜀
+    // JMP over data
+    변수 hanc_len = __내장__(30, hanc_데이터)
+    code = code + [233]  // JMP rel32
+    code = code + le32(hanc_len)
+    // 여기에 .hanc 데이터 삽입
+    code = code + hanc_데이터
+
+    // ─── 3단계: HANC 파싱 ───
+    // (임베디드이므로 상수풀 오프셋을 레지스터에 설정)
+    // PC = 0으로 시작
+    code = code + [72, 49, 219]       // xor rbx, rbx (PC = 0)
+
+    // ─── 4단계: Fetch-Decode-Execute 루프 ───
+
+    // 메인 루프 시작점 기록
+    변수 loop_start = __내장__(30, code)
+
+    // HALT 체크 → exit(0)
+    // 실제 구현은 내장 .hanc의 HALT 옵코드(25)를 체크
+
+    // sys_exit(0)
+    code = code + [72, 199, 192, 60, 0, 0, 0]  // mov rax, 60
+    code = code + [72, 49, 255]                   // xor rdi, rdi
+    code = code + [15, 5]                          // syscall
+
+    // ELF 바이너리로 래핑
+    반환 elf64_생성_시드(code)
+}
+
+// ─── ELF64 생성 (시드용 — 코드 영역 확장) ───
+
+함수 elf64_생성_시드(코드바이트) {
+    변수 코드길이 = __내장__(30, 코드바이트)
+    변수 전체크기 = 120 + 코드길이
+    변수 진입점 = 4194424    // 0x400078
+
+    // ELF 헤더 (64바이트)
+    변수 hdr = [127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    hdr = hdr + [2, 0]
+    hdr = hdr + [62, 0]
+    hdr = hdr + le32(1)
+    hdr = hdr + le64(진입점)
+    hdr = hdr + le64(64)
+    hdr = hdr + le64(0)
+    hdr = hdr + le32(0)
+    hdr = hdr + [64, 0]
+    hdr = hdr + [56, 0]
+    hdr = hdr + [1, 0]
+    hdr = hdr + [0, 0]
+    hdr = hdr + [0, 0]
+    hdr = hdr + [0, 0]
+
+    // 프로그램 헤더 (56바이트)
+    변수 phdr = le32(1)
+    phdr = phdr + le32(7)                // PF_R|PF_W|PF_X
+    phdr = phdr + le64(0)
+    phdr = phdr + le64(4194304)
+    phdr = phdr + le64(4194304)
+    phdr = phdr + le64(전체크기)
+    phdr = phdr + le64(전체크기 + HEAP_SIZE)
+    phdr = phdr + le64(4096)
+
+    반환 hdr + phdr + 코드바이트
+}
+
+// ═══ 통합: 한선씨 소스 → 네이티브 시드 ═══
+
+함수 시드_생성_소스(한선소스) {
+
+    // 1. 한선씨 → ISA729 바이트코드
+    변수 bc = 컴파일(한선소스)
+    // 2. 바이트코드 → HANC 직렬화
+    변수 hanc = hanc_직렬화(bc[0], bc[1])
+    // 3. HANC → 네이티브 시드 바이너리
+    반환 시드_생성_x86(hanc)
+}

@@ -1,0 +1,506 @@
+// ═══════════════════════════════════════════════════════════════
+// 시드생성 — ISA729 → 네이티브 AOT 컴파일 (ARM64 + x86-64)
+//
+// 한선코드젠 옵코드:
+//   0=TRUE  1=NONE  2=FALSE
+//   3=EQ  4=NEQ  5=GT  6=LT  7=NOT  14=NEG
+//   9=ADD  10=SUB  11=MUL  12=DIV  13=MOD
+//   18=JMP  19=JMPIF(truthy→jump)
+//   20=CALL  21=RET  25=HALT  27=PUSH_CONST
+//   32=PRINT  34=STORE  35=LOAD  36=FUNC
+//
+// ARM64 레지스터 규약:
+//   x19 = 값 스택 포인터 (위로 성장)
+//   x20 = 슬롯 베이스 포인터
+//   sp  = 하드웨어 스택 (call/ret, 프레임 저장)
+// ═══════════════════════════════════════════════════════════════
+가져오기 "비트"
+가져오기 "한선기계어"
+
+// ═══ FuncRef 탐지: PUSH_CONST + CALL 패턴 ═══
+
+함수 _funcref맵(코드, 상수풀) {
+    변수 맵 = []
+    변수 i = 0
+    동안 (i < __내장__(30, 상수풀)) {
+        맵 = 맵 + [0]
+        i = i + 1
+    }
+    i = 0
+    변수 codelen = __내장__(30, 코드)
+    동안 (i < codelen - 1) {
+        만약 (코드[i][0] == 27) {
+            만약 (코드[i + 1][0] == 20) {
+                변수 ci = 코드[i][1]
+                맵[ci] = 1
+            }
+        }
+        i = i + 1
+    }
+    반환 맵
+}
+
+// ═══════════════════════════════════════════════════════════════
+//                    ARM64 AOT (macOS)
+// ═══════════════════════════════════════════════════════════════
+
+함수 aot_arm64(코드, 상수풀) {
+    변수 frmap = _funcref맵(코드, 상수풀)
+    변수 asm = ".global _main\n.align 4\n"
+
+    // ─── 정수 출력 서브루틴 ───
+    asm = asm + "Lprint:\n"
+    asm = asm + "  stp x29, x30, [sp, #-16]!\n"
+    asm = asm + "  mov x29, sp\n"
+    asm = asm + "  sub sp, sp, #32\n"
+    asm = asm + "  mov x10, sp\n"
+    asm = asm + "  mov w1, #10\n"
+    asm = asm + "  strb w1, [x10, #23]\n"
+    asm = asm + "  mov x11, #23\n"
+    asm = asm + "  mov x12, #0\n"
+    asm = asm + "  cmp x0, #0\n"
+    asm = asm + "  b.ge Lp_pos\n"
+    asm = asm + "  neg x0, x0\n"
+    asm = asm + "  mov x12, #1\n"
+    asm = asm + "Lp_pos:\n"
+    asm = asm + "  cbnz x0, Lp_dloop\n"
+    asm = asm + "  sub x11, x11, #1\n"
+    asm = asm + "  mov w1, #48\n"
+    asm = asm + "  strb w1, [x10, x11]\n"
+    asm = asm + "  b Lp_sign\n"
+    asm = asm + "Lp_dloop:\n"
+    asm = asm + "  cbz x0, Lp_sign\n"
+    asm = asm + "  mov x1, #10\n"
+    asm = asm + "  udiv x2, x0, x1\n"
+    asm = asm + "  msub x3, x2, x1, x0\n"
+    asm = asm + "  add w3, w3, #48\n"
+    asm = asm + "  sub x11, x11, #1\n"
+    asm = asm + "  strb w3, [x10, x11]\n"
+    asm = asm + "  mov x0, x2\n"
+    asm = asm + "  b Lp_dloop\n"
+    asm = asm + "Lp_sign:\n"
+    asm = asm + "  cbz x12, Lp_write\n"
+    asm = asm + "  sub x11, x11, #1\n"
+    asm = asm + "  mov w1, #45\n"
+    asm = asm + "  strb w1, [x10, x11]\n"
+    asm = asm + "Lp_write:\n"
+    asm = asm + "  mov x0, #1\n"
+    asm = asm + "  add x1, x10, x11\n"
+    asm = asm + "  mov x2, #24\n"
+    asm = asm + "  sub x2, x2, x11\n"
+    asm = asm + "  mov x16, #4\n"
+    asm = asm + "  svc #0x80\n"
+    asm = asm + "  mov sp, x29\n"
+    asm = asm + "  ldp x29, x30, [sp], #16\n"
+    asm = asm + "  ret\n\n"
+
+    // ─── 메인 진입점 ───
+    asm = asm + "_main:\n"
+    // 슬롯: 64KB (재귀 깊이 충분)
+    asm = asm + "  mov x0, #65536\n"
+    asm = asm + "  sub sp, sp, x0\n"
+    asm = asm + "  mov x20, sp\n"
+    // 값 스택: 32KB
+    asm = asm + "  mov x0, #32768\n"
+    asm = asm + "  sub sp, sp, x0\n"
+    asm = asm + "  mov x19, sp\n\n"
+
+    // ─── 명령어별 코드 생성 ───
+    변수 pc = 0
+    변수 ncode = __내장__(30, 코드)
+
+    동안 (pc < ncode) {
+        변수 inst = 코드[pc]
+        변수 op = inst[0]
+        변수 a = inst[1]
+
+        asm = asm + "L" + pc + ":\n"
+
+        // 27 = PUSH_CONST
+        만약 (op == 27) {
+            만약 (frmap[a] == 1) {
+                // FuncRef → skip (CALL에서 bl로 직접 처리)
+                asm = asm + "  // FuncRef skip\n"
+            } 아니면 {
+                변수 val = 상수풀[a]
+                만약 (val < 0) {
+                    asm = asm + "  mov x0, #" + (0 - val) + "\n"
+                    asm = asm + "  neg x0, x0\n"
+                } 혹시 (val > 65535) {
+                    asm = asm + "  movz x0, #" + 비트곱(val, 65535) + "\n"
+                    asm = asm + "  movk x0, #" + 비트곱(오밀(val, 16), 65535) + ", lsl #16\n"
+                } 아니면 {
+                    asm = asm + "  mov x0, #" + val + "\n"
+                }
+                asm = asm + "  str x0, [x19], #8\n"
+            }
+        }
+
+        // 0 = TRUE, 2 = FALSE
+        만약 (op == 0) {
+            asm = asm + "  mov x0, #1\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+        만약 (op == 2) {
+            asm = asm + "  mov x0, #0\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+
+        // 34 = STORE, 35 = LOAD
+        만약 (op == 34) {
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  str x0, [x20, #" + (a * 8) + "]\n"
+        }
+        만약 (op == 35) {
+            asm = asm + "  ldr x0, [x20, #" + (a * 8) + "]\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+
+        // 산술: 9=ADD 10=SUB 11=MUL 12=DIV 13=MOD
+        만약 (op == 9) {
+            asm = asm + "  ldr x1, [x19, #-8]!\n"
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  add x0, x0, x1\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+        만약 (op == 10) {
+            asm = asm + "  ldr x1, [x19, #-8]!\n"
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  sub x0, x0, x1\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+        만약 (op == 11) {
+            asm = asm + "  ldr x1, [x19, #-8]!\n"
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  mul x0, x0, x1\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+        만약 (op == 12) {
+            asm = asm + "  ldr x1, [x19, #-8]!\n"
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  sdiv x0, x0, x1\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+        만약 (op == 13) {
+            asm = asm + "  ldr x1, [x19, #-8]!\n"
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  sdiv x2, x0, x1\n"
+            asm = asm + "  msub x0, x2, x1, x0\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+
+        // 비교: 3=EQ 5=GT 6=LT 7=NOT 14=NEG
+        만약 (op == 5) {
+            asm = asm + "  ldr x1, [x19, #-8]!\n"
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  cmp x0, x1\n"
+            asm = asm + "  cset x0, gt\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+        만약 (op == 6) {
+            asm = asm + "  ldr x1, [x19, #-8]!\n"
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  cmp x0, x1\n"
+            asm = asm + "  cset x0, lt\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+        만약 (op == 3) {
+            asm = asm + "  ldr x1, [x19, #-8]!\n"
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  cmp x0, x1\n"
+            asm = asm + "  cset x0, eq\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+        만약 (op == 7) {
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  cmp x0, #0\n"
+            asm = asm + "  cset x0, eq\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+        만약 (op == 14) {
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  neg x0, x0\n"
+            asm = asm + "  str x0, [x19], #8\n"
+        }
+
+        // 18=JMP  19=JMPIF
+        만약 (op == 18) {
+            asm = asm + "  b L" + a + "\n"
+        }
+        만약 (op == 19) {
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  cbnz x0, L" + a + "\n"
+        }
+
+        // 36 = FUNC (함수 진입점: 프레임 저장)
+        만약 (op == 36) {
+            asm = asm + "  stp x29, x30, [sp, #-16]!\n"
+            asm = asm + "  mov x29, sp\n"
+        }
+
+        // 20 = CALL nargs
+        만약 (op == 20) {
+            변수 nargs = a
+            // 직전 PUSH_CONST에서 FuncRef → 대상 PC 추출
+            변수 target_ci = 코드[pc - 1][1]
+            변수 target_pc = 상수풀[target_ci]
+
+            // x20 저장 + 새 슬롯 프레임
+            asm = asm + "  str x20, [sp, #-16]!\n"
+            asm = asm + "  add x20, x20, #256\n"
+
+            // 인자를 값 스택에서 새 슬롯으로 (역순 pop)
+            변수 ai = nargs - 1
+            동안 (ai >= 0) {
+                asm = asm + "  ldr x0, [x19, #-8]!\n"
+                asm = asm + "  str x0, [x20, #" + (ai * 8) + "]\n"
+                ai = ai - 1
+            }
+
+            // 함수 호출
+            asm = asm + "  bl L" + target_pc + "\n"
+
+            // x20 복원
+            asm = asm + "  ldr x20, [sp], #16\n"
+        }
+
+        // 21 = RET
+        만약 (op == 21) {
+            // 반환값은 값 스택 탑에 있음
+            asm = asm + "  ldp x29, x30, [sp], #16\n"
+            asm = asm + "  ret\n"
+        }
+
+        // 32 = PRINT
+        만약 (op == 32) {
+            asm = asm + "  ldr x0, [x19, #-8]!\n"
+            asm = asm + "  bl Lprint\n"
+        }
+
+        // 25 = HALT
+        만약 (op == 25) {
+            asm = asm + "  mov x0, #0\n"
+            asm = asm + "  mov x16, #1\n"
+            asm = asm + "  svc #0x80\n"
+        }
+
+        pc = pc + 1
+    }
+
+    asm = asm + "Lend:\n"
+    asm = asm + "  mov x0, #0\n"
+    asm = asm + "  mov x16, #1\n"
+    asm = asm + "  svc #0x80\n"
+
+    반환 asm
+}
+
+// ═══ 빌드+실행 (ARM64 macOS) ═══
+
+함수 aot_빌드(이름, 코드, 상수풀) {
+    변수 asm = aot_arm64(코드, 상수풀)
+    변수 asm경로 = "/tmp/crowny_aot_" + 이름 + ".s"
+    변수 bin경로 = "/tmp/crowny_aot_" + 이름
+    __sys__("파일쓰기", asm경로, asm)
+    변수 cc결과 = __sys__("명령실행", "cc -o " + bin경로 + " " + asm경로 + " -e _main -lSystem 2>&1")
+    만약 (__내장__(37, cc결과, "error") == 티) {
+        출력("  컴파일 에러: " + cc결과)
+        반환 ""
+    }
+    반환 bin경로
+}
+
+함수 aot_실행(이름, 코드, 상수풀) {
+    변수 bin = aot_빌드(이름, 코드, 상수풀)
+    만약 (bin == "") { 반환 "" }
+    변수 결과 = __sys__("명령실행", bin)
+    반환 __내장__(33, 결과)
+}
+
+// ═══════════════════════════════════════════════════════════════
+//                    x86-64 AOT (Linux ELF)
+// ═══════════════════════════════════════════════════════════════
+
+함수 _인쇄루틴() {
+    변수 c = []
+    c = c + [85]                             // push rbp
+    c = c + [72, 137, 229]                   // mov rbp, rsp
+    c = c + [72, 131, 236, 32]              // sub rsp, 32
+    c = c + [73, 137, 232]                   // mov r8, rbp
+    c = c + [73, 255, 200]                   // dec r8
+    c = c + [65, 198, 0, 10]                // '\n'
+    c = c + [73, 255, 200]                   // dec r8
+    c = c + [72, 49, 210]                    // xor rdx, rdx
+    c = c + [72, 199, 193, 10, 0, 0, 0]    // mov rcx, 10
+    c = c + [72, 247, 241]                   // div rcx
+    c = c + [128, 194, 48]                   // add dl, '0'
+    c = c + [65, 136, 16]                    // mov [r8], dl
+    c = c + [72, 133, 192]                   // test rax, rax
+    c = c + [117, 229]                        // jnz -27
+    c = c + [72, 199, 192, 1, 0, 0, 0]     // mov rax, 1
+    c = c + [72, 199, 199, 1, 0, 0, 0]     // mov rdi, 1
+    c = c + [76, 137, 198]                   // mov rsi, r8
+    c = c + [72, 137, 234]                   // mov rdx, rbp
+    c = c + [76, 41, 194]                    // sub rdx, r8
+    c = c + [15, 5]                           // syscall
+    c = c + [72, 137, 236]                   // mov rsp, rbp
+    c = c + [93]                              // pop rbp
+    c = c + [195]                             // ret
+    반환 c
+}
+
+// 값 스택 매크로 (r13 기반)
+함수 _vpush() { 반환 [73, 137, 69, 0, 73, 131, 197, 8] }
+함수 _vpop_rax() { 반환 [73, 131, 237, 8, 73, 139, 69, 0] }
+함수 _vpop_rdi() { 반환 [73, 131, 237, 8, 73, 139, 125, 0] }
+
+함수 aot_x86(코드, 상수풀) {
+    변수 frmap = _funcref맵(코드, 상수풀)
+    변수 mc = []
+    변수 codelen = __내장__(30, 코드)
+
+    // 프롤로그: mmap 값스택(r13) + 슬롯(r14)
+    mc = mc + [72, 199, 192, 9, 0, 0, 0]
+    mc = mc + [72, 49, 255]
+    mc = mc + [72, 199, 198, 0, 0, 1, 0]
+    mc = mc + [72, 199, 194, 3, 0, 0, 0]
+    mc = mc + [73, 199, 194, 34, 0, 0, 0]
+    mc = mc + [73, 199, 192, 255, 255, 255, 255]
+    mc = mc + [73, 199, 193, 0, 0, 0, 0]
+    mc = mc + [15, 5]
+    mc = mc + [73, 137, 197]                  // mov r13, rax
+
+    mc = mc + [72, 199, 192, 9, 0, 0, 0]
+    mc = mc + [72, 49, 255]
+    mc = mc + [72, 199, 198, 0, 0, 1, 0]
+    mc = mc + [72, 199, 194, 3, 0, 0, 0]
+    mc = mc + [73, 199, 194, 34, 0, 0, 0]
+    mc = mc + [73, 199, 192, 255, 255, 255, 255]
+    mc = mc + [73, 199, 193, 0, 0, 0, 0]
+    mc = mc + [15, 5]
+    mc = mc + [73, 137, 198]                  // mov r14, rax
+
+    변수 인쇄코드 = _인쇄루틴()
+    mc = mc + [233]
+    mc = mc + le32(__내장__(30, 인쇄코드))
+    변수 인쇄주소 = __내장__(30, mc)
+    mc = mc + 인쇄코드
+
+    // 코드 생성 (1차 패스)
+    변수 오프셋 = []
+    변수 i = 0
+    동안 (i < codelen) {
+        오프셋 = 오프셋 + [__내장__(30, mc)]
+        변수 inst = 코드[i]
+        변수 op = inst[0]
+        변수 oa = inst[1]
+
+        만약 (op == 25) {
+            mc = mc + [72, 199, 192, 60, 0, 0, 0]
+            mc = mc + [72, 49, 255]
+            mc = mc + [15, 5]
+        }
+        혹시 (op == 27) {
+            만약 (frmap[oa] == 1) { }
+            아니면 {
+                mc = mc + x86_mov_rax(상수풀[oa])
+                mc = mc + _vpush()
+            }
+        }
+        혹시 (op == 9) { mc = mc + _vpop_rdi() + _vpop_rax() + [72, 1, 248] + _vpush() }
+        혹시 (op == 10) { mc = mc + _vpop_rdi() + _vpop_rax() + [72, 41, 248] + _vpush() }
+        혹시 (op == 11) { mc = mc + _vpop_rdi() + _vpop_rax() + [72, 15, 175, 199] + _vpush() }
+        혹시 (op == 12) { mc = mc + _vpop_rdi() + _vpop_rax() + [72, 153, 72, 247, 255] + _vpush() }
+        혹시 (op == 13) { mc = mc + _vpop_rdi() + _vpop_rax() + [72, 153, 72, 247, 255, 72, 137, 208] + _vpush() }
+        혹시 (op == 34) { mc = mc + _vpop_rax() + [73, 137, 134] + le32(oa * 8) }
+        혹시 (op == 35) { mc = mc + [73, 139, 134] + le32(oa * 8) + _vpush() }
+        혹시 (op == 5) { mc = mc + _vpop_rdi() + _vpop_rax() + [72, 49, 201, 72, 57, 248, 15, 159, 193, 72, 137, 200] + _vpush() }
+        혹시 (op == 6) { mc = mc + _vpop_rdi() + _vpop_rax() + [72, 49, 201, 72, 57, 248, 15, 156, 193, 72, 137, 200] + _vpush() }
+        혹시 (op == 3) { mc = mc + _vpop_rdi() + _vpop_rax() + [72, 49, 201, 72, 57, 248, 15, 148, 193, 72, 137, 200] + _vpush() }
+        혹시 (op == 7) { mc = mc + _vpop_rax() + [72, 49, 201, 72, 133, 192, 15, 148, 193, 72, 137, 200] + _vpush() }
+        혹시 (op == 0) { mc = mc + x86_mov_rax(1) + _vpush() }
+        혹시 (op == 2) { mc = mc + [72, 49, 192] + _vpush() }
+        혹시 (op == 36) { }
+        혹시 (op == 20) {
+            변수 nargs = oa
+            mc = mc + [65, 86]
+            mc = mc + [73, 129, 198, 0, 8, 0, 0]
+            변수 ai = nargs - 1
+            동안 (ai >= 0) {
+                mc = mc + _vpop_rax()
+                mc = mc + [73, 137, 134] + le32(ai * 8)
+                ai = ai - 1
+            }
+            mc = mc + [232, 0, 0, 0, 0]
+            mc = mc + [65, 94]
+        }
+        혹시 (op == 21) { mc = mc + [195] }
+        혹시 (op == 18) { mc = mc + [233, 0, 0, 0, 0] }
+        혹시 (op == 19) { mc = mc + _vpop_rax() + [72, 133, 192, 15, 133, 0, 0, 0, 0] }
+        혹시 (op == 32) {
+            mc = mc + _vpop_rax()
+            변수 현재 = __내장__(30, mc) + 5
+            mc = mc + [232] + le32(인쇄주소 - 현재)
+        }
+
+        i = i + 1
+    }
+
+    // 2차 패스: JMP/JMPIF/CALL 패치
+    변수 mc_len = __내장__(30, mc)
+    i = 0
+    동안 (i < codelen) {
+        변수 op = 코드[i][0]
+        변수 oa = 코드[i][1]
+
+        만약 (op == 18) {
+            변수 from = 오프셋[i]
+            변수 end = from + 5
+            변수 target = mc_len
+            만약 (oa < __내장__(30, 오프셋)) { target = 오프셋[oa] }
+            변수 bytes = le32(target - end)
+            mc[from + 1] = bytes[0]
+            mc[from + 2] = bytes[1]
+            mc[from + 3] = bytes[2]
+            mc[from + 4] = bytes[3]
+        }
+        혹시 (op == 19) {
+            변수 from = 오프셋[i]
+            변수 end = from + 17
+            변수 target = mc_len
+            만약 (oa < __내장__(30, 오프셋)) { target = 오프셋[oa] }
+            변수 bytes = le32(target - end)
+            mc[from + 13] = bytes[0]
+            mc[from + 14] = bytes[1]
+            mc[from + 15] = bytes[2]
+            mc[from + 16] = bytes[3]
+        }
+        혹시 (op == 20) {
+            변수 from = 오프셋[i]
+            변수 target_ci = 코드[i - 1][1]
+            변수 target_pc = 상수풀[target_ci]
+            변수 target = 0
+            만약 (target_pc < __내장__(30, 오프셋)) { target = 오프셋[target_pc] }
+            변수 nargs = oa
+            변수 call_offset = from + 2 + 7 + nargs * 15
+            변수 call_end = call_offset + 5
+            변수 bytes = le32(target - call_end)
+            mc[call_offset + 1] = bytes[0]
+            mc[call_offset + 2] = bytes[1]
+            mc[call_offset + 3] = bytes[2]
+            mc[call_offset + 4] = bytes[3]
+        }
+        i = i + 1
+    }
+
+    반환 mc
+}
+
+// x86-64 ELF 빌드+실행
+함수 aot_x86_실행(이름, 코드, 상수풀) {
+    변수 mc = aot_x86(코드, 상수풀)
+    변수 elf = elf64_생성(mc)
+    네이티브쓰기("/tmp/crowny_x86_" + 이름, elf)
+    변수 결과 = __sys__("명령실행", "/tmp/crowny_x86_" + 이름)
+    반환 __내장__(33, 결과)
+}

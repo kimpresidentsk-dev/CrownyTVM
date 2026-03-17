@@ -1,0 +1,173 @@
+// ═══════════════════════════════════════════════════════════════
+// 한선C변환 — 한선씨 → C 트랜스파일러 (한선씨로 작성)
+//
+// 한선파서의 AST를 받아 동등한 C 코드를 문자열로 출력
+// crowny_runtime.h의 Value 타입 사용
+// ═══════════════════════════════════════════════════════════════
+가져오기 "한선렉서"
+가져오기 "한선파서"
+
+// ═══ 메인: 소스 → C 코드 ═══
+
+함수 C변환(소스) {
+    변수 토큰들 = 렉싱(소스)
+    변수 ast = 파싱(토큰들)
+    반환 _C프로그램(ast)
+}
+
+함수 _C프로그램(ast) {
+    변수 out = "#include \"crowny_runtime.h\"\n\n"
+
+    // 1차: 함수 전방 선언
+    각각 node 에서 ast {
+        만약 (node[0] == 23) {
+            out = out + "Value fn_" + node[1] + "("
+            변수 params = node[2]
+            변수 pi = 0
+            동안 (pi < __내장__(30, params)) {
+                만약 (pi > 0) { out = out + ", " }
+                out = out + "Value " + params[pi]
+                pi = pi + 1
+            }
+            out = out + ");\n"
+        }
+    }
+    out = out + "\n"
+
+    // 2차: 함수 정의
+    각각 node 에서 ast {
+        만약 (node[0] == 23) {
+            out = out + _C함수(node) + "\n"
+        }
+    }
+
+    // 3차: main 함수 (함수가 아닌 문장들)
+    out = out + "int main(void) {\n"
+    각각 node 에서 ast {
+        만약 (node[0] != 23) {
+            out = out + "  " + _C문장(node) + "\n"
+        }
+    }
+    out = out + "  return 0;\n}\n"
+    반환 out
+}
+
+// ═══ 함수 생성 ═══
+
+함수 _C함수(node) {
+    변수 out = "Value fn_" + node[1] + "("
+    변수 params = node[2]
+    변수 pi = 0
+    동안 (pi < __내장__(30, params)) {
+        만약 (pi > 0) { out = out + ", " }
+        out = out + "Value " + params[pi]
+        pi = pi + 1
+    }
+    out = out + ") {\n"
+    각각 stmt 에서 node[3] {
+        out = out + "  " + _C문장(stmt) + "\n"
+    }
+    // 암묵적 반환
+    변수 body = node[3]
+    변수 blen = __내장__(30, body)
+    만약 (blen == 0) { out = out + "  return v_none();\n" }
+    혹시 (body[blen - 1][0] != 24) { out = out + "  return v_none();\n" }
+    out = out + "}\n"
+    반환 out
+}
+
+// ═══ 문장 → C ═══
+
+함수 _C문장(node) {
+    변수 t = node[0]
+
+    // 20=Let, 21=Const
+    만약 (t == 20) {
+        반환 "Value " + node[1] + " = " + _C식(node[2]) + ";"
+    }
+    만약 (t == 21) {
+        반환 "const Value " + node[1] + " = " + _C식(node[2]) + ";"
+    }
+    // 22=Assign
+    만약 (t == 22) {
+        반환 node[1] + " = " + _C식(node[2]) + ";"
+    }
+    // 24=Return
+    만약 (t == 24) {
+        만약 (node[1] == 0) { 반환 "return v_none();" }
+        반환 "return " + _C식(node[1]) + ";"
+    }
+    // 25=If
+    만약 (t == 25) {
+        변수 out = "if (v_truthy(" + _C식(node[1]) + ") == 1) {\n"
+        각각 s 에서 node[2] { out = out + "    " + _C문장(s) + "\n" }
+        out = out + "  }"
+        만약 (__내장__(30, node[3]) > 0) {
+            out = out + " else {\n"
+            각각 s 에서 node[3] { out = out + "    " + _C문장(s) + "\n" }
+            out = out + "  }"
+        }
+        반환 out
+    }
+    // 26=While
+    만약 (t == 26) {
+        변수 out = "while (v_truthy(" + _C식(node[1]) + ") == 1) {\n"
+        각각 s 에서 node[2] { out = out + "    " + _C문장(s) + "\n" }
+        out = out + "  }"
+        반환 out
+    }
+    // 28=Print
+    만약 (t == 28) {
+        반환 "v_print(" + _C식(node[1]) + ");"
+    }
+    // 29=ExprStmt
+    만약 (t == 29) {
+        반환 _C식(node[1]) + ";"
+    }
+    반환 "/* unknown stmt */"
+}
+
+// ═══ 표현식 → C ═══
+
+함수 _C식(node) {
+    변수 t = node[0]
+
+    만약 (t == 1) { 반환 "v_int(" + node[1] + ")" }
+    만약 (t == 3) { 반환 "v_str(\"" + node[1] + "\")" }
+    만약 (t == 5) {
+        만약 (node[1] == 1) { 반환 "v_trit(1)" }
+        만약 (node[1] == 0) { 반환 "v_trit(0)" }
+        반환 "v_trit(-1)"
+    }
+    만약 (t == 4) { 반환 node[1] }
+    // 10=BinOp
+    만약 (t == 10) {
+        변수 좌 = _C식(node[2])
+        변수 우 = _C식(node[3])
+        변수 op = node[1]
+        만약 (op == "+")  { 반환 "v_add(" + 좌 + ", " + 우 + ")" }
+        만약 (op == "-")  { 반환 "v_sub(" + 좌 + ", " + 우 + ")" }
+        만약 (op == "*")  { 반환 "v_mul(" + 좌 + ", " + 우 + ")" }
+        만약 (op == "/")  { 반환 "v_div(" + 좌 + ", " + 우 + ")" }
+        만약 (op == "%")  { 반환 "v_mod(" + 좌 + ", " + 우 + ")" }
+        만약 (op == "==") { 반환 "v_eq(" + 좌 + ", " + 우 + ")" }
+        만약 (op == "!=") { 반환 "v_not(v_eq(" + 좌 + ", " + 우 + "))" }
+        만약 (op == ">")  { 반환 "v_gt(" + 좌 + ", " + 우 + ")" }
+        만약 (op == "<")  { 반환 "v_lt(" + 좌 + ", " + 우 + ")" }
+        만약 (op == ">=") { 반환 "v_not(v_lt(" + 좌 + ", " + 우 + "))" }
+        만약 (op == "<=") { 반환 "v_not(v_gt(" + 좌 + ", " + 우 + "))" }
+    }
+    // 12=Call
+    만약 (t == 12) {
+        변수 out = "fn_" + node[1] + "("
+        변수 인자들 = node[2]
+        변수 ai = 0
+        동안 (ai < __내장__(30, 인자들)) {
+            만약 (ai > 0) { out = out + ", " }
+            out = out + _C식(인자들[ai])
+            ai = ai + 1
+        }
+        반환 out + ")"
+    }
+    반환 "v_none()"
+}

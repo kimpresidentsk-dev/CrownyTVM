@@ -1,0 +1,357 @@
+// ═══════════════════════════════════════════════════════════════
+// 시드생성 — ISA729 바이트코드 → x86-64 네이티브 AOT 컴파일
+//
+// 한선씨 소스 → ISA729 바이트코드 → x86-64 기계어 → ELF 바이너리
+// Rust 완전 무관여 실행
+//
+// AOT 번역 규칙:
+//   PUSH val → mov rax, val; push rax
+//   POP     → add rsp, 8
+//   ADD     → pop rdi; pop rax; add rax, rdi; push rax
+//   SUB     → pop rdi; pop rax; sub rax, rdi; push rax
+//   MUL     → pop rdi; pop rax; imul rax, rdi; push rax
+//   DIV     → pop rax; pop r8; cqo; idiv r8; push rax (주의: 역순)
+//   STORE n → pop rax; mov [r14+n*8], rax
+//   LOAD n  → mov rax, [r14+n*8]; push rax
+//   JMP a   → jmp 주소
+//   JMPIF a → pop rax; cmp rax, 0; jg 주소
+//   EQ      → pop rdi; pop rax; xor rcx,rcx; cmp rax,rdi; sete cl; ... push
+//   PRINT   → pop rax; call _인쇄루틴
+//   HALT    → exit(0)
+//   CALL    → call 주소
+//   RET     → ret
+//   FUNC    → (건너뛰기는 JMP으로 처리됨)
+//
+// 레지스터 규약:
+//   R14 = 슬롯(변수) 메모리 시작
+//   x86 스택 = 값 스택 (직접 push/pop 사용)
+// ═══════════════════════════════════════════════════════════════
+가져오기 "비트"
+가져오기 "한선기계어"
+
+// ═══ 정수→문자열 출력 루틴 (x86-64) ═══
+// 이 루틴은 바이너리에 한 번 삽입, PRINT에서 호출
+// rax = 출력할 정수값
+함수 _인쇄루틴_코드() {
+    변수 c = []
+    c = c + [85]                             // push rbp
+    c = c + [72, 137, 229]                   // mov rbp, rsp
+    c = c + [72, 131, 236, 32]              // sub rsp, 32
+    c = c + [73, 137, 232]                   // mov r8, rbp
+    c = c + [73, 255, 200]                   // dec r8
+    c = c + [65, 198, 0, 10]                // mov byte [r8], '\n'
+    // 루프: 27바이트, jnz -27 = 229
+    c = c + [73, 255, 200]                   // dec r8
+    c = c + [72, 49, 210]                    // xor rdx, rdx
+    c = c + [72, 199, 193, 10, 0, 0, 0]    // mov rcx, 10
+    c = c + [72, 247, 241]                   // div rcx
+    c = c + [128, 194, 48]                   // add dl, '0'
+    c = c + [65, 136, 16]                    // mov [r8], dl
+    c = c + [72, 133, 192]                   // test rax, rax
+    c = c + [117, 229]                        // jnz -27
+    // write(1, r8, rbp-r8)
+    c = c + [72, 199, 192, 1, 0, 0, 0]     // mov rax, 1
+    c = c + [72, 199, 199, 1, 0, 0, 0]     // mov rdi, 1
+    c = c + [76, 137, 198]                   // mov rsi, r8
+    c = c + [72, 137, 234]                   // mov rdx, rbp
+    c = c + [76, 41, 194]                    // sub rdx, r8
+    c = c + [15, 5]                           // syscall
+    // 복원
+    c = c + [72, 137, 236]                   // mov rsp, rbp
+    c = c + [93]                              // pop rbp
+    c = c + [195]                             // ret
+    반환 c
+}
+
+// ═══ AOT 컴파일: ISA729 → x86-64 ═══
+
+함수 aot_컴파일(코드, 상수풀) {
+    변수 mc = []  // 기계어 바이트
+    변수 codelen = __내장__(30, 코드)
+    변수 constlen = __내장__(30, 상수풀)
+
+    // 슬롯 메모리 할당 (mmap)
+    // sys_mmap(NULL, 8192, PROT_READ|WRITE, MAP_ANON|MAP_PRIVATE, -1, 0)
+    mc = mc + [72, 199, 192, 9, 0, 0, 0]        // mov rax, 9 (mmap)
+    mc = mc + [72, 49, 255]                        // xor rdi, rdi
+    mc = mc + [72, 199, 198, 0, 32, 0, 0]        // mov rsi, 8192
+    mc = mc + [72, 199, 194, 3, 0, 0, 0]         // mov rdx, 3 (RW)
+    mc = mc + [73, 199, 194, 34, 0, 0, 0]        // mov r10, 34 (ANON|PRIVATE)
+    mc = mc + [73, 199, 192, 255, 255, 255, 255] // mov r8, -1
+    mc = mc + [73, 199, 193, 0, 0, 0, 0]         // mov r9, 0
+    mc = mc + [15, 5]                              // syscall
+    mc = mc + [73, 137, 198]                       // mov r14, rax (슬롯 시작)
+
+    // 인쇄 루틴 삽입 (JMP으로 건너뜀)
+    변수 인쇄코드 = _인쇄루틴_코드()
+    변수 인쇄길이 = __내장__(30, 인쇄코드)
+    mc = mc + [233]                                // jmp rel32
+    mc = mc + le32(인쇄길이)
+    변수 인쇄주소 = __내장__(30, mc)               // 인쇄루틴 시작 주소
+    mc = mc + 인쇄코드
+
+    // ─── 주소 매핑 테이블: ISA729 PC → x86 오프셋 ───
+    // 1차 패스: 각 ISA729 명령어의 x86 시작 오프셋 기록
+    변수 오프셋 = []
+    변수 미리크기 = __내장__(30, mc)  // 프롤로그 크기
+
+    // 명령어당 최대 크기 추정으로 오프셋 계산
+    // 실제로는 2-pass: 1차에서 크기 계산, 2차에서 코드 생성
+    // 간략화: 고정 크기 패딩 + NOP 슬레드
+
+    // === 실제 코드 생성 ===
+    변수 i = 0
+    동안 (i < codelen) {
+        오프셋 = 오프셋 + [__내장__(30, mc)]  // 현재 오프셋 기록
+
+        변수 inst = 코드[i]
+        변수 op = inst[0]
+        변수 oa = inst[1]
+        변수 ob = inst[2]
+
+        // 25 = HALT
+        만약 (op == 25) {
+            mc = mc + [72, 199, 192, 60, 0, 0, 0]   // mov rax, 60
+            mc = mc + [72, 49, 255]                    // xor rdi, rdi
+            mc = mc + [15, 5]                           // syscall
+        }
+        // 27 = PUSH (상수풀[oa])
+        혹시 (op == 27) {
+            변수 val = 상수풀[oa]
+            mc = mc + x86_mov_rax(val)
+            mc = mc + [80]                          // push rax
+        }
+        // 28 = POP
+        혹시 (op == 28) {
+            mc = mc + [72, 131, 196, 8]                // add rsp, 8
+        }
+        // 29 = DUP
+        혹시 (op == 29) {
+            mc = mc + [72, 139, 4, 36]                 // mov rax, [rsp]
+            mc = mc + [80]                              // push rax
+        }
+        // 9 = ADD
+        혹시 (op == 9) {
+            mc = mc + [95]                              // pop rdi
+            mc = mc + [88]                              // pop rax
+            mc = mc + [72, 1, 248]                      // add rax, rdi
+            mc = mc + [80]                              // push rax
+        }
+        // 10 = SUB
+        혹시 (op == 10) {
+            mc = mc + [95]                              // pop rdi
+            mc = mc + [88]                              // pop rax
+            mc = mc + [72, 41, 248]                     // sub rax, rdi
+            mc = mc + [80]                              // push rax
+        }
+        // 11 = MUL
+        혹시 (op == 11) {
+            mc = mc + [95]                              // pop rdi
+            mc = mc + [88]                              // pop rax
+            mc = mc + [72, 15, 175, 199]               // imul rax, rdi
+            mc = mc + [80]                              // push rax
+        }
+        // 12 = DIV
+        혹시 (op == 12) {
+            mc = mc + [95]                              // pop rdi (divisor)
+            mc = mc + [88]                              // pop rax (dividend)
+            mc = mc + [72, 153]                         // cqo (sign-extend rax→rdx:rax)
+            mc = mc + [72, 247, 255]                    // idiv rdi
+            mc = mc + [80]                              // push rax (quotient)
+        }
+        // 13 = MOD
+        혹시 (op == 13) {
+            mc = mc + [95]                              // pop rdi
+            mc = mc + [88]                              // pop rax
+            mc = mc + [72, 153]                         // cqo
+            mc = mc + [72, 247, 255]                    // idiv rdi
+            mc = mc + [82]                              // push rdx (remainder)
+        }
+        // 14 = NEG
+        혹시 (op == 14) {
+            mc = mc + [88]                              // pop rax
+            mc = mc + [72, 247, 216]                    // neg rax
+            mc = mc + [80]                              // push rax
+        }
+        // 34 = STORE slot
+        혹시 (op == 34) {
+            mc = mc + [88]                              // pop rax
+            // mov [r14 + oa*8], rax
+            mc = mc + [73, 137, 134]                    // mov [r14+disp32], rax
+            mc = mc + le32(oa * 8)
+        }
+        // 35 = LOAD slot
+        혹시 (op == 35) {
+            // mov rax, [r14 + oa*8]
+            mc = mc + [73, 139, 134]                    // mov rax, [r14+disp32]
+            mc = mc + le32(oa * 8)
+            mc = mc + [80]                              // push rax
+        }
+        // 3 = EQ
+        혹시 (op == 3) {
+            mc = mc + [95]                              // pop rdi
+            mc = mc + [88]                              // pop rax
+            mc = mc + [72, 57, 248]                     // cmp rax, rdi
+            mc = mc + [15, 148, 192]                    // sete al
+            mc = mc + [72, 15, 182, 192]               // movzx rax, al
+            // 1 → 1(티), 0 → -1(타)
+            mc = mc + [72, 199, 199, 1, 0, 0, 0]      // mov rdi, 1
+            mc = mc + [72, 199, 193, 255, 255, 255, 255] // mov rcx, -1
+            mc = mc + [72, 133, 192]                    // test rax, rax
+            mc = mc + [72, 15, 69, 249]                // cmovnz rdi, rcx → 아니, 반대
+            // 수정: eq면 rdi=1, ne면 rdi=-1
+            // test rax,rax → ZF=1 if 0 (NE), ZF=0 if 1 (EQ)
+            mc = mc + [80]                              // push rax (임시)
+            // 간략화: eq=1이면 push 1, 아니면 push -1
+            // (복잡한 조건분기 대신 간단한 산술)
+            // result = rax * 2 - 1: 1→1, 0→-1
+            mc = [__내장__(30, mc) - 28]  // 롤백 (너무 복잡)
+            // 다시:
+            mc = mc + [95]                              // pop rdi
+            mc = mc + [88]                              // pop rax
+            mc = mc + [72, 49, 201]                     // xor rcx, rcx
+            mc = mc + [72, 57, 248]                     // cmp rax, rdi
+            mc = mc + [15, 148, 193]                    // sete cl (cl=1 if eq)
+            mc = mc + [72, 141, 4, 77, 255, 255, 255, 255]  // lea rax, [rcx*2-1]
+            mc = mc + [80]                              // push rax
+        }
+        // 5 = GT
+        혹시 (op == 5) {
+            mc = mc + [95]                              // pop rdi
+            mc = mc + [88]                              // pop rax
+            mc = mc + [72, 49, 201]                     // xor rcx, rcx
+            mc = mc + [72, 57, 248]                     // cmp rax, rdi
+            mc = mc + [15, 159, 193]                    // setg cl
+            mc = mc + [72, 141, 4, 77, 255, 255, 255, 255]  // lea rax, [rcx*2-1]
+            mc = mc + [80]                              // push rax
+        }
+        // 6 = LT
+        혹시 (op == 6) {
+            mc = mc + [95]                              // pop rdi
+            mc = mc + [88]                              // pop rax
+            mc = mc + [72, 49, 201]                     // xor rcx, rcx
+            mc = mc + [72, 57, 248]                     // cmp rax, rdi
+            mc = mc + [15, 156, 193]                    // setl cl
+            mc = mc + [72, 141, 4, 77, 255, 255, 255, 255]  // lea rax, [rcx*2-1]
+            mc = mc + [80]
+        }
+        // 18 = JMP addr
+        혹시 (op == 18) {
+            // 2-pass 필요: 여기서는 NOP 패딩 후 패치
+            mc = mc + [233]                             // jmp rel32
+            mc = mc + [0, 0, 0, 0]                     // placeholder (나중에 패치)
+        }
+        // 19 = JMPIF addr (스택탑 > 0이면 점프)
+        혹시 (op == 19) {
+            mc = mc + [88]                              // pop rax
+            mc = mc + [72, 133, 192]                    // test rax, rax
+            mc = mc + [15, 143, 0, 0, 0, 0]           // jg rel32 (placeholder)
+        }
+        // 32 = PRINT (문자열이면 그대로, 정수면 변환)
+        혹시 (op == 32) {
+            mc = mc + [88]                              // pop rax
+            // call 인쇄루틴 (상대 주소)
+            변수 현재위치 = __내장__(30, mc) + 5
+            변수 거리 = 인쇄주소 - 현재위치
+            mc = mc + [232]                             // call rel32
+            mc = mc + le32(거리)
+        }
+        // 0 = TRUE (push 1)
+        혹시 (op == 0) { mc = mc + x86_mov_rax(1) + [80] }
+        // 1 = FALSE (push -1)
+        혹시 (op == 1) { mc = mc + x86_mov_rax(-1) + [80] }
+        // 2 = UNKNOWN (push 0)
+        혹시 (op == 2) { mc = mc + [72, 49, 192, 80] }  // xor rax,rax; push rax
+        // 36 = FUNC (마커 — 건너뛰기는 코드젠이 JMP으로 처리)
+        혹시 (op == 36) { }
+        // 20 = CALL
+        혹시 (op == 20) {
+            mc = mc + [232, 0, 0, 0, 0]               // call rel32 (placeholder)
+        }
+        // 21 = RET
+        혹시 (op == 21) {
+            mc = mc + [195]                             // ret
+        }
+
+        i = i + 1
+    }
+
+    // ─── 2차 패스: JMP/JMPIF/CALL 주소 패치 ───
+    변수 mc_len = __내장__(30, mc)
+    i = 0
+    변수 패치수 = 0
+    동안 (i < codelen) {
+        변수 inst = 코드[i]
+        변수 op = inst[0]
+        변수 oa = inst[1]
+
+        만약 (op == 18) {   // JMP
+            변수 from = 오프셋[i]
+            변수 jmp_end = from + 5
+            변수 target = 0
+            만약 (oa < __내장__(30, 오프셋)) { target = 오프셋[oa] }
+            아니면 { target = mc_len }
+            변수 rel = target - jmp_end
+            변수 bytes = le32(rel)
+            mc[from + 1] = bytes[0]
+            mc[from + 2] = bytes[1]
+            mc[from + 3] = bytes[2]
+            mc[from + 4] = bytes[3]
+            패치수 = 패치수 + 1
+        }
+        혹시 (op == 19) {   // JMPIF
+            변수 from = 오프셋[i]
+            변수 jmp_end = from + 10  // pop(1) + test(3) + jg(6) = 10
+            변수 target = 0
+            만약 (oa < __내장__(30, 오프셋)) { target = 오프셋[oa] }
+            아니면 { target = mc_len }
+            변수 rel = target - jmp_end
+            변수 bytes = le32(rel)
+            // jg rel32: [0F 8F] at from+4, rel32 at from+6
+            mc[from + 6] = bytes[0]
+            mc[from + 7] = bytes[1]
+            mc[from + 8] = bytes[2]
+            mc[from + 9] = bytes[3]
+            패치수 = 패치수 + 1
+        }
+        혹시 (op == 20) {   // CALL
+            변수 from = 오프셋[i]
+            변수 call_end = from + 5
+            변수 target = 0
+            만약 (oa < __내장__(30, 오프셋)) { target = 오프셋[oa] }
+            아니면 { target = mc_len }
+            변수 rel = target - call_end
+            변수 bytes = le32(rel)
+            mc[from + 1] = bytes[0]
+            mc[from + 2] = bytes[1]
+            mc[from + 3] = bytes[2]
+            mc[from + 4] = bytes[3]
+            패치수 = 패치수 + 1
+        }
+
+        i = i + 1
+    }
+
+    반환 mc
+}
+
+// ═══ 최종: 한선씨 소스 → 네이티브 ELF ═══
+
+함수 네이티브_생성(소스) {
+    // 1. 한선씨 → ISA729 바이트코드
+    변수 bc = 컴파일(소스)
+    변수 코드 = bc[0]
+    변수 상수풀 = bc[1]
+
+    출력("  바이트코드: " + __내장__(30, 코드) + "개 명령어, " + __내장__(30, 상수풀) + "개 상수")
+
+    // 2. ISA729 → x86-64 AOT
+    변수 mc = aot_컴파일(코드, 상수풀)
+    출력("  기계어: " + __내장__(30, mc) + " 바이트")
+
+    // 3. ELF 래핑
+    변수 elf = elf64_생성(mc)
+    출력("  ELF: " + __내장__(30, elf) + " 바이트")
+
+    반환 elf
+}

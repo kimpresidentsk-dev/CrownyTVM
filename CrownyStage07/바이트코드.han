@@ -1,0 +1,152 @@
+// ═══════════════════════════════════════════════════════════════
+// 바이트코드 직렬화 — .hanc 파일 형식
+//
+// .hanc 형식: 매직(4) + 버전(1) + 상수수(4) + 상수풀 + 코드수(4) + 코드
+//
+// 상수 엔트리: 타입(1) + 데이터(가변)
+//   0=없음, 1=정수(8), 2=실수(8), 3=문자열(길이4+데이터), 4=함수참조(2)
+//
+// 코드 엔트리: 옵코드(2) + a(4) + b(4) = 10바이트/명령
+//
+// 기계어 시드는 이 형식만 읽으면 됨 (렉서/파서 불필요)
+// ═══════════════════════════════════════════════════════════════
+가져오기 "비트"
+
+// ─── 매직 넘버 ───
+상수 HANC_MAGIC_0 = 72    // 'H'
+상수 HANC_MAGIC_1 = 65    // 'A'
+상수 HANC_MAGIC_2 = 78    // 'N'
+상수 HANC_MAGIC_3 = 67    // 'C'
+상수 HANC_VERSION = 1
+
+// ═══ 직렬화: [코드, 상수풀] → 바이트 배열 ═══
+
+함수 hanc_직렬화(코드, 상수풀) {
+    변수 bytes = [HANC_MAGIC_0, HANC_MAGIC_1, HANC_MAGIC_2, HANC_MAGIC_3, HANC_VERSION]
+
+    // 상수풀 직렬화
+    변수 nconst = __내장__(30, 상수풀)
+    bytes = bytes + le32(nconst)
+
+    각각 c 에서 상수풀 {
+        변수 ct = __내장__(15, c)
+        만약 (ct == "정수") {
+            bytes = bytes + [1] + le64(c)
+        }
+        혹시 (ct == "실수") {
+            // 실수는 정수로 변환 (×1000000 고정소수점)
+            bytes = bytes + [2] + le64(__내장__(0, c * 1000000))
+        }
+        혹시 (ct == "문자열") {
+            변수 글자들 = __내장__(35, c, "")
+            변수 slen = __내장__(30, 글자들)
+            bytes = bytes + [3] + le32(slen)
+            // UTF-8 바이트 (간단화: 각 글자를 개별 저장)
+            각각 ch 에서 글자들 {
+                bytes = bytes + [__내장__(50, ch)]
+            }
+        }
+        아니면 {
+            bytes = bytes + [0]
+        }
+    }
+
+    // 코드 직렬화
+    변수 ncode = __내장__(30, 코드)
+    bytes = bytes + le32(ncode)
+
+    각각 inst 에서 코드 {
+        변수 op = inst[0]
+        변수 a = inst[1]
+        변수 b = inst[2]
+        // 옵코드 2바이트 + a 4바이트 + b 4바이트
+        bytes = bytes + [비트곱(op, 255), 비트곱(오밀(op, 8), 255)]
+        bytes = bytes + le32(a)
+        bytes = bytes + le32(b)
+    }
+
+    반환 bytes
+}
+
+// ═══ 역직렬화: 바이트 배열 → [코드, 상수풀] ═══
+
+함수 hanc_역직렬화(bytes) {
+    // 매직 확인
+    만약 (bytes[0] != HANC_MAGIC_0) { 반환 [[], []] }
+    만약 (bytes[1] != HANC_MAGIC_1) { 반환 [[], []] }
+
+    변수 pos = 5  // 매직(4) + 버전(1) 건너뜀
+
+    // 상수풀 읽기
+    변수 nconst = bytes[pos] + bytes[pos + 1] * 256 + bytes[pos + 2] * 65536 + bytes[pos + 3] * 16777216
+    pos = pos + 4
+    변수 상수풀 = []
+
+    변수 ci = 0
+    동안 (ci < nconst) {
+        변수 ct = bytes[pos]
+        pos = pos + 1
+        만약 (ct == 1) {
+            // 정수: 8바이트 리틀엔디안
+            변수 v = bytes[pos] + bytes[pos+1]*256 + bytes[pos+2]*65536 + bytes[pos+3]*16777216
+            pos = pos + 8
+            상수풀 = 상수풀 + [v]
+        }
+        혹시 (ct == 2) {
+            // 실수: 고정소수점 ÷ 1000000
+            변수 v = bytes[pos] + bytes[pos+1]*256 + bytes[pos+2]*65536 + bytes[pos+3]*16777216
+            pos = pos + 8
+            상수풀 = 상수풀 + [v / 1000000.0]
+        }
+        혹시 (ct == 3) {
+            // 문자열: 길이 + 바이트
+            변수 slen = bytes[pos] + bytes[pos+1]*256 + bytes[pos+2]*65536 + bytes[pos+3]*16777216
+            pos = pos + 4
+            변수 s = ""
+            변수 si = 0
+            동안 (si < slen) {
+                s = s + __내장__(52, bytes[pos])
+                pos = pos + 1
+                si = si + 1
+            }
+            상수풀 = 상수풀 + [s]
+        }
+        아니면 {
+            상수풀 = 상수풀 + [0]
+        }
+        ci = ci + 1
+    }
+
+    // 코드 읽기
+    변수 ncode = bytes[pos] + bytes[pos+1]*256 + bytes[pos+2]*65536 + bytes[pos+3]*16777216
+    pos = pos + 4
+    변수 코드 = []
+
+    변수 ii = 0
+    동안 (ii < ncode) {
+        변수 op = bytes[pos] + bytes[pos+1]*256
+        pos = pos + 2
+        변수 a = bytes[pos] + bytes[pos+1]*256 + bytes[pos+2]*65536 + bytes[pos+3]*16777216
+        pos = pos + 4
+        변수 b = bytes[pos] + bytes[pos+1]*256 + bytes[pos+2]*65536 + bytes[pos+3]*16777216
+        pos = pos + 4
+        코드 = 코드 + [[op, a, b]]
+        ii = ii + 1
+    }
+
+    반환 [코드, 상수풀]
+}
+
+// ═══ 파일 I/O ═══
+
+함수 hanc_저장(경로, 코드, 상수풀) {
+    변수 bytes = hanc_직렬화(코드, 상수풀)
+    __sys__("바이너리쓰기", 경로, bytes)
+    반환 __내장__(30, bytes)
+}
+
+함수 hanc_크기정보(코드, 상수풀) {
+    변수 nconst = __내장__(30, 상수풀)
+    변수 ncode = __내장__(30, 코드)
+    반환 "상수 " + nconst + "개, 코드 " + ncode + "개, 추정 " + (9 + ncode * 10) + " 바이트"
+}

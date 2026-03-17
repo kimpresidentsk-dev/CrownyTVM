@@ -1,0 +1,281 @@
+// ═══════════════════════════════════════════════════════════════
+// ISA729 코드젠 — ISA729 명세 번호 바이트코드 생성기
+// AST → [바이트코드, 상수풀]  (isa729vm 호환)
+//
+// v0.32→ISA729 번호 변환:
+//   25→008정지  34→036저장  35→044적재  36→072함수
+//   18→720점프  19→063만약  20→073호출  21→071반환
+//   9→045더하기  10→046빼기  11→047곱  12→048나누  13→049나머지
+//   3→054같다  4→055다르다  5→056크다  6→057작다  7→062아닌
+//   32→567출력  63→144배열
+// ═══════════════════════════════════════════════════════════════
+가져오기 "한선렉서"
+가져오기 "한선파서"
+가져오기 "isa729vm"
+
+// ─── 컨텍스트: [code, consts, vnames, vslots, fnames, findices, nslot] ───
+함수 _ctx새() { 반환 [[], [], [], [], [], [], 0] }
+
+함수 _emit(ctx, op, a, b) {
+    변수 c = ctx[0]
+    c = c + [[op, a, b]]
+    ctx[0] = c
+    반환 ctx
+}
+함수 _emitz(ctx, op) { 반환 _emit(ctx, op, 0, 0) }
+함수 _emita(ctx, op, a) { 반환 _emit(ctx, op, a, 0) }
+
+함수 _addconst(ctx, v) {
+    변수 idx = __내장__(30, ctx[1])
+    변수 pool = ctx[1]
+    pool = pool + [v]
+    ctx[1] = pool
+    반환 [ctx, idx]
+}
+함수 _pushint(ctx, v) {
+    변수 r = _addconst(ctx, v)
+    반환 _emita(r[0], 27, r[1])
+}
+함수 _pushstr(ctx, v) {
+    변수 r = _addconst(ctx, v)
+    반환 _emita(r[0], 27, r[1])
+}
+함수 _codelen(ctx) { 반환 __내장__(30, ctx[0]) }
+
+// 패치: code[pc] = [op, newA, oldB]
+함수 _patch(ctx, pc, a) {
+    변수 code = ctx[0]
+    변수 inst = code[pc]
+    code[pc] = [inst[0], a, inst[2]]
+    ctx[0] = code
+    반환 ctx
+}
+함수 _patchb(ctx, pc, b) {
+    변수 code = ctx[0]
+    변수 inst = code[pc]
+    code[pc] = [inst[0], inst[1], b]
+    ctx[0] = code
+    반환 ctx
+}
+
+// 변수 조회/선언
+함수 _findvar(ctx, name) {
+    변수 names = ctx[2]
+    변수 slots = ctx[3]
+    변수 i = __내장__(30, names) - 1
+    동안 (i >= 0) {
+        만약 (names[i] == name) { 반환 slots[i] }
+        i = i - 1
+    }
+    반환 0 - 1
+}
+함수 _declvar(ctx, name) {
+    변수 slot = ctx[6]
+    변수 vn = ctx[2]
+    변수 vs = ctx[3]
+    vn = vn + [name]
+    vs = vs + [slot]
+    ctx[2] = vn
+    ctx[3] = vs
+    ctx[6] = slot + 1
+    반환 [ctx, slot]
+}
+함수 _findfunc(ctx, name) {
+    변수 fn_names = ctx[4]
+    변수 fn_idx = ctx[5]
+    변수 i = 0
+    동안 (i < __내장__(30, fn_names)) {
+        만약 (fn_names[i] == name) { 반환 fn_idx[i] }
+        i = i + 1
+    }
+    반환 0 - 1
+}
+
+// ═══ 메인: AST → [코드, 상수풀] ═══
+
+함수 isa729_코드생성(ast) {
+    변수 ctx = _ctx새()
+
+    // 1차: 함수 등록
+    각각 node 에서 ast {
+        만약 (node[0] == 23) {
+            변수 r = _addconst(ctx, 0)
+            ctx = r[0]
+            변수 fnames = ctx[4]
+            변수 fidxs = ctx[5]
+            fnames = fnames + [node[1]]
+            fidxs = fidxs + [r[1]]
+            ctx[4] = fnames
+            ctx[5] = fidxs
+        }
+    }
+
+    // 2차: 코드 생성
+    각각 node 에서 ast { ctx = _gen문장(ctx, node) }
+    ctx = _emitz(ctx, 8)
+    반환 [ctx[0], ctx[1]]
+}
+
+// ═══ 문장 생성 ═══
+
+함수 _gen문장(ctx, node) {
+    변수 t = node[0]
+
+    만약 (t == 20) {
+        ctx = _gen식(ctx, node[2])
+        변수 r = _declvar(ctx, node[1])
+        ctx = r[0]
+        ctx = _emita(ctx, 36, r[1])
+        반환 ctx
+    }
+    만약 (t == 21) {
+        ctx = _gen식(ctx, node[2])
+        변수 r = _declvar(ctx, node[1])
+        ctx = r[0]
+        ctx = _emita(ctx, 36, r[1])
+        반환 ctx
+    }
+    만약 (t == 22) {
+        ctx = _gen식(ctx, node[2])
+        변수 slot = _findvar(ctx, node[1])
+        ctx = _emita(ctx, 36, slot)
+        반환 ctx
+    }
+    // 23=Fn
+    만약 (t == 23) {
+        변수 jmp_pc = _codelen(ctx)
+        ctx = _emita(ctx, 720, 0)
+        변수 func_pc = _codelen(ctx)
+        변수 fi = _findfunc(ctx, node[1])
+        만약 (fi >= 0) {
+            변수 pool = ctx[1]
+            pool[fi] = func_pc
+            ctx[1] = pool
+        }
+        ctx = _emitz(ctx, 72)
+        // 매개변수 스코프
+        변수 saved_vn = ctx[2]
+        변수 saved_vs = ctx[3]
+        변수 saved_ns = ctx[6]
+        ctx[2] = []
+        ctx[3] = []
+        ctx[6] = 0
+        각각 param 에서 node[2] {
+            변수 dr = _declvar(ctx, param)
+            ctx = dr[0]
+        }
+        각각 stmt 에서 node[3] { ctx = _gen문장(ctx, stmt) }
+        변수 body = node[3]
+        변수 blen = __내장__(30, body)
+        만약 (blen == 0) {
+            ctx = _pushint(ctx, 0)
+            ctx = _emitz(ctx, 71)
+        } 혹시 (body[blen - 1][0] != 24) {
+            ctx = _pushint(ctx, 0)
+            ctx = _emitz(ctx, 71)
+        }
+        ctx[2] = saved_vn
+        ctx[3] = saved_vs
+        ctx[6] = saved_ns
+        ctx = _patch(ctx, jmp_pc, _codelen(ctx))
+        반환 ctx
+    }
+    만약 (t == 24) {
+        만약 (node[1] == 0) { ctx = _pushint(ctx, 0) }
+        아니면 { ctx = _gen식(ctx, node[1]) }
+        ctx = _emitz(ctx, 71)
+        반환 ctx
+    }
+    만약 (t == 25) {
+        ctx = _gen식(ctx, node[1])
+        ctx = _emitz(ctx, 62)
+        변수 jf = _codelen(ctx)
+        ctx = _emita(ctx, 144, 0)
+        각각 s 에서 node[2] { ctx = _gen문장(ctx, s) }
+        변수 je = _codelen(ctx)
+        ctx = _emita(ctx, 720, 0)
+        ctx = _patch(ctx, jf, _codelen(ctx))
+        만약 (__내장__(30, node[3]) > 0) {
+            각각 s 에서 node[3] { ctx = _gen문장(ctx, s) }
+        }
+        ctx = _patch(ctx, je, _codelen(ctx))
+        반환 ctx
+    }
+    만약 (t == 26) {
+        변수 ls = _codelen(ctx)
+        ctx = _gen식(ctx, node[1])
+        ctx = _emitz(ctx, 62)
+        변수 jf = _codelen(ctx)
+        ctx = _emita(ctx, 144, 0)
+        각각 s 에서 node[2] { ctx = _gen문장(ctx, s) }
+        ctx = _emita(ctx, 720, ls)
+        ctx = _patch(ctx, jf, _codelen(ctx))
+        반환 ctx
+    }
+    만약 (t == 28) {
+        ctx = _gen식(ctx, node[1])
+        ctx = _emitz(ctx, 567)
+        반환 ctx
+    }
+    만약 (t == 29) {
+        ctx = _gen식(ctx, node[1])
+        반환 ctx
+    }
+    반환 ctx
+}
+
+// ═══ 표현식 생성 ═══
+
+함수 _gen식(ctx, node) {
+    변수 t = node[0]
+    만약 (t == 1) { 반환 _pushint(ctx, node[1]) }
+    만약 (t == 3) { 반환 _pushstr(ctx, node[1]) }
+    만약 (t == 5) {
+        만약 (node[1] == 1) { 반환 _emitz(ctx, 0) }
+        만약 (node[1] == 0) { 반환 _emitz(ctx, 2) }
+        반환 _emitz(ctx, 1)
+    }
+    만약 (t == 4) {
+        변수 slot = _findvar(ctx, node[1])
+        반환 _emita(ctx, 44, slot)
+    }
+    만약 (t == 10) {
+        ctx = _gen식(ctx, node[2])
+        ctx = _gen식(ctx, node[3])
+        변수 op = node[1]
+        만약 (op == "+")  { 반환 _emitz(ctx, 45) }
+        만약 (op == "-")  { 반환 _emitz(ctx, 46) }
+        만약 (op == "*")  { 반환 _emitz(ctx, 47) }
+        만약 (op == "/")  { 반환 _emitz(ctx, 48) }
+        만약 (op == "%")  { 반환 _emitz(ctx, 49) }
+        만약 (op == "==") { 반환 _emitz(ctx, 54) }
+        만약 (op == "!=") { 반환 _emitz(ctx, 55) }
+        만약 (op == ">")  { 반환 _emitz(ctx, 56) }
+        만약 (op == "<")  { 반환 _emitz(ctx, 57) }
+        만약 (op == ">=") { ctx = _emitz(ctx, 57)  반환 _emitz(ctx, 62) }
+        만약 (op == "<=") { ctx = _emitz(ctx, 56)  반환 _emitz(ctx, 62) }
+        반환 ctx
+    }
+    만약 (t == 12) {
+        각각 arg 에서 node[2] { ctx = _gen식(ctx, arg) }
+        변수 fi = _findfunc(ctx, node[1])
+        만약 (fi >= 0) {
+            ctx = _emita(ctx, 27, fi)
+            ctx = _emita(ctx, 73, __내장__(30, node[2]))
+        }
+        반환 ctx
+    }
+    만약 (t == 40) {
+        각각 elem 에서 node[1] { ctx = _gen식(ctx, elem) }
+        ctx = _emita(ctx, 144, __내장__(30, node[1]))
+        반환 ctx
+    }
+    반환 ctx
+}
+
+// ═══ 통합 ═══
+함수 isa729_컴파일(소스) {
+    변수 토큰들 = 렉싱(소스)
+    변수 ast = 파싱(토큰들)
+    반환 isa729_코드생성(ast)
+}
