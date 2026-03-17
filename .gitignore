@@ -23,6 +23,13 @@ data/
 # Node
 node_modules/
 
+# Mail server (runtime)
+mail-data/dkim/*.private.pem
+mail-data/inbox/
+mail-data/sent/
+mail-data/queue/
+mail-data/logs/
+
 # Binary/docs
 *.o
 *.elf

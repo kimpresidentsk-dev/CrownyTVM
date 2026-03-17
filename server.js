@@ -1625,14 +1625,19 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
-        if (path.match(/^\/api\/mail\/ext\//) && req.method === 'GET') {
+        if (path.match(/^\/api\/mail\/ext\//) && (req.method === 'GET' || req.method === 'DELETE')) {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             if (mailServer) {
                 const mailId = path.split('/')[4];
                 const folder = url.searchParams.get('folder') || 'inbox';
-                const mail = mailServer.apiReadMail(mailId, folder);
-                res.end(JSON.stringify(mail || { error: '메일 없음' }));
+                if (req.method === 'DELETE') {
+                    const ok = mailServer.apiDeleteMail(mailId, folder);
+                    res.end(JSON.stringify({ success: ok }));
+                } else {
+                    const mail = mailServer.apiReadMail(mailId, folder);
+                    res.end(JSON.stringify(mail || { error: '메일 없음' }));
+                }
             } else {
                 res.end('{"error":"메일서버 없음"}');
             }
