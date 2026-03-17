@@ -1,0 +1,977 @@
+/* ===== SOCIAL: Feed, Posts, Stories, Reels, Profile ===== */
+
+/* Social Feed */
+
+
+.post-image {
+    font-size: 10rem;
+    text-align: center;
+    padding: 2rem;
+    background: var(--bg);
+    border-radius: 8px;
+}
+
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 200px;
+    }
+    
+    .content {
+        margin-left: 0 !important;
+    }
+    
+    .messenger-container {
+        grid-template-columns: 1fr;
+    }
+
+    .services {
+        max-width: 100% !important;
+    }
+
+    .wallet-container {
+        max-width: 100% !important;
+    }
+}
+
+
+/* ===== TASK 2: Social/Messenger Design Improvements ===== */
+
+/* Social Feed - Modern Card Design */
+
+
+.post-create textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.feed {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+
+.post:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.post-header {
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
+    margin-bottom: 0.8rem;
+}
+
+.post-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--text));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.post-info strong {
+    font-size: 0.95rem;
+    display: block;
+    line-height: 1.3;
+}
+
+.post-info span {
+    font-size: 0.78rem;
+    color: var(--accent);
+}
+
+.post-content p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 0.6rem;
+    word-break: break-word;
+}
+
+.post-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border);
+}
+
+.post-actions button {
+    flex: 1;
+    padding: 0.5rem 0.6rem;
+    border: none;
+    background: var(--bg);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: background 0.15s;
+    min-height: 36px;
+}
+
+.post-actions button:hover {
+    background: var(--border);
+}
+
+
+/* ===== v2.0 Instagram-style Social Feed ===== */
+
+
+.post .post-actions-bar button:active {
+    transform: scale(1.3);
+}
+
+.post img {
+    max-width: 100%;
+}
+
+/* Section headers */
+.section-hero {
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    color: #FFF8F08F0;
+}
+
+/* Card grid items */
+.grid-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid var(--border);
+}
+
+.grid-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--accent);
+}
+
+.empty-state .icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+
+/* ========== FRIENDS GRID (Instagram Stories Style) ========== */
+.friends-grid {
+    display: flex;
+    gap: 0.8rem;
+    overflow-x: auto;
+    padding: 0.8rem 0;
+    margin-bottom: 0.8rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.friends-grid::-webkit-scrollbar { display: none; }
+
+.friend-icon-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    width: 68px;
+}
+.friend-icon-item:hover { opacity: 0.8; }
+
+.friend-icon-name {
+    font-size: 0.75rem;
+    color: var(--text);
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+}
+
+.friend-add-btn {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    border: 2px dashed var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; color: var(--accent);
+    transition: all 0.2s;
+}
+.friend-add-btn:hover {
+    border-color: var(--text);
+    color: var(--text);
+}
+
+.friend-avatar-wrap {
+    border-radius: 50%;
+    padding: 2px;
+    background: linear-gradient(135deg, #8B6914, #6B5744, #3D2B1F);
+}
+.friend-avatar-wrap img, .friend-avatar-wrap div {
+    border: 2px solid #FFF8F0;
+}
+
+/* Friend Request Item */
+.friend-request-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* ========== SOCIAL FILTER TABS ========== */
+.social-filter-tab.active {
+    color: var(--text) !important;
+    border-bottom-color: var(--text) !important;
+}
+
+/* ========== LINK PREVIEW CARDS ========== */
+.link-preview-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+    background: var(--bg-card-alt);
+}
+.link-preview-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.youtube-preview img {
+    width: 100%;
+    display: block;
+}
+
+/* ========== POST IMAGE CAROUSEL ========== */
+.post-image-carousel {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.post-image-carousel::-webkit-scrollbar { display: none; }
+
+/* ========== POST DROPDOWN MENU ========== */
+.post-dropdown-menu div:hover {
+    background: var(--bg-card-alt);
+}
+
+
+/* ========== ART v2.0 STYLES ========== */
+
+/* Collection tabs */
+.collection-tab-btn {
+    transition: all 0.2s;
+}
+.collection-tab-btn.active {
+    background: var(--text) !important;
+    color: #FFF8F0 !important;
+    border-color: var(--text) !important;
+}
+.collection-tab-btn:not(.active):hover {
+    background: var(--border) !important;
+}
+
+/* Collection horizontal scroll */
+.collection-scroll {
+    display: flex;
+    gap: 0.6rem;
+    overflow-x: auto;
+    padding: 0.3rem 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.collection-scroll::-webkit-scrollbar { display: none; }
+
+.collection-card {
+    flex-shrink: 0;
+    width: 130px;
+    background: var(--bg);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.2s;
+}
+.collection-card:hover {
+    transform: translateY(-2px);
+}
+.collection-card img {
+    width: 100%;
+    height: 95px;
+    object-fit: cover;
+    display: block;
+}
+.collection-card-info {
+    padding: 0.4rem;
+}
+.collection-card-title {
+    font-weight: 600;
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.collection-card-meta {
+    font-size: 0.65rem;
+    color: var(--accent);
+    margin-top: 0.1rem;
+}
+.collection-nft-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(138,43,226,0.85);
+    color: #FFF8F08F0;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 0.6rem;
+    font-weight: 700;
+}
+
+/* Art empty state */
+.art-empty-state {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--accent);
+}
+.art-empty-state .icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+.art-empty-state p {
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+.art-empty-state small {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+/* Art gallery card hover */
+.art-gallery-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;
+}
+
+@media (max-width: 768px) {
+    .collection-card {
+        width: 110px;
+    }
+    .collection-card img {
+        height: 80px;
+    }
+    #my-collection-section {
+        padding: 0.8rem !important;
+    }
+}
+
+
+/* ========== BOOKS PLATFORM CSS ========== */
+
+/* Scroll rows */
+.book-scroll-row { scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+.book-scroll-row::-webkit-scrollbar { height: 4px; }
+.book-scroll-row::-webkit-scrollbar-thumb { background: #E8E0D8; border-radius: 2px; }
+
+/* Snow effect */
+@keyframes snowfall {
+    0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0.3; }
+}
+
+/* Rain effect */
+@keyframes rainfall {
+    0% { transform: translateY(-5vh); opacity: 0.8; }
+    100% { transform: translateY(110vh); opacity: 0; }
+}
+
+/* Cherry blossom */
+@keyframes cherryfall {
+    0% { transform: translateY(-10vh) rotate(0deg) translateX(0); opacity: 1; }
+    50% { transform: translateY(50vh) rotate(180deg) translateX(30px); opacity: 0.8; }
+    100% { transform: translateY(110vh) rotate(360deg) translateX(-20px); opacity: 0.2; }
+}
+
+/* Firefly glow */
+@keyframes fireflyGlow {
+    0% { opacity: 0.2; transform: translate(0, 0); }
+    50% { opacity: 1; }
+    100% { opacity: 0.2; transform: translate(20px, -15px); }
+}
+
+/* Star twinkle */
+@keyframes starTwinkle {
+    0% { opacity: 0.2; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Bounce in for treasure modal */
+@keyframes bounceIn {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.05); }
+    70% { transform: scale(0.95); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Reader page turn transition */
+#reader-content {
+    transition: opacity 0.3s ease;
+}
+
+/* Treasure word - no visual hint by default */
+.book-treasure-word {
+    cursor: text;
+    transition: background 0.3s;
+}
+.book-treasure-word:active {
+    background: rgba(255, 215, 0, 0.3);
+    border-radius: 4px;
+}
+
+.book-word {
+    cursor: text;
+}
+
+/* ===== Product Detail Image Gallery ===== */
+#pd-gallery {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+#pd-gallery::-webkit-scrollbar { display: none; }
+
+
+/* ===== STORIES ===== */
+#story-ring-container::-webkit-scrollbar { display: none; }
+.story-avatar-wrap { padding:3px;border-radius:50%;background:transparent; }
+.story-avatar-wrap.has-story img, .story-avatar-wrap.has-story > div { border:2px solid #FFF8F0; }
+.story-avatar-wrap.viewed { background:linear-gradient(45deg,#E8E0D8,‌#6B5744);padding:3px; }
+.story-avatar-wrap.viewed img, .story-avatar-wrap.viewed > div { border:2px solid #FFF8F0; }
+.story-add-badge { position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:#5B7B8C;color:#FFF8F0;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #FFF8F0; }
+
+/* ===== DOUBLE-TAP HEART ===== */
+@keyframes heartPop { 0%{transform:scale(0);opacity:1} 50%{transform:scale(1.2);opacity:1} 100%{transform:scale(1);opacity:0} }
+.double-tap-heart { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);font-size:80px;pointer-events:none;z-index:10;animation:heartPop 0.8s ease-out forwards; }
+
+/* ===== PROFILE PAGE ===== */
+
+/* ===== NESTED COMMENTS ===== */
+
+
+/* ===== AI ASSISTANT ===== */
+
+/* ===== STORY BAR (improved) ===== */
+#story-ring-container {
+    padding: 12px 0 !important;
+    gap: 12px !important;
+    margin-bottom: 8px !important;
+}
+.story-ring-item {
+    min-width: 72px !important;
+}
+.story-ring-item .story-username {
+    color: var(--dark-muted) !important;
+    font-size: 0.65rem !important;
+}
+.story-avatar-wrap.has-story {
+    background: linear-gradient(135deg, #8B6914, #6B5744, #3D2B1F) !important;
+}
+
+/* ===== SOCIAL FEED TABS (icon-based) ===== */
+.social-tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--dark-border);
+    margin-bottom: 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.social-tab-bar::-webkit-scrollbar { display: none; }
+.social-tab-item {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    color: var(--dark-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.social-tab-item.active {
+    color: var(--dark-text) !important;
+    border-bottom-color: var(--dark-text) !important;
+}
+.social-tab-item .tab-badge {
+    background: #B54534;
+    color: #FFF8F08F0;
+    font-size: 0.55rem;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    line-height: 14px;
+    text-align: center;
+    display: none;
+}
+
+
+/* ===== FEED CARD (Instagram-style, dark) ===== */
+.post {
+    background: var(--dark-card) !important;
+    border: none !important;
+    border-bottom: 1px solid var(--dark-border) !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+    box-shadow: none !important;
+}
+.post .post-header {
+    padding: 10px 14px;
+    margin-bottom: 0;
+}
+.post .post-header .post-info strong {
+    color: var(--dark-text);
+    font-size: 0.9rem;
+}
+.post .post-header .post-info span {
+    color: var(--dark-muted);
+}
+.post .post-media-wrap {
+    width: 100%;
+    background: #3D2B1F;
+}
+.post .post-media-wrap img,
+.post .post-media-wrap video {
+    width: 100%;
+    display: block;
+}
+.post .post-actions-bar {
+    padding: 8px 14px !important;
+}
+.post .post-actions-bar button {
+    color: var(--dark-text) !important;
+}
+.post .post-caption {
+    padding: 0 14px 12px;
+    font-size: 0.9rem;
+    color: var(--dark-text);
+    line-height: 1.5;
+}
+.post .post-caption .caption-username {
+    font-weight: 700;
+    margin-right: 4px;
+}
+.post .post-caption .caption-more {
+    color: var(--dark-muted);
+    cursor: pointer;
+}
+.post .post-like-count {
+    padding: 0 14px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--dark-text);
+    margin-bottom: 4px;
+}
+.post .post-comments-link {
+    padding: 0 14px;
+    color: var(--dark-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-bottom: 4px;
+}
+.post .post-time {
+    padding: 0 14px 12px;
+    font-size: 0.75rem;
+    color: var(--dark-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+
+/* ===== BOTTOM SHEET ===== */
+.bottom-sheet-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(61,43,31,0.5);
+    z-index: 99990;
+    opacity: 0;
+    transition: opacity 0.25s;
+}
+.bottom-sheet-overlay.active { opacity: 1; }
+.bottom-sheet {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--dark-card);
+    border-radius: 16px 16px 0 0;
+    max-height: 85vh;
+    z-index: 99991;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    display: flex;
+    flex-direction: column;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+.bottom-sheet.active { transform: translateY(0); }
+.bottom-sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: var(--dark-border);
+    border-radius: 2px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+}
+.bottom-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--dark-border);
+    flex-shrink: 0;
+}
+.bottom-sheet-header h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dark-text);
+    margin: 0;
+}
+.bottom-sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+}
+
+
+/* ===== REELS (YouTube Shorts style) ===== */
+.reels-fullscreen {
+    position: relative;
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    background: #3D2B1F;
+    scroll-snap-type: y mandatory;
+    overflow-y: scroll;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.reels-fullscreen::-webkit-scrollbar { display: none; }
+.reel-item {
+    width: 100%;
+    height: 100dvh;
+    scroll-snap-align: start;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #3D2B1F;
+}
+.reel-item video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.reel-overlay-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 80px;
+    padding: 16px;
+    background: linear-gradient(transparent, rgba(61,43,31,0.7));
+    color: #FFF8F08F0;
+    pointer-events: none;
+}
+.reel-overlay-bottom * { pointer-events: auto; }
+.reel-author {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.reel-author img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #FFF8F0;
+}
+.reel-author-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+.reel-follow-btn {
+    background: transparent;
+    border: 1px solid #FFF8F0;
+    color: #FFF8F0;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: 8px;
+}
+.reel-caption {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+.reel-tags {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+.reel-side-actions {
+    position: absolute;
+    right: 12px;
+    bottom: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+    z-index: 5;
+}
+.reel-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #FFF8F08F0;
+}
+.reel-action-btn .action-icon {
+    font-size: 1.6rem;
+    filter: drop-shadow(0 1px 3px rgba(61,43,31,0.5));
+}
+.reel-action-btn .action-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.reel-action-btn .reel-profile-pic {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #FFF8F0;
+}
+.reel-mute-toggle {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(0,0,0,0.4);
+    border: none;
+    color: #FFF8F08F0;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+    cursor: pointer;
+    z-index: 10;
+}
+
+
+/* ===== PROFILE PAGE (Instagram-style, dark) ===== */
+.insta-profile {
+    padding: 16px;
+}
+.insta-profile-top {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 16px;
+}
+.insta-profile-pic {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--dark-gold);
+    flex-shrink: 0;
+}
+.insta-profile-pic-placeholder {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--dark-card-alt);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--dark-muted);
+    border: 3px solid var(--dark-gold);
+    flex-shrink: 0;
+}
+.insta-profile-stats {
+    display: flex;
+    gap: 24px;
+}
+.insta-stat {
+    text-align: center;
+    cursor: pointer;
+}
+.insta-stat-num {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--dark-text);
+}
+.insta-stat-label {
+    font-size: 0.75rem;
+    color: var(--dark-muted);
+}
+.insta-profile-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--dark-text);
+    margin-bottom: 2px;
+}
+.insta-profile-bio {
+    font-size: 0.85rem;
+    color: var(--dark-muted);
+    line-height: 1.4;
+    margin-bottom: 12px;
+}
+.insta-profile-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.insta-btn-edit {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 8px;
+    background: var(--dark-card-alt);
+    color: var(--dark-text);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.insta-btn-follow {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 8px;
+    background: #5B7B8C;
+    color: #FFF8F08F0;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.insta-btn-following {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--dark-border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--dark-text);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.insta-profile-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--dark-border);
+    margin: 0 -16px;
+}
+.insta-profile-tab {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    border: none;
+    background: none;
+    color: var(--dark-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+.insta-profile-tab.active {
+    color: var(--dark-text);
+    border-bottom-color: var(--dark-text);
+}
+.insta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    margin: 0 -16px;
+}
+.insta-grid-item {
+    aspect-ratio: 1;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    background: var(--dark-card-alt);
+}
+.insta-grid-item img,
+.insta-grid-item video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.insta-grid-item .grid-video-icon {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    color: #FFF8F08F0;
+    font-size: 0.8rem;
+    text-shadow: 0 1px 3px rgba(61,43,31,0.8);
+}
+
+
+/* ===== PULL TO REFRESH ===== */
+.pull-indicator {
+    text-align: center;
+    padding: 12px;
+    color: var(--dark-muted);
+    font-size: 0.85rem;
+    display: none;
+}
+.pull-indicator.visible { display: block; }
+
+/* ===== POST CREATE (dark) ===== */
+.post-create {
+    background: var(--dark-card) !important;
+    border: none !important;
+    border-bottom: 1px solid var(--dark-border) !important;
+    border-radius: 0 !important;
+    padding: 12px 14px !important;
+}
+.post-create textarea {
+    background: var(--dark-card-alt) !important;
+    border-color: var(--dark-border) !important;
+    color: var(--dark-text) !important;
+}
+
+
+/* ===== PROFILE PAGE ===== */
+.profile-stats { display:flex;justify-content:space-around;text-align:center;padding:0.8rem 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border); }
+.profile-stats > div { cursor:pointer; }
+.profile-stats .stat-num { font-weight:700;font-size:1.1rem; }
+.profile-stats .stat-label { font-size:0.75rem;color:var(--accent); }
+.profile-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:2px; }
+.profile-grid-item { aspect-ratio:1;overflow:hidden;cursor:pointer;position:relative; }
+.profile-grid-item img, .profile-grid-item video { width:100%;height:100%;object-fit:cover;display:block; }
+.profile-tab-btn { background:none;border:none;padding:0.5rem 1rem;cursor:pointer;font-size:0.85rem;font-weight:600;color:#6B5744;border-bottom:2px solid transparent; }
+.profile-tab-btn.active { color:var(--text);border-bottom-color:var(--text); }
+
+/* ===== NESTED COMMENTS ===== */
+.reply-comment { margin-left:2rem;padding-left:0.5rem;border-left:2px solid var(--border); }
+
+

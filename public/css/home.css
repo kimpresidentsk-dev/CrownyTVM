@@ -1,0 +1,286 @@
+/* ===== HOME: Landing, Hero, Services, Dashboard ===== */
+
+/* Landing Specific Styles */
+#landing-page {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100vh;
+    background: linear-gradient(135deg, #FFF8F0 0%, #F7F3ED 100%);
+    z-index: 9999; /* 최상단 노출 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+.hidden { display: none !important; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+
+/* Slogan Rotator */
+.slogan-rotator {
+    min-height: 4.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0;
+    padding: 0 1rem;
+}
+
+.slogan-text {
+    font-family: -apple-system, 'Noto Sans', 'Noto Sans CJK KR', 'Noto Sans CJK SC', 'Noto Sans Arabic', 'Noto Sans Devanagari', 'Noto Sans Thai', 'Noto Sans Bengali', 'Noto Sans Hebrew', system-ui, sans-serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text);
+    text-align: center;
+    transition: opacity 0.6s ease;
+    opacity: 0;
+    max-width: 700px;
+}
+
+.slogan-lang {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: var(--accent);
+    margin-top: 0.4rem;
+    letter-spacing: 0.5px;
+    transition: opacity 0.6s ease;
+    opacity: 0;
+}
+
+@media (max-width: 768px) {
+    .slogan-text {
+        font-size: 1.1rem;
+    }
+    .slogan-rotator {
+        min-height: 4rem;
+    }
+}
+
+
+/* Hero Section */
+.hero {
+    text-align: center;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+}
+
+.hero h2 {
+    font-size: 0.85rem;
+    color: var(--accent);
+    letter-spacing: 3px;
+    margin-bottom: 0.8rem;
+}
+
+.hero h1 {
+    font-size: 2rem;
+    line-height: 1.3;
+    margin-bottom: 0.8rem;
+}
+
+.hero p {
+    color: var(--accent);
+    font-size: 0.95rem;
+}
+
+/* Services Grid */
+.services {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.service-card {
+    background: var(--card-bg);
+    padding: 1.5rem 1rem;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid var(--border);
+}
+
+.service-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-color: var(--gold);
+}
+
+.service-card .icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 0.8rem;
+}
+
+.service-card h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.service-card p {
+    font-size: 0.85rem;
+    color: var(--accent);
+}
+
+
+/* Credit */
+.credit-header {
+    background: var(--bg-card);
+    padding: 2rem;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border);
+}
+
+.credit-balance span {
+    display: block;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+}
+
+.credit-balance strong {
+    font-size: 2rem;
+}
+
+.products {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.product-card {
+    background: var(--bg-card);
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.product-image {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.product-card h3 {
+    margin-bottom: 1rem;
+}
+
+.price {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin: 0.5rem 0;
+}
+
+.reward {
+    color: var(--accent);
+    margin: 0.5rem 0 1rem;
+    font-size: 0.9rem;
+}
+
+
+/* ===== DASHBOARD ===== */
+.dash-welcome {
+    display: flex; align-items: center; gap: 1rem; padding: 1.5rem;
+    background: #F7F3ED;
+    border-radius: 16px; margin-bottom: 1.5rem;
+}
+.dash-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #8B6914; }
+.dash-avatar-placeholder { width: 60px; height: 60px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+.dash-subtitle { font-size: 0.85rem; color: var(--accent); margin-top: 0.3rem; }
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 768px) { .dash-grid { grid-template-columns: 1fr; } }
+.dash-card { background: var(--white); padding: 1.2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.dash-card-wide { grid-column: 1 / -1; }
+.dash-card h4 { margin-bottom: 0.8rem; font-size: 0.95rem; }
+.dash-tokens { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.6rem; }
+.dash-token { display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem; border-radius: 10px; background: #F7F3ED !important; color: #3D2B1F !important; cursor: pointer; transition: transform 0.15s; border: 1px solid #E8E0D8; }
+.dash-token:hover { transform: scale(1.03); }
+.dash-token-icon { font-size: 1.4rem; display: flex; align-items: center; }
+.dash-token strong { font-size: 1rem; color: #3D2B1F; }
+.dash-token-bal { font-size: 1rem; color: #8B6914; font-weight: 700; }
+.dash-activity-item { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.dash-activity-item:last-child { border-bottom: none; }
+.dash-empty { font-size: 0.85rem; color: var(--accent); text-align: center; padding: 0.5rem 0; }
+.dash-badge { background: #e94560; color: #FFF8F0; font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 10px; font-weight: 700; }
+.dash-notif-item { padding: 0.4rem 0; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+.dash-notif-item.unread { font-weight: 600; }
+.dash-shortcuts { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.dash-shortcut-btn { padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card-alt); cursor: pointer; font-size: 0.85rem; transition: background 0.15s; color: var(--text); }
+.dash-shortcut-btn:hover { background: var(--border); }
+.dash-stat-row { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+
+
+/* ===== Landing Page (invite) ===== */
+.landing-page{position:fixed;inset:0;z-index:10002;background:#FFF8F0;color:#3D2B1F;overflow-y:auto;overflow-x:hidden;animation:landingFadeIn .5s ease}
+.landing-page.landing-exit{animation:landingFadeOut .4s ease forwards}
+@keyframes landingFadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes landingFadeOut{from{opacity:1}to{opacity:0;transform:translateY(-20px)}}
+
+.landing-inner{max-width:480px;margin:0 auto;padding:0 1.25rem 3rem}
+
+/* Hero */
+.landing-hero{text-align:center;padding:3rem 0 2rem;position:relative;overflow:hidden}
+.landing-hero-glow{position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:300px;height:300px;background:radial-gradient(circle,rgba(212,175,55,.15) 0%,transparent 70%);pointer-events:none}
+.landing-logo{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:1rem}
+.landing-logo-icon{font-size:2.5rem}
+.landing-logo-text{font-size:2rem;font-weight:900;letter-spacing:3px;color:#3D2B1F}
+.landing-invited-by{font-size:.85rem;color:#3D2B1F;margin-bottom:1rem}
+.landing-slogan{font-size:1.35rem;font-weight:700;line-height:1.5;color:#3D2B1F;margin-bottom:2rem}
+.landing-slogan em{color:#8B6914;font-style:normal}
+
+/* Phone mockup */
+.landing-mockup{display:flex;justify-content:center}
+.landing-phone{width:200px;height:380px;background:#3D2B1F;border-radius:28px;padding:12px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.landing-phone-screen{background:#6B5744;border-radius:18px;height:100%;padding:1rem;display:flex;flex-direction:column;gap:.8rem}
+.landing-phone-header{display:flex;justify-content:space-between;align-items:center;color:#8B6914;font-weight:800;font-size:.8rem}
+.landing-phone-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-top:auto;margin-bottom:1.5rem}
+.lp-icon{background:rgba(212,175,55,.12);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+
+/* Features */
+.landing-features{padding:2rem 0}
+.landing-section-title{text-align:center;font-size:1.1rem;font-weight:800;margin-bottom:1.5rem;color:#3D2B1F;letter-spacing:1px}
+.landing-feature-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem}
+.landing-feature-card{background:#FFF8F0;border-radius:14px;padding:1.2rem 1rem;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.05);transition:transform .2s}
+.landing-feature-card:active{transform:scale(.97)}
+.landing-feat-icon{font-size:2rem;margin-bottom:.4rem}
+.landing-feature-card h3{font-size:.9rem;font-weight:700;margin-bottom:.25rem;color:#3D2B1F}
+.landing-feature-card p{font-size:.75rem;color:#3D2B1F;line-height:1.4}
+
+/* Social proof */
+.landing-proof{text-align:center;padding:2rem 0}
+.landing-proof-number{font-size:3rem;font-weight:900;background:linear-gradient(135deg,#8B6914,#B8860B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.landing-proof p{font-size:.9rem;color:#3D2B1F;margin-top:.25rem}
+
+/* CTA */
+.landing-cta{text-align:center;padding:1.5rem 0 2rem;position:sticky;bottom:0;background:linear-gradient(transparent,#FFF8F0 30%);z-index:1}
+.landing-cta-btn{width:100%;padding:1rem;font-size:1.1rem;font-weight:800;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#3D2B1F,#6B5744);color:#FFF8F0;box-shadow:0 8px 30px rgba(61,43,31,.3);transition:transform .15s,box-shadow .15s}
+.landing-cta-btn:active{transform:scale(.97);box-shadow:0 4px 15px rgba(61,43,31,.3)}
+.landing-cta-sub{font-size:.75rem;color:#6B5744;margin-top:.5rem}
+
+/* Footer */
+.landing-footer{text-align:center;padding:1rem 0;font-size:.7rem;color:#E8E0D8}
+
+/* Desktop */
+@media(min-width:768px){
+    .landing-inner{max-width:560px;padding:0 2rem 4rem}
+    .landing-slogan{font-size:1.7rem}
+    .landing-phone{width:240px;height:440px}
+    .landing-feature-grid{grid-template-columns:repeat(3,1fr)}
+    .landing-proof-number{font-size:4rem}
+    .landing-cta{position:static;background:none}
+}
+

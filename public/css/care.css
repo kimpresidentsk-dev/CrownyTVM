@@ -1,0 +1,526 @@
+/* ===== CROWNY CARE: 크라우니케어 ===== */
+
+/* ========== CROWNY CARE - 크라우니케어 ========== */
+.care-mode {
+    font-size: 24px;
+}
+.care-mode * {
+    font-size: inherit;
+}
+.care-mode h2 { font-size: 1.8rem; }
+.care-mode h3 { font-size: 1.4rem; }
+.care-mode p { font-size: 1.1rem; }
+
+/* Clock */
+.care-clock-wrap {
+    text-align: center;
+    padding: 2rem 0 1rem;
+}
+.care-clock {
+    font-size: 4rem;
+    font-weight: 800;
+    color: var(--text, #3D2B1F);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+}
+.care-date {
+    font-size: 1.3rem;
+    color: var(--text-muted);
+    margin-top: 0.3rem;
+}
+
+/* Cards */
+.care-card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.2rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+/* Buttons */
+.care-btn {
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+.care-btn:active { transform: scale(0.96); }
+.care-btn-primary {
+    background: linear-gradient(135deg, #8B6914, #B8860B);
+    color: #FFF8F0;
+    padding: 0.8rem 1.5rem;
+    font-size: 1.1rem;
+}
+.care-btn-small {
+    background: var(--bg-card-alt);
+    color: var(--text);
+    padding: 0.5rem 1rem;
+    font-size: 0.95rem;
+}
+.care-btn-med {
+    background: linear-gradient(135deg, #8B6914, #6B5744);
+    color: #FFF8F0;
+    padding: 0.8rem 1.5rem;
+    font-size: 1.1rem;
+    min-width: 80px;
+    min-height: 60px;
+    border-radius: 12px;
+}
+
+/* SOS Button */
+.care-sos-btn {
+    background: linear-gradient(135deg, #B54534, #8B2C1B);
+    color: #FFF8F0;
+    border: none;
+    border-radius: 50%;
+    width: 140px;
+    height: 140px;
+    font-size: 1.8rem;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(181,69,52,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+    animation: care-sos-pulse 2s infinite;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1;
+    padding: 10px;
+    box-sizing: border-box;
+}
+.care-sos-btn:active {
+    transform: scale(0.9);
+}
+@keyframes care-sos-pulse {
+    0%, 100% { box-shadow: 0 4px 20px rgba(181,69,52,0.4); }
+    50% { box-shadow: 0 4px 40px rgba(181,69,52,0.7); }
+}
+
+/* 모바일 반응형 */
+@media (max-width: 480px) {
+    .care-sos-btn {
+        width: 120px;
+        height: 120px;
+        font-size: 1.5rem;
+        padding: 8px;
+    }
+    .care-sos-btn span {
+        font-size: 0.8rem !important;
+        margin-top: 0.2rem !important;
+    }
+    .sos-emergency-btn {
+        font-size: 1.3rem;
+        padding: 1rem 0.8rem;
+        min-height: 80px;
+    }
+    .sos-emergency-btn span {
+        font-size: 0.8rem;
+    }
+    .sos-emergency-btns {
+        gap: 0.8rem;
+    }
+}
+
+/* Quick Replies */
+.care-quick-replies {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    justify-content: center;
+}
+.care-quick-btn {
+    background: var(--bg-card-alt);
+    border: 2px solid var(--gold);
+    border-radius: 16px;
+    padding: 0.8rem;
+    min-width: 80px;
+    min-height: 80px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 1.8rem;
+    transition: transform 0.1s, background 0.1s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.care-quick-btn span {
+    font-size: 0.85rem;
+    color: var(--text);
+    margin-top: 0.2rem;
+    font-weight: 600;
+}
+.care-quick-btn:active {
+    transform: scale(0.92);
+    background: #8B6914;
+    color: #FFF8F0;
+}
+
+/* Messages */
+.care-message-card {
+    background: var(--bg-card-alt);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.8rem;
+    border-left: 4px solid var(--gold);
+    color: var(--text);
+}
+
+/* Member Tags */
+.care-member-tag {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+.care-member-tag.guardian {
+    background: linear-gradient(135deg, #8B6914, #B8860B);
+    color: #FFF8F0;
+}
+.care-member-tag.member-tag {
+    background: var(--bg-card-alt);
+    color: var(--text);
+    border: 1px solid var(--gold);
+}
+
+/* Schedule */
+.care-schedule-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.8rem;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+    background: var(--bg-card-alt);
+}
+.care-schedule-item.past {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+.care-schedule-time {
+    font-weight: 800;
+    font-size: 1.2rem;
+    color: #8B6914;
+    min-width: 60px;
+}
+.care-schedule-label {
+    font-size: 1.1rem;
+    flex: 1;
+}
+
+/* Medications */
+.care-med-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 0.8rem;
+    background: var(--bg-card-alt);
+    gap: 1rem;
+    color: var(--text);
+}
+.care-med-item.taken {
+    background: rgba(76,175,80,0.15);
+}
+.care-med-done {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #6B8F3C;
+}
+
+/* Health Card */
+.care-health-card {
+    background: var(--bg-card-alt);
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 0.6rem;
+    color: var(--text);
+}
+
+/* Slideshow */
+.care-slideshow {
+    margin-top: 1rem;
+}
+
+/* ========== SMART BOARD (Fullscreen) ========== */
+.care-board-fullscreen {
+    position: fixed !important;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 99999;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden;
+}
+.care-board-bg {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-color: #3D2B1F;
+    transition: background-image 1.5s ease-in-out;
+}
+.care-board-overlay {
+    width: 100%;
+    height: 100%;
+    background: rgba(61,43,31,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: #FFF8F0;
+    text-align: center;
+}
+.care-board-exit {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: rgba(255,248,240,0.2);
+    border: none;
+    color: #FFF8F0;
+    font-size: 2rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+.care-board-clock {
+    font-size: 8rem;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-shadow: 0 2px 20px rgba(61,43,31,0.5);
+}
+.care-board-date {
+    font-size: 2rem;
+    opacity: 0.9;
+    margin-top: 0.5rem;
+}
+.care-board-messages {
+    margin-top: 2rem;
+    max-width: 600px;
+}
+.care-board-msg {
+    font-size: 1.5rem;
+    padding: 0.8rem;
+    opacity: 0.9;
+    border-left: 3px solid #8B6914;
+    margin-bottom: 0.5rem;
+    text-align: left;
+    padding-left: 1rem;
+}
+.care-board-schedule {
+    margin-top: 1.5rem;
+}
+.care-board-sched {
+    font-size: 1.3rem;
+    padding: 0.4rem;
+    opacity: 0.85;
+}
+
+/* ========== SOS COUNTDOWN OVERLAY ========== */
+.sos-countdown-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(180, 0, 0, 0.92);
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+}
+.sos-countdown-content {
+    text-align: center;
+    color: #FFF8F0;
+    animation: sosCountdownPulse 1s infinite;
+}
+.sos-countdown-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+.sos-countdown-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+}
+.sos-countdown-number {
+    font-size: 8rem;
+    font-weight: 900;
+    line-height: 1;
+    margin: 1rem 0;
+    font-variant-numeric: tabular-nums;
+}
+.sos-countdown-desc {
+    font-size: 1.3rem;
+    opacity: 0.9;
+    margin-bottom: 2rem;
+}
+.sos-countdown-cancel {
+    background: rgba(255,248,240,0.2);
+    color: #FFF8F0;
+    border: 2px solid #FFF8F0;
+    padding: 1rem 3rem;
+    border-radius: 50px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 60px;
+    min-width: 200px;
+}
+.sos-countdown-cancel:active {
+    background: rgba(255,248,240,0.4);
+}
+@keyframes sosCountdownPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+
+/* ========== SOS ACTIVE PANEL ========== */
+.sos-active-card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 24px rgba(229,57,53,0.2);
+    border: 2px solid #B54534;
+    margin-bottom: 1.5rem;
+}
+.sos-active-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #F7F3ED;
+}
+.sos-active-icon {
+    font-size: 3rem;
+    animation: sosIconPulse 1.5s infinite;
+}
+@keyframes sosIconPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+.sos-active-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #B54534;
+}
+.sos-active-time {
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+.sos-section {
+    margin-bottom: 1.2rem;
+    padding: 1rem;
+    background: var(--bg-card-alt);
+    border-radius: 12px;
+}
+.sos-location-status {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #5B7B8C;
+}
+.sos-map-btn {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #F7F3ED;
+    color: #5B7B8C;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+.sos-emergency-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+}
+.sos-emergency-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.2rem;
+    border-radius: 16px;
+    text-decoration: none;
+    font-size: 1.5rem;
+    font-weight: 800;
+    min-height: 90px;
+    transition: transform 0.1s;
+}
+.sos-emergency-btn:active {
+    transform: scale(0.95);
+}
+.sos-emergency-btn span {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-top: 0.2rem;
+}
+.sos-119 {
+    background: linear-gradient(135deg, #B54534, #8B2C1B);
+    color: #FFF8F0;
+}
+.sos-112 {
+    background: linear-gradient(135deg, #B54534, #8B2C1B);
+    color: #FFF8F0;
+}
+.sos-ec-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem;
+    background: var(--bg-card);
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--border);
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.sos-call-btn {
+    display: inline-block;
+    padding: 0.6rem 1.2rem;
+    background: #6B8F3C;
+    color: #FFF8F0;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+.sos-status-list > div {
+    font-size: 1rem;
+    padding: 0.3rem 0;
+    color: var(--text);
+}
+.sos-deactivate-btn {
+    display: block;
+    width: 100%;
+    padding: 1.2rem;
+    background: linear-gradient(135deg, #8B6914, #6B5744);
+    color: #FFF8F0;
+    border: none;
+    border-radius: 16px;
+    font-size: 1.3rem;
+    font-weight: 800;
+    cursor: pointer;
+    min-height: 60px;
+    margin-top: 0.5rem;
+}
+.sos-deactivate-btn:active {
+    transform: scale(0.97);
+}
+
+

@@ -1,0 +1,215 @@
+/* ===== TRADING: Charts, Mentor Panel ===== */
+
+/* Trading */
+.trading-header {
+    background: var(--bg-card);
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border);
+}
+
+.balance-display {
+    display: flex;
+    justify-content: space-around;
+    font-size: 1.1rem;
+}
+
+.trading-panel {
+    background: var(--bg-card);
+    padding: 2rem;
+    border-radius: 12px;
+    max-width: 500px;
+    margin: 0 auto;
+    border: 1px solid var(--border);
+}
+
+.trade-tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 1rem;
+    border: 2px solid var(--border);
+    background: var(--bg-card-alt);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+    color: var(--text);
+}
+
+.tab-btn.active {
+    background: var(--gold);
+    color: #3D2B1F;
+    border-color: var(--gold);
+}
+
+.input {
+    width: 100%;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    background: var(--bg-card-alt);
+    color: #3D2B1F !important;
+}
+
+.input::placeholder {
+    color: #6B5744 !important;
+    opacity: 0.9 !important;
+}
+
+.trade-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    color: var(--accent);
+}
+
+.btn-trade {
+    width: 100%;
+    padding: 1rem;
+    background: var(--text);
+    color: #FFF8F0;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+
+/* ===== Mentor Panel ===== */
+.mentor-avatars {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 4px 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mentor-avatar {
+    flex-shrink: 0;
+    width: 72px;
+    text-align: center;
+    padding: 8px 4px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    background: var(--bg-card);
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.mentor-avatar:hover {
+    background: var(--bg-card-alt);
+    transform: translateY(-2px);
+}
+
+.mentor-avatar.active {
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(61,43,31,0.1);
+}
+
+.mentor-avatar-icon {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+    width: 40px;
+    height: 40px;
+    margin-left: auto;
+    margin-right: auto;
+    overflow: hidden;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.mentor-avatar-icon img {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+}
+
+.mentor-avatar-name {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+    margin-bottom: 2px;
+    white-space: nowrap;
+}
+
+.mentor-avatar-signal {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.mentor-detail-card {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    animation: mentorSlideIn 0.25s ease;
+}
+
+@keyframes mentorSlideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.mentor-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.mentor-detail-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.mentor-detail-signal {
+    font-size: 0.85rem;
+}
+
+.mentor-detail-message {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+
+.mentor-detail-confidence {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.mentor-detail-reason {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.3;
+}
+
+@media (max-width: 768px) {
+    .mentor-avatar {
+        width: 64px;
+        padding: 6px 3px;
+    }
+    .mentor-avatar-icon {
+        font-size: 1.3rem;
+    }
+    .mentor-detail-card {
+        padding: 8px 10px;
+    }
+}
+
+
