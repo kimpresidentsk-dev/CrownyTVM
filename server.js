@@ -34,6 +34,14 @@ try {
     console.warn('[MAIL] 독립 메일 서버 로드 실패:', e.message);
 }
 
+// 독립 메신저 (WebSocket + 파일 저장)
+let chatServer = null;
+try {
+    chatServer = require('./chat-server/index');
+} catch (e) {
+    console.warn('[CHAT] 독립 메신저 로드 실패:', e.message);
+}
+
 const PORT = 7730;
 const DATA_DIR = './data';
 const DOMAIN = 'crowny.org';
@@ -1524,6 +1532,64 @@ const server = http.createServer(async (req, res) => {
         }
 
         // ── 메신저 ──
+        // ── 독립 메신저 (채팅) ──
+        if (path === '/api/chat/list' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            res.end(JSON.stringify(chatServer ? chatServer.apiListChats(user.username) : []));
+            return;
+        }
+
+        if (path === '/api/chat/create' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!body.to) { res.statusCode = 400; res.end('{"error":"상대방(to) 필수"}'); return; }
+            res.end(JSON.stringify(chatServer ? chatServer.apiCreateChat(user.username, body.to, body.type, body.groupName) : { error: '메신저 없음' }));
+            return;
+        }
+
+        if (path === '/api/chat/search' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            res.end(JSON.stringify(chatServer ? chatServer.apiSearchMessages(user.username, url.searchParams.get('q') || '') : []));
+            return;
+        }
+
+        if (path.match(/^\/api\/chat\/[^/]+\/messages$/) && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const chatId = path.split('/')[3];
+            const limit = parseInt(url.searchParams.get('limit') || '50');
+            const before = url.searchParams.get('before') ? parseInt(url.searchParams.get('before')) : undefined;
+            res.end(JSON.stringify(chatServer ? chatServer.apiGetMessages(chatId, user.username, limit, before) : []));
+            return;
+        }
+
+        if (path.match(/^\/api\/chat\/[^/]+\/info$/) && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const chatId = path.split('/')[3];
+            res.end(JSON.stringify(chatServer ? chatServer.apiGetChatInfo(chatId, user.username) : { error: '메신저 없음' }));
+            return;
+        }
+
+        if (path.match(/^\/api\/chat\/[^/]+\/group$/) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const chatId = path.split('/')[3];
+            res.end(JSON.stringify(chatServer ? chatServer.apiUpdateGroup(chatId, user.username, body) : { error: '메신저 없음' }));
+            return;
+        }
+
+        if (path.match(/^\/api\/chat\/[^/]+$/) && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const chatId = path.split('/')[3];
+            res.end(JSON.stringify(chatServer ? chatServer.apiDeleteChat(chatId, user.username) : { error: '메신저 없음' }));
+            return;
+        }
+
+        // ── 레거시 메시지 API (호환) ──
         if (path === '/api/messages' && req.method === 'GET') {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
@@ -2201,6 +2267,16 @@ server.listen(PORT, () => {
     console.log('');
     console.log('  회원가입: POST /api/register {username, password, displayName}');
     console.log(`  결과: username@${DOMAIN} 이메일 생성`);
+
+    // 독립 메신저 WebSocket 연결
+    if (chatServer) {
+        try {
+            chatServer.attachWebSocket(server, getUser);
+            console.log('[CHAT] 독립 메신저 연동 완료');
+        } catch (e) {
+            console.warn('[CHAT] 메신저 시작 실패:', e.message);
+        }
+    }
 
     // 독립 메일 서버 시작
     if (mailServer) {

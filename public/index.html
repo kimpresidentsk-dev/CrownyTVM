@@ -46,6 +46,63 @@
     <link rel="stylesheet" href="/css/wallet.css?v=23.7">
     <link rel="stylesheet" href="/css/social.css?v=23.4">
     <link rel="stylesheet" href="/css/messenger.css?v=24.1">
+    <style>
+    /* CrownyTVM 독립 메신저 — 클린 UI */
+    .crny-chat{display:flex;height:calc(100vh - 120px);background:#FFF8F0;border-radius:12px;overflow:hidden;border:1px solid #E8E0D8}
+    .crny-chat-sidebar{width:320px;min-width:280px;border-right:1px solid #E8E0D8;display:flex;flex-direction:column;background:#fff}
+    .crny-chat-sidebar-header{display:flex;justify-content:space-between;align-items:center;padding:16px 16px 12px;border-bottom:1px solid #F0E8DC}
+    .crny-chat-sidebar-header h3{margin:0;font-size:1.1rem;font-weight:700;color:#3D2B1F}
+    .crny-btn-icon{width:32px;height:32px;border-radius:50%;border:1px solid #E8E0D8;background:#F7F3ED;color:#3D2B1F;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .crny-btn-icon:hover{background:#E8E0D8}
+    .crny-chat-search{padding:8px 12px}
+    .crny-chat-search input{width:100%;padding:8px 12px;border:1px solid #E8E0D8;border-radius:20px;font-size:0.85rem;background:#F7F3ED;outline:none}
+    .crny-chat-search input:focus{border-color:#8B6914}
+    .crny-chat-list{flex:1;overflow-y:auto}
+    .chat-item{display:flex;align-items:center;padding:12px 16px;gap:12px;cursor:pointer;border-bottom:1px solid #F7F3ED;transition:background .15s}
+    .chat-item:hover,.chat-item.active{background:#F7F3ED}
+    .chat-item.unread{background:#FFF3E6}
+    .chat-avatar{width:42px;height:42px;border-radius:50%;background:#8B6914;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;position:relative}
+    .chat-avatar.online::after{content:'';position:absolute;bottom:1px;right:1px;width:10px;height:10px;background:#6B8F3C;border:2px solid #fff;border-radius:50%}
+    .chat-item-body{flex:1;min-width:0}
+    .chat-item-top{display:flex;justify-content:space-between;align-items:center}
+    .chat-item-name{font-size:0.9rem;font-weight:600;color:#3D2B1F;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .chat-item-time{font-size:0.7rem;color:#A08060;flex-shrink:0;margin-left:8px}
+    .chat-item-preview{font-size:0.8rem;color:#7A5C47;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;justify-content:space-between}
+    .chat-badge{background:#B54534;color:#fff;font-size:0.65rem;padding:1px 6px;border-radius:10px;margin-left:auto;flex-shrink:0}
+    .chat-empty{text-align:center;padding:40px 20px;color:#A08060;font-size:0.9rem;line-height:1.6}
+    .chat-loading{text-align:center;padding:40px;color:#A08060}
+    /* 대화 패널 */
+    .crny-chat-panel{flex:1;display:flex;flex-direction:column;background:#FFF8F0}
+    .crny-chat-panel-header{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid #E8E0D8;background:#fff;min-height:52px}
+    .crny-btn-back{display:none;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#3D2B1F;padding:4px 8px}
+    .crny-chat-header-name{font-size:0.95rem;color:#3D2B1F}
+    .crny-chat-header-name strong{font-weight:700}
+    .chat-status{font-size:0.75rem;color:#6B8F3C;margin-left:8px}
+    .crny-chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:4px}
+    .chat-msg{max-width:75%;display:flex;flex-direction:column}
+    .chat-msg.mine{align-self:flex-end;align-items:flex-end}
+    .chat-msg.theirs{align-self:flex-start;align-items:flex-start}
+    .chat-msg-sender{font-size:0.7rem;color:#7A5C47;margin-bottom:2px;padding-left:4px}
+    .chat-bubble{padding:10px 14px;border-radius:16px;font-size:0.9rem;line-height:1.5;word-break:break-word;white-space:pre-wrap}
+    .chat-msg.mine .chat-bubble{background:#3D2B1F;color:#FFF8F0;border-bottom-right-radius:4px}
+    .chat-msg.theirs .chat-bubble{background:#fff;color:#3D2B1F;border:1px solid #E8E0D8;border-bottom-left-radius:4px}
+    .chat-msg-time{font-size:0.65rem;color:#A08060;margin-top:2px;padding:0 4px}
+    .chat-reply-ref{font-size:0.75rem;color:#8B6914;padding:4px 8px;margin-bottom:4px;border-left:2px solid #8B6914;background:rgba(139,105,20,.06);border-radius:4px}
+    .crny-chat-typing{padding:4px 20px;font-size:0.8rem;color:#7A5C47}
+    .crny-chat-input{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid #E8E0D8;background:#fff}
+    .crny-chat-input input{flex:1;padding:10px 14px;border:1px solid #E8E0D8;border-radius:20px;font-size:0.9rem;background:#F7F3ED;outline:none}
+    .crny-chat-input input:focus{border-color:#8B6914}
+    .crny-btn-send{padding:10px 18px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:20px;font-size:0.85rem;font-weight:600;cursor:pointer;white-space:nowrap}
+    .crny-btn-send:hover{background:#5A4030}
+    /* 모바일 */
+    @media(max-width:768px){
+        .crny-chat-sidebar{width:100%}
+        .crny-chat-panel{position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;transform:translateX(100%);transition:transform .2s ease}
+        .crny-chat-panel.open{transform:translateX(0)}
+        .crny-chat{position:relative;overflow:hidden}
+        .crny-btn-back{display:block}
+    }
+    </style>
     <link rel="stylesheet" href="/css/trading.css?v=23.4">
     <link rel="stylesheet" href="/css/ai.css?v=23.4">
     <link rel="stylesheet" href="/css/care.css?v=23.4">
@@ -729,101 +786,36 @@
         </section>
 
         <section id="messenger" class="page">
-            <div id="messenger-header" class="messenger-header-bar">
-                <h2 style="margin:0 0 0.5rem;" data-i18n="messenger.title"><i data-lucide="message-circle"></i> MESSENGER</h2>
-                <div style="display:flex; gap:0.3rem; overflow-x:auto; padding-bottom:0.3rem; -webkit-overflow-scrolling:touch; scrollbar-width:none; margin-bottom:0.3rem;">
-                    <button onclick="showNewChatModal()" style="padding:0.4rem 0.7rem; border-radius:20px; font-size:0.75rem; white-space:nowrap; flex-shrink:0; background:#3D2B1F; color:#FFF8F0; border:none; cursor:pointer; display:flex; align-items:center; gap:4px;"><i data-lucide="message-square-plus" style="width:14px;height:14px;"></i><span data-i18n="messenger.new_chat" style="color:#FFF8F0;">새 채팅</span></button>
-                    <button onclick="showNewGroupModal()" style="padding:0.4rem 0.7rem; border-radius:20px; font-size:0.75rem; white-space:nowrap; flex-shrink:0; background:#3D2B1F; color:#FFF8F0; border:none; cursor:pointer; display:flex; align-items:center; gap:4px;"><i data-lucide="users-round" style="width:14px;height:14px;"></i><span data-i18n="messenger.new_group" style="color:#FFF8F0;">새 그룹</span></button>
-                    <button onclick="E2ECrypto.showStartSecretChatModal()" style="padding:0.4rem 0.7rem; border-radius:20px; font-size:0.75rem; white-space:nowrap; flex-shrink:0; background:#3D2B1F; color:#FFF8F0; border:none; cursor:pointer; display:flex; align-items:center; gap:4px;"><i data-lucide="lock" style="width:14px;height:14px;"></i><span style="color:#FFF8F0;">비밀 채팅</span></button>
-                    <button onclick="showAddContactModal()" style="padding:0.4rem 0.7rem; border-radius:20px; font-size:0.75rem; white-space:nowrap; flex-shrink:0; background:#F7F3ED; color:#3D2B1F; border:1px solid #E8E0D8; cursor:pointer; display:flex; align-items:center; gap:4px;"><i data-lucide="contact" style="width:14px;height:14px;"></i><span data-i18n="messenger.contacts">연락처</span></button>
-                </div>
-            </div>
-            
-            <div class="messenger-container" id="messenger-container">
-                <div class="chat-sidebar" id="chat-sidebar">
-                    <div class="sidebar-tabs">
-                        <button class="tab-btn active" onclick="showChats()" data-i18n="messenger.tab_chats"><i data-lucide="message-circle" style="width:14px;height:14px;margin-right:3px;vertical-align:middle;display:inline-block;"></i>채팅</button>
-                        <button class="tab-btn" onclick="showContacts()" data-i18n="messenger.tab_contacts"><i data-lucide="contact" style="width:14px;height:14px;margin-right:3px;vertical-align:middle;display:inline-block;"></i>연락처</button>
-                        <button class="tab-btn" onclick="showChannels()" data-i18n="messenger.tab_channels"><i data-lucide="megaphone" style="width:14px;height:14px;margin-right:3px;vertical-align:middle;display:inline-block;"></i>채널</button>
-                    </div>
-                    
-                    <div id="chats-view" class="sidebar-content">
-                        <div class="chat-search-bar">
-                            <input type="text" id="chat-search-input" placeholder="채팅 검색..." oninput="filterChatList(this.value)">
+            <div class="crny-chat">
+                <!-- 채팅 목록 패널 -->
+                <div class="crny-chat-sidebar" id="chat-sidebar-panel">
+                    <div class="crny-chat-sidebar-header">
+                        <h3>메시지</h3>
+                        <div style="display:flex;gap:6px">
+                            <button onclick="chatNewDm()" class="crny-btn-icon" title="새 대화">+</button>
+                            <button onclick="chatNewGroup()" class="crny-btn-icon" title="새 그룹">G</button>
                         </div>
-                        <div id="chat-list"></div>
                     </div>
-                    
-                    <div id="contacts-view" class="sidebar-content" style="display:none;">
-                        <div id="contact-list"></div>
+                    <div class="crny-chat-search">
+                        <input type="text" id="chat-search" placeholder="검색..." oninput="chatSearch()">
                     </div>
-                    <div id="channels-view" class="sidebar-content" style="display:none;">
-                        <div style="padding:0.5rem;">
-                            <button onclick="showCreateChannelModal()" class="btn-primary" style="width:100%;padding:0.5rem;border-radius:8px;font-size:0.85rem;margin-bottom:0.5rem;"><i data-lucide="megaphone" style="width:16px;height:16px;margin-right:4px;"></i> 채널 만들기</button>
-                        </div>
-                        <div id="channel-list"></div>
+                    <div id="chat-list-items" class="crny-chat-list">
+                        <div class="chat-empty">대화가 없습니다<br><small>+ 버튼으로 새 채팅을 시작하세요</small></div>
                     </div>
                 </div>
-                
-                <div class="chat-window" id="chat-window">
-                    <div class="chat-header" id="chat-header">
-                        <div id="chat-header-back" class="chat-header-back" onclick="closeChatMobile()"><i data-lucide="arrow-left" style="width:22px;height:22px;"></i></div>
-                        <div id="chat-username" style="flex:1;">
-                            <div class="chat-empty-state">
-                                <div style="font-size:3rem;margin-bottom:1rem;"><i data-lucide="message-circle"></i></div>
-                                <p style="font-size:1rem;color:var(--accent);">채팅을 선택하세요</p>
-                            </div>
-                        </div>
-                        <div class="chat-header-actions" id="chat-header-actions" style="display:none;">
-                            <button onclick="toggleChatSearch()" class="chat-header-btn" title="메시지 검색"><i data-lucide="search"></i></button>
-                            <button onclick="showChatMenu()" class="chat-header-btn" title="메뉴"><i data-lucide="more-vertical"></i></button>
-                        </div>
+                <!-- 대화 패널 -->
+                <div class="crny-chat-panel" id="chat-panel">
+                    <div class="crny-chat-panel-header">
+                        <button onclick="chatBack()" class="crny-btn-back">←</button>
+                        <div id="chat-header-info" class="crny-chat-header-name">대화를 선택하세요</div>
                     </div>
-                    <div class="chat-search-overlay" id="chat-search-overlay" style="display:none;">
-                        <input type="text" id="msg-search-input" placeholder="메시지 검색..." oninput="searchMessagesInChat(this.value)">
-                        <button onclick="closeChatSearch()" class="chat-header-btn"><i data-lucide="x"></i></button>
+                    <div id="chat-messages" class="crny-chat-messages">
+                        <div class="chat-empty" style="margin-top:30%">대화를 선택하세요</div>
                     </div>
-                    <div class="chat-messages" id="chat-messages">
-                        <div class="chat-empty-state">
-                            <div style="font-size:4rem;margin-bottom:1rem;"><i data-lucide="message-circle"></i></div>
-                            <p style="font-size:1.1rem;font-weight:600;">대화를 시작해보세요</p>
-                            <p style="font-size:0.85rem;color:var(--accent);margin-top:0.5rem;">왼쪽에서 채팅을 선택하거나 새 채팅을 시작하세요</p>
-                        </div>
-                    </div>
-                    <div id="typing-indicator" class="typing-indicator" style="display:none;">
-                        <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
-                        <span id="typing-text">입력 중...</span>
-                    </div>
-                    <!-- Reply preview bar -->
-                    <div id="reply-preview-bar" style="display:none;" class="reply-preview-bar">
-                        <div class="reply-preview-content">
-                            <span id="reply-preview-name" style="font-weight:700;font-size:0.75rem;color:#3D2B1F;"></span>
-                            <span id="reply-preview-text" style="font-size:0.8rem;color:#6B5744;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-                        </div>
-                        <button onclick="cancelReply()" style="background:none;border:none;cursor:pointer;font-size:1rem;color:#6B5744;"><i data-lucide="x"></i></button>
-                    </div>
-                    <!-- Pinned message banner -->
-                    <div id="pinned-message-banner" style="display:none;" class="pinned-message-banner">
-                        <span style="font-size:0.75rem;"><i data-lucide="pin"></i></span>
-                        <span id="pinned-message-text" style="flex:1;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;" onclick="scrollToPinnedMessage()"></span>
-                        <button onclick="document.getElementById('pinned-message-banner').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:#6B5744;"><i data-lucide="x"></i></button>
-                    </div>
-                    <div class="chat-input" id="chat-input-area" style="display:none;">
-                        <button onclick="showAttachMenu()" class="btn-send-token" title="파일 첨부" style="background:transparent;border:none;color:#6B5744;padding:0.5rem;border-radius:50%;cursor:pointer;font-size:1.2rem;"><i data-lucide="paperclip"></i></button>
-                        <button id="voice-record-btn" class="btn-send-token chat-extra-btn" title="음성 메시지"
-                            onmousedown="startVoiceRecord()" onmouseup="stopVoiceRecord()" onmouseleave="cancelVoiceRecord()"
-                            ontouchstart="startVoiceRecord()" ontouchend="stopVoiceRecord()" style="background:transparent;border:none;color:#6B5744;padding:0.5rem;border-radius:50%;cursor:pointer;font-size:1.2rem;"><i data-lucide="mic"></i></button>
-                        <input type="text" id="message-input" placeholder="메시지..." style="font-size:16px;" data-i18n-placeholder="messenger.input_placeholder" onkeydown="if(event.key==='Enter'){event.preventDefault();sendMessage();}">
-                        <button onclick="showStickerGifPanel()" class="btn-send-token chat-extra-btn" title="스티커/GIF" style="background:transparent;border:none;color:#6B5744;padding:0.5rem;border-radius:50%;cursor:pointer;font-size:1.2rem;"><i data-lucide="smile"></i></button>
-                        <button onclick="sendTokenWithMessage()" class="btn-send-token chat-extra-btn" title="토큰 전송" style="background:transparent;border:none;color:#6B5744;padding:0.5rem;border-radius:50%;cursor:pointer;font-size:1.2rem;"><i data-lucide="coins"></i></button>
-                        <button onclick="sendMessage()" ontouchend="event.preventDefault();sendMessage();" class="btn-send-msg" title="전송" style="background:#3D2B1F;border:none;color:#FFF8F0;padding:0.5rem;border-radius:50%;cursor:pointer;font-size:1.2rem;"><i data-lucide="arrow-right"></i></button>
-                    </div>
-                    <!-- Voice recording indicator -->
-                    <div id="voice-recording-ui" style="display:none;" class="voice-recording-ui">
-                        <div class="voice-rec-dot"></div>
-                        <span id="voice-rec-timer">0:00</span>
-                        <div class="voice-rec-waveform" id="voice-rec-waveform"></div>
-                        <button onclick="cancelVoiceRecord()" style="background:none;border:none;color:#B54534;cursor:pointer;font-size:0.85rem;">취소</button>
+                    <div id="chat-typing" class="crny-chat-typing" style="display:none"></div>
+                    <div id="chat-input-area" class="crny-chat-input" style="display:none">
+                        <input type="text" id="chat-input" placeholder="메시지 입력..." oninput="chatOnInputTyping()" onkeydown="if(event.key==='Enter'){event.preventDefault();chatSend();}">
+                        <button onclick="chatSend()" class="crny-btn-send">전송</button>
                     </div>
                 </div>
             </div>
@@ -2375,6 +2367,7 @@
     <script src="/js/auth.js?v=25.0"></script>
     <script src="/js/wallet.js?v=25.0"></script>
     <script src="/js/offchain.js?v=25.0"></script>
+    <script src="/js/chat.js?v=25.1"></script>
     <script src="/js/e2e-crypto.js?v=23.4"></script>
     <script src="/js/social.js?v=24.2"></script>
     <script src="/js/friends.js?v=23.4"></script>
@@ -2612,13 +2605,14 @@
     }
 
     // ═══ Extend showPage for CrownyTVM pages ═══
-    const ctvmPages = ['bible-quiz','crowny-mail','contacts-crm','hanseon-vm','crowny-admin'];
+    const ctvmPages = ['bible-quiz','crowny-mail','contacts-crm','hanseon-vm','crowny-admin','messenger'];
     const ctvmLoaders = {
         'bible-quiz': () => ctvmLoadQuiz(),
         'crowny-mail': () => ctvmLoadMail(),
         'contacts-crm': () => ctvmLoadContacts(),
         'hanseon-vm': () => ctvmLoadHanseon(),
-        'crowny-admin': () => ctvmLoadAdmin()
+        'crowny-admin': () => ctvmLoadAdmin(),
+        'messenger': () => { if (typeof chatInit === 'function') chatInit(); }
     };
 
     // showPage를 직접 오버라이드 (타이밍 문제 방지)

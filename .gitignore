@@ -30,6 +30,11 @@ mail-data/sent/
 mail-data/queue/
 mail-data/logs/
 
+# Chat server (runtime)
+chat-data/chats/
+chat-data/messages/
+chat-data/users/
+
 # Binary/docs
 *.o
 *.elf
