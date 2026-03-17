@@ -94,6 +94,10 @@
     .crny-chat-input input:focus{border-color:#8B6914}
     .crny-btn-send{padding:10px 18px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:20px;font-size:0.85rem;font-weight:600;cursor:pointer;white-space:nowrap}
     .crny-btn-send:hover{background:#5A4030}
+    .crny-btn-tip{width:32px;height:32px;border-radius:50%;border:1px solid #8B6914;background:#FFF8F0;color:#8B6914;font-size:0.8rem;font-weight:700;cursor:pointer;flex-shrink:0}
+    .crny-btn-tip:hover{background:#FFF3E6}
+    .crny-chat-crmm{display:flex;align-items:center;gap:8px;padding:6px 16px;border-top:1px solid #F0E8DC;background:#FFF8F0}
+    .chat-tip-badge{display:inline-block;background:#8B6914;color:#FFF8F0;font-size:0.7rem;padding:2px 8px;border-radius:10px;margin-left:8px;font-weight:600}
     /* 모바일 */
     @media(max-width:768px){
         .crny-chat-sidebar{width:100%}
@@ -813,7 +817,12 @@
                         <div class="chat-empty" style="margin-top:30%">대화를 선택하세요</div>
                     </div>
                     <div id="chat-typing" class="crny-chat-typing" style="display:none"></div>
+                    <div id="chat-crmm-wrap" class="crny-chat-crmm" style="display:none">
+                        <span style="font-size:0.8rem;color:#8B6914;font-weight:600">CRM</span>
+                        <input type="number" id="chat-crmm" placeholder="0" min="1" max="100" style="width:60px;padding:6px 8px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.85rem;text-align:center;background:#FFF8F0">
+                    </div>
                     <div id="chat-input-area" class="crny-chat-input" style="display:none">
+                        <button onclick="chatToggleCrmm()" class="crny-btn-tip" title="CRM 팁 보내기">C</button>
                         <input type="text" id="chat-input" placeholder="메시지 입력..." oninput="chatOnInputTyping()" onkeydown="if(event.key==='Enter'){event.preventDefault();chatSend();}">
                         <button onclick="chatSend()" class="crny-btn-send">전송</button>
                     </div>

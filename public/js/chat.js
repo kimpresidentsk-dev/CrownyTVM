@@ -193,17 +193,18 @@ function chatRenderMsg(m) {
     const isMine = m.senderId === chatMyUsername;
     const time = chatFmtTime(m.timestamp);
     const replyHtml = m.replyTo ? `<div class="chat-reply-ref">↩ ${chatEsc(m.replyTo.slice(0, 40))}</div>` : '';
+    const tipHtml = m.crmmTip ? `<span class="chat-tip-badge">${m.crmmTip} CRM</span>` : '';
     return `<div class="chat-msg ${isMine ? 'mine' : 'theirs'}">
         ${!isMine ? `<div class="chat-msg-sender">${chatEsc(m.senderId)}</div>` : ''}
         ${replyHtml}
-        <div class="chat-bubble">${chatEsc(m.text)}</div>
+        <div class="chat-bubble">${chatEsc(m.text)}${tipHtml}</div>
         <div class="chat-msg-time">${time}</div>
     </div>`;
 }
 
 // ── 메시지 전송 ──
 
-function chatSend() {
+async function chatSend() {
     const input = document.getElementById('chat-input');
     if (!input || !chatCurrentId) return;
     const text = input.value.trim();
@@ -211,7 +212,33 @@ function chatSend() {
     input.value = '';
     input.style.height = 'auto';
 
-    chatSendWs({ type: 'chat:send', chatId: chatCurrentId, text });
+    // CRMM 팁 금액
+    const crmmInput = document.getElementById('chat-crmm');
+    const crmm = crmmInput ? parseInt(crmmInput.value) || 0 : 0;
+    if (crmmInput) crmmInput.value = '';
+
+    // WebSocket 연결되어 있으면 WS로, 아니면 REST로
+    if (chatWs && chatWs.readyState === 1 && !crmm) {
+        chatSendWs({ type: 'chat:send', chatId: chatCurrentId, text });
+    } else {
+        // REST 전송 (CRMM 팁 포함 가능)
+        const body = { text };
+        if (crmm > 0) body.crmm = crmm;
+        const r = await chatApi('/' + chatCurrentId + '/send', { method: 'POST', body });
+        if (r.msg) {
+            chatOnMessage(r.msg);
+            if (crmm > 0 && r.msg.crmmTip) {
+                if (typeof showToast === 'function') showToast(crmm + ' CRM 전송 완료', 'success');
+            }
+        } else if (r.error) {
+            if (typeof showToast === 'function') showToast(r.error, 'error');
+        }
+    }
+}
+
+function chatToggleCrmm() {
+    const el = document.getElementById('chat-crmm-wrap');
+    if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
 }
 
 function chatOnMessage(msg) {
@@ -353,3 +380,4 @@ window.chatNewGroup = chatNewGroup;
 window.chatSearch = chatSearch;
 window.chatBack = chatBack;
 window.chatOnInputTyping = chatOnInputTyping;
+window.chatToggleCrmm = chatToggleCrmm;

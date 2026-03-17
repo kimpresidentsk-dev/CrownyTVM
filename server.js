@@ -1573,6 +1573,34 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        if (path.match(/^\/api\/chat\/[^/]+\/send$/) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!body.text) { res.statusCode = 400; res.end('{"error":"메시지 내용 필수"}'); return; }
+            const chatId = path.split('/')[3];
+            if (!chatServer) { res.end('{"error":"메신저 없음"}'); return; }
+            const chatStore = require('./chat-server/chat-store');
+            const chat = chatStore.getChat(chatId);
+            if (!chat || !chat.participants.includes(user.username)) { res.statusCode = 403; res.end('{"error":"권한 없음"}'); return; }
+            const msg = chatStore.addMessage(chatId, user.username, body.text, body.msgType || 'text', body.replyTo);
+            // CRMM 팁
+            if (body.crmm && body.crmm > 0 && chat.type === 'dm') {
+                const toUser = chat.participants.find(p => p !== user.username);
+                if (toUser) {
+                    const tipResult = walletTransact(user.username, 'send', body.crmm, toUser, '메시지 팁', 'CRM');
+                    msg.crmmTip = tipResult.error ? null : body.crmm;
+                }
+            }
+            // WebSocket으로 실시간 전달
+            try {
+                const { broadcastToChat, sendTo } = require('./chat-server/ws-server');
+                sendTo(user.username, { type: 'chat:sent', msg });
+                broadcastToChat(chatId, { type: 'chat:message', msg }, user.username);
+            } catch (e) { /* WS 없어도 REST는 동작 */ }
+            res.end(JSON.stringify({ success: true, msg }));
+            return;
+        }
+
         if (path.match(/^\/api\/chat\/[^/]+\/group$/) && req.method === 'POST') {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
