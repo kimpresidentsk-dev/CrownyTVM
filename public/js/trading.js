@@ -455,13 +455,19 @@ async function loadTradingDashboard() {
             connectPriceWebSocket();
         }, 100);
     } else {
-        document.getElementById('trading-dashboard').style.display = 'none';
+        document.getElementById('trading-dashboard').style.display = 'block';
         // 규칙 기본 표시
         const rulesEl = document.getElementById('prop-rules-display');
         if (rulesEl) {
             rulesEl.innerHTML = `<p>${t('trading.join_to_see_rules','아래 챌린지에 참가하면 규칙이 표시됩니다.')}</p>`;
         }
     }
+
+    // 차트 & 가격 피드는 참가 여부와 관계없이 항상 초기화
+    setTimeout(() => {
+        if (!window.liveChart) initTradingViewChart();
+        if (!window.nqPriceInterval) connectPriceWebSocket();
+    }, 150);
 }
 
 function updateTradingUI() {
