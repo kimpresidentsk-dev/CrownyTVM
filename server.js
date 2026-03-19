@@ -2335,6 +2335,73 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        // ── NQ 가격 프록시 (무료 소스 폴백) ──
+        if (path === '/api/market/nq' && req.method === 'GET') {
+            try {
+                // 1차: Railway Databento
+                const controller1 = new AbortController();
+                const timeout1 = setTimeout(() => controller1.abort(), 3000);
+                try {
+                    const r1 = await fetch('https://web-production-26db6.up.railway.app/api/market/live', { signal: controller1.signal });
+                    clearTimeout(timeout1);
+                    const d1 = await r1.json();
+                    if (d1 && d1.price && d1.connected !== false) {
+                        res.end(JSON.stringify({ price: d1.price, bid: d1.bid, ask: d1.ask, source: 'databento', ts: d1.timestamp }));
+                        return;
+                    }
+                } catch(e) { clearTimeout(timeout1); }
+
+                // 2차: Yahoo Finance (NQ=F)
+                const controller2 = new AbortController();
+                const timeout2 = setTimeout(() => controller2.abort(), 5000);
+                try {
+                    const yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/NQ=F?interval=1m&range=1d';
+                    const r2 = await fetch(yUrl, {
+                        signal: controller2.signal,
+                        headers: { 'User-Agent': 'Mozilla/5.0' }
+                    });
+                    clearTimeout(timeout2);
+                    const d2 = await r2.json();
+                    const meta = d2?.chart?.result?.[0]?.meta;
+                    if (meta && meta.regularMarketPrice) {
+                        res.end(JSON.stringify({ price: meta.regularMarketPrice, bid: meta.bid || meta.regularMarketPrice, ask: meta.ask || meta.regularMarketPrice, source: 'yahoo', ts: Date.now() }));
+                        return;
+                    }
+                } catch(e) { clearTimeout(timeout2); }
+
+                // 3차: Twelve Data 무료 (NQZ2025 or QQQ로 근사)
+                const controller3 = new AbortController();
+                const timeout3 = setTimeout(() => controller3.abort(), 5000);
+                try {
+                    const tdUrl = 'https://api.twelvedata.com/price?symbol=QQQ&apikey=demo';
+                    const r3 = await fetch(tdUrl, { signal: controller3.signal });
+                    clearTimeout(timeout3);
+                    const d3 = await r3.json();
+                    if (d3 && d3.price) {
+                        // QQQ ETF → NQ 근사 변환 (QQQ ≈ NQ / 53.5)
+                        const nqApprox = parseFloat(d3.price) * 53.5;
+                        res.end(JSON.stringify({ price: nqApprox, source: 'twelvedata-qqq-approx', ts: Date.now() }));
+                        return;
+                    }
+                } catch(e) { clearTimeout(timeout3); }
+
+                // 모두 실패: Railway 캐시값이라도 반환
+                try {
+                    const r4 = await fetch('https://web-production-26db6.up.railway.app/api/market/live');
+                    const d4 = await r4.json();
+                    if (d4 && d4.price) {
+                        res.end(JSON.stringify({ price: d4.price, source: 'databento-cached', ts: d4.timestamp }));
+                        return;
+                    }
+                } catch(e) {}
+
+                res.end(JSON.stringify({ price: null, error: 'all sources failed' }));
+            } catch(e) {
+                res.end(JSON.stringify({ price: null, error: e.message }));
+            }
+            return;
+        }
+
         // ── 대시보드 ──
         if (path === '/api/dashboard') {
             const user = getAuth(req);

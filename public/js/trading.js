@@ -1380,27 +1380,24 @@ function adjustPriceInterval() {
 
 async function updateNQPrice() {
     try {
-        // Railway 서버에서 Databento 실시간 NQ 가격 조회
-        const PRICE_SERVER = 'https://web-production-26db6.up.railway.app';
-        const response = await fetch(`${PRICE_SERVER}/api/market/live`);
+        // CrownyTVM 서버 프록시 (Databento → Yahoo → TwelveData 자동 폴백)
+        const response = await fetch('/api/market/nq');
         const data = await response.json();
-        
+
         if (data && data.price) {
             currentPrice = data.price;
+            window._nqPriceSource = data.source || 'unknown';
             if (priceFetchFailCount > 0) {
                 priceFetchFailCount = 0;
                 clearInterval(window.nqPriceInterval);
                 window.nqPriceInterval = setInterval(updateNQPrice, 5000);
             }
         } else {
-            if (!currentPrice) {
-                currentPrice = 25400;
-            }
-            // console.log('<i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> NQ 데이터 없음 (장 마감 가능성)');
+            if (!currentPrice) currentPrice = 25400;
         }
-        
+
         updateNQPriceDisplay();
-        
+
     } catch (error) {
         priceFetchFailCount++;
         console.error(`Price fetch error (#${priceFetchFailCount}):`, error.message);
