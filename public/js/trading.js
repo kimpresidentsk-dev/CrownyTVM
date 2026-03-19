@@ -1363,9 +1363,9 @@ let priceFetchFailCount = 0;
 
 function connectPriceWebSocket() {
     updateNQPrice();
-    
+
     if (window.nqPriceInterval) clearInterval(window.nqPriceInterval);
-    window.nqPriceInterval = setInterval(updateNQPrice, 5000);
+    window.nqPriceInterval = setInterval(updateNQPrice, 500); // 0.5초 간격
 }
 
 // 가격 서버 장애 시 interval 늘리기
@@ -1390,7 +1390,7 @@ async function updateNQPrice() {
             if (priceFetchFailCount > 0) {
                 priceFetchFailCount = 0;
                 clearInterval(window.nqPriceInterval);
-                window.nqPriceInterval = setInterval(updateNQPrice, 5000);
+                window.nqPriceInterval = setInterval(updateNQPrice, 500);
             }
         } else {
             if (!currentPrice) currentPrice = 25400;

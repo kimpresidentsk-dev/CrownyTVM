@@ -1540,6 +1540,66 @@ function queryDocs(docs, filters, orderByField, orderDir, limitN) {
     return results;
 }
 
+// ── NQ 가격 백그라운드 캐시 (5초마다 소스에서 갱신, 클라이언트는 0.5초마다 캐시 조회) ──
+let _nqCache = { price: null, bid: null, ask: null, source: 'none', ts: 0 };
+
+async function _fetchNQPrice() {
+    // 1차: Railway Databento (실시간)
+    try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 3000);
+        const r = await fetch('https://web-production-26db6.up.railway.app/api/market/live', { signal: controller.signal });
+        clearTimeout(t);
+        const d = await r.json();
+        if (d && d.price && d.connected !== false) {
+            _nqCache = { price: d.price, bid: d.bid, ask: d.ask, source: 'databento', ts: d.timestamp || Date.now() };
+            return;
+        }
+    } catch(e) {}
+
+    // 2차: Yahoo Finance NQ=F
+    try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 5000);
+        const r = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/NQ=F?interval=1m&range=1d', {
+            signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        clearTimeout(t);
+        const d = await r.json();
+        const meta = d?.chart?.result?.[0]?.meta;
+        if (meta && meta.regularMarketPrice) {
+            _nqCache = { price: meta.regularMarketPrice, bid: meta.bid || meta.regularMarketPrice, ask: meta.ask || meta.regularMarketPrice, source: 'yahoo', ts: Date.now() };
+            return;
+        }
+    } catch(e) {}
+
+    // 3차: TwelveData QQQ → NQ 근사
+    try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 5000);
+        const r = await fetch('https://api.twelvedata.com/price?symbol=QQQ&apikey=demo', { signal: controller.signal });
+        clearTimeout(t);
+        const d = await r.json();
+        if (d && d.price) {
+            _nqCache = { price: parseFloat(d.price) * 53.5, source: 'twelvedata-qqq', ts: Date.now() };
+            return;
+        }
+    } catch(e) {}
+
+    // 4차: Railway 캐시값
+    try {
+        const r = await fetch('https://web-production-26db6.up.railway.app/api/market/live');
+        const d = await r.json();
+        if (d && d.price) {
+            _nqCache = { price: d.price, bid: d.bid, ask: d.ask, source: 'databento-cached', ts: d.timestamp || Date.now() };
+        }
+    } catch(e) {}
+}
+
+// 서버 시작 시 즉시 1회 + 5초 간격 갱신
+_fetchNQPrice();
+setInterval(_fetchNQPrice, 5000);
+
 const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
@@ -2335,69 +2395,12 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
-        // ── NQ 가격 프록시 (무료 소스 폴백) ──
+        // ── NQ 가격 (캐시에서 즉시 응답, 0.5초 간격 클라이언트 지원) ──
         if (path === '/api/market/nq' && req.method === 'GET') {
-            try {
-                // 1차: Railway Databento
-                const controller1 = new AbortController();
-                const timeout1 = setTimeout(() => controller1.abort(), 3000);
-                try {
-                    const r1 = await fetch('https://web-production-26db6.up.railway.app/api/market/live', { signal: controller1.signal });
-                    clearTimeout(timeout1);
-                    const d1 = await r1.json();
-                    if (d1 && d1.price && d1.connected !== false) {
-                        res.end(JSON.stringify({ price: d1.price, bid: d1.bid, ask: d1.ask, source: 'databento', ts: d1.timestamp }));
-                        return;
-                    }
-                } catch(e) { clearTimeout(timeout1); }
-
-                // 2차: Yahoo Finance (NQ=F)
-                const controller2 = new AbortController();
-                const timeout2 = setTimeout(() => controller2.abort(), 5000);
-                try {
-                    const yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/NQ=F?interval=1m&range=1d';
-                    const r2 = await fetch(yUrl, {
-                        signal: controller2.signal,
-                        headers: { 'User-Agent': 'Mozilla/5.0' }
-                    });
-                    clearTimeout(timeout2);
-                    const d2 = await r2.json();
-                    const meta = d2?.chart?.result?.[0]?.meta;
-                    if (meta && meta.regularMarketPrice) {
-                        res.end(JSON.stringify({ price: meta.regularMarketPrice, bid: meta.bid || meta.regularMarketPrice, ask: meta.ask || meta.regularMarketPrice, source: 'yahoo', ts: Date.now() }));
-                        return;
-                    }
-                } catch(e) { clearTimeout(timeout2); }
-
-                // 3차: Twelve Data 무료 (NQZ2025 or QQQ로 근사)
-                const controller3 = new AbortController();
-                const timeout3 = setTimeout(() => controller3.abort(), 5000);
-                try {
-                    const tdUrl = 'https://api.twelvedata.com/price?symbol=QQQ&apikey=demo';
-                    const r3 = await fetch(tdUrl, { signal: controller3.signal });
-                    clearTimeout(timeout3);
-                    const d3 = await r3.json();
-                    if (d3 && d3.price) {
-                        // QQQ ETF → NQ 근사 변환 (QQQ ≈ NQ / 53.5)
-                        const nqApprox = parseFloat(d3.price) * 53.5;
-                        res.end(JSON.stringify({ price: nqApprox, source: 'twelvedata-qqq-approx', ts: Date.now() }));
-                        return;
-                    }
-                } catch(e) { clearTimeout(timeout3); }
-
-                // 모두 실패: Railway 캐시값이라도 반환
-                try {
-                    const r4 = await fetch('https://web-production-26db6.up.railway.app/api/market/live');
-                    const d4 = await r4.json();
-                    if (d4 && d4.price) {
-                        res.end(JSON.stringify({ price: d4.price, source: 'databento-cached', ts: d4.timestamp }));
-                        return;
-                    }
-                } catch(e) {}
-
-                res.end(JSON.stringify({ price: null, error: 'all sources failed' }));
-            } catch(e) {
-                res.end(JSON.stringify({ price: null, error: e.message }));
+            if (_nqCache.price) {
+                res.end(JSON.stringify(_nqCache));
+            } else {
+                res.end(JSON.stringify({ price: null, error: 'not yet fetched', source: 'none' }));
             }
             return;
         }
