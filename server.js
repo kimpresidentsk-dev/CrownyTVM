@@ -2405,6 +2405,57 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        // ── NQ 캔들/틱 프록시 (Railway 경유) ──
+        if (path === '/api/market/candles' && req.method === 'GET') {
+            try {
+                const qs = req.url.includes('?') ? req.url.split('?')[1] : '';
+                const r = await fetch(`https://web-production-26db6.up.railway.app/api/market/candles?${qs}`);
+                const d = await r.json();
+                // Railway 캔들이 오래된 경우 Yahoo 1분 차트로 보완
+                if (d && d.candles && d.candles.length > 0) {
+                    const lastTime = d.candles[d.candles.length - 1].time;
+                    const age = Math.floor(Date.now() / 1000) - lastTime;
+                    if (age > 600 && _nqCache.price) {
+                        // 최근 가격으로 현재 캔들 추가
+                        const now = Math.floor(Date.now() / 1000);
+                        const nowMin = now - (now % 60);
+                        d.candles.push({ time: nowMin, open: _nqCache.price, high: _nqCache.price, low: _nqCache.price, close: _nqCache.price, volume: 1, tick_count: 1 });
+                        d.count = d.candles.length;
+                    }
+                    res.end(JSON.stringify(d));
+                } else {
+                    // Railway 데이터 없으면 현재가로 단일 캔들
+                    if (_nqCache.price) {
+                        const now = Math.floor(Date.now() / 1000);
+                        const nowMin = now - (now % 60);
+                        res.end(JSON.stringify({ candles: [{ time: nowMin, open: _nqCache.price, high: _nqCache.price, low: _nqCache.price, close: _nqCache.price, volume: 1 }], count: 1, symbol: 'NQ' }));
+                    } else {
+                        res.end(JSON.stringify(d || { candles: [], count: 0 }));
+                    }
+                }
+            } catch(e) {
+                if (_nqCache.price) {
+                    const now = Math.floor(Date.now() / 1000);
+                    res.end(JSON.stringify({ candles: [{ time: now, open: _nqCache.price, high: _nqCache.price, low: _nqCache.price, close: _nqCache.price, volume: 1 }], count: 1, symbol: 'NQ' }));
+                } else {
+                    res.end(JSON.stringify({ candles: [], count: 0, error: e.message }));
+                }
+            }
+            return;
+        }
+
+        if (path === '/api/market/ticks' && req.method === 'GET') {
+            try {
+                const qs = req.url.includes('?') ? req.url.split('?')[1] : '';
+                const r = await fetch(`https://web-production-26db6.up.railway.app/api/market/ticks?${qs}`);
+                const d = await r.json();
+                res.end(JSON.stringify(d));
+            } catch(e) {
+                res.end(JSON.stringify({ ticks: [], count: 0 }));
+            }
+            return;
+        }
+
         // ── 대시보드 ──
         if (path === '/api/dashboard') {
             const user = getAuth(req);

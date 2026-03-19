@@ -496,8 +496,8 @@ function updateTradingUI() {
 // ========================================
 // 실시간 캔들차트 + 탭 시스템
 // ========================================
-const PRICE_SERVER = 'https://web-production-26db6.up.railway.app';
-const POLL_INTERVAL = 1000;
+const PRICE_SERVER = ''; // 로컬 서버 프록시 (Railway/Yahoo 자동 폴백)
+const POLL_INTERVAL = 500; // 0.5초
 
 const TIMEZONES = {
     'US': { label: '🇺🇸 뉴욕 (ET)', zone: 'America/New_York' },
@@ -909,9 +909,9 @@ async function loadTickData(symbol) {
 
 async function fetchLiveTick() {
     try {
-        const res = await fetch(`${PRICE_SERVER}/api/market/live`);
+        const res = await fetch('/api/market/nq');
         const data = await res.json();
-        
+
         if (!data || !data.price || data.price < 1000) return;
         
         const now = Math.floor(Date.now() / 1000);
