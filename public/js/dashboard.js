@@ -36,6 +36,19 @@ async function loadDashboard() {
         if (user) currentUser = user;
     }
     
+    // CrownyTVM 토큰 로그인 지원 (Firebase 없는 환경)
+    const ctvmTk = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    if (!currentUser && ctvmTk) {
+        try {
+            const r = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + ctvmTk } });
+            const profile = await r.json();
+            if (profile && !profile.error) {
+                currentUser = { uid: profile.username, email: profile.username + '@crowny.org', displayName: profile.displayName || profile.username };
+                console.log('[Dashboard] CrownyTVM 토큰으로 인증:', currentUser.email);
+            }
+        } catch (e) { console.warn('[Dashboard] CrownyTVM 프로필 로드 실패:', e.message); }
+    }
+
     if (!currentUser) {
         console.warn('[Dashboard] currentUser 없음 - 로그인 필요');
         const container = document.getElementById('dashboard-content');

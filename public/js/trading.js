@@ -4,6 +4,20 @@ let currentPrice = 0;
 let priceWs = null;
 let myParticipation = null;
 
+// ========== Server API helper ==========
+async function saveTradingState(updates) {
+    if (!myParticipation) return;
+    Object.assign(myParticipation, updates);
+    const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    try {
+        await fetch('/api/trading/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(updates)
+        });
+    } catch(e) { console.warn('Trading save error:', e); }
+}
+
 // ========== 트레이딩 시스템 초기화 버튼 ==========
 async function reloadTradingSystem() {
     const statusEl = document.getElementById('trading-reload-status');
@@ -253,19 +267,12 @@ async function withdrawCRTD() {
         // 오프체인 CRTD 적립
         await earnOffchainPoints('crtd', withdrawAmount, `트레이딩 수익 인출: $${cfg.totalPnL.toFixed(0)} 기반`);
         
-        // Firestore 업데이트
+        // Server API 업데이트
         myParticipation.crtdWithdrawn = (cfg.withdrawn + withdrawAmount);
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ crtdWithdrawn: myParticipation.crtdWithdrawn });
-        
-        // 트랜잭션 기록
-        await db.collection('transactions').add({
-            from: 'system:challenge', to: currentUser.uid, toEmail: currentUser.email,
-            amount: withdrawAmount, token: 'CRTD', type: 'challenge_withdraw',
-            challengeId: myParticipation.challengeId, pnlAtWithdraw: cfg.totalPnL,
-            timestamp: new Date()
-        });
+        await saveTradingState({ crtdWithdrawn: myParticipation.crtdWithdrawn });
+
+        // Transaction logging handled server-side
+        console.log('CRTD withdraw:', withdrawAmount, 'challengeId:', myParticipation.challengeId);
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${withdrawAmount} CRTD ${t('trading.withdraw_done','인출 완료!')}`, 'success');
         updateCRTDDisplay();
@@ -296,14 +303,12 @@ async function checkCRTDLiquidation() {
         // 참가자 상태 → liquidated
         myParticipation.status = 'liquidated';
         try {
-            await db.collection('prop_challenges').doc(myParticipation.challengeId)
-                .collection('participants').doc(myParticipation.participantId)
-                .update({ 
-                    status: 'liquidated', 
-                    liquidatedAt: new Date(),
-                    finalPnL: cfg.totalPnL,
-                    crtdLost: cfg.deposit
-                });
+            await saveTradingState({
+                status: 'liquidated',
+                liquidatedAt: new Date(),
+                finalPnL: cfg.totalPnL,
+                crtdLost: cfg.deposit
+            });
         } catch (e) { console.error('청산 상태 저장 실패:', e); }
         
         updateCRTDDisplay();
@@ -315,15 +320,10 @@ function updateCRTDDisplay() {
     const el = document.getElementById('crtd-balance-display');
     if (!el) return;
     
-    // offchainBalances가 아직 로드 안 됐으면 DB에서 직접 로드
+    // CRTD balance is tracked in trading participation, skip Firebase user doc
     if (currentUser && (!userWallet?.offchainBalances || userWallet.offchainBalances.crtd === undefined)) {
-        db.collection('users').doc(currentUser.uid).get().then(doc => {
-            const data = doc.data() || {};
-            if (!userWallet) userWallet = {};
-            userWallet.offchainBalances = data.offchainBalances || { crtd: 0, crac: 0, crgc: 0, creb: 0 };
-            updateCRTDDisplay(); // 재호출
-        }).catch(() => {});
-        return;
+        if (!userWallet) userWallet = {};
+        userWallet.offchainBalances = userWallet.offchainBalances || { crtd: 0, crac: 0, crgc: 0, creb: 0 };
     }
     
     const pnl = cfg.totalPnL;
@@ -388,42 +388,21 @@ function updateCRTDDisplay() {
 }
 
 async function loadTradingDashboard() {
-    // console.log('<i data-lucide="search" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> loadTradingDashboard 시작, user:', currentUser?.uid);
-    if (!currentUser) {
-        // console.log('<i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> loadTradingDashboard: currentUser 없음, 건너뜀');
-        return;
-    }
-    // Check if user has active participation
+    if (!currentUser) return;
+    // 챌린지 목록 로드
+    if (typeof loadPropTrading === 'function') loadPropTrading();
+    // Check if user has active participation via server API
     try {
-        const challenges = await db.collection('prop_challenges')
-            .where('status', '==', 'active')
-            .get();
-        
-        // console.log('<i data-lucide="search" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 활성 챌린지:', challenges.size, '개');
-        
-        for (const challengeDoc of challenges.docs) {
-            // 복합 인덱스 없이도 작동하도록 단일 필드 쿼리
-            const participants = await challengeDoc.ref.collection('participants')
-                .where('userId', '==', currentUser.uid)
-                .get();
-            
-            // console.log('<i data-lucide="search" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 챌린지', challengeDoc.id, '참가자:', participants.size, '명');
-            
-            // 클라이언트에서 status 필터
-            const activeParticipant = participants.docs.find(d => d.data().status === 'active');
-            
-            if (activeParticipant) {
-                myParticipation = { 
-                    challengeId: challengeDoc.id,
-                    participantId: activeParticipant.id,
-                    ...activeParticipant.data() 
-                };
-                // console.log('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> myParticipation 설정됨:', myParticipation.participantId);
-                break;
-            }
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        if (!token) return;
+        const res = await fetch('/api/trading/participation', { headers: { 'Authorization': 'Bearer ' + token } });
+        const data = await res.json();
+        const p = data?.participation;
+        if (p && p.status === 'active') {
+            myParticipation = p;
         }
     } catch (error) {
-        console.error('<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> loadTradingDashboard error:', error);
+        console.error('loadTradingDashboard error:', error);
     }
     
     if (myParticipation) {
@@ -1340,10 +1319,8 @@ function generateSampleData() {
 async function updateTradeStopLoss(tradeIndex, newPrice) {
     try {
         myParticipation.trades[tradeIndex].stopLoss = newPrice;
-        
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ trades: myParticipation.trades });
+
+        await saveTradingState({ trades: myParticipation.trades });
         
         // console.log(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> SL 업데이트: ${newPrice.toFixed(2)}`);
         updateOpenPositions();
@@ -1356,10 +1333,8 @@ async function updateTradeStopLoss(tradeIndex, newPrice) {
 async function updateTradeTakeProfit(tradeIndex, newPrice) {
     try {
         myParticipation.trades[tradeIndex].takeProfit = newPrice;
-        
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ trades: myParticipation.trades });
+
+        await saveTradingState({ trades: myParticipation.trades });
         
         // console.log(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> TP 업데이트: ${newPrice.toFixed(2)}`);
         updateOpenPositions();
@@ -1573,15 +1548,13 @@ async function autoClosePosition(tradeIndex, reason) {
         
         // 일일 PnL 누적
         myParticipation.dailyPnL = (myParticipation.dailyPnL || 0) + netPnl;
-        
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ 
-                trades: myParticipation.trades,
-                currentBalance: newBalance,
-                dailyPnL: myParticipation.dailyPnL
-            });
-        
+
+        await saveTradingState({
+            trades: myParticipation.trades,
+            currentBalance: newBalance,
+            dailyPnL: myParticipation.dailyPnL
+        });
+
         const emoji = reason === 'TP' ? '<i data-lucide="circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>' : reason === 'TRAIL-SL' ? '<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>' : '<i data-lucide="circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>';
         // console.log(`${emoji} 자동 청산 (${reason}): ${trade.contract} ${trade.side} @ ${exitPrice.toFixed(2)} → $${netPnl.toFixed(2)}`);
         
@@ -1639,15 +1612,13 @@ async function closePosition(tradeIndex) {
         
         // 일일 PnL 누적
         myParticipation.dailyPnL = (myParticipation.dailyPnL || 0) + netPnl;
-        
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ 
-                trades: myParticipation.trades,
-                currentBalance: newBalance,
-                dailyPnL: myParticipation.dailyPnL
-            });
-        
+
+        await saveTradingState({
+            trades: myParticipation.trades,
+            currentBalance: newBalance,
+            dailyPnL: myParticipation.dailyPnL
+        });
+
         // console.log(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 청산: ${trade.side} ${trade.contract} x${trade.contracts} | PnL: $${netPnl.toFixed(2)}`);
         
         // ★ CRTD 프랍 — 청산 체크 + 디스플레이
@@ -1738,13 +1709,11 @@ function updateOpenPositions() {
     
     // 트레일링 SL 변경 시 Firestore 저장 + 차트 라인 갱신 (쓰로틀)
     if (trailingUpdated) {
-        // Firestore 저장 (디바운스 500ms)
+        // Server save (디바운스 500ms)
         if (window._trailingSaveTimer) clearTimeout(window._trailingSaveTimer);
         window._trailingSaveTimer = setTimeout(async () => {
             try {
-                await db.collection('prop_challenges').doc(myParticipation.challengeId)
-                    .collection('participants').doc(myParticipation.participantId)
-                    .update({ trades: myParticipation.trades });
+                await saveTradingState({ trades: myParticipation.trades });
             } catch (e) { console.warn('트레일링 저장 실패:', e); }
         }, 500);
         
@@ -1895,11 +1864,9 @@ async function modifyPosition(tradeIndex) {
     try {
         trade.stopLoss = newSL ? parseFloat(newSL) : null;
         trade.takeProfit = newTP ? parseFloat(newTP) : null;
-        
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ trades: myParticipation.trades });
-        
+
+        await saveTradingState({ trades: myParticipation.trades });
+
         updateOpenPositions();
         drawPositionLinesLW();
     } catch (error) {
@@ -1926,9 +1893,7 @@ async function adjustSLTP(tradeIndex, type, delta) {
     if (window._sltpSaveTimer) clearTimeout(window._sltpSaveTimer);
     window._sltpSaveTimer = setTimeout(async () => {
         try {
-            await db.collection('prop_challenges').doc(myParticipation.challengeId)
-                .collection('participants').doc(myParticipation.participantId)
-                .update({ trades: myParticipation.trades });
+            await saveTradingState({ trades: myParticipation.trades });
         } catch (e) { console.warn('SL/TP 저장 실패:', e); }
     }, 500);
 }
@@ -1952,9 +1917,7 @@ async function editSLTP(tradeIndex, type) {
     drawPositionLinesLW();
     
     try {
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ trades: myParticipation.trades });
+        await saveTradingState({ trades: myParticipation.trades });
     } catch (e) { showToast('저장 실패: ' + e.message, 'error'); }
     updateOpenPositions();
 }
@@ -1994,10 +1957,8 @@ async function partialClosePosition(tradeIndex) {
         
         myParticipation.trades.push(closedTrade);
         myParticipation.currentBalance += closeMargin + netPnl;
-        
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ trades: myParticipation.trades, currentBalance: myParticipation.currentBalance });
+
+        await saveTradingState({ trades: myParticipation.trades, currentBalance: myParticipation.currentBalance });
         
         // console.log(`<i data-lucide="bar-chart-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 분할 청산: ${closeCount}계약 청산, ${remainCount}계약 유지`);
         
@@ -2022,10 +1983,8 @@ async function toggleTrailingForTrade(tradeIndex) {
     }
     
     try {
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ trades: myParticipation.trades });
-        
+        await saveTradingState({ trades: myParticipation.trades });
+
         const status = trade.trailingStop.enabled ? '활성화' : '비활성화';
         // console.log(`<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 트레일링 ${status}: Trade #${tradeIndex}`);
         updateOpenPositions();
@@ -2065,10 +2024,8 @@ async function enableTrailingForTrade(tradeIndex) {
     }
     
     try {
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ trades: myParticipation.trades });
-        
+        await saveTradingState({ trades: myParticipation.trades });
+
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 트레일링 스탑 추가! 거리: ${distVal}pt, SL: ${trade.stopLoss.toFixed(2)}`, 'success');
         updateOpenPositions();
         drawPositionLinesLW();
@@ -2313,14 +2270,12 @@ async function closeAllPositions(contractFilter) {
         
         myParticipation.currentBalance += totalPnL;
         myParticipation.dailyPnL = (myParticipation.dailyPnL || 0) + totalNetPnL;
-        
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ 
-                trades: myParticipation.trades,
-                currentBalance: myParticipation.currentBalance,
-                dailyPnL: myParticipation.dailyPnL
-            });
+
+        await saveTradingState({
+            trades: myParticipation.trades,
+            currentBalance: myParticipation.currentBalance,
+            dailyPnL: myParticipation.dailyPnL
+        });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${contractFilter || '전체'} 포지션 청산! 손익: $${totalNetPnL.toFixed(2)}`, 'success');
         updateTradingUI();
@@ -2508,16 +2463,10 @@ async function executeFuturesTrade(side) {
         
         const newBalance = myParticipation.currentBalance - requiredMargin;
         
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ 
-                trades: trades,
-                currentBalance: newBalance
-            });
-        
         myParticipation.trades = trades;
         myParticipation.currentBalance = newBalance;
-        
+        await saveTradingState({ trades: trades, currentBalance: newBalance });
+
         const statusText = orderType === 'MARKET' ? '체결' : '접수';
         const copyLabel = copyAccounts > 1 ? ` (×${copyAccounts}계정)` : '';
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${side} 주문 ${statusText}! ${contract} ${contracts}계약${copyLabel} @ ${entryPrice.toFixed(2)}`, 'success');
@@ -2649,15 +2598,9 @@ async function quickChartTrade(side, contractOverride) {
         
         const newBalance = myParticipation.currentBalance - margin;
         
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({ 
-                trades: trades,
-                currentBalance: newBalance
-            });
-        
         myParticipation.trades = trades;
         myParticipation.currentBalance = newBalance;
+        await saveTradingState({ trades: trades, currentBalance: newBalance });
         
         // console.log(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 차트 ${side} 주문 체결! 카피:${copyAccounts}, SL: ${stopLoss.toFixed(2)}, TP: ${takeProfit.toFixed(2)}`);
         
@@ -3169,12 +3112,10 @@ async function processEOD() {
     // console.log(`<i data-lucide="bar-chart-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> EOD 정산: USD PnL = $${totalPnL.toFixed(2)} | 인출가능: ${getWithdrawableCRTD()} CRTD`);
     
     // lastEOD 업데이트
-    await db.collection('prop_challenges').doc(myParticipation.challengeId)
-        .collection('participants').doc(myParticipation.participantId)
-        .update({
-            lastEOD: new Date(),
-            dailyPnL: totalPnL
-        });
+    await saveTradingState({
+        lastEOD: new Date(),
+        dailyPnL: totalPnL
+    });
     
     updateCRTDDisplay();
 }
@@ -3391,9 +3332,7 @@ async function checkPendingOrders() {
     
     if (filled) {
         try {
-            await db.collection('prop_challenges').doc(myParticipation.challengeId)
-                .collection('participants').doc(myParticipation.participantId)
-                .update({ trades: myParticipation.trades });
+            await saveTradingState({ trades: myParticipation.trades });
         } catch (e) { console.error('주문 체결 저장 실패:', e); }
         
         updateTradingUI();

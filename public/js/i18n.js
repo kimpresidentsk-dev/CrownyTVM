@@ -9,6 +9,7 @@ let i18nReady = false;
 const SUPPORTED_LANGS = {
     ko: { name: '한국어', flag: '🇰🇷' },
     en: { name: 'English', flag: '🇺🇸' },
+    bn: { name: 'বাংলা', flag: '🇧🇩' },
     zh: { name: '中文', flag: '🇨🇳' },
     ja: { name: '日本語', flag: '🇯🇵' },
     es: { name: 'Español', flag: '🇪🇸' },
@@ -35,8 +36,7 @@ const SUPPORTED_LANGS = {
     cs: { name: 'Čeština', flag: '🇨🇿' },
     el: { name: 'Ελληνικά', flag: '🇬🇷' },
     he: { name: 'עברית', flag: '🇮🇱' },
-    ms: { name: 'Bahasa Melayu', flag: '🇲🇾' },
-    bn: { name: 'বাংলা', flag: '🇧🇩' }
+    ms: { name: 'Bahasa Melayu', flag: '🇲🇾' }
 };
 
 // 지원하지 않는 언어면 ko로 폴백

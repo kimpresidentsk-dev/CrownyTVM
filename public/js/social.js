@@ -25,6 +25,7 @@ let presenceInterval = null;
 
 async function updatePresence(isOnline) {
     if (!currentUser) return;
+    if (typeof useIndependentDB !== 'undefined' && useIndependentDB) return; // 독립 모드: Firebase presence 스킵
     try {
         await db.collection('users').doc(currentUser.uid).update({
             isOnline: isOnline,
@@ -46,6 +47,21 @@ function startPresenceHeartbeat() {
 
 // Get user display info (nickname + photo)
 async function getUserDisplayInfo(uid) {
+    if (typeof useIndependentDB !== 'undefined' && useIndependentDB) {
+        // 독립 모드: currentUser 또는 서버 API 조회
+        if (currentUser && currentUser.uid === uid) {
+            return { nickname: currentUser.displayName || uid, photoURL: currentUser.photoURL || '', email: currentUser.email || '', isOnline: true, lastSeen: null };
+        }
+        // 다른 유저 정보는 서버에서 조회
+        try {
+            const r = await fetch('/api/users/info?username=' + encodeURIComponent(uid), { headers: ctvmHeaders() });
+            const info = await r.json();
+            if (info && !info.error) {
+                return { nickname: info.displayName || uid, photoURL: info.photoURL || '', email: info.email || '', isOnline: false, lastSeen: null };
+            }
+        } catch(e) {}
+        return { nickname: uid, photoURL: '', email: '', isOnline: false, lastSeen: null };
+    }
     try {
         let doc = await db.collection('users').doc(uid).get();
         // 봇 유저면 bot_profiles에서 조회
@@ -85,8 +101,17 @@ function onlineDotHTML(isOnline) {
 // Show profile edit modal
 async function showProfileEdit() {
     if (!currentUser) return;
-    const userDoc = await db.collection('users').doc(currentUser.uid).get();
-    const data = userDoc.data() || {};
+    let data = {};
+    if (typeof useIndependentDB !== 'undefined' && useIndependentDB) {
+        try {
+            const r = await fetch('/api/profile', { headers: ctvmHeaders() });
+            const profile = await r.json();
+            data = { nickname: profile.displayName || profile.username, email: profile.email || '', photoURL: profile.photoURL || '', statusMessage: profile.statusMessage || '' };
+        } catch(e) { data = { nickname: currentUser.displayName || '', email: currentUser.email || '' }; }
+    } else {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        data = userDoc.data() || {};
+    }
 
     const overlay = document.createElement('div');
     overlay.id = 'profile-edit-modal';
@@ -114,15 +139,18 @@ async function showProfileEdit() {
             <p style="font-size:0.75rem; color:var(--text-muted,#6B5744);">${t('auth.email','이메일')}: ${data.email}</p>
             <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid #E8E0D8; display:grid; gap:0.5rem;">
                 <p style="font-size:0.8rem; font-weight:600; color:var(--text,#3D2B1F); margin-bottom:0.2rem;"><i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.login_method','🔐 로그인 방법')}</p>
-                ${currentUser && currentUser.providerData.some(p => p.providerId === 'google.com') ? `
+                ${typeof useIndependentDB !== 'undefined' && useIndependentDB ? `
+                <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.pw_login_set','✅ CrownyTVM 계정')}</p>
+                <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','🔑 비밀번호 변경')}</button>` : `
+                ${currentUser && currentUser.providerData && currentUser.providerData.some(p => p.providerId === 'google.com') ? `
                 <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.google_linked','✅ Google 계정 연동됨')}</p>` : `
                 <button onclick="linkGoogleAccount(); document.getElementById('profile-edit-modal').remove();" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:16px;height:16px;"> ${t('social.link_google','Google 계정 연동')}
                 </button>`}
-                ${currentUser && currentUser.providerData.some(p => p.providerId === 'password') ? `
+                ${currentUser && currentUser.providerData && currentUser.providerData.some(p => p.providerId === 'password') ? `
                 <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.pw_login_set','✅ 이메일/비밀번호 로그인 설정됨')}</p>
                 <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','🔑 비밀번호 변경')}</button>` : `
-                <button onclick="setupPasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.setup_pw','🔑 비밀번호 설정 (이메일 로그인 추가)')}</button>`}
+                <button onclick="setupPasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.setup_pw','🔑 비밀번호 설정 (이메일 로그인 추가)')}</button>`}`}
             </div>
         </div>
         <div style="display:flex;gap:0.5rem;margin-top:1rem;">
@@ -131,6 +159,7 @@ async function showProfileEdit() {
         </div>
     </div>`;
     document.body.appendChild(overlay);
+    if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [overlay] });
 }
 
 function previewProfilePhoto(input) {
@@ -151,15 +180,47 @@ async function saveProfile() {
 
     try {
         showLoading(t('social.saving_profile','프로필 저장 중...'));
-        const updates = { nickname, statusMessage };
 
-        if (photoInput.files[0]) {
-            const file = photoInput.files[0];
-            const storagePath = `profile/${currentUser.uid}/${Date.now()}_${file.name}`;
-            updates.photoURL = await resizeAndUploadImage(file, 200, storagePath);
+        if (typeof useIndependentDB !== 'undefined' && useIndependentDB) {
+            // Independent mode: PATCH /api/profile
+            const patchBody = { displayName: nickname, statusMessage };
+
+            if (photoInput.files[0]) {
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(photoInput.files[0]);
+                });
+                patchBody.photoURL = base64;
+            }
+
+            const r = await fetch('/api/profile', {
+                method: 'PATCH',
+                headers: ctvmHeaders(),
+                body: JSON.stringify(patchBody)
+            });
+            const result = await r.json();
+            if (result.error) throw new Error(result.error);
+
+            // Update local currentUser
+            if (currentUser) {
+                currentUser.displayName = nickname;
+                if (result.photoURL) currentUser.photoURL = result.photoURL;
+            }
+        } else {
+            // Firebase mode
+            const updates = { nickname, statusMessage };
+
+            if (photoInput.files[0]) {
+                const file = photoInput.files[0];
+                const storagePath = `profile/${currentUser.uid}/${Date.now()}_${file.name}`;
+                updates.photoURL = await resizeAndUploadImage(file, 200, storagePath);
+            }
+
+            await db.collection('users').doc(currentUser.uid).update(updates);
         }
 
-        await db.collection('users').doc(currentUser.uid).update(updates);
         hideLoading();
         showToast(t('social.profile_saved','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> 프로필 저장 완료!'), 'success');
         document.getElementById('profile-edit-modal')?.remove();
@@ -195,6 +256,7 @@ async function loadReferralRewardDesc() {
 // 소개자 정보 로드
 async function loadReferralInfo() {
     if (!currentUser) return;
+    if (typeof useIndependentDB !== 'undefined' && useIndependentDB) return; // 독립 모드: Firebase 레퍼럴 스킵
     loadReferralRewardDesc();
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
@@ -402,41 +464,135 @@ async function addContactFromSearch(uid, email, name) {
 
 async function loadContacts() {
     const contactList = document.getElementById('contact-list');
-    contactList.innerHTML = '<p style="padding:1rem; text-align:center; color:var(--accent);"><i data-lucide="clipboard"></i> 로딩 중...</p>';
-    const contacts = await db.collection('users').doc(currentUser.uid).collection('contacts').get();
-    contactList.innerHTML = '';
+    if (!contactList) return;
+    contactList.innerHTML = '<p style="padding:1rem; text-align:center; color:var(--accent);">' + t('messenger.loading','로딩 중...') + '</p>';
 
-    if (contacts.empty) {
+    let contacts = [];
+    if (typeof useIndependentDB !== 'undefined' && useIndependentDB) {
+        // 독립 API
+        try {
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token') || '';
+            const r = await fetch('/api/contacts', { headers: { 'Authorization': 'Bearer ' + token } });
+            contacts = await r.json();
+            if (!Array.isArray(contacts)) contacts = [];
+        } catch(e) { contacts = []; }
+    } else {
+        try {
+            const snap = await db.collection('users').doc(currentUser.uid).collection('contacts').get();
+            contacts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch(e) { contacts = []; }
+    }
+
+    contactList.innerHTML = '';
+    if (contacts.length === 0) {
         contactList.innerHTML = `
             <div style="text-align:center; padding:2rem; color:var(--accent);">
-                <div style="font-size:2.5rem; margin-bottom:0.8rem;"><i data-lucide="users" style="width:40px;height:40px;display:block;"></i></div>
+                <div style="margin-bottom:0.8rem;"><i data-lucide="users" style="width:40px;height:40px;display:block;margin:0 auto;"></i></div>
                 <p style="font-size:0.95rem; margin-bottom:0.5rem;">${t('social.no_contacts','연락처가 없습니다')}</p>
                 <button onclick="showAddContactModal()" class="btn-primary" style="padding:0.5rem 1rem; font-size:0.85rem;"><i data-lucide="plus" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.add_contact_btn','연락처 추가')}</button>
             </div>`;
+        if(window.lucide) lucide.createIcons();
         return;
     }
 
-    for (const doc of contacts.docs) {
-        const contact = doc.data();
-        const info = await getUserDisplayInfo(doc.id);
-        const contactItem = document.createElement('div');
-        contactItem.className = 'contact-item';
-        contactItem.innerHTML = `
-            <div style="position:relative;">
-                ${avatarHTML(info.photoURL, info.nickname, 44)}
-                <span class="online-dot ${info.isOnline ? 'online' : 'offline'}" style="position:absolute;bottom:0;right:0;"></span>
-            </div>
-            <div class="contact-info" style="flex:1;min-width:0;overflow:hidden;">
-                <strong style="font-size:0.95rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${info.nickname}</strong>
-                <p style="font-size:0.8rem; margin:0.1rem 0; color:var(--accent); opacity:0.7; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${info.statusMessage || (info.lastSeen ? getTimeAgo(info.lastSeen) : '')}</p>
-            </div>
-            <div style="display:flex; gap:0.3rem; align-items:center;">
-                <button onclick='startChatWithContact("${contact.email}")' style="padding:0.35rem 0.7rem; border-radius:20px; font-size:0.8rem; background:#3D2B1F; color:#FFF8F0; border:none; cursor:pointer; display:flex; align-items:center; gap:3px;"><i data-lucide="message-circle" style="width:12px;height:12px;"></i> ${t('social.chat','채팅')}</button>
-                <button onclick='showContactMenu("${doc.id}", "${info.nickname}")' style="padding:0.35rem; border-radius:50%; background:none; border:1px solid #E8E0D8; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i data-lucide="more-vertical" style="width:14px;height:14px;color:#6B5744;"></i></button>
-            </div>`;
-        contactList.appendChild(contactItem);
-    }
+    // 그룹별 분류 (isUser로 내부/외부 구분)
+    const groups = {};
+    contacts.forEach(c => {
+        const g = c.group || (c.isUser ? t('social.contact_internal','회원') : t('social.contact_external','외부'));
+        if (!groups[g]) groups[g] = [];
+        groups[g].push(c);
+    });
+
+    Object.entries(groups).forEach(([groupName, members]) => {
+        const header = document.createElement('div');
+        header.style.cssText = 'padding:8px 14px;font-size:0.75rem;font-weight:700;color:#7A5C47;text-transform:uppercase;background:#F7F3ED;';
+        header.textContent = groupName + ' (' + members.length + ')';
+        contactList.appendChild(header);
+
+        members.forEach(c => {
+            const name = c.name || c.crownyUsername || '?';
+            const initial = (name[0] || '?').toUpperCase();
+            const sub = c.phone || c.email || c.crownyUsername || '';
+            const contactItem = document.createElement('div');
+            contactItem.className = 'contact-item';
+            contactItem.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid #F0E8DC;';
+            contactItem.onclick = () => showContactDetail(c);
+            contactItem.innerHTML = `
+                <div style="width:40px;height:40px;border-radius:50%;background:#3D2B1F;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.95rem;flex-shrink:0;">${initial}</div>
+                <div style="flex:1;min-width:0;overflow:hidden;">
+                    <div style="font-size:0.95rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
+                    <div style="font-size:0.8rem;color:#7A5C47;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sub}</div>
+                </div>
+                ${c.isUser ? '<i data-lucide="badge-check" style="width:16px;height:16px;color:#6B8F3C;flex-shrink:0;"></i>' : ''}`;
+            contactList.appendChild(contactItem);
+        });
+    });
     if(window.lucide) lucide.createIcons();
+}
+
+function showContactDetail(contact) {
+    let existing = document.getElementById('contact-detail-modal');
+    if (existing) existing.remove();
+
+    const name = contact.name || '?';
+    const modal = document.createElement('div');
+    modal.id = 'contact-detail-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    modal.onclick = e => { if (e.target === modal) modal.remove(); };
+
+    const fields = [
+        { icon: 'phone', label: t('social.phone','전화'), value: contact.phone },
+        { icon: 'mail', label: t('social.email','이메일'), value: contact.email },
+        { icon: 'building-2', label: t('social.company','회사'), value: contact.company },
+        { icon: 'briefcase', label: t('social.position','직책'), value: contact.position },
+        { icon: 'map-pin', label: t('social.address','주소'), value: contact.address },
+        { icon: 'cake', label: t('social.birthday','생일'), value: contact.birthday },
+        { icon: 'tag', label: t('social.group','그룹'), value: contact.group },
+        { icon: 'sticky-note', label: t('social.notes','메모'), value: contact.notes },
+    ].filter(f => f.value);
+
+    modal.innerHTML = `
+    <div style="background:var(--card,#F7F3ED);padding:1.5rem;border-radius:16px;max-width:400px;width:100%;color:var(--text,#3D2B1F);">
+        <div style="text-align:center;margin-bottom:1rem;">
+            <div style="width:64px;height:64px;border-radius:50%;background:#3D2B1F;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;margin:0 auto 8px;">${(name[0] || '?').toUpperCase()}</div>
+            <h3 style="margin:0;font-size:1.1rem;">${name}</h3>
+            ${contact.isUser ? '<span style="font-size:0.75rem;color:#6B8F3C;">Crowny ' + t('social.contact_internal','회원') + '</span>' : '<span style="font-size:0.75rem;color:#7A5C47;">' + t('social.contact_external','외부') + '</span>'}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:1rem;">
+            ${fields.map(f => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F0E8DC;">
+                <i data-lucide="${f.icon}" style="width:16px;height:16px;color:#7A5C47;flex-shrink:0;"></i>
+                <div><div style="font-size:0.7rem;color:#7A5C47;">${f.label}</div><div style="font-size:0.9rem;">${f.value}</div></div>
+            </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px;">
+            ${contact.crownyUsername ? `<button onclick="chatNewDmWith('${contact.crownyUsername}');document.getElementById('contact-detail-modal').remove();" style="flex:1;padding:0.5rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;"><i data-lucide="message-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.chat','채팅')}</button>` : ''}
+            <button onclick="deleteContactIndependent(${contact.id})" style="flex:1;padding:0.5rem;border:1px solid #c0392b;border-radius:8px;background:none;color:#c0392b;cursor:pointer;font-weight:600;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.delete','삭제')}</button>
+            <button onclick="document.getElementById('contact-detail-modal').remove()" style="flex:1;padding:0.5rem;border:1px solid #E8E0D8;border-radius:8px;background:none;cursor:pointer;">${t('common.close','닫기')}</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    if (window.lucide) lucide.createIcons({ nodes: [modal] });
+}
+
+async function deleteContactIndependent(contactId) {
+    // 연락처 상세 모달 먼저 닫기 (confirm 모달과 겹치지 않도록)
+    const detailModal = document.getElementById('contact-detail-modal');
+    if (detailModal) detailModal.remove();
+
+    if (!await showConfirmModal(t('social.delete_contact','연락처 삭제'), t('social.confirm_delete_contact','이 연락처를 삭제하시겠습니까?'))) return;
+    try {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token') || '';
+        const r = await fetch('/api/contacts/' + contactId, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        showToast(t('social.contact_deleted','연락처 삭제됨'), 'success');
+        loadContacts();
+    } catch(e) {
+        showToast(t('social.delete_fail','삭제 실패') + ': ' + e.message, 'error');
+    }
 }
 
 async function startChatWithContact(email) {
@@ -517,7 +673,14 @@ function formatDateLabel(date) {
 
 // ===== Load chat list =====
 async function loadMessages() {
+    console.log('[loadMessages] called, currentUser:', !!currentUser, 'independentDB:', typeof useIndependentDB !== 'undefined' && useIndependentDB);
     if (!currentUser) { console.log('[loadMessages] no currentUser'); return; }
+    if (typeof useIndependentDB !== 'undefined' && useIndependentDB) {
+        // 독립 모드: chat.js의 chatInit()이 메신저 담당
+        console.log('[loadMessages] 독립모드 → chatInit() 호출');
+        if (typeof chatInit === 'function') chatInit();
+        return;
+    }
     const chatList = document.getElementById('chat-list');
     if (!chatList) return;
     chatList.innerHTML = '';
@@ -1679,6 +1842,11 @@ async function loadSocialFeed() {
     if (!currentUser) return;
     const feed = document.getElementById('social-feed');
     if (!feed) return;
+    if (typeof useIndependentDB !== 'undefined' && useIndependentDB) {
+        // ═══ CrownyTVM 독립 소셜 피드 ═══
+        await loadIndependentSocialFeed(feed);
+        return;
+    }
     // Skeleton loading
     feed.innerHTML = Array(3).fill(`<div class="skeleton-post"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div class="skeleton skeleton-circle" style="width:36px;height:36px;"></div><div style="flex:1"><div class="skeleton skeleton-text medium"></div><div class="skeleton skeleton-text short"></div></div></div><div class="skeleton skeleton-image" style="margin-bottom:10px;"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text medium"></div></div>`).join('');
 
@@ -1783,10 +1951,19 @@ async function loadSocialFeed() {
         }
     } catch (error) {
         console.error('Feed load error:', error);
-        feed.innerHTML = `<div style="text-align:center; padding:3rem;">
-            <p style="font-size:2rem; margin-bottom:1rem;">⚠️</p>
-            <p style="color:red;">${error.message}</p>
-            <button onclick="loadSocialFeed()" class="btn-primary" style="margin-top:1rem;">${t('common.refresh','새로고침')}</button></div>`;
+        const isPermission = (error.message || '').includes('permission') || (error.message || '').includes('Permission') || (typeof useIndependentDB !== 'undefined' && useIndependentDB);
+        if (isPermission) {
+            feed.innerHTML = `<div style="text-align:center; padding:3rem;">
+                <p style="font-size:2.5rem; margin-bottom:1rem;">📝</p>
+                <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;margin-bottom:8px;">소셜 피드 준비 중</p>
+                <p style="font-size:0.85rem;color:#7A5C47;line-height:1.6;">CrownyTVM 독립 소셜 기능이 곧 추가됩니다.<br>게시물을 작성하려면 위 입력란을 이용하세요.</p>
+            </div>`;
+        } else {
+            feed.innerHTML = `<div style="text-align:center; padding:3rem;">
+                <p style="font-size:2rem; margin-bottom:1rem;">⚠️</p>
+                <p style="color:#B54534;">${error.message}</p>
+                <button onclick="loadSocialFeed()" class="btn-primary" style="margin-top:1rem;">${t('common.refresh','새로고침')}</button></div>`;
+        }
     }
 }
 
@@ -2166,6 +2343,9 @@ function extractVideoThumbnail(file) {
 
 // ========== CREATE POST (with video + service link support) ==========
 async function createPost() {
+    // CrownyTVM 독립 모드: Firebase 없으면 독립 소셜 사용
+    if (typeof useIndependentDB !== 'undefined' && useIndependentDB) { return createIndependentPost(); }
+
     const textarea = document.getElementById('post-text');
     const fileInput = document.getElementById('post-image');
     const videoInput = document.getElementById('post-video');
@@ -3137,3 +3317,259 @@ function closeBottomSheet() {
         setTimeout(() => el.remove(), 300);
     });
 }
+
+// ═══════════════════════════════════════════════════════════════
+// CrownyTVM 독립 소셜 피드 (파일 기반, Firebase 불요)
+// ═══════════════════════════════════════════════════════════════
+
+function getCtvmToken() {
+    return localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token') || '';
+}
+
+function ctvmHeaders() {
+    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getCtvmToken() };
+}
+
+async function loadIndependentSocialFeed(feed) {
+    feed.innerHTML = '<div style="text-align:center;padding:2rem;color:#7A5C47;">로딩 중...</div>';
+    try {
+        const res = await fetch('/api/social/feed?limit=30', { headers: ctvmHeaders() });
+        const data = await res.json();
+        feed.innerHTML = '';
+
+        if (!data.posts || data.posts.length === 0) {
+            feed.innerHTML = `<div style="text-align:center;padding:3rem;">
+                <p style="font-size:2.5rem;margin-bottom:1rem;">📝</p>
+                <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;">${t('social.no_posts','아직 게시물이 없습니다')}</p>
+                <p style="font-size:0.85rem;color:#7A5C47;">${t('social.write_first','첫 게시물을 작성해보세요!')}</p></div>`;
+            return;
+        }
+
+        for (const post of data.posts) {
+            feed.appendChild(renderIndependentPost(post));
+        }
+    } catch (e) {
+        feed.innerHTML = `<div style="text-align:center;padding:2rem;color:#c0392b;">${t('common.load_failed','로드 실패')}: ${e.message}</div>`;
+    }
+}
+
+function renderIndependentPost(post) {
+    const el = document.createElement('div');
+    el.className = 'crny-social-post';
+    el.style.cssText = 'background:var(--card-bg,#FFF8F0);border-radius:12px;margin-bottom:12px;overflow:hidden;border:1px solid rgba(232,213,196,0.3);';
+    el.dataset.postId = post.id;
+
+    const myUser = localStorage.getItem('crowny_username') || '';
+    const likedByMe = (post.likes || []).includes(myUser);
+    const likeCount = (post.likes || []).length;
+    const timeAgo = getTimeAgoMs(post.ts);
+
+    // YouTube 임베드
+    let mediaHTML = '';
+    if (post.youtube && post.youtube.id) {
+        const ytId = post.youtube.id;
+        mediaHTML = `<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;background:#000;">
+            <iframe src="https://www.youtube.com/embed/${ytId}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"
+                allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+    } else if (post.image) {
+        mediaHTML = `<div><img src="${post.image}" style="width:100%;display:block;" loading="lazy"></div>`;
+    }
+
+    // 텍스트 (URL 자동 링크 + 해시태그)
+    let textHTML = '';
+    if (post.text) {
+        textHTML = escapeHtmlSocial(post.text)
+            .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary,#B8860B);">$1</a>')
+            .replace(/#(\S+)/g, '<span style="color:var(--primary,#B8860B);">#$1</span>');
+    }
+
+    el.innerHTML = `
+        <div style="display:flex;align-items:center;padding:10px 12px;gap:10px;">
+            ${post.authorPhotoURL ? `<img src="${post.authorPhotoURL}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">` : `<div style="width:36px;height:36px;border-radius:50%;background:var(--primary,#B8860B);display:flex;align-items:center;justify-content:center;color:#FFF8F0;font-weight:700;font-size:0.85rem;">${(post.authorName || post.author || '?')[0].toUpperCase()}</div>`}
+            <div style="flex:1;">
+                <div style="font-weight:600;font-size:0.9rem;color:#3D2B1F;">${escapeHtmlSocial(post.authorName || post.author)}</div>
+                <div style="font-size:0.72rem;color:#7A5C47;">@${escapeHtmlSocial(post.author)} · ${timeAgo}</div>
+            </div>
+            ${post.author === myUser ? `<button onclick="deleteIndependentPost('${post.id}')" style="background:none;border:none;cursor:pointer;color:#7A5C47;font-size:1.2rem;" title="${t('common.delete','삭제')}">×</button>` : ''}
+        </div>
+        ${textHTML ? `<div class="crny-post-text" style="padding:0 12px 8px;font-size:0.9rem;line-height:1.5;color:#3D2B1F;white-space:pre-wrap;">${textHTML}</div>` : ''}
+        ${mediaHTML}
+        <div class="crny-post-actions" style="display:flex;gap:16px;padding:10px 12px;border-top:1px solid rgba(232,213,196,0.2);">
+            <button onclick="toggleIndependentLike('${post.id}',this)" style="display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-size:0.85rem;color:${likedByMe ? '#e74c3c' : '#7A5C47'};">
+                <i data-lucide="heart" style="width:16px;height:16px;${likedByMe ? 'fill:#e74c3c;' : ''}"></i> <span>${likeCount}</span>
+            </button>
+            <button onclick="showIndependentComments('${post.id}')" style="display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-size:0.85rem;color:#7A5C47;">
+                <i data-lucide="message-circle" style="width:16px;height:16px;"></i> <span>${post.commentCount || 0}</span>
+            </button>
+            <button onclick="shareIndependentPost('${post.id}','${escapeHtmlSocial(post.text || '')}')" style="display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-size:0.85rem;color:#7A5C47;">
+                <i data-lucide="share-2" style="width:16px;height:16px;"></i> ${t('common.share','공유')}
+            </button>
+        </div>
+        <div id="comments-${post.id}" style="display:none;"></div>`;
+
+    if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons({ nodes: [el] }), 0);
+    return el;
+}
+
+function escapeHtmlSocial(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function getTimeAgoMs(ts) {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return t('social.just_now', '방금 전');
+    if (diff < 3600000) return Math.floor(diff / 60000) + t('social.min_ago', '분 전');
+    if (diff < 86400000) return Math.floor(diff / 3600000) + t('social.hour_ago', '시간 전');
+    if (diff < 604800000) return Math.floor(diff / 86400000) + t('social.day_ago', '일 전');
+    return Math.floor(diff / 604800000) + t('social.week_ago', '주 전');
+}
+
+// 독립 소셜 게시물 작성 (Firebase 없이)
+async function createIndependentPost() {
+    const textarea = document.getElementById('post-text');
+    const fileInput = document.getElementById('post-image');
+    const text = textarea ? textarea.value.trim() : '';
+
+    // YouTube URL 추출
+    let youtubeUrl = '';
+    const ytMatch = text.match(/(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)[^\s]+)/);
+    if (ytMatch) youtubeUrl = ytMatch[1];
+
+    // 이미지 → base64
+    let imageData = '';
+    if (fileInput && fileInput.files[0]) {
+        imageData = await fileToBase64(fileInput.files[0]);
+    }
+
+    if (!text && !youtubeUrl && !imageData) {
+        if (typeof showToast === 'function') showToast(t('social.enter_content', '내용을 입력하세요'), 'warning');
+        return;
+    }
+
+    try {
+        if (typeof showLoading === 'function') showLoading(t('social.posting', '게시 중...'));
+        const res = await fetch('/api/social/post', {
+            method: 'POST', headers: ctvmHeaders(),
+            body: JSON.stringify({ text, youtubeUrl, image: imageData })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        if (textarea) textarea.value = '';
+        if (fileInput) fileInput.value = '';
+        const imgName = document.getElementById('post-image-name');
+        if (imgName) imgName.textContent = '';
+
+        if (typeof hideLoading === 'function') hideLoading();
+        if (typeof showToast === 'function') showToast(t('social.post_done', '게시 완료!'), 'success');
+        loadSocialFeed();
+    } catch (e) {
+        if (typeof hideLoading === 'function') hideLoading();
+        if (typeof showToast === 'function') showToast(t('social.post_fail', '게시 실패') + ': ' + e.message, 'error');
+    }
+}
+
+function fileToBase64(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(file);
+    });
+}
+
+async function toggleIndependentLike(postId, btn) {
+    try {
+        const res = await fetch('/api/social/like', {
+            method: 'POST', headers: ctvmHeaders(),
+            body: JSON.stringify({ postId })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            btn.style.color = data.liked ? '#e74c3c' : '#7A5C47';
+            btn.innerHTML = `<i data-lucide="heart" style="width:16px;height:16px;${data.liked ? 'fill:#e74c3c;' : ''}"></i> <span>${data.count}</span>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [btn] });
+        }
+    } catch (e) { console.error('Like error:', e); }
+}
+
+async function showIndependentComments(postId) {
+    const container = document.getElementById('comments-' + postId);
+    if (!container) return;
+    if (container.style.display !== 'none') { container.style.display = 'none'; return; }
+    container.style.display = 'block';
+    container.innerHTML = '<div style="padding:8px 12px;color:#7A5C47;font-size:0.8rem;">로딩 중...</div>';
+
+    try {
+        const res = await fetch(`/api/social/comments?postId=${postId}`, { headers: ctvmHeaders() });
+        const comments = await res.json();
+        let html = comments.map(c => `
+            <div style="padding:6px 12px;border-top:1px solid rgba(232,213,196,0.15);">
+                <span style="font-weight:600;font-size:0.8rem;color:#3D2B1F;">${escapeHtmlSocial(c.authorName || c.author)}</span>
+                <span style="font-size:0.75rem;color:#7A5C47;margin-left:6px;">${getTimeAgoMs(c.ts)}</span>
+                <div style="font-size:0.85rem;color:#3D2B1F;margin-top:2px;">${escapeHtmlSocial(c.text)}</div>
+            </div>`).join('');
+
+        html += `<div style="display:flex;padding:8px 12px;gap:6px;">
+            <input id="cmnt-input-${postId}" type="text" placeholder="${t('social.add_comment','댓글 달기...')}"
+                style="flex:1;padding:6px 10px;border:1px solid rgba(232,213,196,0.4);border-radius:8px;font-size:0.82rem;background:rgba(255,248,240,0.5);color:#3D2B1F;">
+            <button onclick="submitIndependentComment('${postId}')" style="background:var(--primary,#B8860B);color:#FFF8F0;border:none;border-radius:8px;padding:6px 12px;font-size:0.82rem;cursor:pointer;">${t('social.post','게시')}</button>
+        </div>`;
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = `<div style="padding:8px 12px;color:#c0392b;font-size:0.8rem;">${e.message}</div>`;
+    }
+}
+
+async function submitIndependentComment(postId) {
+    const input = document.getElementById('cmnt-input-' + postId);
+    if (!input || !input.value.trim()) return;
+    try {
+        const res = await fetch('/api/social/comment', {
+            method: 'POST', headers: ctvmHeaders(),
+            body: JSON.stringify({ postId, text: input.value.trim() })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showIndependentComments(postId); // 새로고침
+            // 댓글 수 업데이트
+            const postEl = document.querySelector(`[data-post-id="${postId}"]`);
+            if (postEl) {
+                const cntBtn = postEl.querySelectorAll('.crny-post-actions button')[1];
+                if (cntBtn) {
+                    const cnt = parseInt(cntBtn.querySelector('span')?.textContent || '0') + 1;
+                    cntBtn.innerHTML = `<i data-lucide="message-circle" style="width:16px;height:16px;"></i> <span>${cnt}</span>`;
+                    if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [cntBtn] });
+                }
+            }
+        }
+    } catch (e) { console.error('Comment error:', e); }
+}
+
+async function deleteIndependentPost(postId) {
+    if (!await showConfirmModal(t('social.delete_post','게시물 삭제'), t('social.confirm_delete', '이 게시물을 삭제하시겠습니까?'))) return;
+    try {
+        await fetch('/api/social/post', {
+            method: 'DELETE', headers: ctvmHeaders(),
+            body: JSON.stringify({ postId })
+        });
+        loadSocialFeed();
+        if (typeof showToast === 'function') showToast(t('social.post_deleted', '게시물 삭제됨'), 'info');
+    } catch (e) { console.error('Delete error:', e); }
+}
+
+function shareIndependentPost(postId, text) {
+    const shareUrl = `${location.origin}/social#${postId}`;
+    if (navigator.share) {
+        navigator.share({ title: 'Crowny', text: text?.substring(0, 100) || 'Crowny 게시물', url: shareUrl }).catch(() => {});
+    } else {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            if (typeof showToast === 'function') showToast(t('social.link_copied', '링크가 복사되었습니다'), 'success');
+        });
+    }
+}
+
+// createPost 후크: Firebase 없으면 독립 버전 사용
+const _originalCreatePost = typeof createPost === 'function' ? createPost : null;
+window._createPostIndependent = createIndependentPost;

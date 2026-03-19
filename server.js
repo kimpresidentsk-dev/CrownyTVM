@@ -47,7 +47,9 @@ const DATA_DIR = './data';
 const DOMAIN = 'crowny.org';
 const PUBLIC_DIR = pathModule.join(__dirname, 'public');
 const CROWNYBUS_API = 'https://crownybus.com';
-const ADMIN_USERS = ['alice', 'admin'];  // 관리자 아이디 목록
+const ADMIN_USERS = ['kps', 'alice', 'admin'];  // 관리자 아이디 목록
+const SOCIAL_DIR = pathModule.join(__dirname, 'social-data');
+if (!fs.existsSync(SOCIAL_DIR)) fs.mkdirSync(SOCIAL_DIR, { recursive: true });
 const WALLET_CAP_BASIC = 1000;  // 기본사용자 CRM 보관 한도
 const DAILY_QUIZ_REWARD_CAP = 27;  // 하루 최대 퀴즈 보상 CRM
 const CROWNY_BIN = pathModule.join(__dirname, 'target/release/crowny');
@@ -468,6 +470,20 @@ function saveJSON(file, data) {
     fs.writeFileSync(`${DATA_DIR}/${file}`, JSON.stringify(data, null, 2));
 }
 
+// YouTube ID 추출
+function extractYoutubeId(url) {
+    if (!url) return null;
+    const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+        /^([a-zA-Z0-9_-]{11})$/,
+    ];
+    for (const p of patterns) {
+        const m = url.match(p);
+        if (m) return m[1];
+    }
+    return null;
+}
+
 // ═══ 온톨로직 셀 엔진 (서버 사이드) ═══
 
 const PHASE = { CONFIRMED: 2, PENDING: 0, REFUTED: -2, UNKNOWN: -1 };
@@ -561,7 +577,10 @@ function generateToken() {
     return crypto.randomBytes(32).toString('hex');
 }
 
+const SESSIONS_FILE = pathModule.join(DATA_DIR, 'sessions.json');
 let sessions = {};
+try { sessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')); } catch(e) {}
+function saveSessions() { try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions)); } catch(e) {} }
 
 // ═══ 256비트 균형3진법 지갑주소 생성 ═══
 // 256비트 → 162트릿 (3^162 > 2^256), 표기: T(+1), 0(0), N(-1)
@@ -585,7 +604,7 @@ function generateWalletAddress(username) {
 
 function createUser(username, password, displayName) {
     if (users[username]) return { error: '이미 존재하는 아이디입니다' };
-    if (!/^[a-z0-9._-]{3,20}$/.test(username)) return { error: '아이디: 영문소문자/숫자/._- 3~20자' };
+    if (!/^[a-z0-9._-]{2,20}$/.test(username)) return { error: '아이디: 영문소문자/숫자/._- 2~20자' };
 
     const email = `${username}@${DOMAIN}`;
 
@@ -647,6 +666,7 @@ function loginUser(username, password) {
 
     const token = generateToken();
     sessions[token] = { username, created: Date.now() };
+    saveSessions();
 
     // CrownyBus.com 로그인 연동 (비동기, busToken 갱신)
     if (!user.busToken || !user.busLinked) {
@@ -659,7 +679,7 @@ function loginUser(username, password) {
         cloudPull(username).catch(() => {});
     }
 
-    return { success: true, token, username, email: user.email, cellId: user.cellId, busLinked: !!user.busLinked };
+    return { success: true, token, username, email: user.email, displayName: user.displayName || username, photoURL: user.photoURL || '', cellId: user.cellId, busLinked: !!user.busLinked };
 }
 
 function verifyEmail(username) {
@@ -694,6 +714,7 @@ function addContact(ownerUsername, contactName, phone, relation, extra = {}) {
     contact.group = extra.group || '';  // 그룹: 가족, 친구, 직장, 고객 등
     contact.notes = extra.notes || '';
     contact.tags = extra.tags || [];    // 태그 배열
+    contact.crownyUsername = extra.crownyUsername || '';  // 크라우니 아이디 연동
     contact.lastContact = null;         // 마지막 연락일
     connectCells(owner.cellId, contact.id, relation || 0);
     contact.value = phone ? phone.replace(/\D/g, '') : 0;
@@ -708,10 +729,12 @@ function addContact(ownerUsername, contactName, phone, relation, extra = {}) {
 }
 
 function getContacts(username) {
-    return findCellsByOwner(username, TY.CONTACT).map(c => ({
-        ...c,
-        isUser: !!users[c.name],  // 플랫폼 등록 사용자 여부
-    }));
+    return findCellsByOwner(username, TY.CONTACT)
+        .filter(c => !c.deleted)
+        .map(c => ({
+            ...c,
+            isUser: !!users[c.name],  // 플랫폼 등록 사용자 여부
+        }));
 }
 
 // ═══ 메신저 앱 ═══
@@ -922,7 +945,8 @@ function getWallet(username) {
 
     let balances = { CRN: 0, FNC: 0, CRM: 0 };
     txns.forEach(t => {
-        const currency = t.currency || 'CRN';  // backward compat
+        let currency = t.currency || 'CRN';  // backward compat
+        if (!['CRN','FNC','CRM'].includes(currency)) currency = 'CRM'; // legacy fallback
         if (t.txType === 'receive' || t.txType === 'deposit' || t.txType === 'swap_in') balances[currency] += t.value;
         else if (t.txType === 'send' || t.txType === 'withdraw' || t.txType === 'swap_out') balances[currency] -= t.value;
     });
@@ -938,6 +962,8 @@ function getWallet(username) {
 
     return {
         wallet: wallets[0] || null,
+        walletAddress: users[username]?.walletAddress || '',
+        username,
         balances,
         prices,
         totalKRW: Math.round(balances.CRN * prices.CRN + balances.FNC * prices.FNC + balances.CRM * prices.CRM),
@@ -1401,9 +1427,122 @@ function getAuth(req) {
     return getUser(token);
 }
 
+// ── 트레이딩 데이터 디렉토리 & 헬퍼 ──
+const TRADING_DIR = pathModule.join(DATA_DIR, 'trading');
+if (!fs.existsSync(TRADING_DIR)) fs.mkdirSync(TRADING_DIR, { recursive: true });
+
+function getTradingData(username) {
+    const file = pathModule.join(TRADING_DIR, username + '.json');
+    try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch(e) { return null; }
+}
+
+function saveTradingData(username, data) {
+    const file = pathModule.join(TRADING_DIR, username + '.json');
+    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+}
+
+// ── 챌린지 저장소 ──
+const CHALLENGES_FILE = pathModule.join(DATA_DIR, 'challenges.json');
+function getChallenges() {
+    try { return JSON.parse(fs.readFileSync(CHALLENGES_FILE, 'utf8')); } catch(e) { return []; }
+}
+function saveChallenges(list) {
+    fs.writeFileSync(CHALLENGES_FILE, JSON.stringify(list, null, 2));
+}
+
+// ── 범용 컬렉션 DB (Firestore 대체) ──
+const COLLECTIONS_DIR = pathModule.join(DATA_DIR, 'collections');
+if (!fs.existsSync(COLLECTIONS_DIR)) fs.mkdirSync(COLLECTIONS_DIR, { recursive: true });
+
+function getCollection(name) {
+    const file = pathModule.join(COLLECTIONS_DIR, name + '.json');
+    try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch(e) { return {}; }
+}
+
+function saveCollection(name, data) {
+    const file = pathModule.join(COLLECTIONS_DIR, name + '.json');
+    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+}
+
+function generateDocId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+function applyFieldValues(doc, updates) {
+    for (const [key, val] of Object.entries(updates)) {
+        if (val && typeof val === 'object' && val.__fieldValue) {
+            switch (val.__fieldValue) {
+                case 'serverTimestamp':
+                    doc[key] = new Date().toISOString();
+                    break;
+                case 'increment':
+                    doc[key] = (doc[key] || 0) + (val.operand || 0);
+                    break;
+                case 'arrayUnion':
+                    if (!Array.isArray(doc[key])) doc[key] = [];
+                    for (const item of (val.elements || [])) {
+                        if (!doc[key].includes(item)) doc[key].push(item);
+                    }
+                    break;
+                case 'arrayRemove':
+                    if (Array.isArray(doc[key])) {
+                        doc[key] = doc[key].filter(x => !(val.elements || []).includes(x));
+                    }
+                    break;
+                case 'delete':
+                    delete doc[key];
+                    break;
+                default:
+                    doc[key] = val;
+            }
+        } else {
+            doc[key] = val;
+        }
+    }
+    return doc;
+}
+
+function queryDocs(docs, filters, orderByField, orderDir, limitN) {
+    let results = Object.entries(docs).map(([id, data]) => ({ id, data: () => data, exists: true, _data: data }));
+
+    // Apply filters
+    for (const f of (filters || [])) {
+        results = results.filter(doc => {
+            const val = doc._data[f.field];
+            switch (f.op) {
+                case '==': return val === f.value;
+                case '!=': return val !== f.value;
+                case '<': return val < f.value;
+                case '<=': return val <= f.value;
+                case '>': return val > f.value;
+                case '>=': return val >= f.value;
+                case 'in': return Array.isArray(f.value) && f.value.includes(val);
+                case 'array-contains': return Array.isArray(val) && val.includes(f.value);
+                default: return true;
+            }
+        });
+    }
+
+    // Sort
+    if (orderByField) {
+        const dir = orderDir === 'asc' ? 1 : -1;
+        results.sort((a, b) => {
+            const va = a._data[orderByField], vb = b._data[orderByField];
+            if (va < vb) return -1 * dir;
+            if (va > vb) return 1 * dir;
+            return 0;
+        });
+    }
+
+    // Limit
+    if (limitN && limitN > 0) results = results.slice(0, limitN);
+
+    return results;
+}
+
 const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
@@ -1411,6 +1550,41 @@ const server = http.createServer(async (req, res) => {
 
     const url = new URL(req.url, `http://localhost:${PORT}`);
     const path = url.pathname;
+
+    // ── 소셜 이미지 서빙 ──
+    if (path.startsWith('/social-images/')) {
+        const SOCIAL_IMG_DIR = pathModule.join(__dirname, 'social-data', 'images');
+        const imgPath = pathModule.join(SOCIAL_IMG_DIR, pathModule.basename(path));
+        const safePath = pathModule.resolve(imgPath).startsWith(pathModule.resolve(SOCIAL_IMG_DIR));
+        if (safePath && fs.existsSync(imgPath)) {
+            const ext = pathModule.extname(imgPath).toLowerCase();
+            const mimeMap = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' };
+            res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            fs.createReadStream(imgPath).pipe(res);
+        } else { res.statusCode = 404; res.end('not found'); }
+        return;
+    }
+
+    // ── 업로드 파일 서빙 ──
+    if (path.startsWith('/uploads/')) {
+        const UPLOADS_DIR = pathModule.join(DATA_DIR, 'uploads');
+        const uploadPath = pathModule.join(UPLOADS_DIR, path.replace('/uploads/', ''));
+        const safeUpload = pathModule.resolve(uploadPath).startsWith(pathModule.resolve(UPLOADS_DIR));
+        if (safeUpload && fs.existsSync(uploadPath) && fs.statSync(uploadPath).isFile()) {
+            const ext = pathModule.extname(uploadPath).toLowerCase();
+            const mimeMap = {
+                '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+                '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml',
+                '.pdf': 'application/pdf', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg',
+                '.json': 'application/json', '.txt': 'text/plain', '.csv': 'text/csv'
+            };
+            res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            fs.createReadStream(uploadPath).pipe(res);
+        } else { res.statusCode = 404; res.end('not found'); }
+        return;
+    }
 
     // ── 정적 파일 서빙 ──
     if (!path.startsWith('/api') && !path.startsWith('/v2/')) {
@@ -1434,7 +1608,7 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    const body = (req.method === 'POST' || req.method === 'PATCH') ? await parseBody(req) : {};
+    const body = (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') ? await parseBody(req) : {};
 
     try {
         // ── 인증 ──
@@ -1473,8 +1647,51 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        if (path === '/api/change-password' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const { oldPassword, newPassword } = body;
+            if (!newPassword || newPassword.length < 6) {
+                res.end(JSON.stringify({ error: '새 비밀번호는 6자 이상이어야 합니다' }));
+                return;
+            }
+            // oldPassword가 있으면 검증 (비밀번호 변경), 없으면 초기 설정
+            if (oldPassword && user.password !== hashPassword(oldPassword)) {
+                res.end(JSON.stringify({ error: '현재 비밀번호가 틀렸습니다' }));
+                return;
+            }
+            user.password = hashPassword(newPassword);
+            saveJSON('users.json', users);
+            res.end(JSON.stringify({ success: true }));
+            return;
+        }
+
         // ── 프로필 ──
-        if (path === '/api/profile') {
+        if (path === '/api/profile' && req.method === 'PATCH') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (body.displayName !== undefined) user.displayName = body.displayName;
+            if (body.statusMessage !== undefined) user.statusMessage = body.statusMessage;
+            if (body.photoURL !== undefined) {
+                // base64 image → save to social-data/images/
+                const match = body.photoURL.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,(.+)$/);
+                if (match) {
+                    const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+                    const imgDir = pathModule.join(__dirname, 'social-data', 'images');
+                    if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
+                    const filename = `profile_${user.username}_${Date.now()}.${ext}`;
+                    fs.writeFileSync(pathModule.join(imgDir, filename), Buffer.from(match[2], 'base64'));
+                    user.photoURL = `/social-images/${filename}`;
+                } else {
+                    user.photoURL = body.photoURL;
+                }
+            }
+            saveJSON('users.json', users);
+            res.end(JSON.stringify({ success: true, displayName: user.displayName, statusMessage: user.statusMessage || '', photoURL: user.photoURL || '' }));
+            return;
+        }
+
+        if (path === '/api/profile' && (req.method === 'GET' || req.method === 'POST')) {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             const cell = findCell(user.cellId);
@@ -1487,6 +1704,8 @@ const server = http.createServer(async (req, res) => {
                 username: user.username, email: user.email,
                 displayName: user.displayName, verified: user.verified,
                 walletAddress: user.walletAddress,
+                photoURL: user.photoURL || '',
+                statusMessage: user.statusMessage || '',
                 isAdmin: ADMIN_USERS.includes(user.username),
                 busLinked: !!user.busLinked,
                 busLinkedAt: user.busLinkedAt || null,
@@ -1509,7 +1728,7 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify(addContact(user.username, body.name, body.phone, body.relation, {
                 email: body.email, company: body.company, position: body.position,
                 address: body.address, birthday: body.birthday, group: body.group,
-                notes: body.notes, tags: body.tags,
+                notes: body.notes, tags: body.tags, crownyUsername: body.crownyUsername,
             })));
             return;
         }
@@ -1531,12 +1750,67 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
-        // ── 메신저 ──
+        if (path.startsWith('/api/contacts/') && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const id = parseInt(path.split('/')[3]);
+            const contact = findCell(id);
+            if (!contact || contact.owner !== user.username || contact.type !== TY.CONTACT) {
+                res.end('{"error":"연락처 없음"}'); return;
+            }
+            contact.deleted = true;
+            saveCells();
+            res.end(JSON.stringify({ success: true }));
+            return;
+        }
+
+        // ── 회원 검색 ──
+        if (path === '/api/users/search' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const q = (url.searchParams.get('q') || '').trim().toLowerCase();
+            if (q.length < 1) { res.end('[]'); return; }
+            const results = Object.values(users)
+                .filter(u => u.username !== user.username && (
+                    u.username.toLowerCase().includes(q) ||
+                    (u.displayName || '').toLowerCase().includes(q)
+                ))
+                .slice(0, 20)
+                .map(u => ({ username: u.username, displayName: u.displayName || u.username, email: u.email }));
+            res.end(JSON.stringify(results));
+            return;
+        }
+
+        // ── 회원 정보 조회 (프로필 사진 등) ──
+        if (path === '/api/users/info' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const username = url.searchParams.get('username') || '';
+            const target = users[username];
+            if (!target) { res.end(JSON.stringify({ error: '회원 없음' })); return; }
+            res.end(JSON.stringify({
+                username: target.username,
+                displayName: target.displayName || target.username,
+                email: target.email || '',
+                photoURL: target.photoURL || '',
+                statusMessage: target.statusMessage || ''
+            }));
+            return;
+        }
+
         // ── 독립 메신저 (채팅) ──
         if (path === '/api/chat/list' && req.method === 'GET') {
             const user = getAuth(req);
+            console.log('[CHAT API] /api/chat/list called, user:', user ? user.username : 'NO AUTH');
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
-            res.end(JSON.stringify(chatServer ? chatServer.apiListChats(user.username) : []));
+            const chatList = chatServer ? chatServer.apiListChats(user.username) : [];
+            // 상대방 프로필 사진 첨부
+            for (const c of chatList) {
+                if (c.type === 'dm' && c.displayName && users[c.displayName]) {
+                    c.photoURL = users[c.displayName].photoURL || '';
+                }
+            }
+            res.end(JSON.stringify(chatList));
             return;
         }
 
@@ -1544,6 +1818,14 @@ const server = http.createServer(async (req, res) => {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             if (!body.to) { res.statusCode = 400; res.end('{"error":"상대방(to) 필수"}'); return; }
+            // 대상 사용자 존재 확인
+            if (body.type !== 'group') {
+                const target = typeof body.to === 'string' ? body.to : body.to[0];
+                if (!users[target]) { res.statusCode = 404; res.end(JSON.stringify({ error: `'${target}' 회원을 찾을 수 없습니다` })); return; }
+            } else if (Array.isArray(body.to)) {
+                const missing = body.to.filter(t => !users[t]);
+                if (missing.length > 0) { res.statusCode = 404; res.end(JSON.stringify({ error: `'${missing.join(', ')}' 회원을 찾을 수 없습니다` })); return; }
+            }
             res.end(JSON.stringify(chatServer ? chatServer.apiCreateChat(user.username, body.to, body.type, body.groupName) : { error: '메신저 없음' }));
             return;
         }
@@ -1796,6 +2078,260 @@ const server = http.createServer(async (req, res) => {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             res.end(JSON.stringify(swapTokens(user.username, body.from, body.to, body.amount)));
+            return;
+        }
+
+        // ── 트레이딩 게임 ──
+        if (path === '/api/trading/participation' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const data = getTradingData(user.username);
+            if (!data) { res.end('{"participation":null}'); return; }
+            res.end(JSON.stringify({ participation: data }));
+            return;
+        }
+
+        if (path === '/api/trading/join' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const existing = getTradingData(user.username);
+            if (existing && existing.status === 'active') {
+                res.statusCode = 400;
+                res.end('{"error":"이미 참가 중입니다"}');
+                return;
+            }
+            const participation = {
+                challengeId: 'crowny_default',
+                participantId: user.username,
+                userId: user.username,
+                status: 'active',
+                initialBalance: 100000,
+                currentBalance: 100000,
+                trades: [],
+                dailyPnL: 0,
+                dailyLocked: false,
+                crtdDeposit: body.deposit || 500,
+                crtdWithdrawn: 0,
+                tradingTier: { MNQ: 3, NQ: 0 },
+                dailyLossLimit: 500,
+                createdAt: Date.now()
+            };
+            saveTradingData(user.username, participation);
+            res.end(JSON.stringify({ ok: true, participation }));
+            return;
+        }
+
+        if (path === '/api/trading/update' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const existing = getTradingData(user.username);
+            if (!existing) { res.statusCode = 404; res.end('{"error":"참가 데이터 없음"}'); return; }
+            const allowed = ['currentBalance', 'trades', 'dailyPnL', 'dailyLocked', 'status', 'tradingTier', 'dailyLossLimit'];
+            for (const key of allowed) {
+                if (body[key] !== undefined) existing[key] = body[key];
+            }
+            existing.updatedAt = Date.now();
+            saveTradingData(user.username, existing);
+            res.end(JSON.stringify({ ok: true, participation: existing }));
+            return;
+        }
+
+        if (path === '/api/trading/withdraw' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const existing = getTradingData(user.username);
+            if (!existing) { res.statusCode = 404; res.end('{"error":"참가 데이터 없음"}'); return; }
+            const amount = Number(body.amount);
+            if (!amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"유효하지 않은 금액"}'); return; }
+            const withdrawn = existing.crtdWithdrawn || 0;
+            const available = existing.crtdDeposit - withdrawn;
+            if (amount > available) { res.statusCode = 400; res.end('{"error":"출금 가능 금액 초과"}'); return; }
+            existing.crtdWithdrawn = withdrawn + amount;
+            existing.updatedAt = Date.now();
+            saveTradingData(user.username, existing);
+            res.end(JSON.stringify({ ok: true, withdrawn: amount, crtdWithdrawn: existing.crtdWithdrawn, remaining: existing.crtdDeposit - existing.crtdWithdrawn }));
+            return;
+        }
+
+        // ── 챌린지 관리 ──
+        if (path === '/api/challenges' && req.method === 'GET') {
+            const challenges = getChallenges().filter(c => c.status === 'active');
+            res.end(JSON.stringify(challenges));
+            return;
+        }
+
+        if (path === '/api/challenges' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) {
+                res.statusCode = 403; res.end('{"error":"관리자 권한 필요"}'); return;
+            }
+            const challenges = getChallenges();
+            const id = 'ch_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            const challenge = {
+                id, ...body,
+                participants: 0, totalPool: 0, status: 'active',
+                createdBy: user.username, createdAt: Date.now()
+            };
+            challenges.push(challenge);
+            saveChallenges(challenges);
+            res.end(JSON.stringify({ ok: true, challenge }));
+            return;
+        }
+
+        if (path === '/api/challenges/join' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const { challengeId, tierKey } = body;
+            const challenges = getChallenges();
+            const ch = challenges.find(c => c.id === challengeId && c.status === 'active');
+            if (!ch) { res.statusCode = 404; res.end('{"error":"챌린지를 찾을 수 없습니다"}'); return; }
+
+            // 중복 참가 체크
+            const existing = getTradingData(user.username);
+            if (existing && existing.status === 'active') {
+                res.statusCode = 400; res.end('{"error":"이미 참가 중입니다"}'); return;
+            }
+
+            const tiers = ch.tiers || {};
+            const tier = tiers[tierKey] || { deposit: 100, account: 100000, liquidation: 3000, profitThreshold: 1000, withdrawUnit: 1000, mnqMax: 1, nqMax: 0 };
+
+            const participation = {
+                challengeId, participantId: user.username, userId: user.username,
+                tier: tierKey, status: 'active',
+                crtdDeposit: tier.deposit,
+                initialBalance: tier.account, currentBalance: tier.account,
+                liquidation: tier.liquidation, profitThreshold: tier.profitThreshold, withdrawUnit: tier.withdrawUnit,
+                allowedProduct: ch.allowedProduct || 'MNQ',
+                tradingTier: { MNQ: tier.mnqMax || 1, NQ: tier.nqMax || 0 },
+                maxContracts: Math.max(tier.mnqMax || 1, tier.nqMax || 0, ch.maxContracts || 1),
+                maxPositions: ch.maxPositions || 5,
+                dailyLossLimit: ch.dailyLossLimit || 500,
+                maxDrawdown: tier.liquidation,
+                trades: [], dailyPnL: 0, totalPnL: 0, dailyLocked: false,
+                crtdWithdrawn: 0, createdAt: Date.now(), lastEOD: Date.now()
+            };
+            saveTradingData(user.username, participation);
+
+            // 챌린지 참가자 수 업데이트
+            ch.participants = (ch.participants || 0) + 1;
+            ch.totalPool = (ch.totalPool || 0) + tier.deposit;
+            saveChallenges(challenges);
+
+            res.end(JSON.stringify({ ok: true, participation }));
+            return;
+        }
+
+        // ── 범용 컬렉션 DB API ──
+        if (path.startsWith('/api/db/')) {
+            const parts = path.replace('/api/db/', '').split('/');
+            const collectionName = parts[0];
+            const docId = parts[1] || null;
+            const subCollection = parts[2] || null;
+            const subDocId = parts[3] || null;
+
+            // Determine actual collection name (for subcollections: parent_docId_sub)
+            const actualCollection = subCollection
+                ? `${collectionName}_${docId}_${subCollection}`
+                : collectionName;
+            const actualDocId = subCollection ? subDocId : docId;
+
+            if (req.method === 'GET') {
+                const col = getCollection(actualCollection);
+                if (actualDocId) {
+                    // Get single document
+                    const doc = col[actualDocId];
+                    if (doc) {
+                        res.end(JSON.stringify({ exists: true, id: actualDocId, data: doc }));
+                    } else {
+                        res.end(JSON.stringify({ exists: false, id: actualDocId, data: {} }));
+                    }
+                } else {
+                    // Query collection
+                    const qUrl = new URL(req.url, 'http://localhost');
+                    const filters = [];
+                    // Parse where params: where=field,op,value (can be multiple)
+                    for (const w of qUrl.searchParams.getAll('where')) {
+                        const [field, op, ...rest] = w.split(',');
+                        let value = rest.join(',');
+                        // Try to parse as number/boolean/null
+                        if (value === 'true') value = true;
+                        else if (value === 'false') value = false;
+                        else if (value === 'null') value = null;
+                        else if (!isNaN(value) && value !== '') value = Number(value);
+                        filters.push({ field, op, value });
+                    }
+                    const orderBy = qUrl.searchParams.get('orderBy') || null;
+                    const orderDir = qUrl.searchParams.get('orderDir') || 'desc';
+                    const limit = parseInt(qUrl.searchParams.get('limit')) || 0;
+
+                    const results = queryDocs(col, filters, orderBy, orderDir, limit);
+                    res.end(JSON.stringify({
+                        empty: results.length === 0,
+                        size: results.length,
+                        docs: results.map(r => ({ id: r.id, data: r._data }))
+                    }));
+                }
+                return;
+            }
+
+            if (req.method === 'POST') {
+                // Add new document
+                const col = getCollection(actualCollection);
+                const id = body._docId || generateDocId();
+                delete body._docId;
+                applyFieldValues(body, body);
+                col[id] = body;
+                saveCollection(actualCollection, col);
+                res.end(JSON.stringify({ ok: true, id }));
+                return;
+            }
+
+            if (req.method === 'PUT') {
+                // Set or update document
+                if (!actualDocId) { res.statusCode = 400; res.end('{"error":"docId required"}'); return; }
+                const col = getCollection(actualCollection);
+                const existing = col[actualDocId] || {};
+                const merge = body._merge !== false;
+                delete body._merge;
+                if (merge) {
+                    applyFieldValues(existing, body);
+                    col[actualDocId] = existing;
+                } else {
+                    applyFieldValues(body, body);
+                    col[actualDocId] = body;
+                }
+                saveCollection(actualCollection, col);
+                res.end(JSON.stringify({ ok: true, id: actualDocId }));
+                return;
+            }
+
+            if (req.method === 'DELETE') {
+                if (!actualDocId) { res.statusCode = 400; res.end('{"error":"docId required"}'); return; }
+                const col = getCollection(actualCollection);
+                delete col[actualDocId];
+                saveCollection(actualCollection, col);
+                res.end(JSON.stringify({ ok: true }));
+                return;
+            }
+        }
+
+        // ── 파일 업로드 (Firebase Storage 대체) ──
+        if (path === '/api/upload' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            // body contains base64 data and metadata
+            const uploadDir = pathModule.join(DATA_DIR, 'uploads', user.username);
+            if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+            const fileName = body.fileName || (Date.now() + '_' + Math.random().toString(36).slice(2, 6));
+            const filePath = pathModule.join(uploadDir, fileName);
+            if (body.base64) {
+                const buffer = Buffer.from(body.base64, 'base64');
+                fs.writeFileSync(filePath, buffer);
+            } else if (body.text) {
+                fs.writeFileSync(filePath, body.text);
+            }
+            const uploadUrl = `/uploads/${user.username}/${fileName}`;
+            res.end(JSON.stringify({ ok: true, url: uploadUrl, downloadURL: uploadUrl }));
             return;
         }
 
@@ -2257,6 +2793,148 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        // ═══ 독립 소셜 피드 ═══
+
+        // GET /api/social/feed — 소셜 피드 조회
+        if (path === '/api/social/feed' && req.method === 'GET') {
+            const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
+            let posts = [];
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+            const page = parseInt(url.searchParams.get('page') || '0');
+            const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
+            const sorted = posts.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+            const paged = sorted.slice(page * limit, (page + 1) * limit);
+            // 사용자 정보 첨부
+            const enriched = paged.map(p => ({
+                ...p,
+                authorName: users[p.author]?.displayName || p.author,
+                authorPhotoURL: users[p.author]?.photoURL || '',
+            }));
+            res.end(JSON.stringify({ posts: enriched, total: posts.length }));
+            return;
+        }
+
+        // POST /api/social/post — 게시물 작성
+        if (path === '/api/social/post' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const text = (body.text || '').trim();
+            const youtubeUrl = (body.youtubeUrl || '').trim();
+            const imageData = (body.image || '').trim(); // base64 or CIF
+            if (!text && !youtubeUrl && !imageData) { res.statusCode = 400; res.end('{"error":"내용을 입력하세요"}'); return; }
+
+            const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
+            let posts = [];
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+
+            // YouTube oEmbed 메타데이터 추출
+            let ytMeta = null;
+            if (youtubeUrl) {
+                const ytId = extractYoutubeId(youtubeUrl);
+                if (ytId) {
+                    ytMeta = { id: ytId, url: youtubeUrl, type: youtubeUrl.includes('/shorts/') ? 'short' : 'video' };
+                }
+            }
+
+            // 이미지 저장 (base64 → 파일)
+            let imagePath = null;
+            if (imageData && imageData.startsWith('data:image')) {
+                const imgDir = pathModule.join(SOCIAL_DIR, 'images');
+                if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
+                const ext = imageData.includes('png') ? 'png' : 'jpg';
+                const fname = `${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
+                const b64 = imageData.split(',')[1];
+                fs.writeFileSync(pathModule.join(imgDir, fname), Buffer.from(b64, 'base64'));
+                imagePath = `/social-images/${fname}`;
+            }
+
+            const post = {
+                id: `p_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+                author: user.username,
+                text,
+                image: imagePath,
+                youtube: ytMeta,
+                likes: [],
+                commentCount: 0,
+                ts: Date.now(),
+            };
+            posts.push(post);
+            fs.writeFileSync(postsFile, JSON.stringify(posts, null, 1));
+            res.end(JSON.stringify({ ok: true, post: { ...post, authorName: user.displayName || user.username } }));
+            return;
+        }
+
+        // POST /api/social/like — 좋아요 토글
+        if (path === '/api/social/like' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
+            let posts = [];
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+            const post = posts.find(p => p.id === body.postId);
+            if (!post) { res.statusCode = 404; res.end('{"error":"게시물 없음"}'); return; }
+            if (!post.likes) post.likes = [];
+            const idx = post.likes.indexOf(user.username);
+            if (idx >= 0) post.likes.splice(idx, 1);
+            else post.likes.push(user.username);
+            fs.writeFileSync(postsFile, JSON.stringify(posts, null, 1));
+            res.end(JSON.stringify({ ok: true, liked: idx < 0, count: post.likes.length }));
+            return;
+        }
+
+        // GET /api/social/comments?postId= — 댓글 조회
+        if (path === '/api/social/comments' && req.method === 'GET') {
+            const postId = url.searchParams.get('postId');
+            const commFile = pathModule.join(SOCIAL_DIR, `comments_${postId}.json`);
+            let comments = [];
+            try { comments = JSON.parse(fs.readFileSync(commFile, 'utf8')); } catch(e) {}
+            const enriched = comments.map(c => ({ ...c, authorName: users[c.author]?.displayName || c.author }));
+            res.end(JSON.stringify(enriched));
+            return;
+        }
+
+        // POST /api/social/comment — 댓글 작성
+        if (path === '/api/social/comment' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!body.postId || !body.text?.trim()) { res.statusCode = 400; res.end('{"error":"내용을 입력하세요"}'); return; }
+            const commFile = pathModule.join(SOCIAL_DIR, `comments_${body.postId}.json`);
+            let comments = [];
+            try { comments = JSON.parse(fs.readFileSync(commFile, 'utf8')); } catch(e) {}
+            const comment = {
+                id: `c_${Date.now()}`,
+                author: user.username,
+                text: body.text.trim(),
+                ts: Date.now(),
+            };
+            comments.push(comment);
+            fs.writeFileSync(commFile, JSON.stringify(comments, null, 1));
+            // 게시물 댓글 수 업데이트
+            const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
+            try {
+                let posts = JSON.parse(fs.readFileSync(postsFile, 'utf8'));
+                const post = posts.find(p => p.id === body.postId);
+                if (post) { post.commentCount = comments.length; fs.writeFileSync(postsFile, JSON.stringify(posts, null, 1)); }
+            } catch(e) {}
+            res.end(JSON.stringify({ ok: true, comment: { ...comment, authorName: user.displayName || user.username } }));
+            return;
+        }
+
+        // DELETE /api/social/post — 게시물 삭제
+        if (path === '/api/social/post' && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
+            let posts = [];
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+            const idx = posts.findIndex(p => p.id === body.postId && p.author === user.username);
+            if (idx < 0) { res.statusCode = 404; res.end('{"error":"게시물 없음 또는 권한 없음"}'); return; }
+            posts.splice(idx, 1);
+            fs.writeFileSync(postsFile, JSON.stringify(posts, null, 1));
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
         // ── 통계 (공개) ──
         if (path === '/api/stats') {
             res.end(JSON.stringify({
@@ -2282,6 +2960,7 @@ const server = http.createServer(async (req, res) => {
                 bus: ['ANY /api/bus/* (crownybus.com 프록시)', 'POST /api/bus/sync-wallet'],
                 admin: ['GET /api/admin/status', 'GET /api/admin/users', 'GET /api/admin/bus-check', 'GET /api/admin/sync-queue', 'POST /api/admin/sync-flush', 'POST /api/admin/bus-link'],
                 hanseon: ['POST /api/hanseon/run', 'POST /api/hanseon/dis', 'GET /api/hanseon/examples', 'GET /api/hanseon/std', 'POST /api/hanseon/cell-bridge'],
+                social: ['GET /api/social/feed', 'POST /api/social/post', 'POST /api/social/like', 'GET /api/social/comments', 'POST /api/social/comment', 'DELETE /api/social/post'],
                 public: ['GET /api/stats'],
             }
         }));

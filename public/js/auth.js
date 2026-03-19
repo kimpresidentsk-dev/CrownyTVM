@@ -1,4 +1,5 @@
 // ===== auth.js - 회원가입, 로그인, 구글, 이메일인증, 비밀번호 리셋 =====
+// Firebase 의존성 완전 제거 — CrownyTVM 서버 API만 사용
 
 // 로그인 버튼 이벤트 보강 (onclick 대비)
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,9 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
             login();
         });
     }
-    
+
     // Google 로그인 버튼 제거됨
-    
+
     // Enter 키로 로그인
     const pwInput = document.getElementById('login-password');
     if (pwInput) {
@@ -94,14 +95,6 @@ async function signup() {
         localStorage.setItem('crowny_username', username);
         if (typeof ctvmToken !== 'undefined') window.ctvmToken = data.token;
 
-        // Firebase에도 계정 생성 (기존 시스템 호환)
-        try {
-            await auth.createUserWithEmailAndPassword(email, password);
-        } catch (e) {
-            // Firebase 실패해도 CrownyTVM 가입은 성공
-            console.warn('Firebase sync:', e.message);
-        }
-
         // UI 업데이트
         if (typeof onLoginSuccess === 'function') onLoginSuccess(data);
         document.getElementById('auth-modal').style.display = 'none';
@@ -115,7 +108,7 @@ async function signup() {
     }
 }
 
-// 로그인 — CrownyTVM API 우선, Firebase 폴백
+// 로그인 — CrownyTVM API 전용
 async function login() {
     console.log('[AUTH] login() called');
     const emailOrUsername = document.getElementById('login-email').value.trim();
@@ -130,7 +123,7 @@ async function login() {
     const username = emailOrUsername.includes('@') ? emailOrUsername.split('@')[0] : emailOrUsername;
 
     try {
-        // CrownyTVM API로 로그인 시도
+        // CrownyTVM API로 로그인
         const res = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -143,42 +136,19 @@ async function login() {
             localStorage.setItem('crowny_token', data.token);
             localStorage.setItem('ctvm_token', data.token);
             localStorage.setItem('crowny_username', username);
-            // CrownyTVM 브릿지 토큰 동기화
             if (typeof ctvmToken !== 'undefined') window.ctvmToken = data.token;
 
-            // Firebase에도 로그인 (기존 시스템 호환)
-            try {
-                await auth.signInWithEmailAndPassword(username + '@crowny.org', password);
-            } catch (e) {
-                console.warn('Firebase sync:', e.message);
-            }
-
-            if (typeof onLoginSuccess === 'function') onLoginSuccess(data);
             document.getElementById('auth-modal').style.display = 'none';
-            // 랜딩 페이지 숨기기 & 스크롤 복원
-            if (typeof updateLandingState === 'function') updateLandingState({ username });
-            else { document.body.style.overflow = ''; const lp = document.getElementById('landing-page'); if (lp) lp.classList.add('hidden'); }
-            showToast(`<i data-lucide="check-circle"></i> 로그인 성공`, 'success');
+            if (typeof onLoginSuccess === 'function') onLoginSuccess(data);
             return;
         }
-    } catch (e) {
-        console.warn('[AUTH] CrownyTVM API error, trying Firebase:', e.message);
-    }
 
-    // Firebase 폴백
-    try {
-        const email = emailOrUsername.includes('@') ? emailOrUsername : emailOrUsername + '@crowny.org';
-        await auth.signInWithEmailAndPassword(email, password);
-        console.log('[AUTH] Firebase login success');
+        // 로그인 실패
+        const errorMsg = data.error || '아이디 또는 비밀번호가 올바르지 않습니다';
+        showToast(t('auth.login_failed','로그인 실패: ') + errorMsg, 'error');
     } catch (error) {
         console.error('[AUTH] login error:', error);
-        const msg = {
-            'auth/user-not-found': t('auth.user_not_found','등록되지 않은 이메일입니다'),
-            'auth/wrong-password': t('auth.wrong_pw','비밀번호가 틀립니다'),
-            'auth/invalid-credential': t('auth.invalid_credential','아이디 또는 비밀번호가 올바르지 않습니다'),
-            'auth/too-many-requests': t('auth.too_many','너무 많은 시도. 잠시 후 다시 시도해주세요')
-        }[error.code] || error.message;
-        showToast(t('auth.login_failed','로그인 실패: ') + msg, 'error');
+        showToast(t('auth.login_failed','로그인 실패: ') + error.message, 'error');
     }
 }
 
@@ -187,49 +157,19 @@ async function loginWithGoogle() {
     showToast('Google 로그인은 더 이상 지원되지 않습니다. 아이디/비밀번호로 로그인하세요.', 'info');
 }
 
-// 비밀번호 재설정
+// 비밀번호 재설정 — CrownyTVM에서는 관리자 문의
 async function resetPassword() {
-    const email = document.getElementById('login-email').value.trim() || await showPromptModal(t('auth.reset_pw','비밀번호 재설정'), t('auth.reset_email','비밀번호를 재설정할 이메일'), '');
-    if (!email) return;
-    
-    try {
-        await auth.sendPasswordResetEmail(email);
-        showToast(`<i data-lucide="mail"></i> ${t('auth.reset_sent','비밀번호 재설정 링크를 보냈습니다.')} ${email}`, 'success');
-    } catch (error) {
-        const msg = {
-            'auth/user-not-found': '등록되지 않은 이메일입니다',
-            'auth/invalid-email': t('auth.invalid_email','유효하지 않은 이메일입니다')
-        }[error.code] || error.message;
-        showToast(t('common.failed','실패: ') + msg, 'error');
-    }
+    showToast('비밀번호 재설정은 관리자에게 문의하세요.', 'info');
 }
 
-// 이메일 인증 확인
+// 이메일 인증 확인 — CrownyTVM에서는 불필요
 async function checkEmailVerified() {
-    const user = auth.currentUser;
-    if (!user) return;
-    
-    await user.reload();
-    if (user.emailVerified) {
-        showToast(`<i data-lucide="check-circle"></i> ${t('auth.email_verified','이메일 인증 완료!')}`, 'success');
-        document.getElementById('verify-email-form').style.display = 'none';
-        location.reload();
-    } else {
-        showToast(t('auth.not_verified','아직 인증되지 않았습니다. 이메일의 인증 링크를 클릭해주세요.'), 'warning');
-    }
+    showToast('CrownyTVM에서는 이메일 인증이 필요하지 않습니다', 'info');
 }
 
-// 인증 메일 재발송
+// 인증 메일 재발송 — CrownyTVM에서는 불필요
 async function resendVerification() {
-    const user = auth.currentUser;
-    if (!user) return;
-    
-    try {
-        await user.sendEmailVerification();
-        showToast(`<i data-lucide="mail"></i> ${t('auth.resend_done','인증 메일을 다시 보냈습니다.')} ${user.email}`, 'success');
-    } catch (error) {
-        showToast(t('auth.resend_fail','재발송 실패: ') + error.message, 'error');
-    }
+    showToast('CrownyTVM에서는 이메일 인증이 필요하지 않습니다', 'info');
 }
 
 // Google 계정 연동 — 비활성화
@@ -237,43 +177,50 @@ async function linkGoogleAccount() {
     showToast('Google 계정 연동은 더 이상 지원되지 않습니다.', 'info');
 }
 
-// 비밀번호 설정 (Google-only 사용자가 이메일/비밀번호 추가)
+// 비밀번호 설정 (프로필에서 비밀번호 변경) — CrownyTVM API 사용
 async function setupPasswordFromProfile() {
-    const user = firebase.auth().currentUser;
-    if (!user) return;
-    const hasPassword = user.providerData.some(p => p.providerId === 'password');
-    if (hasPassword) { showToast(t('auth.pw_already_set','이미 비밀번호가 설정되어 있습니다'), 'info'); return; }
+    const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    if (!token) { showToast('로그인이 필요합니다', 'warning'); return; }
 
     if (typeof showPromptModal !== 'function') { showToast(t('auth.ui_fail','UI 모듈 로드 실패'), 'error'); return; }
 
-    const pw = await showPromptModal(t('auth.setup_pw','<i data-lucide="key"></i> 비밀번호 설정'), t('auth.new_pw_hint','새 비밀번호 (6자 이상)'), '', true);
-    if (!pw || pw.length < 6) { if (pw !== null) showToast(t('auth.pw_min_6','비밀번호는 6자 이상이어야 합니다'), 'error'); return; }
+    const newPw = await showPromptModal(t('auth.setup_pw','<i data-lucide="key"></i> 비밀번호 설정'), t('auth.new_pw_hint','새 비밀번호 (6자 이상)'), '', true);
+    if (!newPw || newPw.length < 6) { if (newPw !== null) showToast(t('auth.pw_min_6','비밀번호는 6자 이상이어야 합니다'), 'error'); return; }
 
-    const pw2 = await showPromptModal(t('auth.confirm_pw','<i data-lucide="key"></i> 비밀번호 확인'), t('auth.reenter_pw','비밀번호를 다시 입력하세요'), '', true);
-    if (pw !== pw2) { showToast(t('auth.pw_mismatch','비밀번호가 일치하지 않습니다'), 'error'); return; }
+    const newPw2 = await showPromptModal(t('auth.confirm_pw','<i data-lucide="key"></i> 비밀번호 확인'), t('auth.reenter_pw','비밀번호를 다시 입력하세요'), '', true);
+    if (newPw !== newPw2) { showToast(t('auth.pw_mismatch','비밀번호가 일치하지 않습니다'), 'error'); return; }
 
     try {
-        const credential = firebase.auth.EmailAuthProvider.credential(user.email, pw);
-        await user.linkWithCredential(credential);
-        await db.collection('users').doc(user.uid).update({
-            provider: user.providerData.map(p => p.providerId === 'google.com' ? 'google' : 'email').join('+')
+        const res = await fetch('/api/change-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ newPassword: newPw })
         });
-        showToast(`<i data-lucide="check-circle"></i> ${t('auth.pw_set_done','비밀번호 설정 완료! 이제 이메일/비밀번호로도 로그인 가능합니다.')}`, 'success');
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        showToast(`<i data-lucide="check-circle"></i> ${t('auth.pw_set_done','비밀번호 설정 완료!')}`, 'success');
         // 프로필 모달 새로고침
         const modal = document.getElementById('profile-edit-modal');
-        if (modal) { modal.remove(); showProfileEdit(); }
+        if (modal) { modal.remove(); if (typeof showProfileEdit === 'function') showProfileEdit(); }
     } catch (e) {
         console.error('비밀번호 설정 실패:', e);
         showToast(t('auth.pw_set_fail','비밀번호 설정 실패: ') + e.message, 'error');
     }
 }
 
-// 비밀번호 변경
+// 비밀번호 변경 — CrownyTVM API: POST /api/change-password
 async function changePasswordFromProfile() {
-    const user = firebase.auth().currentUser;
-    if (!user) return;
+    const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    if (!token) { showToast('로그인이 필요합니다', 'warning'); return; }
 
     if (typeof showPromptModal !== 'function') { showToast(t('auth.ui_fail','UI 모듈 로드 실패'), 'error'); return; }
+
+    const oldPw = await showPromptModal('현재 비밀번호', '현재 비밀번호를 입력하세요', '', true);
+    if (!oldPw) return;
 
     const newPw = await showPromptModal(t('auth.change_pw','<i data-lucide="key"></i> 비밀번호 변경'), t('auth.new_pw_hint','새 비밀번호 (6자 이상)'), '', true);
     if (!newPw || newPw.length < 6) { if (newPw !== null) showToast(t('auth.pw_min_6','비밀번호는 6자 이상이어야 합니다'), 'error'); return; }
@@ -282,20 +229,32 @@ async function changePasswordFromProfile() {
     if (newPw !== newPw2) { showToast(t('auth.pw_mismatch','비밀번호가 일치하지 않습니다'), 'error'); return; }
 
     try {
-        await user.updatePassword(newPw);
+        const res = await fetch('/api/change-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ oldPassword: oldPw, newPassword: newPw })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
         showToast(`<i data-lucide="check-circle"></i> ${t('auth.pw_changed','비밀번호 변경 완료!')}`, 'success');
     } catch (e) {
-        if (e.code === 'auth/requires-recent-login') {
-            showToast(t('auth.relogin','보안을 위해 재로그인이 필요합니다. 로그아웃 후 다시 로그인해주세요.'), 'warning');
-        } else {
-            showToast(t('auth.pw_change_fail','비밀번호 변경 실패: ') + e.message, 'error');
-        }
+        console.error('비밀번호 변경 실패:', e);
+        showToast(t('auth.pw_change_fail','비밀번호 변경 실패: ') + e.message, 'error');
     }
 }
 
-// Logout
+// Logout — CrownyTVM 전용
 function logout() {
     if (typeof cleanupNotifications === 'function') cleanupNotifications();
-    auth.signOut();
+    // CrownyTVM 토큰 제거
+    localStorage.removeItem('crowny_token');
+    localStorage.removeItem('ctvm_token');
+    localStorage.removeItem('crowny_username');
+    currentUser = null;
+    if (typeof useIndependentDB !== 'undefined') useIndependentDB = true;
     location.reload();
 }

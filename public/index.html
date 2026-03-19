@@ -41,11 +41,11 @@
     <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.js"></script>
     
     <!-- CSS Modules (organized by section) -->
-    <link rel="stylesheet" href="/css/base.css?v=24.2-003">
+    <link rel="stylesheet" href="/css/base.css?v=24.3">
     <link rel="stylesheet" href="/css/home.css?v=23.4">
     <link rel="stylesheet" href="/css/wallet.css?v=23.7">
     <link rel="stylesheet" href="/css/social.css?v=23.4">
-    <link rel="stylesheet" href="/css/messenger.css?v=24.1">
+    <link rel="stylesheet" href="/css/messenger.css?v=24.3">
     <style>
     /* CrownyTVM 독립 메신저 — 클린 UI */
     .crny-chat{display:flex;height:calc(100vh - 120px);background:#FFF8F0;border-radius:12px;overflow:hidden;border:1px solid #E8E0D8}
@@ -105,24 +105,28 @@
     @media(max-width:768px){
         .crny-chat{border:none;border-radius:0;height:calc(100vh - 60px)}
         .crny-chat-sidebar{width:100%;border-right:none}
-        .crny-chat-panel{position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;transform:translateX(100%);transition:transform .2s ease;background:#FFF8F0}
+        .crny-chat-panel{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1002;transform:translateX(100%);transition:transform .2s ease;background:#FFF8F0;display:flex;flex-direction:column}
         .crny-chat-panel.open{transform:translateX(0)}
         .crny-chat{position:relative;overflow:hidden}
         .crny-btn-back{display:block}
         .crny-chat-sidebar-header{padding:12px}
         .chat-item{padding:10px 12px}
-        .crny-chat-messages{padding:10px}
-        .crny-chat-input{padding:8px 10px}
-        .crny-chat-input input{font-size:16px}
+        .crny-chat-panel-header{position:relative;top:0;z-index:5;padding:12px 16px;padding-top:calc(env(safe-area-inset-top,0px) + 12px);margin:0;border-bottom:1px solid #E8E0D8;background:#fff;flex-shrink:0;width:100%;box-sizing:border-box}
+        .crny-chat-messages{flex:1;overflow-y:auto;padding:10px;min-height:0}
+        .crny-chat-input{position:sticky;bottom:0;z-index:5;padding:8px 10px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 8px);background:#fff;border-top:1px solid #E8E0D8;flex-shrink:0;width:100%}
+        .crny-chat-input input{flex:1;min-width:0;font-size:16px}
+        .crny-btn-send{padding:10px 14px;font-size:0.8rem;flex-shrink:0}
+        .crny-chat-crmm{padding:6px 10px;width:100%}
+        .crny-chat-typing{padding:4px 10px}
     }
     </style>
     <link rel="stylesheet" href="/css/trading.css?v=23.4">
     <link rel="stylesheet" href="/css/ai.css?v=23.4">
     <link rel="stylesheet" href="/css/care.css?v=23.4">
-    <link rel="stylesheet" href="/css/components.css?v=24.2">
+    <link rel="stylesheet" href="/css/components.css?v=24.3">
     <link rel="stylesheet" href="/css/settings.css?v=24.4">
     <link rel="stylesheet" href="/css/dark.css?v=23.4">
-    <link rel="stylesheet" href="/css/mobile.css?v=24.2">
+    <link rel="stylesheet" href="/css/mobile.css?v=24.3">
     <!-- <link rel="stylesheet" href="style.css?v=23.4"> OLD: kept as backup -->
     
     <!-- 🔧 HOTFIX: 로그인 폼 스타일 강제 적용 -->
@@ -188,81 +192,329 @@
         }
     </style>
     
-    <!-- Firebase SDK -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-app-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-auth-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-firestore-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-storage-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-messaging-compat.min.js"></script>
-    
-    <!-- Thirdweb SDK (NFT 민팅 지원) -->
-    <script type="module">
-        import { ThirdwebSDK } from "https://esm.sh/@thirdweb-dev/sdk@4";
-        
-        const sdk = new ThirdwebSDK("polygon", {
-            clientId: "26c044bdfa2f575538d00945419126bf"
-        });
-        
-        window.tw5 = {
-            sdk: sdk,
-            getContract: async (address) => await sdk.getContract(address),
-            storage: sdk.storage,
-            connectWallet: async () => {
-                if (!window.ethereum) throw new Error('MetaMask가 필요합니다');
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
-                const signer = new ethers.providers.Web3Provider(window.ethereum).getSigner();
-                const connectedSDK = ThirdwebSDK.fromSigner(signer, "polygon", {
-                    clientId: "26c044bdfa2f575538d00945419126bf"
-                });
-                window.tw5.sdk = connectedSDK;
-                return connectedSDK;
-            }
-        };
-        console.log('<i data-lucide="link"></i> Thirdweb SDK v4 initialized (Polygon)');
-    </script>
-    
-    <!-- Web3 -->
-    <script src="https://cdn.jsdelivr.net/npm/web3@4.16.0/dist/web3.min.js"></script>
-    
     <!-- Lightweight Charts -->
     <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-    
+
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAqrMOtOCVTMqzsVEJgAMq5SBrpUzgABS8",
-            authDomain: "crowny-84b84.firebaseapp.com",
-            projectId: "crowny-84b84",
-            storageBucket: "crowny-84b84.firebasestorage.app",
-            messagingSenderId: "482020243607",
-            appId: "1:482020243607:web:8b60558c7af507f4bed1d2"
+        // ═══ CrownyTVM DB Client (Firestore-compatible API) ═══
+        window.auth = {
+            onAuthStateChanged: function(cb) {
+                setTimeout(() => {
+                    const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+                    if (token && window.currentUser) cb(window.currentUser);
+                    else cb(null);
+                }, 100);
+                return () => {};
+            },
+            signOut: function() { return Promise.resolve(); },
+            currentUser: null
         };
-        
-        firebase.initializeApp(firebaseConfig);
-        window.auth = firebase.auth();
-        window.db = firebase.firestore();
-        
-        // Firebase 연결 상태 확인 (DB 접근 실패 대비)
-        window.checkFirebaseConnection = async function() {
-            try {
-                console.log('[Firebase] 연결 테스트 시작...');
-                if (!window.db) {
-                    throw new Error('Firestore DB 객체 없음');
-                }
-                
-                // 간단한 읽기 테스트 (빈 쿼리)
-                await window.db.collection('users').limit(1).get();
-                console.log('[Firebase] 연결 테스트 성공 ✅');
-                return true;
-            } catch (error) {
-                console.error('[Firebase] 연결 실패 ❌:', error.message);
-                console.log('[Firebase] 오프라인 모드 또는 네트워크 문제 가능성');
-                return false;
+
+        (function() {
+            const API = '/api/db';
+
+            function buildQuery(collPath) {
+                return {
+                    _path: collPath,
+                    _filters: [],
+                    _orderBy: null,
+                    _orderDir: 'desc',
+                    _limitN: 0,
+
+                    where: function(field, op, value) {
+                        const q = Object.create(this);
+                        q._filters = [...this._filters, { field, op, value }];
+                        return q;
+                    },
+                    orderBy: function(field, dir) {
+                        const q = Object.create(this);
+                        q._orderBy = field;
+                        q._orderDir = dir || 'desc';
+                        return q;
+                    },
+                    limit: function(n) {
+                        const q = Object.create(this);
+                        q._limitN = n;
+                        return q;
+                    },
+                    startAfter: function() { return this; },
+                    endBefore: function() { return this; },
+
+                    get: async function() {
+                        const params = new URLSearchParams();
+                        for (const f of this._filters) {
+                            params.append('where', `${f.field},${f.op},${f.value}`);
+                        }
+                        if (this._orderBy) {
+                            params.set('orderBy', this._orderBy);
+                            params.set('orderDir', this._orderDir);
+                        }
+                        if (this._limitN) params.set('limit', this._limitN);
+
+                        try {
+                            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+                            const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+                            const r = await fetch(`${API}/${this._path}?${params}`, { headers });
+                            const data = await r.json();
+                            const docs = (data.docs || []).map(d => ({
+                                id: d.id,
+                                exists: true,
+                                data: () => d.data,
+                                ref: { id: d.id, path: `${this._path}/${d.id}` }
+                            }));
+                            return {
+                                empty: docs.length === 0,
+                                size: docs.length,
+                                docs: docs,
+                                forEach: function(fn) { docs.forEach(fn); },
+                                docChanges: function() { return docs.map(d => ({ type: 'added', doc: d })); }
+                            };
+                        } catch(e) {
+                            console.warn('[DB] Query error:', this._path, e.message);
+                            return { empty: true, size: 0, docs: [], forEach: function(){}, docChanges: function(){ return []; } };
+                        }
+                    },
+
+                    onSnapshot: function(cb, errCb) {
+                        // Initial load + polling every 30 seconds
+                        const load = async () => {
+                            try {
+                                const snapshot = await this.get();
+                                if (typeof cb === 'function') cb(snapshot);
+                                else if (cb && typeof cb.next === 'function') cb.next(snapshot);
+                            } catch(e) {
+                                if (errCb) errCb(e);
+                                else if (cb && typeof cb.error === 'function') cb.error(e);
+                            }
+                        };
+                        load();
+                        const interval = setInterval(load, 30000);
+                        return () => clearInterval(interval);
+                    },
+
+                    doc: function(id) { return makeDocRef(this._path + '/' + id); },
+                    add: async function(data) {
+                        try {
+                            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+                            const r = await fetch(`${API}/${this._path}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+                                body: JSON.stringify(resolveFieldValues(data))
+                            });
+                            const result = await r.json();
+                            return { id: result.id };
+                        } catch(e) {
+                            console.warn('[DB] Add error:', this._path, e.message);
+                            return { id: 'error_' + Date.now() };
+                        }
+                    }
+                };
             }
+
+            function makeDocRef(fullPath) {
+                return {
+                    id: fullPath.split('/').pop(),
+                    path: fullPath,
+
+                    get: async function() {
+                        try {
+                            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+                            const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+                            const r = await fetch(`${API}/${fullPath}`, { headers });
+                            const data = await r.json();
+                            return {
+                                exists: data.exists,
+                                id: data.id || this.id,
+                                data: () => data.data || {},
+                                ref: this
+                            };
+                        } catch(e) {
+                            return { exists: false, id: this.id, data: () => ({}), ref: this };
+                        }
+                    },
+
+                    set: async function(data, opts) {
+                        try {
+                            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+                            const payload = resolveFieldValues(data);
+                            if (opts && opts.merge) payload._merge = true;
+                            const r = await fetch(`${API}/${fullPath}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+                                body: JSON.stringify(payload)
+                            });
+                            return await r.json();
+                        } catch(e) { console.warn('[DB] Set error:', fullPath, e.message); }
+                    },
+
+                    update: async function(data) {
+                        try {
+                            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+                            const r = await fetch(`${API}/${fullPath}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+                                body: JSON.stringify(resolveFieldValues(data))
+                            });
+                            return await r.json();
+                        } catch(e) { console.warn('[DB] Update error:', fullPath, e.message); }
+                    },
+
+                    delete: async function() {
+                        try {
+                            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+                            await fetch(`${API}/${fullPath}`, {
+                                method: 'DELETE',
+                                headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                            });
+                        } catch(e) { console.warn('[DB] Delete error:', fullPath, e.message); }
+                    },
+
+                    collection: function(sub) {
+                        return buildQuery(fullPath + '/' + sub);
+                    },
+
+                    onSnapshot: function(cb, errCb) {
+                        const load = async () => {
+                            try {
+                                const snap = await this.get();
+                                if (typeof cb === 'function') cb(snap);
+                                else if (cb && typeof cb.next === 'function') cb.next(snap);
+                            } catch(e) {
+                                if (errCb) errCb(e);
+                            }
+                        };
+                        load();
+                        const interval = setInterval(load, 30000);
+                        return () => clearInterval(interval);
+                    }
+                };
+            }
+
+            function resolveFieldValues(obj) {
+                if (!obj || typeof obj !== 'object') return obj;
+                const result = {};
+                for (const [k, v] of Object.entries(obj)) {
+                    if (v && typeof v === 'object' && v.__fieldValue) {
+                        result[k] = v; // Pass through to server
+                    } else if (v instanceof Date) {
+                        result[k] = v.toISOString();
+                    } else if (Array.isArray(v)) {
+                        result[k] = v.map(item => resolveFieldValues(item));
+                    } else if (v && typeof v === 'object' && !(v instanceof Date)) {
+                        result[k] = resolveFieldValues(v);
+                    } else {
+                        result[k] = v;
+                    }
+                }
+                return result;
+            }
+
+            window.db = {
+                collection: function(name) { return buildQuery(name); },
+                batch: function() {
+                    const ops = [];
+                    return {
+                        set: function(ref, data, opts) { ops.push({ type: 'set', path: ref.path, data, opts }); },
+                        update: function(ref, data) { ops.push({ type: 'update', path: ref.path, data }); },
+                        delete: function(ref) { ops.push({ type: 'delete', path: ref.path }); },
+                        commit: async function() {
+                            for (const op of ops) {
+                                const docRef = makeDocRef(op.path);
+                                if (op.type === 'set') await docRef.set(op.data, op.opts);
+                                else if (op.type === 'update') await docRef.update(op.data);
+                                else if (op.type === 'delete') await docRef.delete();
+                            }
+                        }
+                    };
+                },
+                runTransaction: async function(fn) {
+                    const transaction = {
+                        get: async function(ref) { return await ref.get(); },
+                        set: function(ref, data) { ref.set(data); },
+                        update: function(ref, data) { ref.update(data); }
+                    };
+                    return await fn(transaction);
+                },
+                doc: function(path) { return makeDocRef(path); }
+            };
+        })();
+
+        window.firebase = {
+            auth: function() { return window.auth; },
+            firestore: {
+                FieldValue: {
+                    serverTimestamp: () => ({ __fieldValue: 'serverTimestamp' }),
+                    increment: (n) => ({ __fieldValue: 'increment', operand: n }),
+                    arrayUnion: (...a) => ({ __fieldValue: 'arrayUnion', elements: a }),
+                    arrayRemove: (...a) => ({ __fieldValue: 'arrayRemove', elements: a }),
+                    delete: () => ({ __fieldValue: 'delete' })
+                },
+                Timestamp: {
+                    now: () => ({ seconds: Math.floor(Date.now() / 1000), nanoseconds: 0, toDate: () => new Date() }),
+                    fromDate: (d) => ({ seconds: Math.floor(d.getTime() / 1000), nanoseconds: 0, toDate: () => d })
+                }
+            },
+            storage: function() {
+                function makeRef(path) {
+                    return {
+                        _path: path || '',
+                        ref: function(p) { return makeRef(this._path ? this._path + '/' + p : p); },
+                        child: function(p) { return makeRef(this._path + '/' + p); },
+                        put: async function(blob) {
+                            const base64 = await new Promise((resolve) => {
+                                const reader = new FileReader();
+                                reader.onload = () => resolve(reader.result.split(',')[1]);
+                                reader.readAsDataURL(blob);
+                            });
+                            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+                            const r = await fetch('/api/upload', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                                body: JSON.stringify({ base64, fileName: this._path.split('/').pop() })
+                            });
+                            const result = await r.json();
+                            return {
+                                ref: { getDownloadURL: async () => result.url || result.downloadURL },
+                                metadata: { fullPath: this._path }
+                            };
+                        },
+                        putString: async function(str, format) {
+                            let base64 = str;
+                            if (format === 'data_url') base64 = str.split(',')[1] || str;
+                            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+                            const r = await fetch('/api/upload', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                                body: JSON.stringify({ base64, fileName: this._path.split('/').pop() })
+                            });
+                            const result = await r.json();
+                            return {
+                                ref: { getDownloadURL: async () => result.url || result.downloadURL },
+                                metadata: { fullPath: this._path }
+                            };
+                        },
+                        getDownloadURL: async function() {
+                            return '/uploads/' + this._path;
+                        },
+                        delete: async function() {
+                            console.log('[Storage] Delete:', this._path);
+                        }
+                    };
+                }
+                return makeRef('');
+            },
+            messaging: function() {
+                return {
+                    getToken: async () => 'ctvm-token-stub',
+                    onMessage: () => {}
+                };
+            },
+            auth: { EmailAuthProvider: { credential: function(e, p) { return { email: e, password: p }; } } }
         };
-        
-        // 초기화 완료 후 연결 테스트
-        setTimeout(window.checkFirebaseConnection, 2000);
-        
+
+        window.useIndependentDB = true;
+        window.checkFirebaseConnection = function() { return false; };
+
         // Massive (구 Polygon.io) 실시간 CME 데이터 설정
         window.MASSIVE_CONFIG = {
             apiKey: 'UaNpU8hwqykC0pSPqSGYM9V5hLXtjIkX', // <i data-lucide="check-circle"></i> API Key 적용 완료!
@@ -270,15 +522,7 @@
             plan: 'Starter', // $199/월
             symbol: 'C:NQ' // NQ E-mini 선물
         };
-        
-        window.THIRDWEB_CONFIG = {
-            clientId: '26c044bdfa2f575538d00945419126bf',
-            contracts: {
-                CRNY: '0xe56173b6a57680286253566B9C80Fcc175c88bE1',
-                FNC: '0x68E3aA1049F583C2f1701fefc4443e398ebF32ee',
-                CRFN: '0x396DAd0C7625a4881cA0cd444Cd80A9bbce4A054'
-            }
-        };
+
         // 오프체인 유틸리티 포인트 (Firebase DB, zero-gas)
         window.OFFCHAIN_TOKENS = {
             CRTD: { name: '크라우니 트레이딩 달러', icon: 'trending-up', color: '#C4841D', category: '트레이딩', desc: '프럍 트레이딩 · 챌린지 전용' },
@@ -308,14 +552,14 @@
         <div class="modal-content">
             <h2>CROWNY</h2>
             
-            <div id="login-form" class="auth-form">
+            <form id="login-form" class="auth-form" onsubmit="event.preventDefault(); login();" autocomplete="on">
                 <h3 data-i18n="auth.login">로그인</h3>
-                <input type="text" id="login-email" placeholder="아이디 또는 이메일" class="input" autocomplete="username">
-                <input type="password" id="login-password" placeholder="비밀번호" data-i18n-placeholder="placeholder.password" class="input">
-                <button onclick="login()" class="btn-primary" data-i18n="auth.login">로그인</button>
+                <input type="text" id="login-email" name="username" placeholder="아이디 또는 이메일" class="input" autocomplete="username">
+                <input type="password" id="login-password" name="password" placeholder="비밀번호" data-i18n-placeholder="placeholder.password" class="input" autocomplete="current-password">
+                <button type="submit" class="btn-primary" data-i18n="auth.login">로그인</button>
                 <p style="margin-top:1rem;" data-i18n-html="auth.no_account_link">계정이 없으신가요? <a href="#" onclick="showSignup()">회원가입</a></p>
                 <p><a href="#" onclick="resetPassword()" style="font-size:0.85rem; color:#6B5744;" data-i18n="auth.forgot_password">비밀번호를 잊으셨나요?</a></p>
-            </div>
+            </form>
             
             <div id="signup-form" class="auth-form" style="display:none;">
                 <h3 data-i18n="auth.signup">회원가입</h3>
@@ -342,7 +586,7 @@
         </div>
     </div>
 
-    <button class="menu-toggle" onclick="toggleMenu()" aria-label="메뉴"><svg width="28" height="24" viewBox="0 0 28 24" fill="none" stroke="#3D2B1F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20 L6 6 L10 14 L14 4 L18 14 L22 6 L26 20 Z"/></svg></button>
+    <button class="menu-toggle" onclick="toggleMenu()" aria-label="메뉴"><img src="/img/crowny-logo.png" alt="C" style="width:34px;height:34px;object-fit:contain;"></button>
     
     <aside class="sidebar" id="sidebar">
         <div class="logo" onclick="showPage('today')">
@@ -398,8 +642,7 @@
             <a href="#" onclick="showPage('contacts-crm')" class="nav-item"><i data-lucide="contact" style="width:20px;height:20px;margin-right:8px;"></i>CONTACTS<span class="nav-sub">연락처 CRM</span></a>
             <a href="#" onclick="showPage('hanseon-vm')" class="nav-item"><i data-lucide="code-2" style="width:20px;height:20px;margin-right:8px;"></i>HANSEON VM<span class="nav-sub">한선씨</span></a>
             <hr class="nav-divider">
-            <a href="https://crowny.org/admin.html" class="nav-item" id="admin-nav-item" style="display:none; color:#B54534;"><i data-lucide="shield-check" style="width:20px;height:20px;margin-right:8px;"></i>ADMIN<span class="nav-sub" data-i18n="nav.admin">관리자</span></a>
-            <a href="#" onclick="showPage('crowny-admin')" class="nav-item" id="crowny-admin-nav" style="display:none; color:#B54534;"><i data-lucide="server" style="width:20px;height:20px;margin-right:8px;"></i>서버관리<span class="nav-sub">CrownyTVM</span></a>
+            <a href="#" onclick="showPage('crowny-admin')" class="nav-item" id="admin-nav-item" style="display:none; color:#B54534;"><i data-lucide="shield-check" style="width:20px;height:20px;margin-right:8px;"></i>ADMIN<span class="nav-sub" data-i18n="nav.admin">관리자</span></a>
             <a href="#" onclick="showPage('settings')" class="nav-item" style="margin-top:auto;"><i data-lucide="settings" style="width:20px;height:20px;margin-right:8px;"></i>SETTINGS<span class="nav-sub" data-i18n="nav.settings">설정</span></a>
         </nav>
     </aside>
@@ -542,258 +785,115 @@
         </section>
 
         <section id="wallet" class="page">
-            <h2 style="display:flex; align-items:center; gap:0.5rem;" data-i18n-html="wallet.title"><i data-lucide="coins"></i> MY WALLET <span id="wallet-sync-badge" style="font-size:0.65rem; background:#F7F3ED; color:#2e7d32; padding:0.15rem 0.5rem; border-radius:10px; display:none;" data-i18n="wallet.synced">● 동기화됨</span></h2>
-            
-            <!-- Wallet Selector -->
+            <h2 style="display:flex; align-items:center; gap:0.5rem;"><i data-lucide="coins"></i> MY WALLET</h2>
+
+            <!-- 계정 + 지갑 주소 카드 -->
+            <div style="background:#3D2B1F; color:#E8D5C4; padding:1.5rem; border-radius:16px; margin-bottom:1rem; position:relative; overflow:hidden;">
+                <div style="position:absolute; top:-20px; right:-20px; width:100px; height:100px; background:rgba(232,213,196,0.05); border-radius:50%;"></div>
+                <div style="display:flex; align-items:center; gap:0.8rem; margin-bottom:1rem;">
+                    <div style="width:40px; height:40px; background:linear-gradient(135deg,#8B6914,#6B5744); border-radius:50%; display:flex; align-items:center; justify-content:center;"><i data-lucide="user" style="width:20px;height:20px;color:#FFF8F0;"></i></div>
+                    <div>
+                        <div style="font-size:0.7rem; opacity:0.5;">CrownyTVM ID</div>
+                        <div id="wallet-username" style="font-size:1.1rem; font-weight:700;">--</div>
+                    </div>
+                </div>
+                <div style="background:rgba(255,248,240,0.08); padding:0.8rem; border-radius:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.3rem;">
+                        <span style="font-size:0.65rem; opacity:0.5; text-transform:uppercase; letter-spacing:1px;">Crowny Network Address</span>
+                        <button onclick="ctvmCopyAddress()" style="background:rgba(255,248,240,0.1); border:none; padding:0.3rem 0.5rem; border-radius:6px; cursor:pointer; color:#E8D5C4; font-size:0.7rem; display:flex; align-items:center; gap:0.3rem;"><i data-lucide="copy" style="width:12px;height:12px;"></i> 복사</button>
+                    </div>
+                    <div id="wallet-address-full" style="font-family:'Consolas',monospace; font-size:0.8rem; word-break:break-all; color:#E8D5C4; font-weight:600;">--</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:end; margin-top:1rem;">
+                    <div>
+                        <div style="font-size:0.65rem; opacity:0.5; text-transform:uppercase; letter-spacing:1px;">Total Assets (CRN)</div>
+                        <div id="total-asset-crn" style="font-size:1.8rem; font-weight:800; letter-spacing:-0.5px;">0 CRN</div>
+                    </div>
+                    <button onclick="ctvmRefreshWallet()" style="background:rgba(255,248,240,0.1); border:none; padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer; color:#E8D5C4; font-size:0.75rem; display:flex; align-items:center; gap:0.3rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> 새로고침</button>
+                </div>
+            </div>
+
+            <!-- 토큰 잔액 -->
+            <div style="margin-bottom:1rem;">
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem;">
+                    <span style="font-size:0.75rem; background:#F7F3ED; color:#5B7B8C; padding:0.2rem 0.6rem; border-radius:10px; font-weight:700;">Crowny Network</span>
+                </div>
+                <div class="token-balances">
+                    <div class="token-card" id="token-card-crn" style="cursor:default;">
+                        <div class="token-icon" style="background:linear-gradient(135deg,#8B6914,#6B5744); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center;"><i data-lucide="crown"></i></div>
+                        <div class="token-info">
+                            <span class="token-name">CRN</span>
+                            <span class="token-desc">크라우니 · = 10 FNC = 1,000 CRM</span>
+                        </div>
+                        <strong class="token-balance" id="crn-balance">0</strong>
+                    </div>
+                    <div class="token-card" id="token-card-fnc" style="cursor:default;">
+                        <div class="token-icon" style="background:linear-gradient(135deg,#5B7B8C,#5B7B8C); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center;"><i data-lucide="zap"></i></div>
+                        <div class="token-info">
+                            <span class="token-name">FNC</span>
+                            <span class="token-desc">포네 · = 0.1 CRN = 100 CRM</span>
+                        </div>
+                        <strong class="token-balance" id="fnc-balance">0</strong>
+                    </div>
+                    <div class="token-card" id="token-card-crm" style="cursor:default;">
+                        <div class="token-icon" style="background:linear-gradient(135deg,#C4841D,#FF9100); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center;"><i data-lucide="heart"></i></div>
+                        <div class="token-info">
+                            <span class="token-name">CRM</span>
+                            <span class="token-desc">맘 · = 0.001 CRN = 0.01 FNC</span>
+                        </div>
+                        <strong class="token-balance" id="crm-balance">0</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 송금 -->
             <div style="background:#FFF8F0; padding:1.2rem; border-radius:12px; margin-bottom:1rem; box-shadow:0 2px 8px rgba(61,43,31,0.06);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
-                    <strong style="font-size:0.95rem;" data-i18n="wallet.my_wallets"><i data-lucide="folder"></i> 내 지갑</strong>
-                    <button onclick="showAddWalletModal()" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600;" data-i18n="wallet.add_wallet"><i data-lucide="plus"></i> 지갑 추가</button>
-                </div>
-                <select id="wallet-selector" onchange="switchWallet()" style="width:100%; padding:0.8rem; border-radius:8px; border:1px solid #e0e0e0; font-size:0.9rem; background:#FFF8F0; cursor:pointer;">
-                </select>
-            </div>
-            
-            <div class="wallet-info">
-                <!-- 지갑 주소 카드 -->
-                <div style="background:#FFF8F0; padding:1.2rem; border-radius:12px; margin-bottom:1rem; box-shadow:0 2px 8px rgba(61,43,31,0.06);">
-                    <div style="display:flex; justify-content:space-between; align-items:start;">
-                        <div style="flex:1;">
-                            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                                <span id="wallet-type" style="font-size:0.7rem; background:#F7F3ED; color:#5B7B8C; padding:0.15rem 0.5rem; border-radius:8px;"></span>
-                                <span id="wallet-security-status" style="font-size:0.7rem;"></span>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:0.5rem;">
-                                <span id="wallet-address" style="font-family:'Consolas',monospace; font-size:1rem; font-weight:700; color:#3D2B1F;"></span>
-                            </div>
-                            <p id="wallet-address-full" style="font-family:'Consolas',monospace; font-size:0.7rem; color:#6B5744; margin-top:0.3rem; word-break:break-all;"></p>
-                        </div>
-                        <div style="display:flex; gap:0.3rem; flex-wrap:wrap;">
-                            <button onclick="copyAddress()" style="background:#F7F3ED; border:none; padding:0.4rem; border-radius:8px; cursor:pointer; font-size:0.85rem; min-width:32px;" title="주소 복사" data-i18n-title="wallet.copy_address"><i data-lucide="copy"></i></button>
-                            <a id="polygonscan-link" href="#" target="_blank" style="background:#F7F3ED; border:none; padding:0.4rem; border-radius:8px; text-decoration:none; font-size:0.85rem; min-width:32px; display:flex; align-items:center; justify-content:center;" title="Polygonscan"><i data-lucide="search"></i></a>
-                            <button onclick="renameCurrentWallet()" style="background:#F7F3ED; border:none; padding:0.4rem; border-radius:8px; cursor:pointer; font-size:0.85rem; min-width:32px;" title="지갑 이름 변경" data-i18n-title="wallet.rename"><i data-lucide="pencil"></i></button>
-                            <button onclick="deleteCurrentWallet()" style="background:#FFF8F0; border:none; padding:0.4rem; border-radius:8px; cursor:pointer; font-size:0.85rem; min-width:32px;" title="지갑 삭제" data-i18n-title="wallet.delete_wallet"><i data-lucide="trash-2"></i></button>
-                        </div>
+                <h4 style="margin:0 0 0.8rem; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;"><i data-lucide="send" style="width:16px;height:16px;"></i> 송금</h4>
+                <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <input type="text" id="send-to" placeholder="받는 사람 아이디" style="padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem;">
+                    <div style="display:flex; gap:0.5rem;">
+                        <input type="number" id="send-amount" placeholder="수량" style="flex:1; padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem;">
+                        <select id="send-currency" style="padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem; background:#FFF8F0;">
+                            <option value="CRN">CRN</option>
+                            <option value="FNC">FNC</option>
+                            <option value="CRM">CRM</option>
+                        </select>
                     </div>
-                    
-                    <div id="gas-subsidy-info" style="background:#F7F3ED; padding:0.6rem 0.8rem; border-radius:8px; margin-top:0.8rem; display:none;">
-                        <p style="margin:0; font-size:0.8rem; color:#2e7d32;">
-                            <i data-lucide="fuel"></i> 가스비 대납 누적: <strong id="total-gas-subsidy">0</strong> MATIC
-                        </p>
-                    </div>
-                </div>
-
-                <!-- 총 자산 요약 + MATIC -->
-                <div style="background:#3D2B1F; color:#E8D5C4; padding:1.5rem; border-radius:16px; margin-bottom:1rem; position:relative; overflow:hidden;">
-                    <div style="position:absolute; top:-20px; right:-20px; width:100px; height:100px; background:rgba(232,213,196,0.05); border-radius:50%;"></div>
-                    <div style="display:flex; justify-content:space-between; align-items:start;">
-                        <div>
-                            <div style="font-size:0.7rem; opacity:0.6; text-transform:uppercase; letter-spacing:1px;" data-i18n="wallet.total_assets">Total Assets</div>
-                            <div id="total-asset-crny" style="font-size:2rem; font-weight:800; letter-spacing:-0.5px; margin-top:0.2rem;">0.00</div>
-                            <div style="font-size:0.65rem; opacity:0.4; margin-top:0.1rem;" data-i18n="wallet.crny_equivalent">CRNY 환산</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:0.65rem; opacity:0.6;" data-i18n="wallet.offchain_label">오프체인</div>
-                            <div id="total-offchain-pts" style="font-size:1.2rem; font-weight:700; color:#64ffda;">0 pt</div>
-                        </div>
-                    </div>
-                    
-                    <!-- MATIC 잔액 -->
-                    <div style="margin-top:1rem; padding-top:0.8rem; border-top:1px solid rgba(232,213,196,0.1); display:flex; justify-content:space-between; align-items:center;">
-                        <div style="display:flex; align-items:center; gap:0.5rem;">
-                            <div style="width:24px; height:24px; background:linear-gradient(135deg,#8247e5,#6f3adf); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.7rem;">⟠</div>
-                            <div>
-                                <div style="font-size:0.7rem; opacity:0.6;" data-i18n="wallet.matic_gas">MATIC (가스비)</div>
-                                <div id="matic-balance" style="font-size:1rem; font-weight:700;">0.0000</div>
-                            </div>
-                        </div>
-                        <div style="display:flex; gap:0.4rem;">
-                            <button onclick="showMaticDeposit()" style="background:#3D2B1F; border:1px solid #6B5744; color:#E8D5C4; padding:0.3rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.7rem; display:flex; align-items:center; gap:0.3rem;" data-i18n="wallet.deposit"><i data-lucide="download" style="width:12px; height:12px;"></i>입금</button>
-                            <button onclick="showMaticSend()" style="background:#3D2B1F; border:1px solid #6B5744; color:#E8D5C4; padding:0.3rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.7rem; display:flex; align-items:center; gap:0.3rem;" data-i18n="wallet.send"><i data-lucide="send" style="width:12px; height:12px;"></i>송금</button>
-                        </div>
-                    </div>
-                    
-                    <div style="font-size:0.6rem; opacity:0.3; margin-top:0.6rem; text-align:right;" data-i18n="wallet.integrated_info">온체인 + 오프체인 통합 · 100 pt = 1 CRNY</div>
-                </div>
-
-                <!-- ⛓ 온체인 코어 자산 -->
-                <div style="margin-bottom:1.2rem;">
-                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem;">
-                        <span style="font-size:0.7rem; background:#F7F3ED; color:#5B7B8C; padding:0.2rem 0.6rem; border-radius:10px; font-weight:700;" data-i18n="wallet.onchain">⛓ ON-CHAIN</span>
-                        <span style="font-size:0.75rem; color:var(--accent);" data-i18n="wallet.onchain_desc">Polygon ERC-20 · 글로벌 유동성</span>
-                        <span style="font-size:0.6rem; background:#F7F3ED; color:#C4841D; padding:0.15rem 0.5rem; border-radius:8px;" data-i18n="wallet.per_wallet"><i data-lucide="briefcase"></i> 지갑별</span>
-                        <button onclick="refreshAllBalances()" style="margin-left:auto; background:#F7F3ED; border:none; padding:0.2rem 0.5rem; border-radius:6px; cursor:pointer; font-size:0.7rem; color:#5B7B8C; font-weight:600;" data-i18n="common.refresh"><i data-lucide="refresh-cw"></i> 새로고침</button>
-                    </div>
-                    <div class="token-balances">
-                        <div class="token-card" onclick="selectToken('crny')" id="token-card-crny">
-                            <div class="token-icon" style="background:linear-gradient(135deg,#8B6914,#6B5744); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;"><i data-lucide="crown"></i></div>
-                            <div class="token-info">
-                                <span class="token-name">CRNY</span>
-                                <span class="token-desc" data-i18n="wallet.token.crny">거버넌스 · 앵커</span>
-                            </div>
-                            <strong class="token-balance" id="crny-balance">0</strong>
-                        </div>
-                        <div class="token-card" onclick="selectToken('fnc')" id="token-card-fnc">
-                            <div class="token-icon" style="background:linear-gradient(135deg,#5B7B8C,#5B7B8C); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;"><i data-lucide="image"></i></div>
-                            <div class="token-info">
-                                <span class="token-name">FNC</span>
-                                <span class="token-desc" data-i18n="wallet.token.fnc">유틸리티 · 브릿지</span>
-                            </div>
-                            <strong class="token-balance" id="fnc-balance">0</strong>
-                        </div>
-                        <div class="token-card" onclick="selectToken('crfn')" id="token-card-crfn">
-                            <div class="token-icon" style="background:linear-gradient(135deg,#8B6914,#8B6914); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;"><i data-lucide="lock"></i></div>
-                            <div class="token-info">
-                                <span class="token-name">CRFN</span>
-                                <span class="token-desc" data-i18n="wallet.token.crfn">리워드 · 락인</span>
-                            </div>
-                            <strong class="token-balance" id="crfn-balance">0</strong>
-                        </div>
-                    </div>
-                    <button onclick="showSendModal()" class="btn-action" style="margin-top:0.5rem;" data-i18n="wallet.send_token"><i data-lucide="zap"></i> 선택한 토큰 전송</button>
-                </div>
-
-                <!-- <i data-lucide="flame"></i> 오프체인 유틸리티 포인트 -->
-                <div style="margin-bottom:1rem;">
-                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
-                        <span style="font-size:0.7rem; background:#F7F3ED; color:#C4841D; padding:0.2rem 0.6rem; border-radius:10px; font-weight:700;" data-i18n="wallet.offchain"><i data-lucide="flame"></i> OFF-CHAIN</span>
-                        <span style="font-size:0.75rem; color:var(--accent);" data-i18n="wallet.offchain_desc">Firebase · Zero-Gas · 즉시 처리</span>
-                        <span style="font-size:0.6rem; background:#F7F3ED; color:#5B7B8C; padding:0.15rem 0.5rem; border-radius:8px; margin-left:auto;" data-i18n="wallet.per_account"><i data-lucide="user"></i> 계정 공통</span>
-                    </div>
-                    <div style="font-size:0.7rem; color:var(--accent); margin-bottom:0.6rem; padding-left:0.2rem;" data-i18n="wallet.pegging_info"><i data-lucide="pin"></i> 100 포인트 = 1 CRNY 페깅</div>
-                    <div class="token-balances" style="grid-template-columns:1fr 1fr;">
-                        <div class="token-card offchain-card" onclick="selectToken('crtd')" id="token-card-crtd" style="border-left:3px solid #C4841D;">
-                            <div class="token-icon" style="background:linear-gradient(135deg,#C4841D,#FF9100); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:1rem;"><i data-lucide="trending-up" style="width:20px;height:20px;stroke-width:2;"></i></div>
-                            <div class="token-info">
-                                <span class="token-name">CRTD</span>
-                                <span class="token-desc" data-i18n="wallet.token.crtd">트레이딩</span>
-                            </div>
-                            <strong class="token-balance" id="crtd-balance">0</strong>
-                        </div>
-                        <div class="token-card offchain-card" onclick="selectToken('crac')" id="token-card-crac" style="border-left:3px solid #B54534;">
-                            <div class="token-icon" style="background:linear-gradient(135deg,#B54534,#B54534); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:1rem;"><i data-lucide="palette" style="width:20px;height:20px;stroke-width:2;"></i></div>
-                            <div class="token-info">
-                                <span class="token-name">CRAC</span>
-                                <span class="token-desc" data-i18n="wallet.token.crac">엔터테인먼트</span>
-                            </div>
-                            <strong class="token-balance" id="crac-balance">0</strong>
-                        </div>
-                        <div class="token-card offchain-card" onclick="selectToken('crgc')" id="token-card-crgc" style="border-left:3px solid #6B8F3C;">
-                            <div class="token-icon" style="background:linear-gradient(135deg,#6B8F3C,#00897B); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:1rem;"><i data-lucide="shopping-bag" style="width:20px;height:20px;stroke-width:2;"></i></div>
-                            <div class="token-info">
-                                <span class="token-name">CRGC</span>
-                                <span class="token-desc" data-i18n="wallet.token.crgc">커머스</span>
-                            </div>
-                            <strong class="token-balance" id="crgc-balance">0</strong>
-                        </div>
-                        <div class="token-card offchain-card" onclick="selectToken('creb')" id="token-card-creb" style="border-left:3px solid #6B8F3C;">
-                            <div class="token-icon" style="background:linear-gradient(135deg,#6B8F3C,#6B8F3C); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:1rem;"><i data-lucide="leaf" style="width:20px;height:20px;stroke-width:2;"></i></div>
-                            <div class="token-info">
-                                <span class="token-name">CREB</span>
-                                <span class="token-desc" data-i18n="wallet.token.creb">에코 · 바이오</span>
-                            </div>
-                            <strong class="token-balance" id="creb-balance">0</strong>
-                        </div>
-                    </div>
-                    <button onclick="showOffchainSendModal()" class="btn-action" style="margin-top:0.5rem; background:#8B6914; color:#FFF8F0;" data-i18n="wallet.send_offchain"><i data-lucide="zap"></i> 오프체인 포인트 전송</button>
-                </div>
-
-                <!-- <i data-lucide="refresh-cw"></i> 온-오프 브릿지 -->
-                <div style="background:#F7F3ED; padding:1rem; border-radius:10px; margin-bottom:1rem;">
-                    <h4 style="margin:0 0 0.5rem; font-size:0.9rem;" data-i18n="wallet.bridge_title"><i data-lucide="refresh-cw"></i> 온체인 ↔ 오프체인 브릿지</h4>
-                    <p style="font-size:0.75rem; color:var(--accent); margin-bottom:0.8rem;" data-i18n="wallet.bridge_desc">100 오프체인 포인트 = 1 CRNY 교환 비율</p>
-                    <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:0.5rem; align-items:end;">
-                        <div>
-                            <label style="font-size:0.75rem; color:var(--accent);" data-i18n="wallet.bridge_from">보내기</label>
-                            <select id="bridge-from" onchange="updateBridgePreview()" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; font-size:0.85rem;">
-                                <option value="crtd">CRTD (트레이딩)</option>
-                                <option value="crac">CRAC (엔터)</option>
-                                <option value="crgc">CRGC (커머스)</option>
-                                <option value="creb">CREB (에코)</option>
-                                <option value="crny">CRNY <i data-lucide="arrow-right"></i> 포인트</option>
-                            </select>
-                        </div>
-                        <span style="font-size:1.3rem; padding-bottom:0.4rem;">⇄</span>
-                        <div>
-                            <label style="font-size:0.75rem; color:var(--accent);" data-i18n="wallet.bridge_to">받기</label>
-                            <select id="bridge-to" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; font-size:0.85rem;">
-                                <option value="crny">CRNY</option>
-                            </select>
-                        </div>
-                    </div>
-                    <input type="number" id="bridge-amount" placeholder="수량" data-i18n-placeholder="placeholder.amount" oninput="updateBridgePreview()" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.5rem; box-sizing:border-box;">
-                    <div id="bridge-preview" style="font-size:0.8rem; color:#5B7B8C; font-weight:600; margin-top:0.4rem; text-align:center;"></div>
-                    <button onclick="executeBridge()" style="width:100%; padding:0.7rem; background:#3D2B1F; color:#FFF8F0; border:none; border-radius:8px; cursor:pointer; font-weight:700; margin-top:0.5rem;" data-i18n="wallet.bridge_exec"><i data-lucide="refresh-cw"></i> 브릿지 실행</button>
+                    <input type="text" id="send-memo" placeholder="메모 (선택)" style="padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem;">
+                    <button onclick="ctvmSendToken()" style="padding:0.7rem; background:#3D2B1F; color:#FFF8F0; border:none; border-radius:8px; cursor:pointer; font-weight:700; display:flex; align-items:center; justify-content:center; gap:0.4rem;"><i data-lucide="send" style="width:14px;height:14px;"></i> 전송</button>
                 </div>
             </div>
 
-            <!-- 쿠폰 사용 -->
-            <div style="background:linear-gradient(135deg,#FFF8F0,#FFF8F0); padding:1rem; border-radius:12px; margin-top:1rem; border:1px solid #ffcc80;">
-                <h4 style="margin:0 0 0.5rem; font-size:0.9rem;" data-i18n="wallet.coupon_title"><i data-lucide="ticket"></i> 쿠폰 사용</h4>
-                <div style="display:flex; gap:0.5rem;">
-                    <input type="text" id="coupon-code-input" placeholder="쿠폰 코드 입력" data-i18n-placeholder="wallet.coupon_placeholder" style="flex:1; padding:0.6rem; border:1px solid var(--border); border-radius:6px; font-size:0.85rem; text-transform:uppercase;">
-                    <button onclick="redeemCoupon()" style="padding:0.6rem 1rem; background:#8B6914; color:#FFF8F0; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.85rem;" data-i18n="wallet.coupon_use">사용</button>
+            <!-- 스왑 -->
+            <div style="background:#FFF8F0; padding:1.2rem; border-radius:12px; margin-bottom:1rem; box-shadow:0 2px 8px rgba(61,43,31,0.06);">
+                <h4 style="margin:0 0 0.8rem; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;"><i data-lucide="repeat" style="width:16px;height:16px;"></i> 스왑 (상향 전환)</h4>
+                <p style="font-size:0.75rem; color:var(--accent); margin-bottom:0.6rem;">100 CRM = 1 FNC · 10 FNC = 1 CRN</p>
+                <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:0.5rem; align-items:end;">
+                    <div>
+                        <label style="font-size:0.75rem; color:var(--accent);">보내기</label>
+                        <select id="swap-from" style="width:100%; padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem; background:#FFF8F0;">
+                            <option value="CRM">CRM (맘)</option>
+                            <option value="FNC">FNC (포네)</option>
+                        </select>
+                    </div>
+                    <span style="font-size:1.3rem; padding-bottom:0.4rem;">→</span>
+                    <div>
+                        <label style="font-size:0.75rem; color:var(--accent);">받기</label>
+                        <select id="swap-to" style="width:100%; padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem; background:#FFF8F0;">
+                            <option value="FNC">FNC (포네)</option>
+                            <option value="CRN">CRN (크라우니)</option>
+                        </select>
+                    </div>
                 </div>
-                <div id="coupon-result" style="font-size:0.8rem; margin-top:0.4rem; color:#C4841D;"></div>
+                <input type="number" id="swap-amount" placeholder="수량" style="width:100%; padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; margin-top:0.5rem; box-sizing:border-box; font-size:0.85rem;">
+                <button onclick="ctvmSwapToken()" style="width:100%; padding:0.7rem; background:#3D2B1F; color:#FFF8F0; border:none; border-radius:8px; cursor:pointer; font-weight:700; margin-top:0.5rem; display:flex; align-items:center; justify-content:center; gap:0.4rem;"><i data-lucide="repeat" style="width:14px;height:14px;"></i> 스왑 실행</button>
             </div>
-            
-            <!-- 소개자(레퍼럴) 시스템 -->
-            <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-top:1rem;">
-                <h3 style="margin-bottom:1rem;" data-i18n="wallet.referral_title"><i data-lucide="star"></i> 소개자 프로그램</h3>
-                <p id="referral-reward-desc" style="font-size:0.85rem; color:var(--accent); margin-bottom:1rem;">
-                    친구를 초대하면 가입 시 보상이 지급됩니다!
-                </p>
-                <div id="referral-info" style="background:var(--bg); padding:1rem; border-radius:8px; margin-bottom:1rem;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-                        <div>
-                            <span style="font-size:0.8rem; color:var(--accent);" data-i18n="wallet.referral_code">내 소개 코드</span>
-                            <div style="display:flex;align-items:center;gap:0.3rem;">
-                                <div id="my-referral-code" style="font-size:1.3rem; font-weight:700; color:var(--primary); letter-spacing:1px;">--</div>
-                                <button id="referral-nick-edit" onclick="editReferralNickname()" style="display:none;background:none;border:1px solid #E8E0D8;border-radius:4px;padding:0.1rem 0.3rem;cursor:pointer;font-size:0.65rem;" title="닉네임 변경"><i data-lucide="pencil" style="width:12px;height:12px;"></i></button>
-                            </div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:0.8rem; color:var(--accent);" data-i18n="wallet.referral_friends">초대한 친구</div>
-                            <div id="my-referral-count" style="font-size:1.2rem; font-weight:700;">0명</div>
-                        </div>
-                    </div>
-                    <!-- 7개 토큰별 누적 보상 -->
-                    <div style="margin-top:0.8rem; display:grid; grid-template-columns:repeat(auto-fill, minmax(85px, 1fr)); gap:0.4rem;">
-                        <div style="background:#FFF8F0; padding:0.4rem; border-radius:6px; text-align:center;">
-                            <div style="font-size:0.65rem; color:var(--accent);"><i data-lucide="crown"></i> CRNY</div>
-                            <div id="referral-earn-crny" style="font-weight:700;font-size:0.9rem;">0</div>
-                        </div>
-                        <div style="background:#FFF8F0; padding:0.4rem; border-radius:6px; text-align:center;">
-                            <div style="font-size:0.65rem; color:var(--accent);"><i data-lucide="image"></i> FNC</div>
-                            <div id="referral-earn-fnc" style="font-weight:700;font-size:0.9rem;">0</div>
-                        </div>
-                        <div style="background:#FFF8F0; padding:0.4rem; border-radius:6px; text-align:center;">
-                            <div style="font-size:0.65rem; color:var(--accent);"><i data-lucide="lock"></i> CRFN</div>
-                            <div id="referral-earn-crfn" style="font-weight:700;font-size:0.9rem;">0</div>
-                        </div>
-                        <div style="background:#FFF8F0; padding:0.4rem; border-radius:6px; text-align:center;">
-                            <div style="font-size:0.65rem; color:#C4841D;"><i data-lucide="trending-up" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> CRTD</div>
-                            <div id="referral-earn-crtd" style="font-weight:700;font-size:0.9rem;">0</div>
-                        </div>
-                        <div style="background:#FFF8F0; padding:0.4rem; border-radius:6px; text-align:center;">
-                            <div style="font-size:0.65rem; color:#B54534;"><i data-lucide="theater"></i> CRAC</div>
-                            <div id="referral-earn-crac" style="font-weight:700;font-size:0.9rem;">0</div>
-                        </div>
-                        <div style="background:#FFF8F0; padding:0.4rem; border-radius:6px; text-align:center;">
-                            <div style="font-size:0.65rem; color:#6B8F3C;"><i data-lucide="shopping-cart"></i> CRGC</div>
-                            <div id="referral-earn-crgc" style="font-weight:700;font-size:0.9rem;">0</div>
-                        </div>
-                        <div style="background:#FFF8F0; padding:0.4rem; border-radius:6px; text-align:center;">
-                            <div style="font-size:0.65rem; color:#6B8F3C;"><i data-lucide="leaf"></i> CREB</div>
-                            <div id="referral-earn-creb" style="font-weight:700;font-size:0.9rem;">0</div>
-                        </div>
-                    </div>
-                    <!-- 대기 중 보상 (v13: 비활성화 — 회원가입 즉시 지급으로 변경) -->
-                    <div id="referral-pending-rewards" style="display:none;"></div>
-                </div>
-                <div style="display:flex; gap:0.5rem;">
-                    <button onclick="generateReferralCode()" class="btn-primary" style="flex:1; background:#3D2B1F; color:#FFF8F0;" data-i18n="wallet.referral_generate"><i data-lucide="paperclip"></i> 소개 코드 생성</button>
-                    <button onclick="copyReferralCode()" class="btn-secondary" style="flex:1;" data-i18n="wallet.referral_copy">내 주문 코드 복사</button>
+
+            <!-- 최근 거래 -->
+            <div style="margin-top:1rem;">
+                <h4 style="margin:0 0 0.6rem; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;"><i data-lucide="list" style="width:16px;height:16px;"></i> 최근 거래</h4>
+                <div id="wallet-transactions" style="max-height:300px; overflow-y:auto;">
+                    <p style="color:var(--accent); font-size:0.85rem; text-align:center; padding:1rem;">거래 내역이 없습니다.</p>
                 </div>
             </div>
         </section>
@@ -829,6 +929,7 @@
                     <div id="chat-crmm-wrap" class="crny-chat-crmm" style="display:none">
                         <span style="font-size:0.8rem;color:#8B6914;font-weight:600">CRM</span>
                         <input type="number" id="chat-crmm" placeholder="0" min="1" max="100" style="width:60px;padding:6px 8px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.85rem;text-align:center;background:#FFF8F0">
+                        <span id="chat-crmm-balance" style="font-size:0.75rem;color:#7A5C47;margin-left:auto"></span>
                     </div>
                     <div id="chat-input-area" class="crny-chat-input" style="display:none">
                         <button onclick="chatToggleCrmm()" class="crny-btn-tip" title="CRM 팁 보내기">C</button>
@@ -880,12 +981,12 @@
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <label for="post-image" style="display:flex; align-items:center; gap:0.3rem; padding:0.4rem 0.8rem; background:var(--bg); border-radius:20px; cursor:pointer; font-size:0.85rem; border:1px solid var(--border);"><i data-lucide="camera" style="width:14px;height:14px;"></i> <span data-i18n="social.photo">사진</span></label>
                     <input type="file" id="post-image" accept="image/*" multiple style="display:none;">
-                    <label for="post-video" style="display:flex; align-items:center; gap:0.3rem; padding:0.4rem 0.8rem; background:var(--bg); border-radius:20px; cursor:pointer; font-size:0.85rem; border:1px solid var(--border);"><i data-lucide="clapperboard"></i> 영상</label>
+                    <label for="post-video" style="display:flex; align-items:center; gap:0.3rem; padding:0.4rem 0.8rem; background:var(--bg); border-radius:20px; cursor:pointer; font-size:0.85rem; border:1px solid var(--border);"><i data-lucide="clapperboard" style="width:14px;height:14px;"></i> <span data-i18n="social.video">영상</span></label>
                     <input type="file" id="post-video" accept="video/mp4,video/quicktime,video/webm" style="display:none;">
-                    <button onclick="showServiceLinkModal()" style="display:flex; align-items:center; gap:0.3rem; padding:0.4rem 0.8rem; background:var(--bg); border-radius:20px; cursor:pointer; font-size:0.85rem; border:1px solid var(--border);"><i data-lucide="link"></i> 서비스 연결</button>
-                    <div style="display:flex;align-items:center;gap:0.3rem;padding:0.4rem 0.8rem;background:var(--bg);border-radius:20px;border:1px solid var(--border);"><i data-lucide="map-pin" style="width:14px;height:14px;flex-shrink:0;"></i><input type="text" id="post-location" placeholder="위치 태그" style="border:none;background:none;font-size:0.8rem;width:80px;outline:none;"></div>
+                    <button onclick="showServiceLinkModal()" style="display:flex; align-items:center; gap:0.3rem; padding:0.4rem 0.8rem; background:var(--bg); border-radius:20px; cursor:pointer; font-size:0.85rem; border:1px solid var(--border);"><i data-lucide="link" style="width:14px;height:14px;"></i> <span data-i18n="social.service_link">서비스 연결</span></button>
+                    <div style="display:flex;align-items:center;gap:0.3rem;padding:0.4rem 0.8rem;background:var(--bg);border-radius:20px;border:1px solid var(--border);font-size:0.85rem;"><i data-lucide="map-pin" style="width:14px;height:14px;flex-shrink:0;"></i><input type="text" id="post-location" placeholder="위치 태그" data-i18n-placeholder="social.location_tag" style="border:none;background:none;font-size:0.85rem;width:80px;outline:none;"></div>
                     <span id="post-image-name" style="font-size:0.75rem; color:var(--accent); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
-                    <button onclick="createPost()" style="padding:0.4rem 0.8rem; border-radius:20px; font-size:0.85rem; background:#3D2B1F; color:#FFF8F0; border:none; cursor:pointer; display:flex; align-items:center; gap:0.3rem;"><i data-lucide="send" style="width:14px;height:14px;"></i> <span data-i18n="social.post_btn">게시</span></button>
+                    <button onclick="createPost()" style="padding:0.5rem 1rem; border-radius:20px; font-size:0.85rem; font-weight:700; background:#B8860B; color:#FFF8F0; border:none; cursor:pointer; display:flex; align-items:center; gap:0.3rem;"><i data-lucide="send" style="width:14px;height:14px;"></i> <span data-i18n="social.post_btn">게시</span></button>
                 </div>
                 <div id="post-video-preview" style="display:none; margin-top:0.5rem;"></div>
                 <div id="post-service-link-preview" style="display:none; margin-top:0.5rem;"></div>
@@ -2342,7 +2443,13 @@
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-        toast.textContent = message;
+        // HTML 아이콘 태그 지원 (lucide <i> 등)
+        if (message.includes('<')) {
+            toast.innerHTML = message;
+            if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [toast] });
+        } else {
+            toast.textContent = message;
+        }
         container.appendChild(toast);
         setTimeout(() => {
             toast.classList.add('fadeout');
@@ -2409,7 +2516,8 @@
     <script src="/js/care.js?v=23.4" defer></script>
     <script src="/js/ai-assistant.js?v=25.0" defer></script>
     <script src="/js/ai-social.js?v=24.2" defer></script>
-    <script src="/js/translate.js?v=23.4" defer></script>
+    <script src="/js/translate.js?v=24.0" defer></script>
+    <script src="/js/cif.js?v=24.0" defer></script>
     <script src="/js/seed-data.js?v=23.4" defer></script>
     <script src="/js/artist.js?v=23.4" defer></script>
     <script src="/js/business.js?v=23.4" defer></script>
@@ -2477,25 +2585,25 @@
     <!-- ===== BOTTOM TAB BAR (Mobile) ===== -->
     <nav class="bottom-tab-bar" id="bottom-tab-bar">
         <div class="bottom-tab-bar-inner">
-            <button class="bottom-tab-item" onclick="showPage('today')" data-page="today">
-                <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
-                <span>홈</span>
+            <button class="bottom-tab-item" onclick="showPage('contacts-crm')" data-page="contacts-crm">
+                <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                <span>연락처</span>
             </button>
-            <button class="bottom-tab-item" onclick="showPage('social')" data-page="social">
-                <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
-                <span>소셜</span>
+            <button class="bottom-tab-item" onclick="showPage('messenger')" data-page="messenger">
+                <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span>
+                <span>채팅</span>
             </button>
             <button class="bottom-tab-item create-btn" onclick="showCreatePostModal()" data-page="create">
                 <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
                 <span></span>
             </button>
+            <button class="bottom-tab-item" onclick="showPage('bible-quiz')" data-page="bible-quiz">
+                <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="m9 9.5 2 2 4-4"/></svg></span>
+                <span>퀴즈</span>
+            </button>
             <button class="bottom-tab-item" onclick="showPage('wallet')" data-page="wallet">
                 <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg></span>
                 <span>지갑</span>
-            </button>
-            <button class="bottom-tab-item" onclick="showPage('messenger')" data-page="messenger">
-                <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span>
-                <span>채팅</span>
             </button>
         </div>
     </nav>
@@ -2603,10 +2711,10 @@
                     localStorage.setItem('crowny_token', ctvmToken);
                     localStorage.setItem('ctvm_token', ctvmToken);
                     const profile = await ctvmApi('/profile');
-                    if (!profile.error) ctvmMe = profile;
+                    if (!profile.error) { ctvmMe = profile; window.ctvmMe = profile; }
                     if (ctvmMe?.isAdmin) {
-                        const el = document.getElementById('crowny-admin-nav');
-                        if (el) el.style.display = '';
+                        const el = document.getElementById('admin-nav-item');
+                        if (el) el.style.display = 'block';
                     }
                     console.log('[CrownyTVM] 자동 로그인:', username);
                 }
@@ -2614,23 +2722,33 @@
         }
     }
 
-    // Hook into Firebase auth state
-    if (window.auth) {
-        window.auth.onAuthStateChanged(user => {
-            if (user) setTimeout(ctvmAutoLogin, 1000);
-            else { ctvmToken = null; ctvmMe = null; localStorage.removeItem('ctvm_token'); localStorage.removeItem('crowny_token'); }
-        });
+    // CrownyTVM 독립 모드: Firebase auth 불필요, 토큰으로 직접 초기화
+    const savedToken = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    if (savedToken) {
+        ctvmToken = savedToken;
+        ctvmApi('/profile').then(profile => {
+            if (profile && !profile.error) {
+                ctvmMe = profile;
+                window.ctvmMe = profile;
+                if (ctvmMe.isAdmin) {
+                    const el = document.getElementById('admin-nav-item');
+                    if (el) el.style.display = 'block';
+                }
+                console.log('[CrownyTVM] 프로필 로드:', ctvmMe.username);
+            }
+        }).catch(e => console.warn('[CrownyTVM] 프로필 로드 실패:', e.message));
     }
 
     // ═══ Extend showPage for CrownyTVM pages ═══
-    const ctvmPages = ['bible-quiz','crowny-mail','contacts-crm','hanseon-vm','crowny-admin','messenger'];
+    const ctvmPages = ['bible-quiz','crowny-mail','contacts-crm','hanseon-vm','crowny-admin','messenger','wallet'];
     const ctvmLoaders = {
         'bible-quiz': () => ctvmLoadQuiz(),
         'crowny-mail': () => ctvmLoadMail(),
         'contacts-crm': () => ctvmLoadContacts(),
         'hanseon-vm': () => ctvmLoadHanseon(),
         'crowny-admin': () => ctvmLoadAdmin(),
-        'messenger': () => { if (typeof chatInit === 'function') chatInit(); }
+        'messenger': () => { if (typeof chatInit === 'function') chatInit(); },
+        'wallet': () => { if (typeof ctvmLoadWallet === 'function') ctvmLoadWallet(); }
     };
 
     // showPage를 직접 오버라이드 (타이밍 문제 방지)
@@ -2790,25 +2908,61 @@
 
     // ═══ Contacts CRM ═══
     async function ctvmLoadContacts() {
-        ctvmToken = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        ctvmToken = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token') || ctvmToken;
         if(!ctvmToken){document.getElementById('ctvm-contacts-area').innerHTML='<p style="text-align:center;padding:2rem;color:#7A5C47">CrownyTVM 로그인 필요</p>';return;}
         const contacts=await ctvmApi('/contacts');
         const list=Array.isArray(contacts)?contacts:[];
         document.getElementById('ctvm-contact-count').textContent=list.length+'명의 연락처';
         const area=document.getElementById('ctvm-contacts-area');
         if(list.length===0){area.innerHTML='<div style="padding:40px;text-align:center;color:#7A5C47"><p>연락처가 없습니다</p><button onclick="ctvmShowAddContact()" style="margin-top:12px;padding:10px 24px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer">추가하기</button></div>';return;}
-        area.innerHTML=list.map(c=>{const color=ctvmColor(c.name);const sub=[c.company,c.position].filter(Boolean).join(' / ')||c.phone||'';const grp=c.group?`<span style="font-size:0.7rem;background:#FFF3E6;color:#7A5C47;padding:2px 8px;border-radius:4px;margin-left:6px">${ctvmEsc(c.group)}</span>`:'';const chatBtn=c.isUser?`<button onclick="event.stopPropagation();if(typeof showPage==='function'){showPage('messenger')}" style="padding:6px 14px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;white-space:nowrap">대화</button>`:`<span style="font-size:0.7rem;color:#A08060">외부</span>`;return`<div class="ctvm-contact-card"><div class="ctvm-avatar" style="background:${color}">${ctvmInitial(c.name)}</div><div style="flex:1;min-width:0"><div style="font-size:0.95rem;font-weight:600;color:#3D2B1F">${ctvmEsc(c.name)}${grp}</div><div style="font-size:0.8rem;color:#7A5C47;margin-top:2px">${ctvmEsc(sub)}</div></div>${chatBtn}</div>`}).join('');
+        // 연락처 목록을 window._ctvmContacts에 저장 (상세보기용)
+        window._ctvmContacts = list;
+        area.innerHTML=list.map((c,idx)=>{const color=ctvmColor(c.name);const sub=[c.company,c.position].filter(Boolean).join(' / ')||c.phone||'';const grp=c.group?`<span style="font-size:0.7rem;background:#FFF3E6;color:#7A5C47;padding:2px 8px;border-radius:4px;margin-left:6px">${ctvmEsc(c.group)}</span>`:'';const chatBtn=c.isUser?`<button onclick="event.stopPropagation();if(typeof chatNewDmWith==='function')chatNewDmWith('${c.crownyUsername||''}');if(typeof showPage==='function')showPage('messenger')" style="padding:6px 14px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;white-space:nowrap">대화</button>`:`<span style="font-size:0.7rem;color:#A08060">외부</span>`;return`<div class="ctvm-contact-card" onclick="ctvmShowContactDetail(${idx})" style="cursor:pointer"><div class="ctvm-avatar" style="background:${color}">${ctvmInitial(c.name)}</div><div style="flex:1;min-width:0"><div style="font-size:0.95rem;font-weight:600;color:#3D2B1F">${ctvmEsc(c.name)}${grp}</div><div style="font-size:0.8rem;color:#7A5C47;margin-top:2px">${ctvmEsc(sub)}</div></div>${chatBtn}</div>`}).join('');
     }
 
     function ctvmShowAddContact() {
         const area=document.getElementById('ctvm-contacts-area');
-        area.innerHTML=`<div style="background:#fff;border-radius:10px;padding:16px;border:1px solid rgba(139,105,20,.12);margin-bottom:16px"><h4 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:#3D2B1F">연락처 추가</h4><input id="ctvm-cf-name" placeholder="이름 *" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><input id="ctvm-cf-phone" placeholder="전화번호" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><input id="ctvm-cf-email" placeholder="이메일" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><input id="ctvm-cf-company" placeholder="회사" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><select id="ctvm-cf-group" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><option value="">그룹 선택...</option><option>가족</option><option>친구</option><option>직장</option><option>고객</option><option>거래처</option><option>교회</option><option>기타</option></select><div style="display:flex;gap:8px;justify-content:flex-end"><button onclick="ctvmLoadContacts()" style="padding:10px 20px;background:#F7F3ED;border:none;border-radius:8px;font-size:0.9rem;cursor:pointer">취소</button><button onclick="ctvmAddContact()" style="padding:10px 20px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer">저장</button></div></div>`;
+        area.innerHTML=`<div style="background:#fff;border-radius:10px;padding:16px;border:1px solid rgba(139,105,20,.12);margin-bottom:16px"><h4 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:#3D2B1F">연락처 추가</h4><input id="ctvm-cf-name" placeholder="이름 *" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><input id="ctvm-cf-phone" placeholder="전화번호" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><input id="ctvm-cf-email" placeholder="이메일" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><div style="position:relative;margin-bottom:8px"><input id="ctvm-cf-crowny" placeholder="크라우니 아이디 (선택)" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;background:#FFF8F0" oninput="ctvmSearchContactUser(this.value)"><div id="ctvm-cf-crowny-results" style="position:absolute;top:100%;left:0;right:0;z-index:10;background:#fff;border:1px solid #E8E0D8;border-radius:8px;max-height:150px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div></div><input id="ctvm-cf-company" placeholder="회사" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><select id="ctvm-cf-group" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><option value="">그룹 선택...</option><option>가족</option><option>친구</option><option>직장</option><option>고객</option><option>거래처</option><option>교회</option><option>기타</option></select><div style="display:flex;gap:8px;justify-content:flex-end"><button onclick="ctvmLoadContacts()" style="padding:10px 20px;background:#F7F3ED;border:none;border-radius:8px;font-size:0.9rem;cursor:pointer">취소</button><button onclick="ctvmAddContact()" style="padding:10px 20px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer">저장</button></div></div>`;
     }
+
+    let _cfSearchTimer=null;
+    async function ctvmSearchContactUser(q) {
+        clearTimeout(_cfSearchTimer);
+        const box=document.getElementById('ctvm-cf-crowny-results');
+        if(!box) return;
+        q=q.trim();
+        if(q.length<1){box.style.display='none';return;}
+        _cfSearchTimer=setTimeout(async()=>{
+            const token=ctvmToken||localStorage.getItem('crowny_token')||localStorage.getItem('ctvm_token');
+            try{
+                const r=await fetch('/api/users/search?q='+encodeURIComponent(q),{headers:{'Authorization':'Bearer '+token}});
+                const users=await r.json();
+                if(!Array.isArray(users)||users.length===0){box.style.display='none';return;}
+                box.style.display='block';
+                box.innerHTML=users.map(u=>`<div style="padding:8px 12px;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #F0E8DC;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#F7F3ED'" onmouseout="this.style.background=''" onclick="ctvmPickContactUser('${u.username}','${(u.displayName||u.username).replace(/'/g,'\\&#39;')}')"><div style="width:28px;height:28px;border-radius:50%;background:#8B6914;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;flex-shrink:0">${(u.username[0]||'?').toUpperCase()}</div><div><span style="font-weight:600;color:#3D2B1F">${u.displayName||u.username}</span> <span style="color:#7A5C47">@${u.username}</span></div></div>`).join('');
+            }catch{box.style.display='none';}
+        },300);
+    }
+    function ctvmPickContactUser(username,displayName) {
+        const inp=document.getElementById('ctvm-cf-crowny');
+        if(inp)inp.value=username;
+        const box=document.getElementById('ctvm-cf-crowny-results');
+        if(box)box.style.display='none';
+        // 이름이 비어있으면 자동 채우기
+        const nameInp=document.getElementById('ctvm-cf-name');
+        if(nameInp&&!nameInp.value.trim())nameInp.value=displayName;
+        // 이메일 자동 채우기
+        const emailInp=document.getElementById('ctvm-cf-email');
+        if(emailInp&&!emailInp.value.trim())emailInp.value=username+'@crowny.org';
+    }
+    window.ctvmSearchContactUser=ctvmSearchContactUser;
+    window.ctvmPickContactUser=ctvmPickContactUser;
 
     async function ctvmAddContact() {
         const name=document.getElementById('ctvm-cf-name').value.trim();
         if(!name){showToast('이름을 입력하세요','error');return;}
-        await ctvmApi('/contacts',{method:'POST',body:{name,phone:document.getElementById('ctvm-cf-phone').value.trim(),email:document.getElementById('ctvm-cf-email').value.trim(),company:document.getElementById('ctvm-cf-company').value.trim(),group:document.getElementById('ctvm-cf-group').value,relation:1}});
+        const crownyId=(document.getElementById('ctvm-cf-crowny')||{}).value||'';
+        await ctvmApi('/contacts',{method:'POST',body:{name,phone:document.getElementById('ctvm-cf-phone').value.trim(),email:document.getElementById('ctvm-cf-email').value.trim(),company:document.getElementById('ctvm-cf-company').value.trim(),group:document.getElementById('ctvm-cf-group').value,relation:1,crownyUsername:crownyId.trim()}});
         showToast('연락처 추가됨','success');
         ctvmLoadContacts();
     }
@@ -2889,6 +3043,63 @@
     window.ctvmLoadContacts = ctvmLoadContacts;
     window.ctvmShowAddContact = ctvmShowAddContact;
     window.ctvmAddContact = ctvmAddContact;
+    window.ctvmShowContactDetail = function(idx) {
+        const c = (window._ctvmContacts || [])[idx];
+        if (!c) return;
+        const name = c.name || '?';
+        const fields = [
+            { icon: 'phone', label: '전화', value: c.phone },
+            { icon: 'mail', label: '이메일', value: c.email },
+            { icon: 'building-2', label: '회사', value: c.company },
+            { icon: 'briefcase', label: '직책', value: c.position },
+            { icon: 'map-pin', label: '주소', value: c.address },
+            { icon: 'cake', label: '생일', value: c.birthday },
+            { icon: 'tag', label: '그룹', value: c.group },
+            { icon: 'sticky-note', label: '메모', value: c.notes },
+        ].filter(f => f.value);
+        let modal = document.getElementById('ctvm-contact-detail');
+        if (modal) modal.remove();
+        modal = document.createElement('div');
+        modal.id = 'ctvm-contact-detail';
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;';
+        modal.onclick = e => { if (e.target === modal) modal.remove(); };
+        const color = ctvmColor(name);
+        modal.innerHTML = `<div style="background:#F7F3ED;padding:1.5rem;border-radius:16px;max-width:400px;width:100%;color:#3D2B1F;">
+            <div style="text-align:center;margin-bottom:1rem;">
+                <div style="width:64px;height:64px;border-radius:50%;background:${color};color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;margin:0 auto 8px;">${ctvmInitial(name)}</div>
+                <h3 style="margin:0;font-size:1.1rem;">${ctvmEsc(name)}</h3>
+                ${c.isUser ? '<span style="font-size:0.75rem;color:#6B8F3C;">Crowny 회원</span>' : '<span style="font-size:0.75rem;color:#7A5C47;">외부</span>'}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:1rem;">
+                ${fields.map(f => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F0E8DC;">
+                    <i data-lucide="${f.icon}" style="width:16px;height:16px;color:#7A5C47;flex-shrink:0;"></i>
+                    <div><div style="font-size:0.7rem;color:#7A5C47;">${f.label}</div><div style="font-size:0.9rem;">${ctvmEsc(f.value)}</div></div>
+                </div>`).join('')}
+            </div>
+            <div style="display:flex;gap:8px;">
+                ${c.crownyUsername ? `<button onclick="if(typeof chatNewDmWith==='function')chatNewDmWith('${c.crownyUsername}');document.getElementById('ctvm-contact-detail').remove();showPage('messenger')" style="flex:1;padding:0.5rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;"><i data-lucide="message-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>채팅</button>` : ''}
+                <button onclick="ctvmDeleteContact(${c.id})" style="flex:1;padding:0.5rem;border:1px solid #c0392b;border-radius:8px;background:none;color:#c0392b;cursor:pointer;font-weight:600;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>삭제</button>
+                <button onclick="document.getElementById('ctvm-contact-detail').remove()" style="flex:1;padding:0.5rem;border:1px solid #E8E0D8;border-radius:8px;background:none;cursor:pointer;">닫기</button>
+            </div>
+        </div>`;
+        document.body.appendChild(modal);
+        if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [modal] });
+    };
+    window.ctvmDeleteContact = async function(contactId) {
+        const dm = document.getElementById('ctvm-contact-detail');
+        if (dm) dm.remove();
+        if (typeof showConfirmModal === 'function') {
+            if (!await showConfirmModal('연락처 삭제', '이 연락처를 삭제하시겠습니까?')) return;
+        }
+        const token = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        try {
+            const r = await fetch('/api/contacts/' + contactId, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+            const data = await r.json();
+            if (data.error) throw new Error(data.error);
+            showToast('연락처 삭제됨', 'success');
+            ctvmLoadContacts();
+        } catch(e) { showToast('삭제 실패: ' + e.message, 'error'); }
+    };
     window.ctvmRunHs = ctvmRunHs;
     window.ctvmDisHs = ctvmDisHs;
     window.ctvmLoadHsExample = ctvmLoadHsExample;

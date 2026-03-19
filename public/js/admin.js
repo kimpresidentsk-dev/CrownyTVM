@@ -1,7 +1,7 @@
 // ===== admin.js - 관리자 패널 (레벨/탭/오프체인/온체인/챌린지/회원/기부풀/로그) =====
 // ========== ADMIN FUNCTIONS ==========
 async function loadTransferRequests() {
-    if (currentUser.email !== 'kim.president.sk@gmail.com') return;
+    if (currentUser.email !== 'kps@crowny.org') return;
     
     const requests = await db.collection('transfer_requests')
         .where('status', '==', 'pending')
@@ -17,7 +17,7 @@ async function loadTransferRequests() {
 }
 
 async function adminMintTokens() {
-    if (currentUser.email !== 'kim.president.sk@gmail.com') {
+    if (currentUser.email !== 'kps@crowny.org') {
         showToast(t('admin.admin_only','관리자만 사용 가능합니다'), 'error');
         return;
     }
@@ -74,7 +74,7 @@ async function adminMintTokens() {
 // 레벨 0: 정회원
 // 레벨 -1: 일반회원
 
-const SUPER_ADMIN_EMAIL = 'kim.president.sk@gmail.com';
+const SUPER_ADMIN_EMAIL = 'kps@crowny.org';
 const ADMIN_EMAIL = SUPER_ADMIN_EMAIL; // 하위 호환
 
 const ADMIN_LEVELS = {
@@ -91,45 +91,50 @@ const ADMIN_LEVELS = {
 // 현재 사용자 레벨 캐시
 let currentUserLevel = -1;
 
-// 사용자 레벨 로드 (Firestore에서)
+// 사용자 레벨 로드 (CrownyTVM 서버 API)
 async function loadUserLevel() {
     if (!currentUser) { currentUserLevel = -1; return; }
-    
-    // 수퍼관리자는 항상 레벨 6
+
+    // ctvmMe에 isAdmin이 있으면 서버 API 기반으로 판단
+    if (window.ctvmMe && window.ctvmMe.isAdmin) {
+        currentUserLevel = 6;
+        console.log('[Admin] 서버 API isAdmin=true → 레벨 6 (수퍼관리자)');
+        return;
+    }
+
+    // 수퍼관리자 이메일 체크
     if (currentUser.email === SUPER_ADMIN_EMAIL) {
         currentUserLevel = 6;
         return;
     }
-    
+
+    // 서버 프로필에서 관리자 여부 확인
     try {
-        console.log('[Admin] 사용자 레벨 로딩 시작:', currentUser.email);
-        if (!window.db) {
-            console.error('[Admin] Firestore DB가 초기화되지 않음');
-            currentUserLevel = -1;
-            return;
-        }
-        
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        if (userDoc.exists) {
-            currentUserLevel = userDoc.data().adminLevel ?? -1;
-            console.log('[Admin] 사용자 레벨 로드 성공:', currentUserLevel);
-        } else {
-            console.log('[Admin] 사용자 문서 없음, 기본 레벨 적용');
-            currentUserLevel = -1;
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        if (token) {
+            const res = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + token } });
+            const profile = await res.json();
+            if (profile && !profile.error && profile.isAdmin) {
+                currentUserLevel = 6;
+                console.log('[Admin] 서버 프로필 isAdmin=true → 레벨 6');
+                return;
+            }
         }
     } catch (e) {
-        console.error('[Admin] 레벨 로드 실패 - 기본값으로 복원:', e);
-        currentUserLevel = -1;
-        currentUserLevel = -1;
+        console.error('[Admin] 레벨 로드 실패:', e);
     }
+
+    currentUserLevel = -1;
 }
 
 // 권한 체크 함수들
 function isAdmin() {
+    if (window.ctvmMe && window.ctvmMe.isAdmin) return true;
     return currentUserLevel >= 1;
 }
 
 function isSuperAdmin() {
+    if (window.ctvmMe && window.ctvmMe.isAdmin) return true;
     return currentUserLevel >= 6;
 }
 
@@ -2417,16 +2422,17 @@ async function loadAdminLog() {
 // ========== PROP TRADING ==========
 async function loadPropTrading() {
     const container = document.getElementById('trading-challenges');
+    if (!container) return;
     container.innerHTML = '<p style="text-align:center; padding:2rem;">로딩 중...</p>';
-    
+
     try {
-        const challenges = await db.collection('prop_challenges')
-            .where('status', '==', 'active')
-            .get();
-        
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const res = await fetch('/api/challenges', { headers: token ? { 'Authorization': 'Bearer ' + token } : {} });
+        const challengeList = await res.json();
+
         container.innerHTML = '';
-        
-        if (challenges.empty) {
+
+        if (!challengeList || challengeList.length === 0) {
             container.innerHTML = `
                 <div style="text-align:center; padding:3rem; color:var(--accent);">
                     <p style="font-size:3rem; margin-bottom:1rem;"><i data-lucide="bar-chart-3" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></p>
@@ -2435,9 +2441,8 @@ async function loadPropTrading() {
             `;
             return;
         }
-        
-        for (const doc of challenges.docs) {
-            const ch = doc.data();
+
+        for (const ch of challengeList) {
             const tiers = ch.tiers || {};
             const tierKeys = Object.keys(tiers).sort();
             
@@ -2455,7 +2460,7 @@ async function loadPropTrading() {
                             <i data-lucide="trending-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> +$${(t.profitThreshold||1000).toLocaleString()}~ → CRTD<br>
                             <i data-lucide="gem" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${(t.withdrawUnit||1000).toLocaleString()} 단위 인출
                         </div>
-                        <button onclick="joinChallenge('${doc.id}','${key}')" class="btn-primary" style="width:100%; margin-top:0.5rem; padding:0.6rem; font-size:0.9rem;">
+                        <button onclick="joinChallenge('${ch.id}','${key}')" class="btn-primary" style="width:100%; margin-top:0.5rem; padding:0.6rem; font-size:0.9rem;">
                             <i data-lucide="rocket" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${key}군 참가
                         </button>
                     </div>
@@ -2504,13 +2509,13 @@ async function showCreateChallenge() {
     }
     
     const formHTML = `
-        <div id="create-challenge-form" style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-top:1rem; border:2px solid var(--accent);">
+        <div id="create-challenge-form" style="background:#FFF8F0; padding:1rem; border-radius:12px; margin-top:1rem; border:2px solid var(--accent); box-sizing:border-box; max-width:100%; overflow:hidden;">
             <h3 style="margin-bottom:1rem;"><i data-lucide="plus-circle" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> CRTD 프랍 챌린지 생성</h3>
-            
+
             <div style="display:grid; gap:0.8rem;">
                 <div>
                     <label style="font-size:0.85rem; font-weight:600;">챌린지 이름</label>
-                    <input type="text" id="ch-name" value="교육게임 v1" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem;">
+                    <input type="text" id="ch-name" value="교육게임 v1" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem; box-sizing:border-box;">
                 </div>
                 
                 <!-- ★ 티어 설정 -->
@@ -2571,7 +2576,7 @@ async function showCreateChallenge() {
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
                     <div>
                         <label style="font-size:0.85rem; font-weight:600;"><i data-lucide="bar-chart-3" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 상품 제한</label>
-                        <select id="ch-product" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem;">
+                        <select id="ch-product" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem; box-sizing:border-box;">
                             <option value="MNQ">MNQ (마이크로) 전용</option>
                             <option value="NQ">NQ (미니) 전용</option>
                             <option value="BOTH">MNQ + NQ 모두</option>
@@ -2579,29 +2584,29 @@ async function showCreateChallenge() {
                     </div>
                     <div>
                         <label style="font-size:0.85rem; font-weight:600;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 최대 계약 수</label>
-                        <input type="number" id="ch-max-contracts" value="1" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem;">
+                        <input type="number" id="ch-max-contracts" value="1" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem; box-sizing:border-box;">
                     </div>
                 </div>
                 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
                     <div>
                         <label style="font-size:0.85rem; font-weight:600;">🔴 일일 손실 한도 ($)</label>
-                        <input type="number" id="ch-daily-limit" value="500" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem;">
+                        <input type="number" id="ch-daily-limit" value="500" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem; box-sizing:border-box;">
                     </div>
                     <div>
                         <label style="font-size:0.85rem; font-weight:600;"><i data-lucide="trending-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 최대 동시 포지션</label>
-                        <input type="number" id="ch-max-positions" value="5" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem;">
+                        <input type="number" id="ch-max-positions" value="5" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem; box-sizing:border-box;">
                     </div>
                 </div>
                 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
                     <div>
                         <label style="font-size:0.85rem; font-weight:600;">⏳ 기간 (일)</label>
-                        <input type="number" id="ch-duration" value="30" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem;">
+                        <input type="number" id="ch-duration" value="30" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem; box-sizing:border-box;">
                     </div>
                     <div>
                         <label style="font-size:0.85rem; font-weight:600;"><i data-lucide="clock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 정산</label>
-                        <select id="ch-settlement" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem;">
+                        <select id="ch-settlement" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem; box-sizing:border-box;">
                             <option value="EOD">EOD (End of Day)</option>
                             <option value="WEEKLY">주간</option>
                             <option value="MONTHLY">월간</option>
@@ -2677,11 +2682,18 @@ async function submitCreateChallenge() {
             createdAt: new Date()
         };
         
-        await db.collection('prop_challenges').add(challengeData);
-        
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/challenges', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(challengeData)
+        });
+        const result = await resp.json();
+        if (result.error) { showToast(result.error, 'error'); return; }
+
         const tierSummary = Object.entries(tiers).map(([k,v]) => `${k}군=${v.deposit}CRTD`).join(', ');
-        showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 챌린지 생성 완료!\n\n${name}\n티어: ${tierSummary}\n상품: ${challengeData.allowedProduct}`, 'success');
-        
+        showToast(`챌린지 생성 완료! ${name} / 티어: ${tierSummary}`, 'success');
+
         document.getElementById('create-challenge-form')?.remove();
         loadPropTrading();
     } catch (error) {
@@ -2690,128 +2702,29 @@ async function submitCreateChallenge() {
 }
 
 async function joinChallenge(challengeId, tierKey) {
-    console.log('🎯 joinChallenge called:', challengeId, tierKey);
-    showToast('⏳ 참가 처리 중...', 'info', 2000);
-    
-    if (!currentUser) { showToast('<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 로그인이 필요합니다', 'error'); return; }
-    
-    try {
-    const challenge = await db.collection('prop_challenges').doc(challengeId).get();
-    if (!challenge.exists) { showToast('<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 챌린지를 찾을 수 없습니다', 'error'); return; }
-    const data = challenge.data();
-    
-    // ★ 티어 정보 로드
-    const tiers = data.tiers || {};
-    const tier = tiers[tierKey] || { deposit: data.entryFeeCRTD || 100, account: data.initialBalance || 100000, liquidation: 3000, profitThreshold: 1000, withdrawUnit: 1000 };
-    
-    // 중복 참가 체크
-    const existing = await db.collection('prop_challenges').doc(challengeId)
-        .collection('participants').where('userId', '==', currentUser.uid).where('status', '==', 'active').get();
-    if (!existing.empty) {
-        showToast('<i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 이미 이 챌린지에 참가 중입니다', 'warning');
-        return;
-    }
-    
-    // CRTD 잔고 확인 (offchainBalances는 users 루트 문서에 저장됨)
-    const userDoc = await db.collection('users').doc(currentUser.uid).get();
-    const userData = userDoc.data() || {};
-    const offchain = userData.offchainBalances || {};
-    const crtdBalance = offchain.crtd || 0;
-    
-    console.log('🔍 joinChallenge 잔고체크:', { uid: currentUser.uid, offchain, crtdBalance, required: tier.deposit });
-    
-    if (crtdBalance < tier.deposit) {
-        showToast(`<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> CRTD 잔액 부족 — 필요: ${tier.deposit}, 보유: ${crtdBalance}`, 'error', 5000);
-        return;
-    }
-    
-    const productText = data.allowedProduct === 'BOTH' ? 'MNQ + NQ' : (data.allowedProduct || 'MNQ');
-    
-    const confirmMsg = 
-        `<i data-lucide="clipboard-list" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${data.name} (${tierKey}군)\n\n` +
-        `<i data-lucide="gem" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 참가비: ${tier.deposit} CRTD\n` +
-        `<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 가상 계좌: $${tier.account.toLocaleString()}\n` +
-        `<i data-lucide="bar-chart-3" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 상품: ${productText}\n` +
-        `<i data-lucide="trending-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 포지션: 최대 ${data.maxPositions || 5}개\n\n` +
-        `── 프랍 규칙 ──\n` +
-        `<i data-lucide="skull" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> -$${tier.liquidation.toLocaleString()} → 계좌 청산 (${tier.deposit} CRTD 소멸)\n` +
-        `<i data-lucide="trending-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> +$${tier.profitThreshold.toLocaleString()} 초과분 → 1:1 CRTD 변환\n` +
-        `<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${tier.withdrawUnit.toLocaleString()} CRTD 단위 인출 가능\n` +
-        `🔴 일일 한도: -$${data.dailyLossLimit || 500}\n\n` +
-        `참가하시겠습니까?`;
-    
-    const ok = typeof showConfirmModal === 'function' 
-        ? await showConfirmModal('🎯 CRTD 프랍 트레이딩', confirmMsg)
-        : window.confirm(confirmMsg);
-    
+    if (!currentUser) { showToast('로그인이 필요합니다', 'error'); return; }
+
+    const ok = typeof showConfirmModal === 'function'
+        ? await showConfirmModal('CRTD 프랍 트레이딩', `${tierKey}군 챌린지에 참가하시겠습니까?`)
+        : window.confirm(`${tierKey}군 챌린지에 참가하시겠습니까?`);
     if (!ok) return;
-    
+
     try {
-        // CRTD 차감
-        await spendOffchainPoints('crtd', tier.deposit, `챌린지 참가: ${data.name} (${tierKey}군)`);
-        
-        // 참가자 추가
-        await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').add({
-                userId: currentUser.uid,
-                email: currentUser.email,
-                walletId: currentWalletId,
-                joinedAt: new Date(),
-                // ★ 티어 정보
-                tier: tierKey,
-                crtdDeposit: tier.deposit,
-                liquidation: tier.liquidation,
-                profitThreshold: tier.profitThreshold,
-                withdrawUnit: tier.withdrawUnit,
-                crtdWithdrawn: 0,
-                // 가상 계좌
-                initialBalance: tier.account,
-                currentBalance: tier.account,
-                // 공통 설정
-                allowedProduct: data.allowedProduct || 'MNQ',
-                tradingTier: tier.mnqMax !== undefined ? { MNQ: tier.mnqMax || 1, NQ: tier.nqMax || 0 } : (data.tradingTier || null),
-                maxContracts: Math.max(tier.mnqMax || 1, tier.nqMax || 0, data.maxContracts || 1),
-                copyAccounts: 1,
-                maxPositions: data.maxPositions || 5,
-                dailyLossLimit: data.dailyLossLimit || 500,
-                maxDrawdown: tier.liquidation,
-                // 트레이딩 상태
-                profitPercent: 0,
-                dailyPnL: 0,
-                totalPnL: 0,
-                trades: [],
-                status: 'active',
-                lastEOD: new Date()
-            });
-        
-        await db.collection('prop_challenges').doc(challengeId).update({
-            participants: (data.participants || 0) + 1,
-            totalPool: (data.totalPool || 0) + tier.deposit
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const res = await fetch('/api/challenges/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ challengeId, tierKey })
         });
-        
-        // 거래 기록
-        await db.collection('transactions').add({
-            from: currentUser.uid, fromEmail: currentUser.email,
-            to: 'system:challenge', amount: tier.deposit, token: 'CRTD',
-            type: 'challenge_entry', challengeId: challengeId, tier: tierKey,
-            timestamp: new Date()
-        });
-        
-        showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${tierKey}군 참가 완료! ${tier.deposit} CRTD 차감`, 'success', 5000);
-        
-        // [v13] 챌린지 참가 시 소개자 수수료 제거 — 회원가입 보상으로 통합
-        // await distributeReferralReward(currentUser.uid, Math.floor(tier.deposit * 0.1), 'CRTD');
-        
-        loadUserWallet();
+        const result = await res.json();
+        if (result.error) { showToast(result.error, 'error'); return; }
+
+        showToast(`${tierKey}군 참가 완료!`, 'success');
         loadPropTrading();
-        loadTradingDashboard();
+        if (typeof loadTradingDashboard === 'function') loadTradingDashboard();
     } catch (error) {
-        console.error('Join error:', error);
-        showToast('<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 참가 실패: ' + error.message, 'error', 5000);
-    }
-    } catch (outerError) {
-        console.error('joinChallenge outer error:', outerError);
-        showToast('<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 오류: ' + outerError.message, 'error', 5000);
+        console.error('joinChallenge error:', error);
+        showToast('참가 실패: ' + error.message, 'error');
     }
 }
 
@@ -2851,7 +2764,7 @@ async function registerProduct() {
             imageData: images[0], // 하위 호환: 첫번째 이미지
             sellerId: currentUser.uid, sellerEmail: currentUser.email,
             sellerNickname: userDoc.data()?.nickname || '',
-            sold: 0, status: (currentUser.email === 'kim.president.sk@gmail.com') ? 'active' : 'pending', createdAt: new Date()
+            sold: 0, status: (currentUser.email === 'kps@crowny.org') ? 'active' : 'pending', createdAt: new Date()
         });
         
         showToast(`<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${title}" 등록 완료!`, 'success');

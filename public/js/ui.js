@@ -43,9 +43,15 @@ function toggleMenu() {
 }
 
 function showPage(pageId) {
+    // 로그인 안 된 상태에서 페이지 접근 차단
+    if (!currentUser) {
+        const landing = document.getElementById('landing-page');
+        if (landing) { landing.classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
+        return;
+    }
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    
+
     const el = document.getElementById(pageId);
     if (!el) return;
     el.classList.add('active');

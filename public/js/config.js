@@ -3,36 +3,21 @@
 // Global State
 var currentUser = null;
 var userWallet = null;
+var useIndependentDB = true; // CrownyTVM 독립 서버 모드 (Firebase 실패 시 자동 활성화)
 
-// ========== POLYGON ERC-20 토큰 컨트랙트 ==========
-const POLYGON_TOKENS = {
-    crny: {
-        name: 'CRNY (크라우니코인)',
-        address: '0xe56173b6a57680286253566B9C80Fcc175c88bE1',
-        decimals: 18,
-        symbol: 'CRNY'
-    },
-    fnc: {
-        name: 'FNC (포네크레딧)',
-        address: '0x68E3aA1049F583C2f1701fefc4443e398ebF32ee',
-        decimals: 18,
-        symbol: 'FNC'
-    },
-    crfn: {
-        name: 'CRFN (크라우니포네)',
-        address: '0x396DAd0C7625a4881cA0cd444Cd80A9bbce4A054',
-        decimals: 18,
-        symbol: 'CRFN'
-    }
+// currentUser 설정 시 window/auth에도 동기화
+function syncCurrentUser(user) {
+    currentUser = user;
+    window.currentUser = user;
+    if (window.auth) window.auth.currentUser = user;
+}
+
+// ========== Crowny Network 토큰 설정 ==========
+const CROWNY_TOKENS = {
+    CRN: { name: '크라우니', symbol: 'CRN', priceKRW: 25500 },
+    FNC: { name: '포네', symbol: 'FNC', priceKRW: 2550 },
+    CRM: { name: '맘', symbol: 'CRM', priceKRW: 25.5 }
 };
-
-// ERC-20 최소 ABI (조회 + 전송)
-const ERC20_ABI = [
-    { "constant": true, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function" },
-    { "constant": false, "inputs": [{"name": "_to", "type": "address"},{"name": "_value", "type": "uint256"}], "name": "transfer", "outputs": [{"name": "", "type": "bool"}], "type": "function" },
-    { "constant": true, "inputs": [], "name": "decimals", "outputs": [{"name": "", "type": "uint8"}], "type": "function" },
-    { "constant": true, "inputs": [], "name": "symbol", "outputs": [{"name": "", "type": "string"}], "type": "function" }
-];
 
 const RISK_CONFIG = {
     dailyLossLimit: -500,      // 일일 손실 한도 ($)
@@ -297,6 +282,8 @@ auth.onAuthStateChanged(async (user) => {
 
     if (user) {
         currentUser = user;
+        _loginInitDone = true;
+        useIndependentDB = false; // Firebase 인증 성공 → Firebase DB 사용
         // document.getElementById('auth-modal').style.display = 'none'; // handled by updateLandingState
         document.getElementById('user-email').textContent = user.email;
         document.getElementById('user-info').style.display = 'block';
@@ -355,8 +342,39 @@ auth.onAuthStateChanged(async (user) => {
         // ★ 초대 시스템 초기화
         if (typeof INVITE !== 'undefined') INVITE.init();
     } else {
+        // Firebase 인증 없음 → CrownyTVM 토큰으로 독립 모드 시도
+        const ctvmTk = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        if (ctvmTk) {
+            try {
+                const r = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + ctvmTk } });
+                const profile = await r.json();
+                if (profile && !profile.error) {
+                    syncCurrentUser({ uid: profile.username, email: profile.username + '@crowny.org', displayName: profile.displayName || profile.username, photoURL: profile.photoURL || '' });
+                    useIndependentDB = true;
+                    // 메신저용 username 보장
+                    localStorage.setItem('crowny_username', profile.username);
+                    console.log('[Config] CrownyTVM 독립 모드 활성화:', currentUser.email);
+
+                    document.getElementById('user-email').textContent = currentUser.email;
+                    document.getElementById('user-info').style.display = 'block';
+
+                    if (typeof updateLandingState === 'function') updateLandingState(currentUser);
+
+                    // 관리자 메뉴 표시
+                    if (profile.isAdmin) {
+                        ctvmShowAdminMenu();
+                    }
+
+                    if (typeof loadUserData === 'function') await loadUserData();
+                    if (typeof showPage === 'function') showPage('today');
+                    if (typeof loadSearchCache === 'function') loadSearchCache();
+                    return; // 독립 모드 초기화 완료
+                }
+            } catch (e) { console.warn('[Config] CrownyTVM 프로필 로드 실패:', e.message); }
+        }
+
         // Jamie: Landing 페이지 활성화를 위해 자동 모달 팝업 제거
-        // document.getElementById('auth-modal').style.display = 'flex'; 
+        // document.getElementById('auth-modal').style.display = 'flex';
         document.getElementById('user-info').style.display = 'none';
         // 관리자 메뉴 숨기기
         const adminNav = document.getElementById('admin-nav-item');
@@ -364,5 +382,49 @@ auth.onAuthStateChanged(async (user) => {
         if (typeof updateAdminRegisterButtons === 'function') updateAdminRegisterButtons();
     }
 });
+
+// CrownyTVM API 로그인 성공 콜백 (auth.js에서 호출)
+var _loginInitDone = false;
+// ═══ CrownyTVM 관리자 메뉴 공통 ═══
+function ctvmShowAdminMenu() {
+    window.currentUserLevel = 6;
+    const adminNav = document.getElementById('admin-nav-item');
+    if (adminNav) adminNav.style.display = 'block';
+    if (typeof applyMenuVisibility === 'function') applyMenuVisibility(2);
+    console.log('[Config] 관리자 메뉴 활성화');
+}
+
+async function ctvmCheckAdmin() {
+    const tk = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    if (!tk) return;
+    try {
+        const r = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + tk } });
+        const p = await r.json();
+        if (p && !p.error) window.ctvmMe = p;
+        if (p && p.isAdmin) ctvmShowAdminMenu();
+    } catch(e) { console.warn('[Config] 관리자 체크 실패:', e.message); }
+}
+
+async function onLoginSuccess(data) {
+    if (_loginInitDone) return; // onAuthStateChanged에서 이미 처리됨
+    _loginInitDone = true;
+    if (!currentUser || currentUser.uid !== data.username) {
+        syncCurrentUser({ uid: data.username, email: (data.email || data.username + '@crowny.org'), displayName: data.displayName || data.username, photoURL: data.photoURL || '' });
+    }
+    useIndependentDB = true;
+    console.log('[Config] onLoginSuccess → 독립 모드:', currentUser.email);
+
+    document.getElementById('user-email').textContent = currentUser.email;
+    document.getElementById('user-info').style.display = 'block';
+
+    if (typeof updateLandingState === 'function') updateLandingState(currentUser);
+
+    // 관리자 메뉴 표시
+    await ctvmCheckAdmin();
+
+    if (typeof showToast === 'function') showToast(t('auth.login_success', '로그인 성공'), 'success');
+    if (typeof loadUserData === 'function') await loadUserData();
+    if (typeof showPage === 'function') showPage('today');
+}
 
 // Signup

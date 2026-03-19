@@ -35,12 +35,21 @@
         modal.onclick = e => { if (e.target === modal) modal.remove(); };
         modal.innerHTML = `
         <div style="background:var(--card,#F7F3ED);padding:1.5rem;border-radius:16px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;color:var(--text,#3D2B1F);">
-            <h3 style="margin:0 0 1rem;"><i data-lucide="video" style="width:20px;height:20px;margin-right:8px;"></i>${t('shortform.upload_title','숏폼 영상 업로드')}</h3>
+            <h3 style="margin:0 0 1rem;"><i data-lucide="video" style="width:20px;height:20px;margin-right:8px;display:inline-block;vertical-align:middle;"></i>${t('shortform.upload_title','숏폼 영상 업로드')}</h3>
+
+            <!-- YouTube URL 입력 -->
+            <div style="margin-bottom:1rem;">
+                <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.4rem;"><i data-lucide="link" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>YouTube / Shorts URL</label>
+                <input type="text" id="sf-youtube-url" placeholder="https://youtube.com/shorts/... 또는 https://youtu.be/..." style="width:100%;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.9rem;">
+                <div id="sf-yt-preview" style="display:none;margin-top:0.5rem;border-radius:8px;overflow:hidden;"></div>
+            </div>
+
+            <div style="text-align:center;color:var(--text-muted,#6B5744);font-size:0.8rem;margin-bottom:1rem;">── ${t('shortform.or_upload','또는 파일 업로드')} ──</div>
 
             <!-- file select -->
             <label style="display:block;border:2px dashed var(--border,#E8E0D8);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;margin-bottom:1rem;" id="sf-drop-zone">
                 <input type="file" id="sf-file" accept="video/mp4,video/quicktime,video/webm" style="display:none;">
-                <div id="sf-file-label">📁 ${t('shortform.select_video','동영상 선택')} (60s, 50MB)</div>
+                <div id="sf-file-label"><i data-lucide="upload" style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('shortform.select_video','동영상 선택')} (60s, 50MB)</div>
             </label>
             <div id="sf-preview" style="display:none;margin-bottom:1rem;text-align:center;">
                 <video id="sf-preview-video" style="max-width:100%;max-height:300px;border-radius:12px;" muted playsinline></video>
@@ -118,7 +127,27 @@
             </div>
         </div>`;
         document.body.appendChild(modal);
-        if (window.lucide) lucide.createIcons();
+        if (window.lucide) lucide.createIcons({ nodes: [modal] });
+
+        // YouTube URL 입력 시 프리뷰 + 제출 활성화
+        const ytInput = modal.querySelector('#sf-youtube-url');
+        if (ytInput) {
+            ytInput.addEventListener('input', () => {
+                const url = ytInput.value.trim();
+                const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                const preview = document.getElementById('sf-yt-preview');
+                const submitBtn = document.getElementById('sf-submit-btn');
+                if (ytMatch) {
+                    preview.style.display = 'block';
+                    preview.innerHTML = `<img src="https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg" style="width:100%;border-radius:8px;">`;
+                    submitBtn.disabled = false;
+                } else {
+                    preview.style.display = 'none';
+                    preview.innerHTML = '';
+                    if (!_selectedFile) submitBtn.disabled = true;
+                }
+            });
+        }
 
         // Bind file input
         const fileInput = modal.querySelector('#sf-file');
@@ -283,6 +312,30 @@
 
     // ====== UPLOAD ======
     async function _doUpload() {
+        // YouTube URL 모드: 소셜 포스트로 등록
+        const ytUrlInput = document.getElementById('sf-youtube-url');
+        const ytUrl = ytUrlInput ? ytUrlInput.value.trim() : '';
+        if (ytUrl) {
+            const caption = document.getElementById('sf-caption')?.value.trim() || '';
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token') || '';
+            try {
+                document.getElementById('sf-submit-btn').disabled = true;
+                const res = await fetch('/api/social/post', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ text: caption, youtubeUrl: ytUrl })
+                });
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+                showToast(t('shortform.uploaded', '업로드 완료!'), 'success');
+                document.getElementById('shortform-upload-modal')?.remove();
+                loadReelsFeed(true);
+            } catch (e) {
+                showToast(t('shortform.upload_fail', '업로드 실패') + ': ' + e.message, 'error');
+                document.getElementById('sf-submit-btn').disabled = false;
+            }
+            return;
+        }
         if (!_selectedFile || !window.currentUser) return;
         const uid = currentUser.uid;
         const ts = Date.now();
@@ -372,6 +425,11 @@
     // ====== REELS FEED ======
     async function loadReelsFeed(reset) {
         if (loading) return;
+        if (typeof useIndependentDB !== 'undefined' && useIndependentDB) {
+            // CrownyTVM 독립 릴스: 소셜 피드에서 YouTube Shorts 추출
+            await loadIndependentReels(reset);
+            return;
+        }
         if (reset) { reelsData = []; lastDoc = null; reelsIndex = 0; }
         loading = true;
         try {
@@ -397,7 +455,15 @@
             }
             reelsData.push(...newItems);
             renderReels();
-        } catch(e) { console.error('Load reels error:', e); }
+        } catch(e) {
+            console.error('Load reels error:', e);
+            const isPermission = (e.message || '').includes('permission') || (e.message || '').includes('Permission') || (typeof useIndependentDB !== 'undefined' && useIndependentDB);
+            if (isPermission && reelsData.length === 0) {
+                const c = document.getElementById('reels-container');
+                if (c) c.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;color:#6B5744;"><div style="font-size:3rem;margin-bottom:1rem;"><i data-lucide="video" style="width:48px;height:48px;display:block;"></i></div><p style="font-size:1.1rem;font-weight:600;color:#3D2B1F">숏폼 영상 준비 중</p><p style="font-size:0.85rem;color:#7A5C47;margin-top:8px">CrownyTVM 독립 영상 기능이 곧 추가됩니다.</p></div>`;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        }
         loading = false;
     }
 
@@ -759,6 +825,109 @@
                 renderSingleReel(0);
             });
         }
+    }
+
+    // ====== 독립 릴스 (YouTube Shorts 기반) ======
+    async function loadIndependentReels(reset) {
+        if (reset) { reelsData = []; reelsIndex = 0; }
+        loading = true;
+        const c = document.getElementById('reels-container');
+        if (!c) { loading = false; return; }
+
+        try {
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token') || '';
+            const res = await fetch('/api/social/feed?limit=50', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await res.json();
+            const ytPosts = (data.posts || []).filter(p => p.youtube && p.youtube.id);
+
+            if (ytPosts.length === 0) {
+                c.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;color:#6B5744;">
+                    <p style="margin-bottom:1rem;"><i data-lucide="clapperboard" style="width:48px;height:48px;"></i></p>
+                    <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;">${t('shortform.no_videos','아직 영상이 없습니다')}</p>
+                    <p style="font-size:0.85rem;color:#7A5C47;margin-top:8px;">YouTube/Shorts 링크가 포함된 게시물을 작성하면<br>릴스에 자동으로 표시됩니다.</p>
+                    <button onclick="navigateTo('social')" style="margin-top:1rem;padding:0.6rem 1.2rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;">소셜에서 게시하기</button>
+                </div>`;
+                loading = false;
+                return;
+            }
+
+            // 릴스 데이터 구성
+            reelsData = ytPosts.map((p, i) => ({
+                id: p.id,
+                videoUrl: null,
+                youtubeId: p.youtube.id,
+                isShort: p.youtube.type === 'short',
+                caption: p.text || '',
+                authorName: p.authorName || p.author,
+                author: p.author,
+                likes: (p.likes || []).length,
+                commentCount: p.commentCount || 0,
+                ts: p.ts,
+            }));
+
+            renderIndependentReels(c);
+        } catch (e) {
+            c.innerHTML = `<div style="padding:2rem;text-align:center;color:#c0392b;">${e.message}</div>`;
+        }
+        loading = false;
+    }
+
+    function renderIndependentReels(container) {
+        container.className = 'reels-fullscreen';
+        container.style.cssText = 'scroll-snap-type:y mandatory;overflow-y:scroll;height:100vh;';
+        container.innerHTML = '';
+
+        reelsData.forEach((reel, idx) => {
+            const item = document.createElement('div');
+            item.className = 'reel-item';
+            item.style.cssText = 'scroll-snap-align:start;height:100vh;position:relative;background:#000;display:flex;align-items:center;justify-content:center;';
+            item.innerHTML = `
+                <iframe src="https://www.youtube.com/embed/${reel.youtubeId}?autoplay=${idx === 0 ? 1 : 0}&mute=1&loop=1&playlist=${reel.youtubeId}&controls=1&playsinline=1"
+                    style="width:100%;height:100%;border:0;max-width:500px;"
+                    allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>
+                <div style="position:absolute;bottom:80px;left:12px;right:60px;color:#FFF8F0;text-shadow:0 1px 3px rgba(0,0,0,0.8);">
+                    <div style="font-weight:700;font-size:0.9rem;margin-bottom:4px;">@${reel.author}</div>
+                    <div style="font-size:0.82rem;line-height:1.4;max-height:3.6rem;overflow:hidden;">${escapeReelHtml(reel.caption)}</div>
+                </div>
+                <div style="position:absolute;right:8px;bottom:100px;display:flex;flex-direction:column;align-items:center;gap:16px;">
+                    <div style="text-align:center;color:#FFF8F0;">
+                        <i data-lucide="heart" style="width:24px;height:24px;"></i>
+                        <div style="font-size:0.7rem;">${reel.likes}</div>
+                    </div>
+                    <div style="text-align:center;color:#FFF8F0;">
+                        <i data-lucide="message-circle" style="width:24px;height:24px;"></i>
+                        <div style="font-size:0.7rem;">${reel.commentCount}</div>
+                    </div>
+                    <div onclick="navigator.share?.({url:'https://youtube.com/watch?v=${reel.youtubeId}'})" style="text-align:center;color:#FFF8F0;cursor:pointer;">
+                        <i data-lucide="share-2" style="width:24px;height:24px;"></i>
+                    </div>
+                </div>`;
+            container.appendChild(item);
+        });
+
+        // Intersection observer for autoplay
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const iframe = entry.target.querySelector('iframe');
+                if (!iframe) return;
+                const src = iframe.src;
+                if (entry.isIntersecting) {
+                    if (!src.includes('autoplay=1')) iframe.src = src.replace('autoplay=0', 'autoplay=1');
+                } else {
+                    if (src.includes('autoplay=1')) iframe.src = src.replace('autoplay=1', 'autoplay=0');
+                }
+            });
+        }, { threshold: 0.7 });
+        container.querySelectorAll('.reel-item').forEach(item => observer.observe(item));
+        if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [container] });
+    }
+
+    function escapeReelHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/#(\S+)/g, '<span style="color:#B8860B;">#$1</span>');
     }
 
     // ====== INIT REELS PAGE ======

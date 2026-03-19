@@ -180,18 +180,23 @@ body {
 .menu-toggle {
     display: block;
     position: fixed;
-    top: 0.4rem;
-    left: 0.4rem;
+    top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+    left: 0.5rem;
     z-index: 1001;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    padding: 0.3rem 0.4rem;
-    border-radius: 8px;
+    padding: 0.35rem;
+    border-radius: 10px;
     font-size: 1.2rem;
     cursor: pointer;
     box-shadow: 0 2px 6px rgba(61,43,31,0.15);
     color: var(--text);
     line-height: 0;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 
@@ -254,7 +259,7 @@ html[lang="en"] .nav-sub { display: none; }
 
 .nav-item {
     display: block;
-    padding: 0.5rem 1rem;
+    padding: 0.3rem 1rem;
     text-decoration: none;
     color: var(--sidebar-text);
     font-size: 0.85rem;
@@ -277,11 +282,11 @@ html[lang="en"] .nav-sub { display: none; }
 .sidebar .nav-divider {
     border: none;
     border-top: 1px solid rgba(210,188,176,0.08);
-    margin: 0.4rem 1rem;
+    margin: 0.2rem 1rem;
 }
 
 .sidebar .nav-group-label {
-    padding: 0.5rem 1rem 0.2rem;
+    padding: 0.3rem 1rem 0.1rem;
     font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 1.5px;
@@ -293,6 +298,7 @@ html[lang="en"] .nav-sub { display: none; }
 .content {
     margin-left: 0;
     padding: 1.5rem;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 1.5rem);
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;

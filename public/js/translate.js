@@ -1,25 +1,44 @@
-// translate.js v1.0 — Gemini Flash 번역 엔진
-// 소셜 포스트, 메신저 메시지, 릴스 캡션, 스토리에 🌐 번역 버튼 추가
+// translate.js v2.0 — 한선씨 의미단어 사전 기반 번역 엔진
+// 1차: 20K 의미단어 사전 (오프라인, ko↔en↔es)
+// 소셜 포스트, 메신저 메시지, 릴스 캡션에 🌐 번역 버튼
 
 (function() {
     'use strict';
 
-    const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-    let apiKey = 'AIzaSyAhkJlLDE_V2Iso8PZaGIWPqs_ht0ZuZeA';
+    let semanticDict = null;
+    let dictReady = false;
 
-    // Load API key from Firestore if available
-    async function loadApiKey() {
+    // ===== 사전 로드 =====
+    async function loadSemanticDict() {
         try {
-            if (typeof db !== 'undefined') {
-                const doc = await db.collection('admin_config').doc('ai_settings').get();
-                if (doc.exists && doc.data().geminiApiKey && doc.data().geminiApiKey.length > 10) {
-                    apiKey = doc.data().geminiApiKey;
-                }
-            }
-        } catch (e) { console.warn('[translate] API key load:', e.message); }
+            const res = await fetch('/data/semantic-dict.json');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            semanticDict = await res.json();
+            dictReady = true;
+            const koCount = Object.keys(semanticDict.ko || {}).length;
+            console.log(`[translate] Semantic dict loaded: ${koCount} ko entries`);
+        } catch (e) {
+            console.warn('[translate] Dict load failed:', e.message);
+        }
     }
 
-    // Get user's preferred language
+    // ===== 언어 감지 =====
+    function detectLang(text) {
+        const koCount = (text.match(/[\uAC00-\uD7AF]/g) || []).length;
+        const enCount = (text.match(/[a-zA-Z]/g) || []).length;
+        const esAccent = (text.match(/[áéíóúüñ¿¡]/gi) || []).length;
+        const zhCount = (text.match(/[\u4E00-\u9FFF]/g) || []).length;
+        const jaCount = (text.match(/[\u3040-\u309F\u30A0-\u30FF]/g) || []).length;
+        const total = text.replace(/\s/g, '').length || 1;
+
+        if (koCount / total > 0.3) return 'ko';
+        if (zhCount / total > 0.3) return 'zh';
+        if (jaCount / total > 0.2) return 'ja';
+        if (esAccent > 0) return 'es';
+        if (enCount / total > 0.3) return 'en';
+        return 'ko';
+    }
+
     function getUserLang() {
         if (typeof currentLang !== 'undefined' && currentLang) return currentLang;
         return navigator.language?.slice(0, 2) || 'ko';
@@ -28,47 +47,115 @@
     const LANG_NAMES = {
         ko: '한국어', en: 'English', ja: '日本語', zh: '中文', es: 'Español',
         fr: 'Français', de: 'Deutsch', pt: 'Português', ru: 'Русский', ar: 'العربية',
-        hi: 'हिन्दी', th: 'ไทย', vi: 'Tiếng Việt', id: 'Bahasa Indonesia',
+        hi: 'हिन्दी', bn: 'বাংলা', th: 'ไทย', vi: 'Tiếng Việt', id: 'Bahasa Indonesia',
         tr: 'Türkçe', it: 'Italiano', nl: 'Nederlands', pl: 'Polski',
-        sv: 'Svenska', da: 'Dansk'
+        sv: 'Svenska', da: 'Dansk', fi: 'Suomi'
     };
 
-    // Translate text via Gemini Flash
-    async function translateText(text, targetLang) {
-        if (!text || !text.trim()) return '';
-        const langName = LANG_NAMES[targetLang] || targetLang;
+    // ===== 한국어 조사 제거 =====
+    const KO_PARTICLES = ['습니다','ㅂ니다','입니다','에서','으로','부터','까지','처럼','만큼','에게','한테','께서','라고','이라','에는','으면','는데','지만','거나','든지','는','은','이','가','을','를','에','의','로','와','과','도','만','고','며','면','서','니','요','다'];
 
-        const prompt = `Translate the following text to ${langName}. 
-Rules:
-- Return ONLY the translated text, no explanations
-- Preserve emojis, @mentions, hashtags, and URLs as-is
-- If the text is already in ${langName}, return it unchanged
-- Keep the original tone and style
+    function stripParticle(word) {
+        for (const p of KO_PARTICLES) {
+            if (word.length > p.length + 1 && word.endsWith(p)) {
+                return word.slice(0, -p.length);
+            }
+        }
+        return word;
+    }
 
-Text to translate:
-${text}`;
+    // ===== 단어 번역 (사전) =====
+    function dictLookup(word, fromLang, toLang) {
+        if (!semanticDict) return null;
+        const lw = word.toLowerCase();
 
-        try {
-            const res = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
-                })
+        if (fromLang === 'ko' && toLang === 'en') {
+            return semanticDict.ko?.[word] || semanticDict.ko?.[lw] || null;
+        }
+        if (fromLang === 'ko' && toLang === 'es') {
+            return semanticDict.ko_es?.[word] || semanticDict.ko_es?.[lw] || null;
+        }
+        if (fromLang === 'en' && toLang === 'ko') {
+            return semanticDict.en?.[lw] || semanticDict.en?.[word] || null;
+        }
+        if (fromLang === 'en' && toLang === 'es') {
+            const ko = semanticDict.en?.[lw];
+            return ko ? (semanticDict.ko_es?.[ko] || null) : null;
+        }
+        if (fromLang === 'es' && toLang === 'en') {
+            return semanticDict.es?.[lw] || semanticDict.es?.[word] || null;
+        }
+        if (fromLang === 'es' && toLang === 'ko') {
+            const en = semanticDict.es?.[lw];
+            return en ? (semanticDict.en?.[en.toLowerCase()] || null) : null;
+        }
+        return null;
+    }
+
+    // ===== 문장 번역 (사전 기반) =====
+    function translateBySemantic(text, fromLang, toLang) {
+        if (!semanticDict || fromLang === toLang) return { text, ratio: 0 };
+
+        let translated = 0;
+        let total = 0;
+
+        if (fromLang === 'ko') {
+            const tokens = text.split(/(\s+)/);
+            const result = tokens.map(tok => {
+                if (/^\s+$/.test(tok)) return ' ';
+                const m = tok.match(/^(.*?)([.!?,;:。！？，；：\n]*)$/);
+                const word = m ? m[1] : tok;
+                const punct = m ? m[2] : '';
+                if (!word) return punct;
+                total++;
+
+                let tr = dictLookup(word, fromLang, toLang);
+                if (tr) { translated++; return tr + punct; }
+
+                const stripped = stripParticle(word);
+                if (stripped !== word) {
+                    tr = dictLookup(stripped, fromLang, toLang);
+                    if (tr) { translated++; return tr + punct; }
+                }
+                return tok;
             });
+            return { text: result.join(''), ratio: total ? translated / total : 0 };
+        } else {
+            const tokens = text.split(/(\s+)/);
+            const result = tokens.map(tok => {
+                if (/^\s+$/.test(tok)) return ' ';
+                const m = tok.match(/^(.*?)([.!?,;:]+)$/);
+                const word = m ? m[1] : tok;
+                const punct = m ? m[2] : '';
+                if (!word) return punct;
+                total++;
 
-            if (!res.ok) throw new Error(`API ${res.status}`);
-            const data = await res.json();
-            return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-        } catch (e) {
-            console.error('[translate] Error:', e);
-            if (typeof showToast === 'function') showToast('번역 실패: ' + e.message, 'error');
-            return '';
+                const tr = dictLookup(word, fromLang, toLang);
+                if (tr) { translated++; return tr + punct; }
+                return tok;
+            });
+            return { text: result.join(''), ratio: total ? translated / total : 0 };
         }
     }
 
-    // Create translate button element
+    // ===== 메인 번역 함수 =====
+    async function translateText(text, targetLang) {
+        if (!text || !text.trim()) return '';
+        const srcLang = detectLang(text);
+        if (srcLang === targetLang) return text;
+
+        // 사전 기반 번역 시도 (ko↔en↔es)
+        const supported = ['ko', 'en', 'es'];
+        if (supported.includes(srcLang) && supported.includes(targetLang) && dictReady) {
+            const result = translateBySemantic(text, srcLang, targetLang);
+            if (result.ratio > 0) return result.text;
+        }
+
+        // 사전으로 번역 불가 — 원문 반환 (외부 API 미사용)
+        return '';
+    }
+
+    // ===== UI: 번역 버튼 =====
     function createTranslateBtn(getText, container) {
         const btn = document.createElement('button');
         btn.className = 'translate-btn';
@@ -84,7 +171,6 @@ ${text}`;
         btn.onclick = async (e) => {
             e.stopPropagation();
             if (translated) {
-                // Restore original
                 container.innerHTML = originalHTML;
                 btn.innerHTML = '🌐';
                 translated = false;
@@ -97,10 +183,12 @@ ${text}`;
             btn.innerHTML = '⏳';
             btn.disabled = true;
 
-            const result = await translateText(text, getUserLang());
+            const tl = getUserLang();
+            const result = await translateText(text, tl);
             if (result) {
                 originalHTML = container.innerHTML;
-                container.innerHTML = `<p style="white-space:pre-wrap;">${result}</p><p style="font-size:0.65rem;color:var(--text-muted,#6B5744);margin-top:0.3rem;">🌐 ${LANG_NAMES[getUserLang()] || getUserLang()} 번역</p>`;
+                const langLabel = LANG_NAMES[tl] || tl;
+                container.innerHTML = `<p style="white-space:pre-wrap;">${escapeHtml(result)}</p><p style="font-size:0.65rem;color:var(--text-muted,#6B5744);margin-top:0.3rem;">🌐 ${langLabel}</p>`;
                 btn.innerHTML = '↩️';
                 translated = true;
             } else {
@@ -112,43 +200,38 @@ ${text}`;
         return btn;
     }
 
-    // Auto-inject translate buttons into social posts
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    // ===== 소셜 포스트에 번역 버튼 삽입 =====
     function injectPostTranslateButtons() {
-        document.querySelectorAll('.post').forEach(post => {
-            if (post.querySelector('.translate-btn')) return; // already has one
-
-            const contentEl = post.querySelector('.post-content');
+        document.querySelectorAll('.post, .crny-social-post').forEach(post => {
+            if (post.querySelector('.translate-btn')) return;
+            const contentEl = post.querySelector('.post-content, .crny-post-text');
             if (!contentEl) return;
-
-            const actionsBar = post.querySelector('.post-actions-bar') || post.querySelector('.post-actions');
+            const actionsBar = post.querySelector('.post-actions-bar, .post-actions, .crny-post-actions');
             if (!actionsBar) return;
-
-            const btn = createTranslateBtn(
-                () => contentEl.textContent?.trim(),
-                contentEl
-            );
+            const btn = createTranslateBtn(() => contentEl.textContent?.trim(), contentEl);
             actionsBar.appendChild(btn);
         });
     }
 
-    // Inject translate button into chat messages
+    // ===== 채팅 메시지에 번역 버튼 삽입 =====
     function injectChatTranslateButtons() {
-        document.querySelectorAll('.msg-bubble').forEach(bubble => {
+        document.querySelectorAll('.msg-bubble, .crny-chat-msg').forEach(bubble => {
             if (bubble.querySelector('.translate-btn')) return;
-
-            const textEl = bubble.querySelector('.msg-text');
+            const textEl = bubble.querySelector('.msg-text, .crny-msg-text');
             if (!textEl) return;
-
-            const btn = createTranslateBtn(
-                () => textEl.textContent?.trim(),
-                textEl
-            );
+            const btn = createTranslateBtn(() => textEl.textContent?.trim(), textEl);
             btn.style.cssText += 'font-size:0.7rem;padding:0.1rem 0.3rem;margin-top:0.2rem;display:block;';
             bubble.appendChild(btn);
         });
     }
 
-    // Observe DOM for new posts/messages and inject buttons
+    // ===== DOM 감시 =====
     function startObserver() {
         const observer = new MutationObserver((mutations) => {
             let hasNew = false;
@@ -161,37 +244,35 @@ ${text}`;
             }
         });
 
-        // Observe social feed and chat messages
-        const targets = ['social-feed', 'feed-container', 'chat-messages'];
+        const targets = ['social-feed', 'feed-container', 'chat-messages', 'crny-chat-messages'];
         targets.forEach(id => {
             const el = document.getElementById(id);
             if (el) observer.observe(el, { childList: true, subtree: true });
         });
 
-        // Also observe the main content area
         const content = document.querySelector('.content');
         if (content) observer.observe(content, { childList: true, subtree: true });
     }
 
-    // Initialize
+    // ===== 초기화 =====
     async function init() {
-        await loadApiKey();
+        await loadSemanticDict();
         startObserver();
-        // Initial injection
         injectPostTranslateButtons();
         injectChatTranslateButtons();
-        console.log('[translate] v1.0 initialized');
+        console.log('[translate] v2.0 initialized (semantic dict)');
     }
 
-    // Start when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
-        setTimeout(init, 1000); // Wait for other modules to load
+        setTimeout(init, 500);
     }
 
-    // Expose for manual use
+    // 외부 노출
     window.translateText = translateText;
+    window.translateBySemantic = translateBySemantic;
+    window.detectLang = detectLang;
     window.injectPostTranslateButtons = injectPostTranslateButtons;
     window.injectChatTranslateButtons = injectChatTranslateButtons;
 
