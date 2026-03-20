@@ -8,11 +8,8 @@ async function loadTransferRequests() {
         .orderBy('requestedAt', 'desc')
         .get();
     
-    console.log('Transfer requests:', requests.size);
-    
     requests.forEach(doc => {
         const req = doc.data();
-        console.log(`Request: ${req.fromEmail} → ${req.toEmail}: ${req.amount} ${req.token}`);
     });
 }
 
@@ -98,7 +95,6 @@ async function loadUserLevel() {
     // ctvmMe에 isAdmin이 있으면 서버 API 기반으로 판단
     if (window.ctvmMe && window.ctvmMe.isAdmin) {
         currentUserLevel = 6;
-        console.log('[Admin] 서버 API isAdmin=true → 레벨 6 (수퍼관리자)');
         return;
     }
 
@@ -116,7 +112,6 @@ async function loadUserLevel() {
             const profile = await res.json();
             if (profile && !profile.error && profile.isAdmin) {
                 currentUserLevel = 6;
-                console.log('[Admin] 서버 프로필 isAdmin=true → 레벨 6');
                 return;
             }
         }
@@ -562,7 +557,7 @@ async function applyReferralCode(newUserId, referralCode) {
             .where('referralCode', '==', referralCode.toUpperCase()).get();
         
         if (referrers.empty) {
-            console.log('⚠️ 유효하지 않은 소개 코드:', referralCode);
+            console.warn('유효하지 않은 소개 코드:', referralCode);
             return;
         }
         
@@ -584,7 +579,6 @@ async function applyReferralCode(newUserId, referralCode) {
         // ★ 소개자 보상 자동 지급 (Firestore 설정값 기반)
         await distributeSignupReferralReward(referrerId, newUserId, referrer.data().email);
         
-        console.log(`✅ 소개 연결 + 보상 지급: ${referralCode} → 신규 사용자`);
     } catch (error) {
         console.error('소개 코드 적용 실패:', error);
     }
@@ -631,7 +625,6 @@ async function distributeSignupReferralReward(referrerId, newUserId, referrerEma
             });
         }
         
-        console.log(`<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 소개 가입 보상 지급:`, rewards, `→ ${referrerId}`);
     } catch (e) {
         console.error('소개 가입 보상 지급 실패:', e);
     }
@@ -716,7 +709,6 @@ async function distributeReferralReward_DISABLED(userId, amount, token) {
                 [`referralEarnings.crtd`]: ((referrerData.referralEarnings || {}).crtd || 0) + rewardAmount
             });
             
-            console.log(`<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 소개 CRTD 즉시 지급: ${rewardAmount} → ${referredBy}`);
         } else if (tokenKey === 'crny') {
             // CRNY → 30일 후 자동 지급 (pendingRewards)
             const releaseDate = new Date();
@@ -740,7 +732,6 @@ async function distributeReferralReward_DISABLED(userId, amount, token) {
                 [`referralEarnings.crny`]: (earnings.crny || 0) + rewardAmount
             });
             
-            console.log(`⏳ 소개 CRNY 30일 후 지급 예정: ${rewardAmount} → ${referredBy}`);
         } else {
             // 기타 토큰: 오프체인 즉시 지급
             const off = referrerData.offchainBalances || {};
@@ -2013,7 +2004,6 @@ async function loadAdminWallet() {
     
     try {
         // 1. Firestore에서 관리자 지갑 주소
-        console.log('🔍 Admin wallet: Firestore 조회 시작');
         const wallets = await db.collection('users').doc(currentUser.uid)
             .collection('wallets').limit(1).get();
         
@@ -2024,7 +2014,6 @@ async function loadAdminWallet() {
         
         const adminWalletData = wallets.docs[0].data();
         const adminAddress = adminWalletData.walletAddress;
-        console.log('🔍 Admin wallet address:', adminAddress);
         
         if (!adminAddress) {
             container.innerHTML = '<p style="color:red;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> walletAddress field missing</p>';
@@ -2032,14 +2021,11 @@ async function loadAdminWallet() {
         }
         
         // 2. 온체인 잔액 조회
-        console.log('🔍 온체인 잔액 조회 시작...');
         const balances = await getAllOnchainBalances(adminAddress);
-        console.log('🔍 잔액:', balances);
         
         // 3. POL 잔액 (가스비)
         const maticBalance = await web3.eth.getBalance(adminAddress);
         const maticFormatted = parseFloat(web3.utils.fromWei(maticBalance, 'ether')).toFixed(4);
-        console.log('🔍 POL:', maticFormatted);
         
         container.innerHTML = `
             <div style="font-size:0.8rem; color:var(--accent); margin-bottom:0.5rem;">
@@ -2735,7 +2721,8 @@ async function joinChallenge(challengeId, tierKey) {
 
 // ========== MALL - 쇼핑몰 ==========
 
-const MALL_CATEGORIES = { present:'<i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Present', doctor:'💊 Doctor', medical:'<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Medical', avls:'🎬 AVLs', solution:'<i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Private', architect:'🏗️ Architect', mall:'<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Crowny Mall', designers:'👗 Designers', other:'<i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Other' };
+// MALL_CATEGORIES는 marketplace.js에서 정의됨 (중복 선언 방지)
+if (typeof MALL_CATEGORIES === 'undefined') var MALL_CATEGORIES = { present:'Present', doctor:'Doctor', medical:'Medical', avls:'AVLs', solution:'Private', architect:'Architect', mall:'Crowny Mall', designers:'Designers', other:'Other' };
 
 async function registerProduct() {
     if (!currentUser) { showToast('Login required', 'warning'); return; }

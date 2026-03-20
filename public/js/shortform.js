@@ -1,4 +1,4 @@
-// ===== shortform.js — 숏폼 영상 시스템 (IIFE) =====
+// ===== shortform.js — SHORTS (쇼츠) 영상 시스템 =====
 (function() {
     'use strict';
 
@@ -15,12 +15,12 @@
     let reelsMuted = true;
 
     const CTA_MAP = {
-        artist:   { label: '<i data-lucide="heart" style="width:14px;height:14px;margin-right:4px;"></i>후원하기', color: '#B54534', page: 'artist' },
-        campaign: { label: '<i data-lucide="heart-handshake" style="width:14px;height:14px;margin-right:4px;"></i>참여하기', color: '#6B8F3C', page: 'fundraise' },
-        business: { label: '<i data-lucide="wallet" style="width:14px;height:14px;margin-right:4px;"></i>투자하기', color: '#3D2B1F', page: 'business' },
-        art:      { label: '<i data-lucide="palette" style="width:14px;height:14px;margin-right:4px;"></i>구매하기', color: '#8B6914', page: 'art' },
-        book:     { label: '<i data-lucide="book-open" style="width:14px;height:14px;margin-right:4px;"></i>읽기', color: '#FF9800', page: 'books' },
-        product:  { label: '<i data-lucide="shopping-bag" style="width:14px;height:14px;margin-right:4px;"></i>구매하기', color: '#5B7B8C', page: 'mall' }
+        artist:   { label: `<i data-lucide="heart" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_donate','후원하기')}`, color: '#B54534', page: 'artist' },
+        campaign: { label: `<i data-lucide="heart-handshake" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_join','참여하기')}`, color: '#6B8F3C', page: 'fundraise' },
+        business: { label: `<i data-lucide="wallet" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_invest','투자하기')}`, color: '#3D2B1F', page: 'business' },
+        art:      { label: `<i data-lucide="palette" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_buy','구매하기')}`, color: '#8B6914', page: 'art' },
+        book:     { label: `<i data-lucide="book-open" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_read','읽기')}`, color: '#FF9800', page: 'books' },
+        product:  { label: `<i data-lucide="shopping-bag" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_buy','구매하기')}`, color: '#5B7B8C', page: 'mall' }
     };
 
     // ====== UPLOAD MODAL ======
@@ -31,25 +31,25 @@
 
         const modal = document.createElement('div');
         modal.id = 'shortform-upload-modal';
-        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;';
+        modal.className = 'crny-overlay crny-overlay--light';
         modal.onclick = e => { if (e.target === modal) modal.remove(); };
         modal.innerHTML = `
-        <div style="background:var(--card,#F7F3ED);padding:1.5rem;border-radius:16px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;color:var(--text,#3D2B1F);">
-            <h3 style="margin:0 0 1rem;"><i data-lucide="video" style="width:20px;height:20px;margin-right:8px;display:inline-block;vertical-align:middle;"></i>${t('shortform.upload_title','Upload Short Video')}</h3>
+        <div class="crny-modal crny-modal--md">
+            <h3><i data-lucide="video"></i>${t('shortform.upload_title','쇼츠 업로드')}</h3>
 
             <!-- YouTube URL 입력 -->
             <div style="margin-bottom:1rem;">
                 <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.4rem;"><i data-lucide="link" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>YouTube / Shorts URL</label>
-                <input type="text" id="sf-youtube-url" placeholder="https://youtube.com/shorts/... 또는 https://youtu.be/..." style="width:100%;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.9rem;">
+                <input type="text" id="sf-youtube-url" class="crny-input" placeholder="https://youtube.com/shorts/... 또는 https://youtu.be/...">
                 <div id="sf-yt-preview" style="display:none;margin-top:0.5rem;border-radius:8px;overflow:hidden;"></div>
             </div>
 
             <div style="text-align:center;color:var(--text-muted,#6B5744);font-size:0.8rem;margin-bottom:1rem;">── ${t('shortform.or_upload','or upload a file')} ──</div>
 
             <!-- file select -->
-            <label style="display:block;border:2px dashed var(--border,#E8E0D8);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;margin-bottom:1rem;" id="sf-drop-zone">
-                <input type="file" id="sf-file" accept="video/mp4,video/quicktime,video/webm" style="display:none;">
-                <div id="sf-file-label"><i data-lucide="upload" style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('shortform.select_video','Select Video')} (60s, 50MB)</div>
+            <label class="crny-drop-zone" id="sf-drop-zone">
+                <input type="file" id="sf-file" accept="video/mp4,video/quicktime,video/webm">
+                <div id="sf-file-label"><i data-lucide="upload"></i>${t('shortform.select_video','영상 선택')} (60s, 50MB)</div>
             </label>
             <div id="sf-preview" style="display:none;margin-bottom:1rem;text-align:center;">
                 <video id="sf-preview-video" style="max-width:100%;max-height:300px;border-radius:12px;" muted playsinline></video>
@@ -58,33 +58,33 @@
             <!-- editor -->
             <div id="sf-editor" style="display:none;margin-bottom:1rem;">
                 <details style="margin-bottom:0.5rem;">
-                    <summary style="cursor:pointer;font-weight:600;">✂️ ${t('shortform.trim','Trim')}</summary>
+                    <summary style="cursor:pointer;font-weight:600;"><i data-lucide="scissors" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('shortform.trim','Trim')}</summary>
                     <div style="display:flex;gap:0.5rem;margin-top:0.5rem;align-items:center;">
-                        <label style="font-size:0.8rem;">시작</label>
+                        <label style="font-size:0.8rem;">${t('shortform.trim_start','시작')}</label>
                         <input type="range" id="sf-trim-start" min="0" max="60" value="0" step="0.1" style="flex:1;">
                         <span id="sf-trim-start-val" style="font-size:0.8rem;width:35px;">0s</span>
-                        <label style="font-size:0.8rem;">끝</label>
+                        <label style="font-size:0.8rem;">${t('shortform.trim_end','끝')}</label>
                         <input type="range" id="sf-trim-end" min="0" max="60" value="60" step="0.1" style="flex:1;">
                         <span id="sf-trim-end-val" style="font-size:0.8rem;width:35px;">60s</span>
                     </div>
                 </details>
                 <details style="margin-bottom:0.5rem;">
-                    <summary style="cursor:pointer;font-weight:600;">🎨 ${t('shortform.filters','Filters')}</summary>
+                    <summary style="cursor:pointer;font-weight:600;"><i data-lucide="sliders-horizontal" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('shortform.filters','Filters')}</summary>
                     <div style="margin-top:0.5rem;">
-                        <label style="font-size:0.8rem;">밝기</label><input type="range" id="sf-brightness" min="50" max="150" value="100" style="width:100%;"><br>
-                        <label style="font-size:0.8rem;">대비</label><input type="range" id="sf-contrast" min="50" max="150" value="100" style="width:100%;"><br>
-                        <label style="font-size:0.8rem;">채도</label><input type="range" id="sf-saturate" min="0" max="200" value="100" style="width:100%;"><br>
-                        <label style="font-size:0.8rem;">세피아</label><input type="range" id="sf-sepia" min="0" max="100" value="0" style="width:100%;"><br>
-                        <label style="font-size:0.8rem;">흑백</label><input type="range" id="sf-grayscale" min="0" max="100" value="0" style="width:100%;">
+                        <label style="font-size:0.8rem;">${t('shortform.filter_brightness','밝기')}</label><input type="range" id="sf-brightness" min="50" max="150" value="100" style="width:100%;"><br>
+                        <label style="font-size:0.8rem;">${t('shortform.filter_contrast','대비')}</label><input type="range" id="sf-contrast" min="50" max="150" value="100" style="width:100%;"><br>
+                        <label style="font-size:0.8rem;">${t('shortform.filter_saturation','채도')}</label><input type="range" id="sf-saturate" min="0" max="200" value="100" style="width:100%;"><br>
+                        <label style="font-size:0.8rem;">${t('shortform.filter_sepia','세피아')}</label><input type="range" id="sf-sepia" min="0" max="100" value="0" style="width:100%;"><br>
+                        <label style="font-size:0.8rem;">${t('shortform.filter_grayscale','흑백')}</label><input type="range" id="sf-grayscale" min="0" max="100" value="0" style="width:100%;">
                     </div>
                 </details>
                 <details style="margin-bottom:0.5rem;">
-                    <summary style="cursor:pointer;font-weight:600;">📝 ${t('shortform.text_overlay','Text Overlay')}</summary>
+                    <summary style="cursor:pointer;font-weight:600;"><i data-lucide="type" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('shortform.text_overlay','Text Overlay')}</summary>
                     <div style="margin-top:0.5rem;">
                         <input type="text" id="sf-text" placeholder="${t('shortform.enter_text','Caption text')}" style="width:100%;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;margin-bottom:0.5rem;">
                         <div style="display:flex;gap:0.5rem;">
                             <select id="sf-text-pos" style="padding:0.4rem;border:1px solid var(--border);border-radius:6px;">
-                                <option value="top">상단</option><option value="center">중앙</option><option value="bottom" selected>하단</option>
+                                <option value="top">${t('shortform.pos_top','상단')}</option><option value="center">${t('shortform.pos_center','중앙')}</option><option value="bottom" selected>${t('shortform.pos_bottom','하단')}</option>
                             </select>
                             <input type="color" id="sf-text-color" value="#FFF8F0" style="width:40px;height:32px;border:none;cursor:pointer;">
                             <input type="range" id="sf-text-size" min="12" max="48" value="24" style="flex:1;">
@@ -94,7 +94,7 @@
             </div>
 
             <!-- caption & hashtags -->
-            <textarea id="sf-caption" placeholder="${t('shortform.caption_placeholder','Enter a caption #hashtag')}" rows="2" style="width:100%;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;resize:none;margin-bottom:0.5rem;font-size:0.9rem;"></textarea>
+            <textarea id="sf-caption" class="crny-textarea" placeholder="${t('shortform.caption_placeholder','캡션 입력 #해시태그')}" rows="2" style="margin-bottom:0.5rem;"></textarea>
 
             <!-- service link -->
             <div style="margin-bottom:0.8rem;">
@@ -105,7 +105,7 @@
                 <div id="sf-service-search" style="display:none;margin-top:0.5rem;">
                     <div style="display:flex;gap:0.4rem;">
                         <input type="text" id="sf-svc-query" placeholder="${t('shortform.search_item','Search items...')}" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:8px;font-size:0.85rem;">
-                        <button onclick="SHORTFORM._searchService()" style="padding:0.4rem 0.8rem;border:none;border-radius:8px;background:var(--accent,#8B6914);color:#FFF8F0;cursor:pointer;font-size:0.85rem;">검색</button>
+                        <button onclick="SHORTFORM._searchService()" style="padding:0.4rem 0.8rem;border:none;border-radius:8px;background:var(--accent,#8B6914);color:#FFF8F0;cursor:pointer;font-size:0.85rem;">${t('shortform.search_btn','검색')}</button>
                     </div>
                     <div id="sf-svc-results" style="max-height:150px;overflow-y:auto;margin-top:0.3rem;"></div>
                 </div>
@@ -113,17 +113,17 @@
             </div>
 
             <!-- progress -->
-            <div id="sf-progress" style="display:none;margin-bottom:0.8rem;">
-                <div style="background:var(--border,#E8E0D8);border-radius:8px;height:6px;overflow:hidden;">
-                    <div id="sf-progress-bar" style="height:100%;background:#8B6914;width:0%;transition:width 0.3s;"></div>
+            <div id="sf-progress" class="crny-progress" style="display:none;">
+                <div class="crny-progress-track">
+                    <div id="sf-progress-bar" class="crny-progress-bar"></div>
                 </div>
-                <div id="sf-progress-text" style="font-size:0.75rem;color:#6B5744;margin-top:0.2rem;text-align:center;">0%</div>
+                <div id="sf-progress-text" class="crny-progress-text">0%</div>
             </div>
 
             <!-- actions -->
-            <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-                <button onclick="document.getElementById('shortform-upload-modal').remove()" style="padding:0.6rem 1rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:transparent;color:var(--text);">${t('common.cancel','Cancel')}</button>
-                <button id="sf-submit-btn" onclick="SHORTFORM._doUpload()" style="padding:0.6rem 1.2rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;" disabled>${t('shortform.upload','Upload')}</button>
+            <div class="crny-btn-row" style="justify-content:flex-end;">
+                <button class="crny-btn crny-btn--ghost" onclick="document.getElementById('shortform-upload-modal').remove()">${t('common.cancel','취소')}</button>
+                <button class="crny-btn crny-btn--primary" id="sf-submit-btn" onclick="SHORTFORM._doUpload()" disabled>${t('shortform.upload','업로드')}</button>
             </div>
         </div>`;
         document.body.appendChild(modal);
@@ -236,7 +236,7 @@
         if (!cfg) return;
         const q = document.getElementById('sf-svc-query').value.trim();
         const results = document.getElementById('sf-svc-results');
-        results.innerHTML = '<p style="text-align:center;font-size:0.8rem;color:var(--text-muted,#6B5744);">로딩...</p>';
+        results.innerHTML = '<p style="text-align:center;font-size:0.8rem;color:var(--text-muted,#6B5744);">' + t('shortform.loading','로딩...') + '</p>';
         try {
             let query = db.collection(cfg.collection).limit(10);
             const snap = await query.get();
@@ -247,8 +247,8 @@
                 if (q && !name.toLowerCase().includes(q.toLowerCase())) return;
                 html += `<div onclick="SHORTFORM._pickService('${_selectedServiceType}','${doc.id}','${name.replace(/'/g,"\\'")}')" style="padding:0.5rem;border-bottom:1px solid var(--border,#E8E0D8);cursor:pointer;font-size:0.85rem;display:flex;justify-content:space-between;align-items:center;"><span>${name}</span><span style="color:${CTA_MAP[_selectedServiceType].color};font-size:0.75rem;">${CTA_MAP[_selectedServiceType].label}</span></div>`;
             });
-            results.innerHTML = html || '<p style="text-align:center;font-size:0.8rem;color:var(--text-muted,#6B5744);">결과 없음</p>';
-        } catch(e) { results.innerHTML = '<p style="color:red;font-size:0.8rem;">검색 실패</p>'; }
+            results.innerHTML = html || '<p style="text-align:center;font-size:0.8rem;color:var(--text-muted,#6B5744);">' + t('shortform.no_results','결과 없음') + '</p>';
+        } catch(e) { results.innerHTML = '<p style="color:red;font-size:0.8rem;">' + t('shortform.search_failed','검색 실패') + '</p>'; }
     }
 
     function _pickService(type, id, title) {
@@ -422,11 +422,11 @@
         }
     }
 
-    // ====== REELS FEED ======
+    // ====== SHORTS FEED ======
     async function loadReelsFeed(reset) {
         if (loading) return;
         if (typeof useIndependentDB !== 'undefined' && useIndependentDB) {
-            // CrownyTVM 독립 릴스: 소셜 피드에서 YouTube Shorts 추출
+            // CrownyTVM 독립 쇼츠: 소셜 피드에서 YouTube Shorts 추출
             await loadIndependentReels(reset);
             return;
         }
@@ -444,12 +444,12 @@
             for (const doc of snap.docs) {
                 const d = doc.data();
                 // Fetch author info
-                let authorName = '사용자';
+                let authorName = t('shortform.default_user','사용자');
                 let authorPhoto = '';
                 try {
                     const uSnap = await db.collection('users').doc(d.authorUid).get();
-                    if (uSnap.exists) { authorName = uSnap.data().nickname || uSnap.data().displayName || '사용자'; authorPhoto = uSnap.data().photoURL || ''; }
-                } catch(_){}
+                    if (uSnap.exists) { authorName = uSnap.data().nickname || uSnap.data().displayName || t('shortform.default_user','사용자'); authorPhoto = uSnap.data().photoURL || ''; }
+                } catch(_){ console.warn(_.message); }
                 newItems.push({ id: doc.id, ...d, authorName, authorPhoto });
                 lastDoc = doc;
             }
@@ -460,7 +460,7 @@
             const isPermission = (e.message || '').includes('permission') || (e.message || '').includes('Permission') || (typeof useIndependentDB !== 'undefined' && useIndependentDB);
             if (isPermission && reelsData.length === 0) {
                 const c = document.getElementById('reels-container');
-                if (c) c.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;color:#6B5744;"><div style="font-size:3rem;margin-bottom:1rem;"><i data-lucide="video" style="width:48px;height:48px;display:block;"></i></div><p style="font-size:1.1rem;font-weight:600;color:#3D2B1F">숏폼 영상 준비 중</p><p style="font-size:0.85rem;color:#7A5C47;margin-top:8px">CrownyTVM 독립 영상 기능이 곧 추가됩니다.</p></div>`;
+                if (c) c.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;color:#6B5744;"><div style="font-size:3rem;margin-bottom:1rem;"><i data-lucide="video" style="width:48px;height:48px;display:block;"></i></div><p style="font-size:1.1rem;font-weight:600;color:#3D2B1F">${t('shortform.preparing','쇼츠 영상 준비 중')}</p><p style="font-size:0.85rem;color:#7A5C47;margin-top:8px">${t('shortform.coming_soon','CrownyTVM 독립 영상 기능이 곧 추가됩니다.')}</p></div>`;
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         }
@@ -518,13 +518,13 @@
                 const video = entry.target.querySelector('video');
                 if (!video) return;
                 if (entry.isIntersecting) {
-                    video.play().catch(()=>{});
+                    video.play().catch(e=>console.warn(e.message));
                     video.muted = reelsMuted;
                     // Increment views
                     const idx = parseInt(entry.target.dataset.index);
                     if (reelsData[idx]) {
                         reelsIndex = idx;
-                        db.collection(COLLECTION).doc(reelsData[idx].id).update({ views: firebase.firestore.FieldValue.increment(1) }).catch(()=>{});
+                        db.collection(COLLECTION).doc(reelsData[idx].id).update({ views: firebase.firestore.FieldValue.increment(1) }).catch(e=>console.warn(e.message));
                     }
                     // Prefetch next
                     if (idx >= reelsData.length - 3 && !loading) loadReelsFeed(false);
@@ -608,7 +608,7 @@
         };
 
         // Increment views
-        db.collection(COLLECTION).doc(reel.id).update({ views: firebase.firestore.FieldValue.increment(1) }).catch(()=>{});
+        db.collection(COLLECTION).doc(reel.id).update({ views: firebase.firestore.FieldValue.increment(1) }).catch(e=>console.warn(e.message));
 
         // Prefetch next
         if (idx >= reelsData.length - 3 && !loading) loadReelsFeed(false);
@@ -667,19 +667,20 @@
         
         overlay = document.createElement('div');
         overlay.id = 'reel-comments-overlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.5);z-index:99998;display:flex;align-items:flex-end;justify-content:center;';
+        overlay.className = 'crny-overlay crny-overlay--light';
+        overlay.style.alignItems = 'flex-end';
         overlay.innerHTML = `
-            <div id="reel-comments-sheet" style="width:100%;max-width:500px;max-height:70vh;background:var(--dark-card,#F7F3ED);border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;">
-                <div style="padding:12px 16px;border-bottom:1px solid var(--dark-border,#2a2a4a);display:flex;align-items:center;justify-content:space-between;">
-                    <h4 style="margin:0;font-size:1rem;"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('shortform.comments','Comments')}</h4>
-                    <button onclick="document.getElementById('reel-comments-overlay').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text);">✕</button>
+            <div class="crny-comment-sheet">
+                <div class="crny-comment-header">
+                    <h4><i data-lucide="message-circle"></i>${t('shortform.comments','댓글')}</h4>
+                    <button onclick="document.getElementById('reel-comments-overlay').remove()">✕</button>
                 </div>
-                <div id="reel-comment-list" style="flex:1;overflow-y:auto;padding:12px 16px;min-height:100px;">
-                    <p style="text-align:center;color:var(--accent);font-size:0.85rem;">로딩 중...</p>
+                <div id="reel-comment-list" class="crny-comment-list">
+                    <p style="text-align:center;color:var(--accent);font-size:0.85rem;">${t('shortform.loading','로딩...')}</p>
                 </div>
-                <div style="padding:8px 12px;border-top:1px solid var(--dark-border,#2a2a4a);display:flex;gap:8px;">
-                    <input type="text" id="reel-comment-input" placeholder="${t('social.add_comment','Add a comment...')}" style="flex:1;padding:8px 12px;border:1px solid var(--dark-border,#2a2a4a);border-radius:20px;font-size:0.9rem;outline:none;background:var(--dark-bg,#12122a);color:var(--text);">
-                    <button onclick="SHORTFORM._submitComment('${id}')" style="background:#0095f6;color:#FFF8F0;border:none;border-radius:20px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:0.85rem;">${t('social.post','Post')}</button>
+                <div class="crny-comment-footer">
+                    <input type="text" id="reel-comment-input" placeholder="${t('social.add_comment','댓글 달기...')}">
+                    <button onclick="SHORTFORM._submitComment('${id}')">${t('social.post','게시')}</button>
                 </div>
             </div>`;
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
@@ -710,12 +711,12 @@
             for (const doc of snap.docs) {
                 const c = doc.data();
                 const timeAgo = _timeAgo(c.createdAt?.toDate?.() || new Date());
-                html += `<div style="display:flex;gap:10px;margin-bottom:12px;">
-                    <div style="width:32px;height:32px;border-radius:50%;background:var(--dark-border,#2a2a4a);display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;">${c.photoURL ? `<img src="${c.photoURL}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : '👤'}</div>
+                html += `<div class="crny-comment-item">
+                    <div class="avatar">${c.photoURL ? `<img src="${c.photoURL}">` : '👤'}</div>
                     <div style="flex:1;">
-                        <span style="font-weight:600;font-size:0.85rem;">${_esc(c.nickname || '사용자')}</span>
-                        <span style="font-size:0.75rem;color:var(--accent);margin-left:6px;">${timeAgo}</span>
-                        <p style="margin:2px 0 0;font-size:0.9rem;line-height:1.4;">${_esc(c.text)}</p>
+                        <span class="author">${_esc(c.nickname || t('shortform.default_user','사용자'))}</span>
+                        <span class="time">${timeAgo}</span>
+                        <p class="text">${_esc(c.text)}</p>
                     </div>
                 </div>`;
             }
@@ -723,7 +724,7 @@
             list.scrollTop = list.scrollHeight;
         } catch(e) {
             console.error('Reel comments load error:', e);
-            list.innerHTML = '<p style="color:#B54534;text-align:center;">댓글 로드 실패</p>';
+            list.innerHTML = '<p style="color:#B54534;text-align:center;">' + t('shortform.comment_load_failed','댓글 로드 실패') + '</p>';
         }
     }
 
@@ -740,7 +741,7 @@
             
             await db.collection(COLLECTION).doc(videoId).collection('comments').add({
                 uid: currentUser.uid,
-                nickname: userData.nickname || currentUser.email?.split('@')[0] || '사용자',
+                nickname: userData.nickname || currentUser.email?.split('@')[0] || t('shortform.default_user','사용자'),
                 photoURL: userData.photoURL || '',
                 text: text,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -767,10 +768,10 @@
 
     function _timeAgo(date) {
         const diff = (Date.now() - date.getTime()) / 1000;
-        if (diff < 60) return '방금';
-        if (diff < 3600) return `${Math.floor(diff/60)}분`;
-        if (diff < 86400) return `${Math.floor(diff/3600)}시간`;
-        if (diff < 604800) return `${Math.floor(diff/86400)}일`;
+        if (diff < 60) return t('common.just_now','방금');
+        if (diff < 3600) return `${Math.floor(diff/60)}${t('common.minutes_ago','분')}`;
+        if (diff < 86400) return `${Math.floor(diff/3600)}${t('common.hours_ago','시간')}`;
+        if (diff < 604800) return `${Math.floor(diff/86400)}${t('common.days_ago','일')}`;
         return date.toLocaleDateString('ko');
     }
 
@@ -790,7 +791,7 @@
                 showToast('<i data-lucide="clipboard" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ' + t('shortform.link_copied','Link copied'), 'success');
             }
         } catch(e) {
-            try { await navigator.clipboard.writeText(url); showToast('<i data-lucide="clipboard" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ' + t('shortform.link_copied','Link copied'), 'success'); } catch(_){}
+            try { await navigator.clipboard.writeText(url); showToast('<i data-lucide="clipboard" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ' + t('shortform.link_copied','Link copied'), 'success'); } catch(_){ console.warn(_.message); }
         }
     }
 
@@ -818,8 +819,8 @@
             db.collection(COLLECTION).doc(targetId).get().then(async doc => {
                 if (!doc.exists) return;
                 const d = doc.data();
-                let authorName = '사용자', authorPhoto = '';
-                try { const u = await db.collection('users').doc(d.authorUid).get(); if (u.exists) { authorName = u.data().nickname || '사용자'; authorPhoto = u.data().photoURL || ''; } } catch(_){}
+                let authorName = t('shortform.default_user','사용자'), authorPhoto = '';
+                try { const u = await db.collection('users').doc(d.authorUid).get(); if (u.exists) { authorName = u.data().nickname || t('shortform.default_user','사용자'); authorPhoto = u.data().photoURL || ''; } } catch(_){ console.warn(_.message); }
                 reelsData.unshift({ id: doc.id, ...d, authorName, authorPhoto });
                 reelsIndex = 0;
                 renderSingleReel(0);
@@ -827,7 +828,7 @@
         }
     }
 
-    // ====== 독립 릴스 (YouTube Shorts 기반) ======
+    // ====== 독립 쇼츠 (YouTube Shorts 기반) ======
     async function loadIndependentReels(reset) {
         if (reset) { reelsData = []; reelsIndex = 0; }
         loading = true;
@@ -846,14 +847,14 @@
                 c.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;color:#6B5744;">
                     <p style="margin-bottom:1rem;"><i data-lucide="clapperboard" style="width:48px;height:48px;"></i></p>
                     <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;">${t('shortform.no_videos','No videos yet')}</p>
-                    <p style="font-size:0.85rem;color:#7A5C47;margin-top:8px;">YouTube/Shorts 링크가 포함된 게시물을 작성하면<br>릴스에 자동으로 표시됩니다.</p>
-                    <button onclick="navigateTo('social')" style="margin-top:1rem;padding:0.6rem 1.2rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;">소셜에서 게시하기</button>
+                    <p style="font-size:0.85rem;color:#7A5C47;margin-top:8px;">${t('shortform.shorts_hint','YouTube/Shorts 링크가 포함된 튜브를 작성하면 쇼츠에 자동으로 표시됩니다.')}</p>
+                    <button onclick="navigateTo('social')" style="margin-top:1rem;padding:0.6rem 1.2rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;">${t('shortform.post_from_tube','튜브에서 게시하기')}</button>
                 </div>`;
                 loading = false;
                 return;
             }
 
-            // 릴스 데이터 구성
+            // 쇼츠 데이터 구성
             reelsData = ytPosts.map((p, i) => ({
                 id: p.id,
                 videoUrl: null,
@@ -930,14 +931,14 @@
             .replace(/#(\S+)/g, '<span style="color:#B8860B;">#$1</span>');
     }
 
-    // ====== INIT REELS PAGE ======
+    // ====== INIT SHORTS PAGE ======
     function initReelsPage() {
         loadReelsFeed(true);
         handleReelsDeepLink();
     }
 
     // ====== PUBLIC API ======
-    window.SHORTFORM = {
+    const api = {
         openUpload: openUploadModal,
         initReels: initReelsPage,
         loadFeed: loadReelsFeed,
@@ -955,4 +956,6 @@
         _nav: _nav,
         getReelsData: () => reelsData
     };
+    window.REELS = api;
+    window.SHORTFORM = api; // 하위 호환
 })();

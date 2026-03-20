@@ -26,6 +26,19 @@ const { execFile } = require('child_process');
 
 const https = require('https');
 
+// ── .env 로딩 (dotenv 없이 직접 파싱) ──
+try {
+    const envPath = pathModule.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+        fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) return;
+            const eq = trimmed.indexOf('=');
+            if (eq > 0) process.env[trimmed.slice(0, eq)] = trimmed.slice(eq + 1);
+        });
+    }
+} catch (e) { /* .env is optional */ }
+
 // 독립 메일 서버 (한선씨 고유코드 · 4상균형3진법)
 let mailServer = null;
 try {
@@ -42,12 +55,24 @@ try {
     console.warn('[CHAT] 독립 메신저 로드 실패:', e.message);
 }
 
+// CrownyCell Chain (자체 블록체인)
+let chainAdapter = null;
+try {
+    chainAdapter = require('./chain/adapter');
+    chainAdapter.initChain({
+        dataDir: pathModule.join(__dirname, 'data', 'chain'),
+        legacyDataDir: pathModule.join(__dirname, 'data'),
+    });
+} catch (e) {
+    console.warn('[CHAIN] CrownyCell Chain 로드 실패 (레거시 모드):', e.message);
+}
+
 const PORT = 7730;
 const DATA_DIR = './data';
 const DOMAIN = 'crowny.org';
 const PUBLIC_DIR = pathModule.join(__dirname, 'public');
 const CROWNYBUS_API = 'https://crownybus.com';
-const ADMIN_USERS = ['kps', 'alice', 'admin'];  // 관리자 아이디 목록
+const ADMIN_USERS = (process.env.ADMIN_USERS || 'kps,alice,admin').split(',').map(s => s.trim()).filter(Boolean);
 const SOCIAL_DIR = pathModule.join(__dirname, 'social-data');
 if (!fs.existsSync(SOCIAL_DIR)) fs.mkdirSync(SOCIAL_DIR, { recursive: true });
 const WALLET_CAP_BASIC = 1000;  // 기본사용자 CRM 보관 한도
@@ -68,7 +93,7 @@ function runHanSeon(code, command = 'run', timeout = 5000) {
             encoding: 'utf8', timeout, maxBuffer: 1024 * 512,
             cwd: __dirname
         }, (err, stdout, stderr) => {
-            try { fs.unlinkSync(tmpFile); } catch(e) {}
+            try { fs.unlinkSync(tmpFile); } catch(e) { /* cleanup */ }
             if (err) {
                 if (err.killed) resolve({ output: '', error: '실행 시간 초과 (5초)', timeout: true });
                 else resolve({ output: stdout || '', error: stderr || err.message });
@@ -340,7 +365,7 @@ async function cloudPull(username) {
             const cloudChats = Array.isArray(r.data.data) ? r.data.data : [];
             cloudChats.forEach(chat => {
                 // cloud 채팅 메시지 가져오기
-                cloudPullChatMessages(username, chat.chat_id, token).catch(() => {});
+                cloudPullChatMessages(username, chat.chat_id, token).catch(e => console.warn('[BG]', e.message));
                 results.chats++;
             });
         }
@@ -403,7 +428,7 @@ setInterval(async () => {
         if (user.busToken && user.busLinked) {
             const lastPull = user.lastCloudPull || 0;
             if (Date.now() - lastPull >= CLOUD_PULL_INTERVAL) {
-                try { await cloudPull(username); } catch(e) {}
+                try { await cloudPull(username); } catch(e) { console.warn('[BG]', e.message); }
             }
         }
     }
@@ -569,8 +594,27 @@ function saveCells() { saveJSON('cells.json', cells); }
 
 let users = loadJSON('users.json', {});
 
+// ── 비밀번호 해싱 (scrypt + 랜덤 salt) ──
+function hashPasswordSecure(pw) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const derived = crypto.scryptSync(pw, salt, 64).toString('hex');
+    return `scrypt:${salt}:${derived}`;
+}
+
+function verifyPassword(pw, stored) {
+    // scrypt 형식: "scrypt:salt:hash"
+    if (stored.startsWith('scrypt:')) {
+        const [, salt, hash] = stored.split(':');
+        const derived = crypto.scryptSync(pw, salt, 64).toString('hex');
+        return crypto.timingSafeEqual(Buffer.from(derived, 'hex'), Buffer.from(hash, 'hex'));
+    }
+    // 레거시 SHA-256 (마이그레이션 전 기존 사용자)
+    const legacy = crypto.createHash('sha256').update(pw + 'crowny_salt_2026').digest('hex');
+    return stored === legacy;
+}
+
 function hashPassword(pw) {
-    return crypto.createHash('sha256').update(pw + 'crowny_salt_2026').digest('hex');
+    return hashPasswordSecure(pw);
 }
 
 function generateToken() {
@@ -578,9 +622,30 @@ function generateToken() {
 }
 
 const SESSIONS_FILE = pathModule.join(DATA_DIR, 'sessions.json');
+const SESSION_TTL = 7 * 24 * 60 * 60 * 1000; // 7일 만료
 let sessions = {};
-try { sessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')); } catch(e) {}
-function saveSessions() { try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions)); } catch(e) {} }
+try { sessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')); } catch(e) { /* first run */ }
+function saveSessions() { try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions)); } catch(e) { console.warn('[SAVE]', e.message); } }
+
+// ── Rate Limiter (인메모리, IP 기반) ──
+const _rateLimits = {};
+function rateLimit(ip, endpoint, maxPerMin) {
+    const key = `${ip}:${endpoint}`;
+    const now = Date.now();
+    if (!_rateLimits[key]) _rateLimits[key] = [];
+    _rateLimits[key] = _rateLimits[key].filter(t => now - t < 60000);
+    if (_rateLimits[key].length >= maxPerMin) return false;
+    _rateLimits[key].push(now);
+    return true;
+}
+// 5분마다 오래된 항목 정리
+setInterval(() => {
+    const now = Date.now();
+    for (const key of Object.keys(_rateLimits)) {
+        _rateLimits[key] = _rateLimits[key].filter(t => now - t < 60000);
+        if (_rateLimits[key].length === 0) delete _rateLimits[key];
+    }
+}, 300000);
 
 // ═══ 256비트 균형3진법 지갑주소 생성 ═══
 // 256비트 → 162트릿 (3^162 > 2^256), 표기: T(+1), 0(0), N(-1)
@@ -645,7 +710,7 @@ function createUser(username, password, displayName) {
     }
 
     // CrownyBus.com 계정 연동 (비동기, 실패 시 큐)
-    busRegister(username, password, email, displayName).catch(() => {});
+    busRegister(username, password, email, displayName).catch(e => console.warn('[BG]', e.message));
 
     return {
         success: true,
@@ -661,8 +726,14 @@ function loginUser(username, password) {
     // 이메일로 로그인 시 username 추출: "user@crowny.org" → "user"
     if (username && username.includes('@')) username = username.split('@')[0];
     const user = users[username];
-    if (!user || user.password !== hashPassword(password))
+    if (!user || !verifyPassword(password, user.password))
         return { error: '아이디 또는 비밀번호가 틀렸습니다' };
+
+    // 레거시 SHA-256 → scrypt 자동 마이그레이션
+    if (!user.password.startsWith('scrypt:')) {
+        user.password = hashPasswordSecure(password);
+        saveJSON('users.json', users);
+    }
 
     const token = generateToken();
     sessions[token] = { username, created: Date.now() };
@@ -672,11 +743,11 @@ function loginUser(username, password) {
     if (!user.busToken || !user.busLinked) {
         busLogin(username, password, user.email).then(() => {
             // 로그인 성공 시 클라우드 풀 (iPhone 잠금해제 → iCloud 동기화)
-            cloudPull(username).catch(() => {});
-        }).catch(() => {});
+            cloudPull(username).catch(e => console.warn('[BG]', e.message));
+        }).catch(e => console.warn('[BG]', e.message));
     } else {
         // 이미 연동된 경우에도 풀 실행
-        cloudPull(username).catch(() => {});
+        cloudPull(username).catch(e => console.warn('[BG]', e.message));
     }
 
     return { success: true, token, username, email: user.email, displayName: user.displayName || username, photoURL: user.photoURL || '', cellId: user.cellId, busLinked: !!user.busLinked };
@@ -695,6 +766,12 @@ function verifyEmail(username) {
 function getUser(token) {
     const session = sessions[token];
     if (!session) return null;
+    // 세션 만료 체크
+    if (Date.now() - session.created > SESSION_TTL) {
+        delete sessions[token];
+        saveSessions();
+        return null;
+    }
     return users[session.username] || null;
 }
 
@@ -723,7 +800,7 @@ function addContact(ownerUsername, contactName, phone, relation, extra = {}) {
     // ── iCloud Push: 연락처 → CrownyBus ──
     cloudPush(ownerUsername, 'contact_add', 'POST', '/v2/contacts/request', {
         pub_key: contactName, display_name: contactName, phone, email: extra.email || ''
-    }).catch(() => {});
+    }).catch(e => console.warn('[BG]', e.message));
 
     return { success: true, contactId: contact.id, name: contactName };
 }
@@ -767,7 +844,7 @@ function sendMessage(fromUsername, toUsername, content, crmmAmount = 0) {
     cloudPush(fromUsername, 'chat_send', 'POST', '/v2/chat/send', {
         chat_id: `${[fromUsername, toUsername].sort().join('_')}`,
         content, msg_type: 'text'
-    }).catch(() => {});
+    }).catch(e => console.warn('[BG]', e.message));
 
     return { success: true, messageId: msg.id, from: fromUsername, to: toUsername, crmmTip: crmmAmount };
 }
@@ -856,6 +933,42 @@ function getQuiz(username) {
     };
 }
 
+function getAllQuiz(username) {
+    if (BIBLE_QUIZ.length === 0) return { error: '퀴즈 데이터를 로드할 수 없습니다' };
+    const state = getQuizState(username);
+
+    const maxDifficulty = state.level >= 3 ? 3 : state.level >= 2 ? 2 : 1;
+    const pool = BIBLE_QUIZ.filter(q => q.l <= maxDifficulty && !state.answeredIds.has(q.i));
+    if (pool.length === 0) return { complete: true, total: state.answeredIds.size, correct: state.totalCorrect, rounds: state.roundsCompleted };
+
+    // Return up to ROUND_SIZE questions for the current round
+    const remaining = ROUND_SIZE - state.roundAnswered;
+    const questions = [];
+    const used = new Set();
+    const domains = ['SP','HU','LW','SV','HI','LD'];
+
+    for (let i = 0; i < remaining && i < pool.length; i++) {
+        const domainPref = domains[(state.roundAnswered + i) % domains.length];
+        const available = pool.filter(q => !used.has(q.i));
+        if (available.length === 0) break;
+        const filtered = available.filter(q => q.d === domainPref);
+        const source = filtered.length > 0 ? filtered : available;
+        const pick = source[Math.floor(Math.random() * source.length)];
+        used.add(pick.i);
+        questions.push({
+            quizId: pick.i,
+            question: pick.q,
+            options: pick.o,
+            category: CATEGORY_NAMES[pick.c] || pick.c,
+            domain: DOMAIN_NAMES[pick.d] || pick.d,
+            difficulty: pick.l,
+            reference: pick.r,
+        });
+    }
+
+    return questions;
+}
+
 function answerQuiz(username, quizId, selectedIndex) {
     const quiz = BIBLE_QUIZ.find(q => q.i === quizId);
     if (!quiz) return { error: '잘못된 퀴즈' };
@@ -913,12 +1026,12 @@ function answerQuiz(username, quizId, selectedIndex) {
     // ── iCloud Push: 퀴즈 → CrownyBus ──
     cloudPush(username, 'quiz_submit', 'POST', '/v2/bible/quiz/submit', {
         answers: [{ question_id: quizId, selected: selectedIndex }]
-    }).catch(() => {});
+    }).catch(e => console.warn('[BG]', e.message));
     // 라운드 완료 + 보상 시 claim
     if (roundResult && roundResult.passed && roundResult.reward === '1 CRM') {
         cloudPush(username, 'quiz_claim', 'POST', '/v2/bible/quiz/claim', {
             session_id: `round_${state.roundsCompleted}`
-        }).catch(() => {});
+        }).catch(e => console.warn('[BG]', e.message));
     }
 
     return {
@@ -940,20 +1053,24 @@ function answerQuiz(username, quizId, selectedIndex) {
 // 스왑: 상향만 허용 (CRM→FNC, FNC→CRN), 역방향 불가
 
 function getWallet(username) {
+    // CrownyCell Chain 사용 가능하면 체인에서 조회
+    if (chainAdapter) {
+        try { return chainAdapter.chainGetWallet(username); } catch (e) { console.warn('[CHAIN] getWallet fallback:', e.message); }
+    }
+    // 레거시 폴백 (JSON 기반)
     const wallets = findCellsByOwner(username, TY.WALLET);
     const txns = findCellsByOwner(username, TY.TRANSACTION);
 
     let balances = { CRN: 0, FNC: 0, CRM: 0 };
     txns.forEach(t => {
-        let currency = t.currency || 'CRN';  // backward compat
-        if (!['CRN','FNC','CRM'].includes(currency)) currency = 'CRM'; // legacy fallback
+        let currency = t.currency || 'CRN';
+        if (!['CRN','FNC','CRM'].includes(currency)) currency = 'CRM';
         if (t.txType === 'receive' || t.txType === 'deposit' || t.txType === 'swap_in') balances[currency] += t.value;
         else if (t.txType === 'send' || t.txType === 'withdraw' || t.txType === 'swap_out') balances[currency] -= t.value;
     });
 
-    // DEX prices (simple model with random ±2% variation)
     const baseRates = { CRN: 25500, FNC: 2550, CRM: 25.5 };
-    const variation = 1 + (Math.random() * 0.04 - 0.02); // ±2%
+    const variation = 1 + (Math.random() * 0.04 - 0.02);
     const prices = {
         CRN: Math.round(baseRates.CRN * variation * 100) / 100,
         FNC: Math.round(baseRates.FNC * variation * 100) / 100,
@@ -963,97 +1080,82 @@ function getWallet(username) {
     return {
         wallet: wallets[0] || null,
         walletAddress: users[username]?.walletAddress || '',
-        username,
-        balances,
-        prices,
+        username, balances, prices,
         totalKRW: Math.round(balances.CRN * prices.CRN + balances.FNC * prices.FNC + balances.CRM * prices.CRM),
         transactions: txns.sort((a, b) => b.created - a.created).slice(0, 30),
     };
 }
 
 function walletTransact(username, type, amount, toUser = null, memo = '', currency = 'CRN') {
+    // CrownyCell Chain 사용 가능하면 체인 트랜잭션
+    if (chainAdapter) {
+        try {
+            const result = chainAdapter.chainWalletTransact(username, type, amount, toUser, memo, currency);
+            if (result && !result.error) return result;
+            // 체인 에러 시 레거시로 폴백
+            if (result && result.error) console.warn('[CHAIN] walletTransact error:', result.error);
+        } catch (e) { console.warn('[CHAIN] walletTransact fallback:', e.message); }
+    }
+    // 레거시 폴백
     const user = users[username];
-    if (!user) return { error: '사용자 없음' };
-    if (amount <= 0) return { error: '금액은 양수여야 합니다' };
-    if (!['CRN','FNC','CRM'].includes(currency)) return { error: '잘못된 통화' };
+    if (!user) return { error: 'user not found' };
+    if (amount <= 0) return { error: 'amount must be positive' };
+    if (!['CRN','FNC','CRM'].includes(currency)) return { error: 'invalid currency' };
 
     const wallet = getWallet(username);
-
     if ((type === 'send' || type === 'withdraw') && (wallet.balances[currency] || 0) < amount)
-        return { error: `${currency} 잔액 부족` };
+        return { error: `insufficient ${currency}` };
 
     const txn = createCell(memo || `${type}:${amount} ${currency}`, TY.TRANSACTION, amount, username);
-    txn.txType = type;
-    txn.toUser = toUser;
-    txn.memo = memo;
-    txn.currency = currency;
-
+    txn.txType = type; txn.toUser = toUser; txn.memo = memo; txn.currency = currency;
     if (wallet.wallet) connectCells(wallet.wallet.id, txn.id, 3);
 
     if (toUser && users[toUser]) {
         const receiveTxn = createCell(memo || `receive:${amount} ${currency}`, TY.TRANSACTION, amount, toUser);
-        receiveTxn.txType = 'receive';
-        receiveTxn.fromUser = username;
-        receiveTxn.memo = memo;
-        receiveTxn.currency = currency;
+        receiveTxn.txType = 'receive'; receiveTxn.fromUser = username; receiveTxn.memo = memo; receiveTxn.currency = currency;
         const toWallet = getWallet(toUser);
         if (toWallet.wallet) connectCells(toWallet.wallet.id, receiveTxn.id, 4);
     }
-
     saveCells();
 
-    // ── 2단계: CrownyBus 원장 동기화 ──
     if (type === 'send' && toUser) {
         const toAddr = users[toUser]?.walletAddress || toUser;
         syncTransfer(username, currency, amount, toAddr, memo || `send to ${toUser}`);
-    } else if (type === 'deposit') {
-        syncTransfer(username, currency, amount, users[username]?.walletAddress, memo || 'deposit');
     }
-
     return { success: true, txnId: txn.id, type, amount, currency, balances: getWallet(username).balances };
 }
 
 function swapTokens(username, fromCurrency, toCurrency, amount) {
+    // CrownyCell Chain
+    if (chainAdapter) {
+        try {
+            const result = chainAdapter.chainSwapTokens(username, fromCurrency, toCurrency, amount);
+            if (result && !result.error) return result;
+            if (result && result.error) console.warn('[CHAIN] swapTokens error:', result.error);
+        } catch (e) { console.warn('[CHAIN] swapTokens fallback:', e.message); }
+    }
+    // 레거시 폴백
     const user = users[username];
-    if (!user) return { error: '사용자 없음' };
-    if (amount <= 0) return { error: '금액은 양수여야 합니다' };
+    if (!user) return { error: 'user not found' };
+    if (amount <= 0) return { error: 'amount must be positive' };
 
-    // Only upward swaps allowed
     const allowed = { 'CRM->FNC': true, 'FNC->CRN': true };
-    const key = `${fromCurrency}->${toCurrency}`;
-    if (!allowed[key]) return { error: `${fromCurrency} → ${toCurrency} 스왑 불가. 맘→포네, 포네→크라우니만 가능합니다.` };
+    if (!allowed[`${fromCurrency}->${toCurrency}`]) return { error: `swap ${fromCurrency} → ${toCurrency} not allowed` };
 
     const wallet = getWallet(username);
-    if ((wallet.balances[fromCurrency] || 0) < amount)
-        return { error: `${fromCurrency} 잔액 부족` };
+    if ((wallet.balances[fromCurrency] || 0) < amount) return { error: `insufficient ${fromCurrency}` };
 
-    // Calculate conversion with ±2% slippage
     const slippage = 1 + (Math.random() * 0.04 - 0.02);
     let received;
-    if (fromCurrency === 'CRM' && toCurrency === 'FNC') {
-        received = Math.floor(amount / 100 * slippage * 1000) / 1000;  // 100 CRM = 1 FNC
-    } else if (fromCurrency === 'FNC' && toCurrency === 'CRN') {
-        received = Math.floor(amount / 10 * slippage * 1000) / 1000;   // 10 FNC = 1 CRN
-    }
+    if (fromCurrency === 'CRM' && toCurrency === 'FNC') received = Math.floor(amount / 100 * slippage * 1000) / 1000;
+    else if (fromCurrency === 'FNC' && toCurrency === 'CRN') received = Math.floor(amount / 10 * slippage * 1000) / 1000;
+    if (received <= 0) return { error: 'swap amount too small' };
 
-    if (received <= 0) return { error: '스왑 금액이 너무 작습니다' };
-
-    // Create out transaction
     const outTxn = createCell(`swap:${amount} ${fromCurrency} → ${received} ${toCurrency}`, TY.TRANSACTION, amount, username);
-    outTxn.txType = 'swap_out'; outTxn.currency = fromCurrency; outTxn.memo = `DEX: ${fromCurrency} → ${toCurrency}`;
-
-    // Create in transaction
+    outTxn.txType = 'swap_out'; outTxn.currency = fromCurrency;
     const inTxn = createCell(`swap:${received} ${toCurrency}`, TY.TRANSACTION, received, username);
-    inTxn.txType = 'swap_in'; inTxn.currency = toCurrency; inTxn.memo = `DEX: ${fromCurrency} → ${toCurrency}`;
-
-    if (wallet.wallet) {
-        connectCells(wallet.wallet.id, outTxn.id, 3);
-        connectCells(wallet.wallet.id, inTxn.id, 3);
-    }
-
+    inTxn.txType = 'swap_in'; inTxn.currency = toCurrency;
     saveCells();
-
-    // ── 2단계: CrownyBus DEX 동기화 ──
     syncSwap(username, fromCurrency, toCurrency, amount);
 
     const updated = getWallet(username);
@@ -1422,6 +1524,113 @@ function parseBody(req) {
     });
 }
 
+// ── 채팅 번역 사전 (Dictionary-based translation) ──
+const CHAT_DICT = {
+    // Korean → English mappings (common chat phrases)
+    'ko': {
+        '안녕하세요': 'Hello',
+        '안녕': 'Hi',
+        '감사합니다': 'Thank you',
+        '고마워': 'Thanks',
+        '네': 'Yes',
+        '아니요': 'No',
+        '좋아요': 'Good / Like',
+        '알겠습니다': 'I understand',
+        '반갑습니다': 'Nice to meet you',
+        '죄송합니다': 'I\'m sorry',
+        '괜찮아요': 'It\'s okay',
+        '어디에 있어요?': 'Where are you?',
+        '뭐해요?': 'What are you doing?',
+        '잠깐만요': 'Wait a moment',
+        '도와주세요': 'Please help me',
+        '사랑해요': 'I love you',
+        '축하합니다': 'Congratulations',
+        '생일 축하해요': 'Happy birthday',
+        '잘 지내요?': 'How are you?',
+        '잘 지내요': 'I\'m doing well',
+        '또 봐요': 'See you again',
+        '수고하셨습니다': 'Good job / Well done',
+        '화이팅': 'Fighting! / You can do it!',
+        '맞아요': 'That\'s right',
+        '몰라요': 'I don\'t know',
+        '어떻게': 'How',
+        '언제': 'When',
+        '왜': 'Why',
+        '배고파요': 'I\'m hungry',
+        '피곤해요': 'I\'m tired',
+        '재미있어요': 'It\'s fun',
+        'ㅋㅋ': 'haha',
+        'ㅋㅋㅋ': 'hahaha',
+        'ㅎㅎ': 'hehe',
+        'ㅠㅠ': '(crying)',
+        'ㅇㅇ': 'yeah',
+    },
+    // English → Korean
+    'en': {
+        'hello': '안녕하세요',
+        'hi': '안녕',
+        'thank you': '감사합니다',
+        'thanks': '고마워요',
+        'yes': '네',
+        'no': '아니요',
+        'good': '좋아요',
+        'ok': '괜찮아요',
+        'okay': '괜찮아요',
+        'sorry': '죄송합니다',
+        'nice to meet you': '반갑습니다',
+        'how are you': '잘 지내요?',
+        'i\'m fine': '잘 지내요',
+        'see you': '또 봐요',
+        'bye': '안녕히 가세요',
+        'goodbye': '안녕히 가세요',
+        'help': '도와주세요',
+        'wait': '잠깐만요',
+        'i love you': '사랑해요',
+        'happy birthday': '생일 축하해요',
+        'congratulations': '축하합니다',
+        'i don\'t know': '몰라요',
+        'haha': 'ㅋㅋ',
+        'lol': 'ㅋㅋㅋ',
+    }
+};
+
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+function simpleTranslate(text, targetLang) {
+    if (!text || !targetLang) return { translated: text, sourceLang: 'unknown' };
+    const trimmed = text.trim();
+    const lower = trimmed.toLowerCase();
+
+    // Detect source language
+    const hasKorean = /[\uAC00-\uD7AF\u3130-\u318F]/.test(trimmed);
+    const sourceLang = hasKorean ? 'ko' : 'en';
+
+    // If source and target are the same, return as-is
+    if (sourceLang === targetLang) return { translated: text, sourceLang, same: true };
+
+    // Try exact match
+    const dict = CHAT_DICT[sourceLang] || {};
+    const key = hasKorean ? trimmed : lower;
+    if (dict[key]) return { translated: dict[key], sourceLang, targetLang };
+
+    // Try partial match (for longer sentences, translate known words)
+    let result = trimmed;
+    let matched = false;
+    const sortedKeys = Object.keys(dict).sort((a, b) => b.length - a.length); // longest first
+    for (const phrase of sortedKeys) {
+        const searchKey = phrase;
+        if (result.includes(searchKey) || result.toLowerCase().includes(searchKey)) {
+            result = result.replace(new RegExp(escapeRegex(searchKey), 'gi'), dict[phrase]);
+            matched = true;
+        }
+    }
+
+    if (matched) return { translated: result, sourceLang, targetLang, partial: true };
+
+    // No translation available
+    return { translated: text, sourceLang, targetLang, unavailable: true };
+}
+
 function getAuth(req) {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
     return getUser(token);
@@ -1555,7 +1764,7 @@ async function _fetchNQPrice() {
             _nqCache = { price: d.price, bid: d.bid, ask: d.ask, source: 'databento', ts: d.timestamp || Date.now() };
             return;
         }
-    } catch(e) {}
+    } catch(e) { /* fallback to next source */ }
 
     // 2차: Yahoo Finance NQ=F
     try {
@@ -1571,7 +1780,7 @@ async function _fetchNQPrice() {
             _nqCache = { price: meta.regularMarketPrice, bid: meta.bid || meta.regularMarketPrice, ask: meta.ask || meta.regularMarketPrice, source: 'yahoo', ts: Date.now() };
             return;
         }
-    } catch(e) {}
+    } catch(e) { /* fallback to next source */ }
 
     // 3차: TwelveData QQQ → NQ 근사
     try {
@@ -1584,7 +1793,7 @@ async function _fetchNQPrice() {
             _nqCache = { price: parseFloat(d.price) * 53.5, source: 'twelvedata-qqq', ts: Date.now() };
             return;
         }
-    } catch(e) {}
+    } catch(e) { /* fallback to next source */ }
 
     // 4차: Railway 캐시값
     try {
@@ -1593,18 +1802,37 @@ async function _fetchNQPrice() {
         if (d && d.price) {
             _nqCache = { price: d.price, bid: d.bid, ask: d.ask, source: 'databento-cached', ts: d.timestamp || Date.now() };
         }
-    } catch(e) {}
+    } catch(e) { /* fallback to next source */ }
 }
 
 // 서버 시작 시 즉시 1회 + 2초 간격 갱신 (Yahoo rate limit 안전 범위)
 _fetchNQPrice();
 setInterval(_fetchNQPrice, 2000);
 
+const ALLOWED_ORIGINS = new Set([
+    'https://crowny.org', 'https://www.crowny.org', 'https://crownybus.com',
+    'http://localhost:7730', 'http://127.0.0.1:7730',
+]);
+
 const server = http.createServer(async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // CORS: 화이트리스트 기반 (#7)
+    const origin = req.headers.origin || '';
+    if (ALLOWED_ORIGINS.has(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    } else if (!origin) {
+        // same-origin 요청 (브라우저가 Origin 안 보냄)
+        res.setHeader('Access-Control-Allow-Origin', '*');
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+    // 보안 헤더 (#6)
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://crownybus.com https://api.giphy.com wss: ws:; frame-src 'none';");
 
     if (req.method === 'OPTIONS') { res.end(); return; }
 
@@ -1653,6 +1881,10 @@ const server = http.createServer(async (req, res) => {
         if (safe && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
             const ext = pathModule.extname(filePath);
             res.setHeader('Content-Type', MIME[ext] || 'application/octet-stream');
+            // 개발 중 캐시 방지 (JS/CSS/HTML)
+            if (['.js', '.css', '.html'].includes(ext)) {
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            }
             fs.createReadStream(filePath).pipe(res);
             return;
         }
@@ -1670,15 +1902,19 @@ const server = http.createServer(async (req, res) => {
 
     const body = (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') ? await parseBody(req) : {};
 
+    const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+
     try {
         // ── 인증 ──
         if (path === '/api/register' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'register', 5)) { res.statusCode = 429; res.end('{"error":"Too many requests. Try again later."}'); return; }
             const result = createUser(body.username, body.password, body.displayName);
             res.end(JSON.stringify(result));
             return;
         }
 
         if (path === '/api/login' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'login', 10)) { res.statusCode = 429; res.end('{"error":"Too many attempts. Try again later."}'); return; }
             const result = loginUser(body.username, body.password);
             res.end(JSON.stringify(result));
             return;
@@ -1716,11 +1952,11 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
             // oldPassword가 있으면 검증 (비밀번호 변경), 없으면 초기 설정
-            if (oldPassword && user.password !== hashPassword(oldPassword)) {
+            if (oldPassword && !verifyPassword(oldPassword, user.password)) {
                 res.end(JSON.stringify({ error: '현재 비밀번호가 틀렸습니다' }));
                 return;
             }
-            user.password = hashPassword(newPassword);
+            user.password = hashPasswordSecure(newPassword);
             saveJSON('users.json', users);
             res.end(JSON.stringify({ success: true }));
             return;
@@ -1901,7 +2137,7 @@ const server = http.createServer(async (req, res) => {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             const chatId = path.split('/')[3];
-            const limit = parseInt(url.searchParams.get('limit') || '50');
+            const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
             const before = url.searchParams.get('before') ? parseInt(url.searchParams.get('before')) : undefined;
             res.end(JSON.stringify(chatServer ? chatServer.apiGetMessages(chatId, user.username, limit, before) : []));
             return;
@@ -1929,13 +2165,24 @@ const server = http.createServer(async (req, res) => {
         if (path.match(/^\/api\/chat\/[^/]+\/send$/) && req.method === 'POST') {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
-            if (!body.text) { res.statusCode = 400; res.end('{"error":"메시지 내용 필수"}'); return; }
+            if (!body.text && !body.fileUrl) { res.statusCode = 400; res.end('{"error":"메시지 내용 필수"}'); return; }
             const chatId = path.split('/')[3];
             if (!chatServer) { res.end('{"error":"메신저 없음"}'); return; }
             const chatStore = require('./chat-server/chat-store');
             const chat = chatStore.getChat(chatId);
             if (!chat || !chat.participants.includes(user.username)) { res.statusCode = 403; res.end('{"error":"권한 없음"}'); return; }
-            const msg = chatStore.addMessage(chatId, user.username, body.text, body.msgType || 'text', body.replyTo);
+            // replyTo 텍스트 가져오기
+            let replyToText = null;
+            if (body.replyTo) {
+                const replyMsg = chatStore.getMessage(chatId, body.replyTo);
+                if (replyMsg) replyToText = (replyMsg.text || '').slice(0, 60);
+            }
+            const extra = {};
+            if (body.fileUrl) extra.fileUrl = body.fileUrl;
+            if (body.fileName) extra.fileName = body.fileName;
+            if (body.fileSize) extra.fileSize = body.fileSize;
+            if (replyToText) extra.replyToText = replyToText;
+            const msg = chatStore.addMessage(chatId, user.username, body.text || '', body.msgType || 'text', body.replyTo, extra);
             // CRMM 팁
             if (body.crmm && body.crmm > 0) {
                 const toUser = chat.participants.find(p => p !== user.username);
@@ -1943,7 +2190,6 @@ const server = http.createServer(async (req, res) => {
                     const tipResult = walletTransact(user.username, 'send', body.crmm, toUser, '메시지 팁', 'CRM');
                     if (!tipResult.error) {
                         msg.crmmTip = body.crmm;
-                        // 파일에도 저장
                         const msgPath = require('path').join(chatStore.MSG_DIR, chatId, msg.id + '.json');
                         require('fs').writeFileSync(msgPath, JSON.stringify(msg));
                     }
@@ -1952,10 +2198,61 @@ const server = http.createServer(async (req, res) => {
             // WebSocket으로 실시간 전달
             try {
                 const { broadcastToChat, sendTo, connections } = require('./chat-server/ws-server');
+                console.log('[CHAT] Broadcasting msg', msg.id, 'from', user.username, 'to chat', chatId, '| WS connections:', connections.size);
                 sendTo(user.username, { type: 'chat:sent', msg });
                 broadcastToChat(chatId, { type: 'chat:message', msg }, user.username);
             } catch (e) { console.error('[CHAT WS] broadcast error:', e); }
             res.end(JSON.stringify({ success: true, msg }));
+            return;
+        }
+
+        // ── 메시지 번역 (간단 사전 기반) ──
+        if (path === '/api/chat/translate' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const text = (body.text || '').trim();
+            const targetLang = (body.targetLang || 'en').slice(0, 5);
+            if (!text) { res.end('{"translated":"","sourceLang":"unknown"}'); return; }
+            const result = simpleTranslate(text, targetLang);
+            res.end(JSON.stringify(result));
+            return;
+        }
+
+        // ── 메시지 삭제 ──
+        if (path.match(/^\/api\/chat\/[^/]+\/delete-msg$/) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const chatId = path.split('/')[3];
+            if (!chatServer) { res.end('{"error":"메신저 없음"}'); return; }
+            const result = chatServer.apiDeleteMessage(chatId, user.username, body.msgId);
+            if (result.success) {
+                try {
+                    const { broadcastToChat, sendTo } = require('./chat-server/ws-server');
+                    const delData = { type: 'chat:deleted', chatId, msgId: body.msgId };
+                    sendTo(user.username, delData);
+                    broadcastToChat(chatId, delData, user.username);
+                } catch (e) { console.error('[CHAT WS] delete broadcast error:', e); }
+            }
+            res.end(JSON.stringify(result));
+            return;
+        }
+
+        // ── 메시지 수정 ──
+        if (path.match(/^\/api\/chat\/[^/]+\/edit$/) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const chatId = path.split('/')[3];
+            if (!chatServer) { res.end('{"error":"메신저 없음"}'); return; }
+            const result = chatServer.apiEditMessage(chatId, user.username, body.msgId, body.text);
+            if (result.success) {
+                try {
+                    const { broadcastToChat, sendTo } = require('./chat-server/ws-server');
+                    const editData = { type: 'chat:edited', chatId, msgId: body.msgId, text: body.text };
+                    sendTo(user.username, editData);
+                    broadcastToChat(chatId, editData, user.username);
+                } catch (e) { console.error('[CHAT WS] edit broadcast error:', e); }
+            }
+            res.end(JSON.stringify(result));
             return;
         }
 
@@ -2003,6 +2300,13 @@ const server = http.createServer(async (req, res) => {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             res.end(JSON.stringify(getQuiz(user.username)));
+            return;
+        }
+
+        if (path === '/api/bible/quiz/all' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            res.end(JSON.stringify(getAllQuiz(user.username)));
             return;
         }
 
@@ -2141,6 +2445,9 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/wallet/transact' && req.method === 'POST') {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const txAmt = Number(body.amount);
+            if (!Number.isFinite(txAmt) || txAmt <= 0 || txAmt > 1000000) { res.statusCode = 400; res.end('{"error":"Invalid amount (0 < amount ≤ 1,000,000)"}'); return; }
+            body.amount = Math.round(txAmt * 100) / 100;
             res.end(JSON.stringify(walletTransact(user.username, body.type, body.amount, body.to, body.memo, body.currency || 'CRN')));
             return;
         }
@@ -2178,7 +2485,9 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/wallet/swap' && req.method === 'POST') {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
-            res.end(JSON.stringify(swapTokens(user.username, body.from, body.to, body.amount)));
+            const swapAmt = Number(body.amount);
+            if (!Number.isFinite(swapAmt) || swapAmt <= 0 || swapAmt > 1000000) { res.statusCode = 400; res.end('{"error":"Invalid amount"}'); return; }
+            res.end(JSON.stringify(swapTokens(user.username, body.from, body.to, Math.round(swapAmt * 100) / 100)));
             return;
         }
 
@@ -2363,7 +2672,7 @@ const server = http.createServer(async (req, res) => {
                     }
                     const orderBy = qUrl.searchParams.get('orderBy') || null;
                     const orderDir = qUrl.searchParams.get('orderDir') || 'desc';
-                    const limit = parseInt(qUrl.searchParams.get('limit')) || 0;
+                    const limit = Math.min(parseInt(qUrl.searchParams.get('limit')) || 100, 1000);
 
                     const results = queryDocs(col, filters, orderBy, orderDir, limit);
                     res.end(JSON.stringify({
@@ -2420,19 +2729,100 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/upload' && req.method === 'POST') {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
-            // body contains base64 data and metadata
+
+            // 허용 확장자 화이트리스트
+            const ALLOWED_EXT = new Set(['.jpg','.jpeg','.png','.webp','.gif','.svg','.mp4','.mp3','.pdf','.txt','.csv','.json']);
+            const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+            // 파일명 sanitize: basename만 취하고 특수문자 제거
+            let rawName = body.fileName || (Date.now() + '_' + Math.random().toString(36).slice(2, 6));
+            rawName = pathModule.basename(rawName).replace(/[^a-zA-Z0-9._-]/g, '_');
+            const ext = pathModule.extname(rawName).toLowerCase();
+            if (ext && !ALLOWED_EXT.has(ext)) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'File type not allowed: ' + ext }));
+                return;
+            }
+            const fileName = rawName || (Date.now() + '.bin');
+
             const uploadDir = pathModule.join(DATA_DIR, 'uploads', user.username);
             if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-            const fileName = body.fileName || (Date.now() + '_' + Math.random().toString(36).slice(2, 6));
             const filePath = pathModule.join(uploadDir, fileName);
+
+            // 경로 탐색 방지
+            if (!pathModule.resolve(filePath).startsWith(pathModule.resolve(uploadDir))) {
+                res.statusCode = 400;
+                res.end('{"error":"invalid path"}');
+                return;
+            }
+
             if (body.base64) {
                 const buffer = Buffer.from(body.base64, 'base64');
+                if (buffer.length > MAX_FILE_SIZE) {
+                    res.statusCode = 413;
+                    res.end(JSON.stringify({ error: 'File too large (max 10MB)' }));
+                    return;
+                }
                 fs.writeFileSync(filePath, buffer);
             } else if (body.text) {
+                if (Buffer.byteLength(body.text) > MAX_FILE_SIZE) {
+                    res.statusCode = 413;
+                    res.end(JSON.stringify({ error: 'File too large (max 10MB)' }));
+                    return;
+                }
                 fs.writeFileSync(filePath, body.text);
             }
             const uploadUrl = `/uploads/${user.username}/${fileName}`;
             res.end(JSON.stringify({ ok: true, url: uploadUrl, downloadURL: uploadUrl }));
+            return;
+        }
+
+        // ── AI 프록시 (Gemini) ── API 키를 서버에서만 관리
+        if (path === '/api/ai/gemini' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const apiKey = process.env.GEMINI_API_KEY;
+            if (!apiKey) { res.statusCode = 500; res.end('{"error":"GEMINI_API_KEY not configured"}'); return; }
+            const model = body.model || 'gemini-2.0-flash';
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const postData = JSON.stringify({ contents: body.contents, generationConfig: body.generationConfig });
+            const opts = {
+                hostname: 'generativelanguage.googleapis.com',
+                path: `/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) },
+                timeout: 30000,
+            };
+            const proxyReq = https.request(opts, (proxyRes) => {
+                let data = '';
+                proxyRes.on('data', d => data += d);
+                proxyRes.on('end', () => { res.statusCode = proxyRes.statusCode; res.end(data); });
+            });
+            proxyReq.on('error', e => { res.statusCode = 502; res.end(JSON.stringify({ error: e.message })); });
+            proxyReq.on('timeout', () => { proxyReq.destroy(); res.statusCode = 504; res.end('{"error":"timeout"}'); });
+            proxyReq.write(postData);
+            proxyReq.end();
+            return;
+        }
+
+        // ── GIPHY 프록시 ── API 키를 서버에서만 관리
+        if (path === '/api/ai/giphy' && req.method === 'GET') {
+            const giphyKey = process.env.GIPHY_API_KEY;
+            if (!giphyKey) { res.statusCode = 500; res.end('{"error":"GIPHY_API_KEY not configured"}'); return; }
+            const q = url.searchParams.get('q') || '';
+            const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
+            const giphyPath = q
+                ? `/v1/gifs/search?api_key=${giphyKey}&q=${encodeURIComponent(q)}&limit=${limit}&rating=g`
+                : `/v1/gifs/trending?api_key=${giphyKey}&limit=${limit}&rating=g`;
+            const opts = { hostname: 'api.giphy.com', path: giphyPath, method: 'GET', timeout: 8000 };
+            const proxyReq = https.request(opts, (proxyRes) => {
+                let data = '';
+                proxyRes.on('data', d => data += d);
+                proxyRes.on('end', () => { res.statusCode = proxyRes.statusCode; res.end(data); });
+            });
+            proxyReq.on('error', e => { res.statusCode = 502; res.end(JSON.stringify({ error: e.message })); });
+            proxyReq.on('timeout', () => { proxyReq.destroy(); res.statusCode = 504; res.end('{"error":"timeout"}'); });
+            proxyReq.end();
             return;
         }
 
@@ -2462,7 +2852,7 @@ const server = http.createServer(async (req, res) => {
                     if (d && d.candles && d.candles.length > 0) {
                         candles = d.candles;
                     }
-                } catch(e) {}
+                } catch(e) { /* fallback to next source */ }
 
                 // 2. Check if Railway data is stale or insufficient
                 const now = Math.floor(Date.now() / 1000);
@@ -2505,7 +2895,7 @@ const server = http.createServer(async (req, res) => {
                                 candles = [...yahooCandles, ...extraRailway].sort((a, b) => a.time - b.time);
                             }
                         }
-                    } catch(e) {}
+                    } catch(e) { /* fallback to next source */ }
                 }
 
                 // 3. Add current price candle if latest candle is old
@@ -2797,6 +3187,50 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        // ── 스마트 컨트랙트 API ──
+        if (path === '/api/chain/contract/deploy' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!body.code) { res.statusCode = 400; res.end('{"error":"code required"}'); return; }
+            try {
+                const { ContractStore } = require('./chain/contract');
+                const store = new ContractStore(pathModule.join(__dirname, 'data', 'chain'));
+                const addr = chainAdapter ? chainAdapter.getUserAddress(user.username) : user.username;
+                const result = store.deploy(body.code, addr, body.name);
+                res.end(JSON.stringify(result));
+            } catch (e) { res.end(JSON.stringify({ error: e.message })); }
+            return;
+        }
+        if (path === '/api/chain/contract/execute' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!body.code && !body.contractId) { res.statusCode = 400; res.end('{"error":"code or contractId required"}'); return; }
+            try {
+                const { executeContract, ContractStore } = require('./chain/contract');
+                let code = body.code;
+                if (!code && body.contractId) {
+                    const store = new ContractStore(pathModule.join(__dirname, 'data', 'chain'));
+                    const c = store.get(body.contractId);
+                    if (!c) { res.end('{"error":"contract not found"}'); return; }
+                    code = c.code;
+                    store.incrementCalls(body.contractId);
+                }
+                const result = executeContract(code, body.args || []);
+                res.end(JSON.stringify(result));
+            } catch (e) { res.end(JSON.stringify({ error: e.message })); }
+            return;
+        }
+        if (path === '/api/chain/contract/list' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            try {
+                const { ContractStore } = require('./chain/contract');
+                const store = new ContractStore(pathModule.join(__dirname, 'data', 'chain'));
+                res.end(JSON.stringify(store.list()));
+            } catch (e) { res.end(JSON.stringify([])); }
+            return;
+        }
+
         // ── 백업/복원/싱크 ──
         if (path === '/api/backup') {
             const user = getAuth(req);
@@ -2949,6 +3383,38 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        // ── CrownyCell Chain API ──
+        if (path === '/api/chain/status' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            res.end(JSON.stringify(chainAdapter ? chainAdapter.getChainStatus() : { error: 'chain not initialized' }));
+            return;
+        }
+        if (path === '/api/chain/block' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const height = parseInt(url.searchParams.get('height') || '-1');
+            if (height < 0 && chainAdapter) {
+                res.end(JSON.stringify(chainAdapter.getChain()?.chain.getLatestBlock() || {}));
+            } else if (chainAdapter) {
+                res.end(JSON.stringify(chainAdapter.getChainBlock(height) || { error: 'block not found' }));
+            } else {
+                res.end('{"error":"chain not initialized"}');
+            }
+            return;
+        }
+        if (path === '/api/chain/account' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const addr = url.searchParams.get('address') || (chainAdapter ? chainAdapter.getUserAddress(user.username) : '');
+            if (chainAdapter) {
+                res.end(JSON.stringify(chainAdapter.getChain()?.chain.getAccount(addr) || {}));
+            } else {
+                res.end('{"error":"chain not initialized"}');
+            }
+            return;
+        }
+
         // ── 관리자 API ──
         if (path === '/api/admin/status' && req.method === 'GET') {
             const user = getAuth(req);
@@ -3026,7 +3492,7 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/social/feed' && req.method === 'GET') {
             const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
             let posts = [];
-            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) { /* first run */ }
             const page = parseInt(url.searchParams.get('page') || '0');
             const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
             const sorted = posts.sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -3052,7 +3518,7 @@ const server = http.createServer(async (req, res) => {
 
             const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
             let posts = [];
-            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) { /* first run */ }
 
             // YouTube oEmbed 메타데이터 추출
             let ytMeta = null;
@@ -3097,7 +3563,7 @@ const server = http.createServer(async (req, res) => {
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
             let posts = [];
-            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) { /* first run */ }
             const post = posts.find(p => p.id === body.postId);
             if (!post) { res.statusCode = 404; res.end('{"error":"게시물 없음"}'); return; }
             if (!post.likes) post.likes = [];
@@ -3114,7 +3580,7 @@ const server = http.createServer(async (req, res) => {
             const postId = url.searchParams.get('postId');
             const commFile = pathModule.join(SOCIAL_DIR, `comments_${postId}.json`);
             let comments = [];
-            try { comments = JSON.parse(fs.readFileSync(commFile, 'utf8')); } catch(e) {}
+            try { comments = JSON.parse(fs.readFileSync(commFile, 'utf8')); } catch(e) { /* first run */ }
             const enriched = comments.map(c => ({ ...c, authorName: users[c.author]?.displayName || c.author }));
             res.end(JSON.stringify(enriched));
             return;
@@ -3127,7 +3593,7 @@ const server = http.createServer(async (req, res) => {
             if (!body.postId || !body.text?.trim()) { res.statusCode = 400; res.end('{"error":"내용을 입력하세요"}'); return; }
             const commFile = pathModule.join(SOCIAL_DIR, `comments_${body.postId}.json`);
             let comments = [];
-            try { comments = JSON.parse(fs.readFileSync(commFile, 'utf8')); } catch(e) {}
+            try { comments = JSON.parse(fs.readFileSync(commFile, 'utf8')); } catch(e) { /* first run */ }
             const comment = {
                 id: `c_${Date.now()}`,
                 author: user.username,
@@ -3142,7 +3608,7 @@ const server = http.createServer(async (req, res) => {
                 let posts = JSON.parse(fs.readFileSync(postsFile, 'utf8'));
                 const post = posts.find(p => p.id === body.postId);
                 if (post) { post.commentCount = comments.length; fs.writeFileSync(postsFile, JSON.stringify(posts, null, 1)); }
-            } catch(e) {}
+            } catch(e) { console.warn('[SAVE]', e.message); }
             res.end(JSON.stringify({ ok: true, comment: { ...comment, authorName: user.displayName || user.username } }));
             return;
         }
@@ -3153,7 +3619,7 @@ const server = http.createServer(async (req, res) => {
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
             let posts = [];
-            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) { /* first run */ }
             const idx = posts.findIndex(p => p.id === body.postId && p.author === user.username);
             if (idx < 0) { res.statusCode = 404; res.end('{"error":"게시물 없음 또는 권한 없음"}'); return; }
             posts.splice(idx, 1);

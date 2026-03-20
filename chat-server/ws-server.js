@@ -76,9 +76,15 @@ function sendTo(username, data) {
 
 function broadcastToChat(chatId, data, excludeUser) {
     const chat = store.getChat(chatId);
-    if (!chat) return;
+    if (!chat) { console.warn('[WS] broadcastToChat: chat not found:', chatId); return; }
     for (const p of chat.participants) {
-        if (p !== excludeUser) sendTo(p, data);
+        if (p !== excludeUser) {
+            const conns = connections.get(p);
+            if (!conns || conns.size === 0) {
+                console.log('[WS] broadcastToChat: user offline:', p);
+            }
+            sendTo(p, data);
+        }
     }
 }
 
@@ -186,14 +192,12 @@ function cleanup(username, conn) {
         if (conns.size === 0) {
             connections.delete(username);
             store.updatePresence(username, false);
-            // 오프라인 알림
             broadcastPresence(username, false);
         }
     }
 }
 
 function broadcastPresence(username, isOnline) {
-    // 이 사용자의 모든 채팅방 참여자에게 알림
     const chats = store.listChats(username);
     const notified = new Set();
     for (const chat of chats) {
@@ -223,7 +227,6 @@ function handleMessage(msg, conn, authFn, setUsername) {
         connections.get(username).add(conn);
         store.updatePresence(username, true);
 
-        // 인증 성공 응답 + 온라인 사용자 목록
         sendTo(username, { type: 'auth:ok', username, online: getOnlineUsers() });
         broadcastPresence(username, true);
         return;
@@ -231,7 +234,6 @@ function handleMessage(msg, conn, authFn, setUsername) {
 
     // 인증 안 된 상태
     if (!conn.socket._wsUsername && msg.type !== 'auth') {
-        // username을 conn에서 찾기
         let found = null;
         for (const [u, conns] of connections) {
             if (conns.has(conn)) { found = u; break; }
@@ -242,7 +244,6 @@ function handleMessage(msg, conn, authFn, setUsername) {
         }
         msg._from = found;
     } else {
-        // 이미 찾은 username 사용
         for (const [u, conns] of connections) {
             if (conns.has(conn)) { msg._from = u; break; }
         }
@@ -256,9 +257,7 @@ function handleMessage(msg, conn, authFn, setUsername) {
             const chat = store.getChat(msg.chatId);
             if (!chat || !chat.participants.includes(from)) return;
             const saved = store.addMessage(msg.chatId, from, msg.text, msg.msgType || 'text', msg.replyTo);
-            // 발신자에게 확인
             sendTo(from, { type: 'chat:sent', msg: saved });
-            // 다른 참여자에게 전달
             broadcastToChat(msg.chatId, { type: 'chat:message', msg: saved }, from);
             break;
         }

@@ -184,7 +184,7 @@ function getCloses(candles) { return candles.map(c => c.close); }
 
 const mentors = {
     kps: {
-        get name() { return 'KPS'; }, icon: '👑', avatar: 'img/mentor-kps.jpg', get style() { return t('mentor.style.conservative','Conservative'); }, color: '#8B6914',
+        get name() { return 'KPS'; }, icon: '<i data-lucide="crown" style="width:28px;height:28px;stroke:#8B6914;stroke-width:1.5;"></i>', avatar: '', get style() { return t('mentor.style.conservative','Conservative'); }, color: '#8B6914',
         get desc() { return t('mentor.desc.kps','Trend Following · EMA Crossover'); },
         analyze(candles, livePrice) {
             if (candles.length < 60) return { signal: 'wait', confidence: 0, message: t('mentor.msg.collecting','Collecting data...'), reason: t('mentor.reason.candles_low','Not enough candles') };
@@ -227,7 +227,7 @@ const mentors = {
     },
 
     michael: {
-        get name() { return t('mentor.name.michael','Michael'); }, icon: '🎯', avatar: 'img/mentor-michael.jpg', get style() { return t('mentor.style.aggressive','Aggressive'); }, color: '#FF4444',
+        get name() { return t('mentor.name.michael','Michael'); }, icon: '<i data-lucide="crosshair" style="width:28px;height:28px;stroke:#3D2B1F;stroke-width:1.5;"></i>', avatar: '', get style() { return t('mentor.style.aggressive','Aggressive'); }, color: '#FF4444',
         get desc() { return t('mentor.desc.michael','Momentum Scalping · ROC Detection'); },
         analyze(candles, livePrice) {
             if (candles.length < 10) return { signal: 'wait', confidence: 0, message: t('mentor.msg.collecting','Collecting data...'), reason: t('mentor.reason.candles_low','Not enough candles') };
@@ -273,7 +273,7 @@ const mentors = {
     },
 
     matthew: {
-        get name() { return t('mentor.name.matthew','Matthew'); }, icon: '📊', avatar: 'img/mentor-matthew.jpg', get style() { return t('mentor.style.technical','Technical'); }, color: '#4488FF',
+        get name() { return t('mentor.name.matthew','Matthew'); }, icon: '<i data-lucide="bar-chart-2" style="width:28px;height:28px;stroke:#3D2B1F;stroke-width:1.5;"></i>', avatar: '', get style() { return t('mentor.style.technical','Technical'); }, color: '#4488FF',
         get desc() { return t('mentor.desc.matthew','RSI · MACD · Bollinger Bands'); },
         analyze(candles, livePrice) {
             if (candles.length < 30) return { signal: 'wait', confidence: 0, message: t('mentor.msg.collecting_indicators','Collecting data for indicators...'), reason: t('mentor.reason.candles_low','Not enough candles') };
@@ -343,7 +343,7 @@ const mentors = {
     },
 
     hansun: {
-        get name() { return t('mentor.name.hansun','Hansun'); }, icon: '🧘', avatar: 'img/mentor-hansun.jpg', get style() { return t('mentor.style.swing','Swing'); }, color: '#00CC88',
+        get name() { return t('mentor.name.hansun','Hansun'); }, icon: '<i data-lucide="activity" style="width:28px;height:28px;stroke:#3D2B1F;stroke-width:1.5;"></i>', avatar: '', get style() { return t('mentor.style.swing','Swing'); }, color: '#00CC88',
         get desc() { return t('mentor.desc.hansun','Fibonacci · Support/Resistance · Patterns'); },
         analyze(candles, livePrice) {
             const ph = typeof getMentorParams === 'function' ? getMentorParams('hansun') : {};
@@ -429,7 +429,7 @@ const mentors = {
     },
 
     crownygirl: {
-        get name() { return t('mentor.name.crownygirl','CrownyGirl'); }, icon: '🦸‍♀️', avatar: 'img/crowny-girl-hero.jpg', get style() { return t('mentor.style.comprehensive','Comprehensive'); }, color: '#FF69B4',
+        get name() { return t('mentor.name.crownygirl','CrownyGirl'); }, icon: '<i data-lucide="sparkles" style="width:28px;height:28px;stroke:#8B6914;stroke-width:1.5;"></i>', avatar: '', get style() { return t('mentor.style.comprehensive','Comprehensive'); }, color: '#FF69B4',
         get desc() { return t('mentor.desc.crownygirl','Comprehensive · Mentor Signal Integration · Encouragement'); },
         analyze(candles, livePrice) {
             // 다른 4명의 분석을 종합하여 최종 의견 제시
@@ -539,8 +539,10 @@ function updateMentorAnalysis() {
             // Detect signal change for toast (respect notif setting + mentor filter)
             if (prev && prev.signal !== result.signal && mentorPreviousSignals[id] !== result.signal) {
                 const signalKo = { buy: t('mentor.buy','Buy'), sell: t('mentor.sell','Sell'), hold: t('mentor.hold','Hold'), wait: t('mentor.wait','Wait') };
+                const signalToast = { buy: 'success', sell: 'error', hold: 'info', wait: 'warning' };
+                const signalIcon = { buy: '<i data-lucide="trending-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>', sell: '<i data-lucide="trending-down" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>', hold: '<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>', wait: '<i data-lucide="clock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>' };
                 if (getMentorSettings().notif && isMentorEnabled(id)) {
-                    showToast(`${mentor.icon} ${mentor.name}: ${signalKo[prev.signal] || prev.signal} → ${signalKo[result.signal] || result.signal}`, 'info', 4000);
+                    showToast(`${signalIcon[result.signal]||''}<strong>${mentor.name}</strong> ${signalKo[result.signal] || result.signal}`, signalToast[result.signal] || 'info', 4000);
                     if (typeof notifyTradingSignal === 'function') notifyTradingSignal(`${mentor.icon} ${mentor.name}`, prev.signal, result.signal);
                 }
             }
@@ -564,10 +566,10 @@ function renderMentorPanel() {
     if (!container) return;
 
     const signalConfig = {
-        buy: { label: t('mentor.buy','Buy'), color: '#00cc66', bg: 'rgba(0,204,102,0.15)', emoji: '🟢' },
-        sell: { label: t('mentor.sell','Sell'), color: '#B54534', bg: 'rgba(255,68,68,0.15)', emoji: '🔴' },
-        hold: { label: t('mentor.hold','Hold'), color: '#6B5744', bg: 'rgba(136,136,136,0.1)', emoji: '⚪' },
-        wait: { label: t('mentor.wait','Wait'), color: '#ffaa00', bg: 'rgba(255,170,0,0.15)', emoji: '🟡' },
+        buy: { label: t('mentor.buy','Buy'), color: '#00cc66', bg: 'rgba(0,204,102,0.12)', emoji: '<i data-lucide="trending-up" style="width:12px;height:12px;display:inline-block;vertical-align:middle;stroke:#00cc66;stroke-width:2;"></i>' },
+        sell: { label: t('mentor.sell','Sell'), color: '#B54534', bg: 'rgba(181,69,52,0.12)', emoji: '<i data-lucide="trending-down" style="width:12px;height:12px;display:inline-block;vertical-align:middle;stroke:#B54534;stroke-width:2;"></i>' },
+        hold: { label: t('mentor.hold','Hold'), color: '#6B5744', bg: 'rgba(136,136,136,0.08)', emoji: '<i data-lucide="minus" style="width:12px;height:12px;display:inline-block;vertical-align:middle;stroke:#6B5744;stroke-width:2;"></i>' },
+        wait: { label: t('mentor.wait','Wait'), color: '#C4841D', bg: 'rgba(196,132,29,0.1)', emoji: '<i data-lucide="clock" style="width:12px;height:12px;display:inline-block;vertical-align:middle;stroke:#C4841D;stroke-width:2;"></i>' },
     };
 
     const settings = getMentorSettings();
@@ -625,6 +627,9 @@ function renderMentorPanel() {
     }
 
     container.innerHTML = html;
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons({ attrs: { class: '' }, nameAttr: 'data-lucide' });
+    }
 }
 
 function selectMentor(id) {

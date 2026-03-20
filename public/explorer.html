@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CrownyCell Explorer</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,system-ui,sans-serif; background:#FFF8F0; color:#3D2B1F; padding:1rem; max-width:800px; margin:0 auto; }
+h1 { font-size:1.2rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem; }
+h1 span { font-size:0.7rem; color:#7A5C47; }
+.card { background:#fff; border:1px solid #E8E0D8; border-radius:10px; padding:1rem; margin-bottom:0.8rem; }
+.label { font-size:0.7rem; color:#7A5C47; text-transform:uppercase; letter-spacing:1px; }
+.value { font-size:1.1rem; font-weight:700; }
+.sm { font-size:0.8rem; color:#6B5744; }
+.mono { font-family:monospace; font-size:0.75rem; word-break:break-all; }
+.grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.8rem; margin-bottom:1rem; }
+.stat { text-align:center; }
+.block-item { display:flex; align-items:center; gap:0.8rem; padding:10px 0; border-bottom:1px solid #F0E8DC; cursor:pointer; }
+.block-item:hover { background:#F7F3ED; }
+.block-num { font-weight:700; font-size:0.9rem; min-width:40px; }
+.tx-item { padding:8px; background:#F7F3ED; border-radius:8px; margin-bottom:4px; font-size:0.8rem; }
+.badge { display:inline-block; padding:1px 6px; border-radius:8px; font-size:0.65rem; font-weight:600; }
+.badge-transfer { background:#E8F5E9; color:#6B8F3C; }
+.badge-swap { background:#FFF3E0; color:#C4841D; }
+.badge-register { background:#E3F2FD; color:#5B7B8C; }
+button { padding:6px 14px; background:#3D2B1F; color:#FFF8F0; border:none; border-radius:8px; cursor:pointer; font-size:0.8rem; }
+button:hover { opacity:0.8; }
+#status { color:#6B8F3C; font-size:0.75rem; }
+</style>
+</head>
+<body>
+<h1>▲■▼ CrownyCell Explorer <span id="status">loading...</span></h1>
+
+<div class="grid" id="stats">
+    <div class="card stat"><div class="label">Height</div><div class="value" id="s-height">-</div></div>
+    <div class="card stat"><div class="label">Accounts</div><div class="value" id="s-accounts">-</div></div>
+    <div class="card stat"><div class="label">Mempool</div><div class="value" id="s-mempool">-</div></div>
+</div>
+
+<div class="card">
+    <div class="label">Latest Hash</div>
+    <div class="mono" id="s-hash">-</div>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin:1rem 0 0.5rem">
+    <h2 style="font-size:1rem">Blocks</h2>
+    <button onclick="load()">Refresh</button>
+</div>
+<div id="blocks"></div>
+
+<div id="block-detail" style="display:none"></div>
+
+<script>
+const API = '';
+const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token') || '';
+const headers = { 'Authorization': 'Bearer ' + token };
+
+async function load() {
+    document.getElementById('status').textContent = 'loading...';
+    try {
+        const r = await fetch(API + '/api/chain/status', { headers });
+        const s = await r.json();
+        if (!s.chain) { document.getElementById('status').textContent = 'chain not available'; return; }
+        document.getElementById('s-height').textContent = s.chain.height;
+        document.getElementById('s-accounts').textContent = s.chain.accounts;
+        document.getElementById('s-mempool').textContent = s.chain.mempoolSize;
+        document.getElementById('s-hash').textContent = s.chain.latestHash;
+        document.getElementById('status').textContent = s.chain.running ? 'running' : 'stopped';
+        // Load latest blocks
+        const blocksEl = document.getElementById('blocks');
+        blocksEl.innerHTML = '';
+        const maxH = s.chain.height;
+        for (let h = maxH; h >= Math.max(0, maxH - 20); h--) {
+            const br = await fetch(API + '/api/chain/block?height=' + h, { headers });
+            const b = await br.json();
+            if (!b || b.error) continue;
+            blocksEl.innerHTML += `<div class="block-item" onclick="showBlock(${h})">
+                <div class="block-num">#${b.height}</div>
+                <div style="flex:1">
+                    <div class="sm">${b.txCount || 0} txs · ${new Date(b.timestamp * 1000).toLocaleString()}</div>
+                    <div class="mono" style="font-size:0.65rem">${(b.hash||'').slice(0,32)}...</div>
+                </div>
+            </div>`;
+        }
+    } catch(e) {
+        document.getElementById('status').textContent = 'error: ' + e.message;
+    }
+}
+
+async function showBlock(height) {
+    const r = await fetch(API + '/api/chain/block?height=' + height, { headers });
+    const b = await r.json();
+    if (!b) return;
+    const txTypes = { 1:'transfer', 2:'swap', 3:'cell_create', 4:'cell_link', 5:'cell_evidence', 6:'stake', 7:'unstake', 8:'register' };
+    const curNames = { 1:'CRN', 0:'FNC', '-1':'CRM' };
+    const detail = document.getElementById('block-detail');
+    detail.style.display = 'block';
+    detail.innerHTML = `<div class="card">
+        <h3 style="margin-bottom:0.5rem">Block #${b.height}</h3>
+        <div class="label">Hash</div><div class="mono">${b.hash}</div>
+        <div class="label" style="margin-top:8px">Previous</div><div class="mono">${b.previousHash}</div>
+        <div class="label" style="margin-top:8px">Merkle Root</div><div class="mono">${b.merkleRoot}</div>
+        <div class="label" style="margin-top:8px">State Root</div><div class="mono">${b.stateRoot}</div>
+        <div class="sm" style="margin-top:8px">${b.txCount} transactions · ${new Date(b.timestamp * 1000).toLocaleString()}</div>
+        <div style="margin-top:12px">
+            ${(b.transactions||[]).map(tx => {
+                const type = txTypes[tx.type] || tx.typeName || tx.type;
+                const cur = curNames[String(tx.currency)] || tx.currencyName || '';
+                const cls = type === 'transfer' ? 'badge-transfer' : type === 'swap' ? 'badge-swap' : 'badge-register';
+                return `<div class="tx-item">
+                    <span class="badge ${cls}">${type}</span>
+                    ${tx.amount ? tx.amount + ' ' + cur : ''}
+                    <div class="mono" style="margin-top:2px">${(tx.from||'').slice(0,24)}... → ${(tx.to||'').slice(0,24)||'self'}...</div>
+                </div>`;
+            }).join('')}
+        </div>
+        <button onclick="document.getElementById('block-detail').style.display='none'" style="margin-top:8px">Close</button>
+    </div>`;
+}
+
+load();
+</script>
+</body>
+</html>

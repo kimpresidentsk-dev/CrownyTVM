@@ -26,14 +26,13 @@ function updateLandingState(user) {
 function toggleMenu() {
     const sidebar = document.getElementById('sidebar');
     sidebar.classList.toggle('active');
-    
-    // 사이드바 열릴 때 오버레이 추가 (외부 클릭 시 닫기)
+
     let overlay = document.getElementById('sidebar-overlay');
     if (sidebar.classList.contains('active')) {
         if (!overlay) {
             overlay = document.createElement('div');
             overlay.id = 'sidebar-overlay';
-            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.3);z-index:998;';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.3);z-index:1099;';
             overlay.onclick = function() { sidebar.classList.remove('active'); this.remove(); };
             document.body.appendChild(overlay);
         }
@@ -52,12 +51,66 @@ function showPage(pageId) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
+    // Restore bottom tab bar & top bar (may have been hidden by chat/social)
+    const _btb = document.getElementById('bottom-tab-bar');
+    if (_btb) _btb.style.display = '';
+    const _topBar = document.getElementById('crowny-top-bar');
+    if (_topBar) _topBar.style.display = '';
+
     const el = document.getElementById(pageId);
     if (!el) return;
     el.classList.add('active');
     const navItem = document.querySelector(`[onclick="showPage('${pageId}')"]`);
     if (navItem) navItem.classList.add('active');
-    
+
+    // Update unified top bar — title + action buttons
+    const _topTitle = document.getElementById('top-page-title');
+    const _topActions = document.getElementById('top-page-actions');
+    if (_topTitle) {
+        const _pageNames = {
+            'today': t('nav.home','Home'),
+            'dashboard': t('nav.dashboard','Dashboard'),
+            'wallet': t('nav.wallet','Wallet'),
+            'messenger': t('nav.chat','Chat'),
+            'bible-quiz': t('nav.quiz','Quiz'),
+            'contacts-crm': t('nav.contacts','Contacts'),
+            'crowny-mail': t('nav.mail','Mail'),
+            'social': t('nav.social','Tube'),
+            'reels': t('nav.reels','Shorts'),
+            'prop-trading': t('section.prop_trading','Trading'),
+            'credit': t('nav.credit','Credit'),
+            'mall': t('nav.mall','Mall'),
+            'art': t('nav.art','Art'),
+            'books': t('nav.books','Books'),
+            'artist': t('nav.artist','Artist'),
+            'energy': t('nav.creb_labs','CREB Labs'),
+            'business': t('nav.business','Business'),
+            'fundraise': t('nav.fundraise','Fundraise'),
+            'ai-assistant': t('nav.crowny_panel','Crowny Panel'),
+            'care': t('nav.care','Care'),
+            'beauty-manager': t('nav.beauty','Beauty'),
+            'brain': t('nav.brain','Brain'),
+            'movement': t('nav.movement','Movement'),
+            'hanseon-vm': t('nav.hanseon_vm','HanSeon VM'),
+            'settings': t('nav.settings','Settings'),
+            'crowny-admin': t('nav.admin','Admin'),
+        };
+        _topTitle.textContent = _pageNames[pageId] || (navItem?.querySelector('.nav-label')?.textContent || pageId.toUpperCase());
+    }
+    if (_topActions) {
+        const _acts = {
+            'wallet':       `<button class="hdr-btn hdr-btn-ghost" onclick="ctvmRefreshWallet()"><i data-lucide="refresh-cw"></i></button>`,
+            'contacts-crm': `<button class="hdr-btn hdr-btn-primary" onclick="ctvmShowAddContact()"><i data-lucide="user-plus"></i> ${t('contacts.add','Add')}</button>`,
+            'crowny-mail':  `<button class="hdr-btn hdr-btn-primary" onclick="ctvmShowCompose()"><i data-lucide="pencil"></i> ${t('mail.compose','Compose')}</button><button class="hdr-btn hdr-btn-ghost" onclick="ctvmCloudSync()"><i data-lucide="refresh-cw"></i></button>`,
+            'bible-quiz':   '',
+            'messenger':    `<button class="hdr-btn hdr-btn-primary" onclick="chatNewDm()"><i data-lucide="plus"></i> ${t('messenger.new_chat','New')}</button><button class="hdr-btn hdr-btn-ghost" onclick="chatNewGroup()"><i data-lucide="users"></i></button>`,
+            'reels':        `<button class="hdr-btn hdr-btn-primary" onclick="REELS.openUpload()"><i data-lucide="plus"></i> ${t('reels.upload','업로드')}</button>`,
+            'social':       `<button class="hdr-btn hdr-btn-primary" onclick="openStoryUpload()"><i data-lucide="circle-play"></i> ${t('social.story','스토리')}</button>`,
+        };
+        _topActions.innerHTML = _acts[pageId] !== undefined ? _acts[pageId] : '';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
     // URL 앵커 업데이트 (뒤로가기/공유 지원)
     if (location.hash !== `#page=${pageId}`) {
         history.replaceState(null, '', `#page=${pageId}`);
@@ -77,7 +130,7 @@ function showPage(pageId) {
         if (typeof loadFriendRequests === 'function') loadFriendRequests();
     }
     if (pageId === 'reels') {
-        if (typeof SHORTFORM !== 'undefined' && SHORTFORM.initReels) SHORTFORM.initReels();
+        if (typeof REELS !== 'undefined' && REELS.initReels) REELS.initReels();
     }
     if (pageId === 'messenger') {
         if (typeof loadMessages === 'function') loadMessages();
@@ -262,11 +315,11 @@ async function resizeAndUploadImage(file, maxSize, storagePath) {
         if (typeof uploadToStorage === 'function') {
             return await uploadToStorage(storagePath, blob);
         } else {
-            console.warn('[Firebase Storage] uploadToStorage 함수 없음, base64 반환');
+            console.warn('[Firebase Storage] uploadToStorage not found, returning base64');
             return resizedDataUrl;
         }
     } catch (error) {
-        console.error('[Firebase Storage] 업로드 실패:', error);
+        console.error('[Firebase Storage] upload failed:', error);
         // 실패 시 원본 파일로 fallback
         if (typeof uploadToStorage === 'function') {
             return await uploadToStorage(storagePath, file);

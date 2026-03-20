@@ -120,8 +120,8 @@
 .mentor-avatar-icon {
     font-size: 1.5rem;
     margin-bottom: 2px;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     margin-left: auto;
     margin-right: auto;
     overflow: hidden;
@@ -129,6 +129,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    background: linear-gradient(145deg, #F7F3ED, #E8DDD0);
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.6), 0 1px 3px rgba(61,43,31,0.12);
+    border: 1px solid rgba(139,105,20,0.15);
+}
+.mentor-avatar-icon svg {
+    width: 24px !important;
+    height: 24px !important;
 }
 .mentor-avatar-icon img {
     width: 40px !important;

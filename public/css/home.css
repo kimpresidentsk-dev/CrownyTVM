@@ -1,18 +1,5 @@
 /* ===== HOME: Landing, Hero, Services, Dashboard ===== */
-
-/* Landing Specific Styles */
-#landing-page {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100vh;
-    background: linear-gradient(135deg, #FFF8F0 0%, #F7F3ED 100%);
-    z-index: 9999; /* 최상단 노출 */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-.hidden { display: none !important; }
+/* #landing-page 와 .hidden 은 base.css에서 정의 (중복 제거) */
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

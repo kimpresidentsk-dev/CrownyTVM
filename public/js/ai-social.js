@@ -3,8 +3,6 @@
 // 개선사항: 안전성 강화, 에러 처리 개선, 상태 관리 추가
 
 const AI_SOCIAL = (() => {
-    const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-    
     // 상태 관리
     let initialized = false;
     let commentWatchInitialized = false;
@@ -59,7 +57,7 @@ const AI_SOCIAL = (() => {
         }
     };
 
-    let geminiApiKey = '';
+    let geminiApiKey = null; // API key managed server-side
 
     // 의존성 검증
     function checkDependencies() {
@@ -87,33 +85,12 @@ const AI_SOCIAL = (() => {
 
     // API 키 로드 (보안 강화)
     async function loadApiKey() {
-        if (!checkDependencies()) {
-            console.warn('[AI-Social] Dependencies not ready, using fallback API key');
-            return 'AIzaSyAhkJlLDE_V2Iso8PZaGIWPqs_ht0ZuZeA'; // Fallback only
-        }
-
-        try {
-            const settings = await db.collection('admin_config').doc('ai_settings').get();
-            const data = settings.data() || {};
-            
-            // DB에서 API 키 가져오기 (우선순위)
-            if (data.apiKey && data.apiKey.length > 10 && !data.apiKey.includes('AIzaSyAhkJlL')) {
-                console.log('[AI-Social] Using database API key');
-                return data.apiKey;
-            }
-            
-            console.warn('[AI-Social] Using fallback API key - consider setting a custom key in admin panel');
-            return 'AIzaSyAhkJlLDE_V2Iso8PZaGIWPqs_ht0ZuZeA';
-        } catch (e) {
-            console.error('[AI-Social] Failed to load API key from database:', e);
-            return 'AIzaSyAhkJlLDE_V2Iso8PZaGIWPqs_ht0ZuZeA';
-        }
+        return null; // API key managed server-side via /api/ai/gemini proxy
     }
 
     // 봇 프로필 초기화 (별도 함수로 분리)
     async function initializeBotProfiles() {
         if (!currentUser) {
-            console.log('[AI-Social] No user logged in, bot profiles will be created when admin logs in');
             return;
         }
 
@@ -129,12 +106,9 @@ const AI_SOCIAL = (() => {
         }
 
         if (!isAdmin) {
-            console.log('[AI-Social] User is not admin, skipping bot profile creation');
             return;
         }
 
-        console.log('[AI-Social] Admin user detected, initializing bot profiles...');
-        
         for (const [key, char] of Object.entries(BOT_CHARACTERS)) {
             try {
                 const doc = await db.collection('bot_profiles').doc(char.uid).get();
@@ -150,9 +124,7 @@ const AI_SOCIAL = (() => {
                         lastActive: firebase.firestore.FieldValue.serverTimestamp(),
                         version: '1.1'
                     });
-                    console.log(`[AI-Social] Bot profile created: ${char.nickname}`);
                 } else {
-                    console.log(`[AI-Social] Bot profile exists: ${char.nickname}`);
                 }
             } catch (e) {
                 console.error(`[AI-Social] Failed to create bot profile for ${key}:`, e);
@@ -163,7 +135,6 @@ const AI_SOCIAL = (() => {
     // 메인 초기화 함수
     async function init() {
         if (initialized) {
-            console.log('[AI-Social] Already initialized');
             return;
         }
 
@@ -179,7 +150,6 @@ const AI_SOCIAL = (() => {
             }
             
             initialized = true;
-            console.log('[AI-Social] Initialization completed');
         } catch (e) {
             console.error('[AI-Social] Initialization failed:', e);
             throw e;
@@ -191,11 +161,6 @@ const AI_SOCIAL = (() => {
         const char = BOT_CHARACTERS[charKey];
         if (!char) {
             console.error(`[AI-Social] Unknown character: ${charKey}`);
-            return null;
-        }
-
-        if (!geminiApiKey) {
-            console.error('[AI-Social] Gemini API key not available');
             return null;
         }
 
@@ -229,46 +194,30 @@ ${lang !== 'ko' ? `\n언어: ${langNames[lang] || lang}로 작성하세요.` : '
 - JSON 없이 순수 텍스트만 출력`;
 
         try {
-            console.log(`[AI-Social] Generating post for ${char.nickname} (${charKey})`);
-            
-            const res = await fetch(`${GEMINI_ENDPOINT}?key=${geminiApiKey}`, {
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            const res = await fetch('/api/ai/gemini', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { 
-                        temperature: 0.9, 
+                    generationConfig: {
+                        temperature: 0.9,
                         maxOutputTokens: 300,
                         topK: 40,
                         topP: 0.95
                     }
                 })
             });
-            
+
             if (!res.ok) {
                 const errText = await res.text();
                 console.error(`[AI-Social] Gemini API Error ${res.status}:`, errText);
-                
-                // 403 에러면 API 키 재로드 시도
-                if (res.status === 403) {
-                    console.log('[AI-Social] API key invalid, attempting reload...');
-                    try {
-                        const newKey = await loadApiKey();
-                        if (newKey !== geminiApiKey) {
-                            geminiApiKey = newKey;
-                            console.log('[AI-Social] Retrying with new API key...');
-                            return await generatePost(charKey); // 한 번만 재시도
-                        }
-                    } catch (e2) {
-                        console.error('[AI-Social] Failed to reload API key:', e2);
-                    }
-                }
-                
+
                 // 429 (Rate Limit) 에러면 재시도 제안
                 if (res.status === 429) {
                     console.warn('[AI-Social] Rate limit exceeded, please try again later');
                 }
-                
+
                 return null;
             }
             
@@ -280,7 +229,6 @@ ${lang !== 'ko' ? `\n언어: ${langNames[lang] || lang}로 작성하세요.` : '
                 return null;
             }
             
-            console.log(`[AI-Social] Generated post for ${char.nickname}: ${generatedText.substring(0, 50)}...`);
             return generatedText;
             
         } catch (e) {
@@ -335,7 +283,6 @@ ${lang !== 'ko' ? `\n언어: ${langNames[lang] || lang}로 작성하세요.` : '
 
         try {
             const ref = await db.collection('posts').add(postData);
-            console.log(`[AI-Social] ${char.nickname} posted (${ref.id}): ${text.substring(0, 50)}...`);
             
             // Toast 표시 (함수가 있을 때만)
             if (typeof showToast === 'function') {
@@ -372,11 +319,6 @@ ${lang !== 'ko' ? `\n언어: ${langNames[lang] || lang}로 작성하세요.` : '
             return false;
         }
 
-        if (!geminiApiKey) {
-            console.error('[AI-Social] Gemini API key not available for reply');
-            return false;
-        }
-
         const lang = getCurrentLanguage();
         const langNames = { ko: '한국어', en: 'English', ja: '日本語', zh: '中文', es: 'Español' };
 
@@ -394,15 +336,14 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
 - 친근하고 자연스럽게`;
 
         try {
-            console.log(`[AI-Social] Generating reply for ${char.nickname} to: ${comment.substring(0, 50)}...`);
-            
-            const res = await fetch(`${GEMINI_ENDPOINT}?key=${geminiApiKey}`, {
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            const res = await fetch('/api/ai/gemini', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { 
-                        temperature: 0.8, 
+                    generationConfig: {
+                        temperature: 0.8,
                         maxOutputTokens: 150,
                         topK: 40,
                         topP: 0.95
@@ -446,7 +387,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
                 commentCount: firebase.firestore.FieldValue.increment(1)
             });
             
-            console.log(`[AI-Social] ${char.nickname} replied: ${reply.substring(0, 50)}...`);
             return true;
             
         } catch (e) {
@@ -458,7 +398,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
     // 새 댓글 감지 → 봇 글에 달린 댓글이면 자동 답변 (안전성 강화)
     function watchBotPostComments() {
         if (commentWatchInitialized) {
-            console.log('[AI-Social] Comment watch already initialized');
             return;
         }
 
@@ -467,8 +406,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
             return;
         }
 
-        console.log('[AI-Social] Initializing comment watch system...');
-        
         const botUids = Object.values(BOT_CHARACTERS).map(c => c.uid);
         const processedComments = new Set(); // 중복 처리 방지
         const replyTimeouts = new Map(); // 진행 중인 답변 추적
@@ -520,7 +457,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
                                     
                                     // 처리 중인지 확인
                                     if (replyTimeouts.has(commentId)) {
-                                        console.log(`[AI-Social] Comment ${commentId} already being processed`);
                                         return;
                                     }
                                     
@@ -532,12 +468,9 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
                                     
                                     const timeoutId = setTimeout(async () => {
                                         try {
-                                            console.log(`[AI-Social] Processing comment from ${comment.userId}: ${comment.text.substring(0, 30)}...`);
                                             const success = await replyToComment(postDoc.id, comment.text, charKey, commentId);
                                             
-                                            if (success) {
-                                                console.log(`[AI-Social] Successfully replied to comment ${commentId}`);
-                                            } else {
+                                            if (!success) {
                                                 console.warn(`[AI-Social] Failed to reply to comment ${commentId}`);
                                             }
                                         } catch (e) {
@@ -548,7 +481,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
                                     }, delay);
                                     
                                     replyTimeouts.set(commentId, timeoutId);
-                                    console.log(`[AI-Social] Scheduled reply for comment ${commentId} in ${Math.round(delay/1000)}s`);
                                 });
                             },
                             error => {
@@ -568,7 +500,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
             
             activeWatchers.add(unsubscribe);
             commentWatchInitialized = true;
-            console.log('[AI-Social] Comment watch system initialized successfully');
             
         } catch (e) {
             console.error('[AI-Social] Failed to initialize comment watch:', e);
@@ -578,8 +509,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
 
     // 댓글 감시 중지
     function stopWatchingComments() {
-        console.log('[AI-Social] Stopping comment watch...');
-        
         activeWatchers.forEach(unsubscribe => {
             try {
                 unsubscribe();
@@ -590,13 +519,10 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
         
         activeWatchers.clear();
         commentWatchInitialized = false;
-        console.log('[AI-Social] Comment watch stopped');
     }
 
     // 자동 포스팅 (관리자가 트리거) - 안전성 강화
     async function autoPostAll() {
-        console.log('[AI-Social] Starting auto post for all characters...');
-        
         // 초기화 확인
         if (!initialized) {
             try {
@@ -616,8 +542,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
 
         for (const [key, char] of Object.entries(BOT_CHARACTERS)) {
             try {
-                console.log(`[AI-Social] Generating post for ${char.nickname}...`);
-                
                 const text = await generatePost(key);
                 if (text) {
                     // 캐릭터 간 자연스러운 시간차 (2~5초)
@@ -660,8 +584,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
         const duration = Math.round((Date.now() - startTime) / 1000);
         const successCount = results.filter(r => r.success).length;
         
-        console.log(`[AI-Social] Auto posting completed: ${successCount}/${results.length} successful in ${duration}s`);
-        
         return {
             results,
             summary: {
@@ -681,8 +603,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
         }
 
         const char = BOT_CHARACTERS[charKey];
-        console.log(`[AI-Social] Starting auto post for ${char.nickname}...`);
-
         // 초기화 확인
         if (!initialized) {
             try {
@@ -748,8 +668,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
 
     // 강제 재초기화
     async function reinitialize() {
-        console.log('[AI-Social] Force reinitializing...');
-        
         stopWatchingComments();
         initialized = false;
         geminiApiKey = '';
@@ -757,7 +675,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
         try {
             await init();
             watchBotPostComments();
-            console.log('[AI-Social] Reinitialization completed');
             return true;
         } catch (e) {
             console.error('[AI-Social] Reinitialization failed:', e);

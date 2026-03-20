@@ -28,10 +28,6 @@ const RISK_CONFIG = {
     nqPointValue: 20           // NQ 1포인트 가치 ($)
 };
 
-// (CRNY 슬롯 시스템 제거됨 — CRTD 기반으로 전환)
-function updateSlotStatusUI() { /* no-op: CRNY 슬롯 제거됨 */ }
-function calculateSlots() { return 0; /* deprecated */ }
-
 // ========== RISK MANAGEMENT ==========
 
 // 일일 손실 리셋 체크 (자정 UTC 기준)

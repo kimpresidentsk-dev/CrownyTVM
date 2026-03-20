@@ -10,31 +10,45 @@ const BOOK_SOUNDS = {
     fire_crackling: 'https://assets.mixkit.co/active_storage/sfx/185/185-preview.mp3'
 };
 
-const BOOK_EFFECTS = [
-    { value: '', label: '없음' },
-    { value: 'snow', label: '❄️ 눈' },
-    { value: 'rain', label: '🌧️ 비' },
-    { value: 'cherry_blossom', label: '🌸 벚꽃' },
-    { value: 'firefly', label: '반딧불' },
-    { value: 'stars', label: '⭐ 별' }
-];
+function _getBookEffects() {
+    return [
+        { value: '', label: t('books.effect_none','None') },
+        { value: 'snow', label: '❄️ ' + t('books.effect_snow','Snow') },
+        { value: 'rain', label: '🌧️ ' + t('books.effect_rain','Rain') },
+        { value: 'cherry_blossom', label: '🌸 ' + t('books.effect_cherry','Cherry Blossom') },
+        { value: 'firefly', label: t('books.effect_firefly','Firefly') },
+        { value: 'stars', label: '⭐ ' + t('books.effect_stars','Stars') }
+    ];
+}
 
-const BOOK_SOUND_OPTIONS = [
-    { value: '', label: '없음' },
-    { value: 'rain_ambient', label: '🌧️ 빗소리' },
-    { value: 'ocean', label: '🌊 바다' },
-    { value: 'forest', label: '🌲 숲' },
-    { value: 'piano', label: '🎹 피아노' },
-    { value: 'fire_crackling', label: '모닥불' }
-];
+function _getBookSoundOptions() {
+    return [
+        { value: '', label: t('books.sound_none','None') },
+        { value: 'rain_ambient', label: '🌧️ ' + t('books.sound_rain','Rain') },
+        { value: 'ocean', label: '🌊 ' + t('books.sound_ocean','Ocean') },
+        { value: 'forest', label: '🌲 ' + t('books.sound_forest','Forest') },
+        { value: 'piano', label: '🎹 ' + t('books.sound_piano','Piano') },
+        { value: 'fire_crackling', label: t('books.sound_fire','Campfire') }
+    ];
+}
 
-const BOOK_GENRES = {
-    novel: '<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 소설', essay: '📗 에세이', selfhelp: '📘 자기계발',
-    business: '📙 비즈니스', tech: '<i data-lucide="monitor" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 기술', poetry: '🖋️ 시',
-    children: '🧒 아동', comic: '📒 만화', fantasy: '🧙 판타지',
-    romance: '💕 로맨스', horror: '👻 공포', mystery: '🔍 미스터리',
-    other: '📚 기타'
-};
+function _getBookGenres() {
+    return {
+        novel: '<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_novel','Novel'),
+        essay: '📗 ' + t('books.genre_essay','Essay'),
+        selfhelp: '📘 ' + t('books.genre_selfhelp','Self-help'),
+        business: '📙 ' + t('books.genre_business','Business'),
+        tech: '<i data-lucide="monitor" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_tech','Tech'),
+        poetry: '🖋️ ' + t('books.genre_poetry','Poetry'),
+        children: '🧒 ' + t('books.genre_children','Children'),
+        comic: '📒 ' + t('books.genre_comic','Comic'),
+        fantasy: '🧙 ' + t('books.genre_fantasy','Fantasy'),
+        romance: '💕 ' + t('books.genre_romance','Romance'),
+        horror: '👻 ' + t('books.genre_horror','Horror'),
+        mystery: '🔍 ' + t('books.genre_mystery','Mystery'),
+        other: '📚 ' + t('books.genre_other','Other')
+    };
+}
 
 // ========== State ==========
 let _bookCreatorData = null;
@@ -52,7 +66,7 @@ function createLucideIcon(name, size = 14) {
 async function loadBooksGallery() {
     const c = document.getElementById('books-gallery-content');
     if (!c) return;
-    c.innerHTML = '<p style="text-align:center;color:var(--accent);padding:2rem;">로딩...</p>';
+    c.innerHTML = '<p style="text-align:center;color:var(--accent);padding:2rem;">' + t('books.loading','Loading...') + '</p>';
 
     try {
         let snap;
@@ -66,7 +80,7 @@ async function loadBooksGallery() {
         }
 
         if (snap.empty) {
-            c.innerHTML = `<p style="text-align:center;color:var(--accent);padding:2rem;">아직 등록된 책이 없습니다</p>`;
+            c.innerHTML = `<p style="text-align:center;color:var(--accent);padding:2rem;">${t('books.no_books','No books registered yet')}</p>`;
             return;
         }
 
@@ -80,19 +94,19 @@ async function loadBooksGallery() {
         let html = '';
 
         if (limited.length) {
-            html += _renderBookRow('🏆 한정판', limited);
+            html += _renderBookRow('🏆 ' + t('books.limited_edition','Limited Edition'), limited);
         }
-        html += _renderBookRow('🆕 신간', recent);
+        html += _renderBookRow('🆕 ' + t('books.new_releases','New Releases'), recent);
         if (popular.length > 1) {
-            html += _renderBookRow('<i data-lucide="flame" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 인기', popular);
+            html += _renderBookRow('<i data-lucide="flame" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.popular','Popular'), popular);
         }
 
         // Search & filter
         html = `<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-            <input type="text" id="book-search-input" placeholder="검색..." oninput="filterBooksGallery()" style="flex:1;min-width:150px;padding:0.6rem;border:1px solid var(--border);border-radius:8px;">
+            <input type="text" id="book-search-input" placeholder="${t('common.search','Search')}..." oninput="filterBooksGallery()" style="flex:1;min-width:150px;padding:0.6rem;border:1px solid var(--border);border-radius:8px;">
             <select id="book-genre-filter" onchange="filterBooksGallery()" style="padding:0.6rem;border:1px solid var(--border);border-radius:8px;">
-                <option value="">전체 장르</option>
-                ${Object.entries(BOOK_GENRES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
+                <option value="">${t('books.all_genres','All Genres')}</option>
+                ${Object.entries(_getBookGenres()).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
             </select>
         </div>
         <div id="books-filtered-grid" style="display:none;"></div>` + html;
@@ -122,16 +136,16 @@ function _renderBookCard(b) {
     const isSoldOut = b.status === 'soldout' || (b.edition === 'limited' && supply > 0 && sold >= supply);
     const coverBg = b.coverImage || b.imageData
         ? `<img src="${b.coverImage || b.imageData}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`
-        : `<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:3rem;background:#f5f0e8;">${(BOOK_GENRES[b.genre] || '📚').charAt(0)}</div>`;
+        : `<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:3rem;background:#f5f0e8;">${(_getBookGenres()[b.genre] || '📚').charAt(0)}</div>`;
 
     return `<div onclick="viewBookDetailV2('${b.id}')" style="min-width:130px;max-width:150px;background:#FFF8F0;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.08);flex-shrink:0;position:relative;">
         ${isSoldOut ? '<div style="position:absolute;top:8px;right:8px;background:red;color:#FFF8F0;font-size:0.6rem;padding:2px 6px;border-radius:4px;font-weight:700;z-index:1;">SOLD OUT</div>' : ''}
-        ${b.edition === 'limited' ? '<div style="position:absolute;top:8px;left:8px;background:gold;color:#3D2B1F;font-size:0.6rem;padding:2px 6px;border-radius:4px;font-weight:700;z-index:1;">한정판</div>' : ''}
+        ${b.edition === 'limited' ? '<div style="position:absolute;top:8px;left:8px;background:gold;color:#3D2B1F;font-size:0.6rem;padding:2px 6px;border-radius:4px;font-weight:700;z-index:1;">' + t('books.limited_edition','Limited Edition') + '</div>' : ''}
         <div style="height:180px;overflow:hidden;">${coverBg}</div>
         <div style="padding:0.5rem;">
             <div style="font-weight:600;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.title}</div>
-            <div style="font-size:0.7rem;color:var(--accent);">${b.author || '저자 미상'}</div>
-            <div style="font-weight:700;color:#3D2B1F;font-size:0.85rem;margin-top:0.2rem;">${price > 0 ? price + ' CRGC' : '무료'}</div>
+            <div style="font-size:0.7rem;color:var(--accent);">${b.author || t('books.unknown_author','Unknown author')}</div>
+            <div style="font-weight:700;color:#3D2B1F;font-size:0.85rem;margin-top:0.2rem;">${price > 0 ? price + ' CRGC' : t('books.free','Free')}</div>
             ${b.edition === 'limited' && supply > 0 ? `<div style="font-size:0.65rem;color:#6B5744;">${sold}/${supply}</div>` : ''}
         </div>
     </div>`;
@@ -164,7 +178,7 @@ function filterBooksGallery() {
 
     grid.innerHTML = filtered.length
         ? filtered.map(b => _renderBookCard(b)).join('')
-        : '<p style="grid-column:1/-1;text-align:center;color:var(--accent);">검색 결과가 없습니다</p>';
+        : '<p style="grid-column:1/-1;text-align:center;color:var(--accent);">' + t('books.no_results','No results found') + '</p>';
     if (window.lucide) setTimeout(() => lucide.createIcons(), 50);
 }
 
@@ -203,32 +217,32 @@ async function viewBookDetailV2(id) {
     modal.innerHTML = `<div style="background:#FFF8F0;border-radius:16px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;">
         <div style="height:280px;background:#f5f0e8;display:flex;align-items:center;justify-content:center;position:relative;">
             ${b.coverImage || b.imageData ? `<img src="${b.coverImage || b.imageData}" loading="lazy" style="max-width:100%;max-height:100%;object-fit:contain;">` : `<span style="font-size:5rem;">📚</span>`}
-            ${b.edition === 'limited' ? `<div style="position:absolute;top:12px;left:12px;background:gold;color:#3D2B1F;padding:4px 10px;border-radius:6px;font-weight:700;font-size:0.8rem;">🏆 한정판 ${sold}/${supply}</div>` : ''}
+            ${b.edition === 'limited' ? `<div style="position:absolute;top:12px;left:12px;background:gold;color:#3D2B1F;padding:4px 10px;border-radius:6px;font-weight:700;font-size:0.8rem;">🏆 ${t('books.limited_edition','Limited Edition')} ${sold}/${supply}</div>` : ''}
             ${isSoldOut ? `<div style="position:absolute;top:12px;right:12px;background:red;color:#FFF8F0;padding:4px 10px;border-radius:6px;font-weight:700;font-size:0.8rem;">SOLD OUT</div>` : ''}
         </div>
         <div style="padding:1.5rem;">
             <h2 style="margin:0 0 0.3rem;">${b.title}</h2>
-            <p style="color:var(--accent);font-size:0.9rem;margin:0 0 0.5rem;">${b.author || '저자 미상'} · ${BOOK_GENRES[b.genre] || ''} · ${chapterCount}챕터</p>
-            <p style="font-size:1.2rem;font-weight:700;color:#3D2B1F;margin:0.5rem 0;">${price > 0 ? price + ' CRGC' : '무료'}</p>
-            ${editionNumber ? `<p style="font-size:0.8rem;color:#6B5744;margin:0;">📖 내 에디션: #${editionNumber} of ${supply || '∞'}</p>` : ''}
+            <p style="color:var(--accent);font-size:0.9rem;margin:0 0 0.5rem;">${b.author || t('books.unknown_author','Unknown author')} · ${_getBookGenres()[b.genre] || ''} · ${chapterCount} ${t('books.chapters','chapters')}</p>
+            <p style="font-size:1.2rem;font-weight:700;color:#3D2B1F;margin:0.5rem 0;">${price > 0 ? price + ' CRGC' : t('books.free','Free')}</p>
+            ${editionNumber ? `<p style="font-size:0.8rem;color:#6B5744;margin:0;">📖 ${t('books.my_edition','My Edition')}: #${editionNumber} of ${supply || '∞'}</p>` : ''}
             ${b.description ? `<p style="font-size:0.9rem;margin:0.8rem 0;line-height:1.6;color:#6B5744;">${b.description}</p>` : ''}
             
-            ${translations.length > 1 ? `<div style="margin:0.5rem 0;font-size:0.8rem;">🌍 번역: ${translations.map(l => _langLabel(l)).join(', ')}</div>` : ''}
+            ${translations.length > 1 ? `<div style="margin:0.5rem 0;font-size:0.8rem;">🌍 ${t('books.translations','Translations')}: ${translations.map(l => _langLabel(l)).join(', ')}</div>` : ''}
             
             <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.8rem;">
                 ${b.featureCodes?.ttsEnabled ? '<span style="background:#F7F3ED;padding:2px 8px;border-radius:12px;font-size:0.75rem;">🔊 TTS</span>' : ''}
-                ${b.featureCodes?.treasureHunt?.enabled ? '<span style="background:#F7F3ED;padding:2px 8px;border-radius:12px;font-size:0.75rem;">🎯 보물찾기</span>' : ''}
-                ${(b.featureCodes?.effects || []).length ? '<span style="background:#f3e5f5;padding:2px 8px;border-radius:12px;font-size:0.75rem;">✨ 인터랙티브</span>' : ''}
+                ${b.featureCodes?.treasureHunt?.enabled ? '<span style="background:#F7F3ED;padding:2px 8px;border-radius:12px;font-size:0.75rem;">🎯 ' + t('books.treasure_hunt','Treasure Hunt') + '</span>' : ''}
+                ${(b.featureCodes?.effects || []).length ? '<span style="background:#f3e5f5;padding:2px 8px;border-radius:12px;font-size:0.75rem;">✨ ' + t('books.interactive','Interactive') + '</span>' : ''}
             </div>
             
             <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-                ${userOwns || isOwner || price <= 0 ? `<button onclick="openBookReader('${id}');document.getElementById('book-detail-modal-v2')?.remove();" style="flex:1;background:#3D2B1F;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">📖 읽기</button>` : ''}
-                ${!userOwns && !isOwner && price > 0 && !isSoldOut ? `<button onclick="buyBookV2('${id}');document.getElementById('book-detail-modal-v2')?.remove();" style="flex:1;background:#3D2B1F;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">🛒 구매 (${price} CRGC)</button>` : ''}
-                ${isSoldOut && !userOwns ? '<button disabled style="flex:1;background:#E8E0D8;color:#6B5744;border:none;padding:0.8rem;border-radius:8px;font-weight:700;">매진</button>' : ''}
+                ${userOwns || isOwner || price <= 0 ? `<button onclick="openBookReader('${id}');document.getElementById('book-detail-modal-v2')?.remove();" style="flex:1;background:#3D2B1F;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">📖 ${t('books.read_book','Read Book')}</button>` : ''}
+                ${!userOwns && !isOwner && price > 0 && !isSoldOut ? `<button onclick="buyBookV2('${id}');document.getElementById('book-detail-modal-v2')?.remove();" style="flex:1;background:#3D2B1F;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">🛒 ${t('books.buy_book','Buy Book')} (${price} CRGC)</button>` : ''}
+                ${isSoldOut && !userOwns ? '<button disabled style="flex:1;background:#E8E0D8;color:#6B5744;border:none;padding:0.8rem;border-radius:8px;font-weight:700;">' + t('books.sold_out','Sold out (limited edition)') + '</button>' : ''}
                 <button onclick="addToReadingList('${id}')" style="background:#C4841D;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">📚</button>
             </div>
-            ${!userOwns && !isOwner && price > 0 ? `<button onclick="requestTranslation('${id}')" style="background:none;border:1px solid var(--border);padding:0.5rem;border-radius:8px;cursor:pointer;width:100%;margin-top:0.5rem;font-size:0.85rem;">🌍 번역 요청</button>` : ''}
-            <button onclick="document.getElementById('book-detail-modal-v2')?.remove()" style="background:#E8E0D8;border:none;padding:0.6rem;border-radius:8px;cursor:pointer;width:100%;margin-top:0.5rem;">닫기</button>
+            ${!userOwns && !isOwner && price > 0 ? `<button onclick="requestTranslation('${id}')" style="background:none;border:1px solid var(--border);padding:0.5rem;border-radius:8px;cursor:pointer;width:100%;margin-top:0.5rem;font-size:0.85rem;">🌍 ${t('books.request_translation','Request Translation')}</button>` : ''}
+            <button onclick="document.getElementById('book-detail-modal-v2')?.remove()" style="background:#E8E0D8;border:none;padding:0.6rem;border-radius:8px;cursor:pointer;width:100%;margin-top:0.5rem;">${t('common.close','Close')}</button>
         </div>
     </div>`;
     document.body.appendChild(modal);
@@ -242,27 +256,27 @@ function _langLabel(code) {
 // ========== BUY BOOK V2 (Limited Edition) ==========
 
 async function buyBookV2(id) {
-    if (!currentUser) { showToast('로그인이 필요합니다', 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
     const doc = await db.collection('books').doc(id).get();
     if (!doc.exists) return;
     const b = doc.data();
     const price = b.basePrice || b.price || 0;
 
     if (b.authorId === currentUser.uid || b.publisherId === currentUser.uid) {
-        showToast('본인의 책입니다', 'info'); return;
+        showToast(t('books.own_book','This is your own book'), 'info'); return;
     }
 
     // Check already purchased
     const existing = await db.collection('book_purchases')
         .where('userId', '==', currentUser.uid).where('bookId', '==', id).limit(1).get();
     if (!existing.empty) {
-        showToast('이미 구매한 책입니다. 서재에서 읽어보세요!', 'info'); return;
+        showToast(t('books.already_purchased','Already purchased'), 'info'); return;
     }
 
     // Check supply
     const sold = b.soldCount || b.sold || 0;
     if (b.edition === 'limited' && b.totalSupply > 0 && sold >= b.totalSupply) {
-        showToast('매진된 한정판입니다', 'warning'); return;
+        showToast(t('books.sold_out','Sold out (limited edition)'), 'warning'); return;
     }
 
     if (price <= 0) {
@@ -274,7 +288,7 @@ async function buyBookV2(id) {
     if (!await showConfirmModal(t('books.purchase', 'Purchase Book'), `"${b.title}"\nPurchase for ${price} CRGC?${b.edition === 'limited' ? `\nEdition #${sold + 1} of ${b.totalSupply}` : ''}`)) return;
 
     try {
-        const success = await spendOffchainPoints('crgc', price, `책 구매: ${b.title}`);
+        const success = await spendOffchainPoints('crgc', price, `${t('books.buy_book','Buy Book')}: ${b.title}`);
         if (!success) return;
 
         // Pay author
@@ -289,7 +303,7 @@ async function buyBookV2(id) {
 
         await _completePurchase(id, b, price);
         if (typeof loadUserWallet === 'function') loadUserWallet();
-    } catch (e) { showToast('구매 실패: ' + e.message, 'error'); }
+    } catch (e) { showToast(t('books.purchase_fail','Purchase failed') + ': ' + e.message, 'error'); }
 }
 
 async function _completePurchase(bookId, bookData, price) {
@@ -319,13 +333,13 @@ async function _completePurchase(bookId, bookData, price) {
         });
     }
 
-    showToast(`📖 "${bookData.title}" 구매 완료!${bookData.edition === 'limited' ? ` #${editionNumber} of ${bookData.totalSupply}` : ''}`, 'success');
+    showToast(`📖 "${bookData.title}" ${t('books.purchase_done','Purchase complete!')}${bookData.edition === 'limited' ? ` #${editionNumber} of ${bookData.totalSupply}` : ''}`, 'success');
 }
 
 // ========== BOOK CREATOR ==========
 
 function showBookCreator(editBookId) {
-    if (!currentUser) { showToast('로그인이 필요합니다', 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
 
     _bookCreatorData = {
         step: 1,
@@ -333,7 +347,7 @@ function showBookCreator(editBookId) {
         coverImage: '', edition: 'unlimited', totalSupply: 100,
         basePrice: 0, originalLanguage: 'ko',
         featureCodes: { effects: [], sounds: [], ttsEnabled: true, treasureHunt: { enabled: false, totalTreasures: 0, rewards: { token: 'CRGC', amount: 10 } } },
-        chapters: [{ chapterNum: 1, title: '제 1장', scenes: [{ sceneId: 'ch1_s1', content: '', effect: '', sound: '', treasureCode: '', imageUrl: '' }] }],
+        chapters: [{ chapterNum: 1, title: t('books.chapter','Chapter') + ' 1', scenes: [{ sceneId: 'ch1_s1', content: '', effect: '', sound: '', treasureCode: '', imageUrl: '' }] }],
         editBookId: editBookId || null
     };
 
@@ -348,7 +362,7 @@ async function _loadBookForEdit(id) {
     showLoading();
     try {
         const doc = await db.collection('books').doc(id).get();
-        if (!doc.exists) { hideLoading(); showToast('책을 찾을 수 없습니다', 'error'); return; }
+        if (!doc.exists) { hideLoading(); showToast(t('books.not_found','Book not found'), 'error'); return; }
         const b = doc.data();
         Object.assign(_bookCreatorData, b, { editBookId: id, step: 1 });
         hideLoading();
@@ -365,7 +379,7 @@ function _renderBookCreator() {
     modal.id = 'book-creator-modal';
     modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#FFF8F0;z-index:10001;overflow-y:auto;';
 
-    const steps = ['기본 정보', '챕터/씬', '미리보기', '발행'];
+    const steps = [t('books.step_info','Basic Info'), t('books.step_chapters','Chapters/Scenes'), t('books.step_preview','Preview'), t('books.step_publish','Publish')];
     const stepBar = `<div style="display:flex;gap:0;border-bottom:2px solid #E8E0D8;">
         ${steps.map((s, i) => `<div style="flex:1;text-align:center;padding:0.8rem 0.3rem;font-size:0.8rem;font-weight:${d.step === i + 1 ? '700' : '400'};color:${d.step === i + 1 ? '#3D2B1F' : '#6B5744'};border-bottom:${d.step === i + 1 ? '2px solid #3D2B1F' : 'none'};cursor:pointer;" onclick="_bookCreatorData.step=${i + 1};_renderBookCreator();">${i + 1}. ${s}</div>`).join('')}
     </div>`;
@@ -378,7 +392,7 @@ function _renderBookCreator() {
 
     modal.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem;border-bottom:1px solid #E8E0D8;">
-            <h2 style="margin:0;font-size:1.1rem;">✍️ ${d.editBookId ? '책 수정' : '새 책 만들기'}</h2>
+            <h2 style="margin:0;font-size:1.1rem;">✍️ ${d.editBookId ? t('books.edit_book','Edit Book') : t('books.create_book','Create New Book')}</h2>
             <button onclick="document.getElementById('book-creator-modal')?.remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
         </div>
         ${stepBar}
@@ -390,55 +404,55 @@ function _renderBookCreator() {
 function _renderCreatorStep1() {
     const d = _bookCreatorData;
     return `<div style="display:grid;gap:1rem;">
-        <div><label style="font-size:0.85rem;font-weight:600;">제목 *</label>
+        <div><label style="font-size:0.85rem;font-weight:600;">${t('books.title','Title')} *</label>
         <input type="text" id="bc-title" value="${_esc(d.title)}" onchange="_bookCreatorData.title=this.value" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;"></div>
         
-        <div><label style="font-size:0.85rem;font-weight:600;">저자명</label>
+        <div><label style="font-size:0.85rem;font-weight:600;">${t('books.author','Author')}</label>
         <input type="text" id="bc-author" value="${_esc(d.author)}" onchange="_bookCreatorData.author=this.value" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;"></div>
         
-        <div><label style="font-size:0.85rem;font-weight:600;">장르</label>
+        <div><label style="font-size:0.85rem;font-weight:600;">${t('books.genre','Genre')}</label>
         <select id="bc-genre" onchange="_bookCreatorData.genre=this.value" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;">
-            ${Object.entries(BOOK_GENRES).map(([k, v]) => `<option value="${k}" ${d.genre === k ? 'selected' : ''}>${v}</option>`).join('')}
+            ${Object.entries(_getBookGenres()).map(([k, v]) => `<option value="${k}" ${d.genre === k ? 'selected' : ''}>${v}</option>`).join('')}
         </select></div>
         
-        <div><label style="font-size:0.85rem;font-weight:600;">소개</label>
+        <div><label style="font-size:0.85rem;font-weight:600;">${t('books.description','Description')}</label>
         <textarea id="bc-desc" rows="3" onchange="_bookCreatorData.description=this.value" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;">${_esc(d.description)}</textarea></div>
         
-        <div><label style="font-size:0.85rem;font-weight:600;">표지 이미지</label>
+        <div><label style="font-size:0.85rem;font-weight:600;">${t('books.cover_image','Cover Image')}</label>
         <input type="file" id="bc-cover" accept="image/*" onchange="_handleCoverUpload(this)" style="padding:0.5rem;border:1px solid var(--border);border-radius:8px;width:100%;box-sizing:border-box;">
         ${d.coverImage ? `<img src="${d.coverImage}" loading="lazy" style="height:100px;margin-top:0.5rem;border-radius:8px;">` : ''}</div>
         
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-            <div><label style="font-size:0.85rem;font-weight:600;">에디션</label>
+            <div><label style="font-size:0.85rem;font-weight:600;">${t('books.edition','Edition')}</label>
             <select onchange="_bookCreatorData.edition=this.value;_renderBookCreator();" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;">
-                <option value="unlimited" ${d.edition === 'unlimited' ? 'selected' : ''}>무제한</option>
-                <option value="limited" ${d.edition === 'limited' ? 'selected' : ''}>한정판</option>
+                <option value="unlimited" ${d.edition === 'unlimited' ? 'selected' : ''}>${t('books.unlimited','Unlimited')}</option>
+                <option value="limited" ${d.edition === 'limited' ? 'selected' : ''}>${t('books.limited_edition','Limited Edition')}</option>
             </select></div>
-            ${d.edition === 'limited' ? `<div><label style="font-size:0.85rem;font-weight:600;">발행량</label>
+            ${d.edition === 'limited' ? `<div><label style="font-size:0.85rem;font-weight:600;">${t('books.total_supply','Total Supply')}</label>
             <input type="number" value="${d.totalSupply}" onchange="_bookCreatorData.totalSupply=parseInt(this.value)||100" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;"></div>` : '<div></div>'}
         </div>
         
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-            <div><label style="font-size:0.85rem;font-weight:600;">TTS 읽기</label>
+            <div><label style="font-size:0.85rem;font-weight:600;">${t('books.tts_reading','TTS Reading')}</label>
             <select onchange="_bookCreatorData.featureCodes.ttsEnabled=this.value==='true'" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;">
-                <option value="true" ${d.featureCodes.ttsEnabled ? 'selected' : ''}>활성화</option>
-                <option value="false" ${!d.featureCodes.ttsEnabled ? 'selected' : ''}>비활성화</option>
+                <option value="true" ${d.featureCodes.ttsEnabled ? 'selected' : ''}>${t('books.enabled','Enabled')}</option>
+                <option value="false" ${!d.featureCodes.ttsEnabled ? 'selected' : ''}>${t('books.disabled','Disabled')}</option>
             </select></div>
-            <div><label style="font-size:0.85rem;font-weight:600;">보물찾기</label>
+            <div><label style="font-size:0.85rem;font-weight:600;">${t('books.treasure_hunt','Treasure Hunt')}</label>
             <select onchange="_bookCreatorData.featureCodes.treasureHunt.enabled=this.value==='true';_renderBookCreator();" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;">
-                <option value="false" ${!d.featureCodes.treasureHunt.enabled ? 'selected' : ''}>비활성화</option>
-                <option value="true" ${d.featureCodes.treasureHunt.enabled ? 'selected' : ''}>활성화</option>
+                <option value="false" ${!d.featureCodes.treasureHunt.enabled ? 'selected' : ''}>${t('books.disabled','Disabled')}</option>
+                <option value="true" ${d.featureCodes.treasureHunt.enabled ? 'selected' : ''}>${t('books.enabled','Enabled')}</option>
             </select></div>
         </div>
         ${d.featureCodes.treasureHunt.enabled ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-            <div><label style="font-size:0.85rem;">보물 보상 (CRGC)</label>
+            <div><label style="font-size:0.85rem;">${t('books.treasure_reward','Treasure Reward')} (CRGC)</label>
             <input type="number" value="${d.featureCodes.treasureHunt.rewards.amount}" onchange="_bookCreatorData.featureCodes.treasureHunt.rewards.amount=parseInt(this.value)||10" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;"></div>
             <div></div>
         </div>` : ''}
         
         <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1rem;">
-            <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">💾 임시저장</button>
-            <button onclick="_bookCreatorData.step=2;_renderBookCreator();" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;">다음 →</button>
+            <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">💾 ${t('books.save_draft','Save Draft')}</button>
+            <button onclick="_bookCreatorData.step=2;_renderBookCreator();" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;">${t('books.next','Next')} →</button>
         </div>
     </div>`;
 }
@@ -455,29 +469,29 @@ function _renderCreatorStep2() {
                     ${ci < d.chapters.length - 1 ? `<button onclick="_moveChapter(${ci},1)" style="background:none;border:none;cursor:pointer;">⬇️</button>` : ''}
                     <input type="text" value="${_esc(ch.title)}" onchange="_bookCreatorData.chapters[${ci}].title=this.value" style="font-weight:700;font-size:1rem;border:none;background:transparent;width:150px;">
                 </div>
-                ${d.chapters.length > 1 ? `<button onclick="_bookCreatorData.chapters.splice(${ci},1);_renderBookCreator();" style="background:#ff5252;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:6px;cursor:pointer;font-size:0.75rem;">삭제</button>` : ''}
+                ${d.chapters.length > 1 ? `<button onclick="_bookCreatorData.chapters.splice(${ci},1);_renderBookCreator();" style="background:#ff5252;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:6px;cursor:pointer;font-size:0.75rem;">${t('common.delete','Delete')}</button>` : ''}
             </div>`;
 
         ch.scenes.forEach((sc, si) => {
             html += `<div style="background:#FFF8F0;border-radius:8px;padding:0.8rem;margin-bottom:0.5rem;border:1px solid #e0e0e0;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;">
-                    <span style="font-size:0.8rem;font-weight:600;">씬 ${si + 1}</span>
+                    <span style="font-size:0.8rem;font-weight:600;">${t('books.scene','Scene')} ${si + 1}</span>
                     ${ch.scenes.length > 1 ? `<button onclick="_bookCreatorData.chapters[${ci}].scenes.splice(${si},1);_renderBookCreator();" style="background:none;border:none;cursor:pointer;font-size:0.7rem;color:red;">✕</button>` : ''}
                 </div>
-                <textarea rows="4" onchange="_bookCreatorData.chapters[${ci}].scenes[${si}].content=this.value" placeholder="씬 내용을 입력하세요..." style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;box-sizing:border-box;font-size:0.9rem;line-height:1.6;">${_esc(sc.content)}</textarea>
+                <textarea rows="4" onchange="_bookCreatorData.chapters[${ci}].scenes[${si}].content=this.value" placeholder="${t('books.scene_placeholder','Enter scene content...')}" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;box-sizing:border-box;font-size:0.9rem;line-height:1.6;">${_esc(sc.content)}</textarea>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-top:0.3rem;">
                     <select onchange="_bookCreatorData.chapters[${ci}].scenes[${si}].effect=this.value" style="padding:0.4rem;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;">
-                        ${BOOK_EFFECTS.map(e => `<option value="${e.value}" ${sc.effect === e.value ? 'selected' : ''}>${e.label}</option>`).join('')}
+                        ${_getBookEffects().map(e => `<option value="${e.value}" ${sc.effect === e.value ? 'selected' : ''}>${e.label}</option>`).join('')}
                     </select>
                     <select onchange="_bookCreatorData.chapters[${ci}].scenes[${si}].sound=this.value" style="padding:0.4rem;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;">
-                        ${BOOK_SOUND_OPTIONS.map(s => `<option value="${s.value}" ${sc.sound === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
+                        ${_getBookSoundOptions().map(s => `<option value="${s.value}" ${sc.sound === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
                     </select>
                 </div>
                 <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.3rem;">
                     <label style="font-size:0.75rem;display:flex;align-items:center;gap:0.3rem;">
-                        <input type="checkbox" ${sc.treasureCode ? 'checked' : ''} onchange="_bookCreatorData.chapters[${ci}].scenes[${si}].treasureCode=this.checked?'TREASURE_'+Date.now():'';"> 🎯 보물
-                    </label>
-                    <label style="font-size:0.75rem;display:flex;align-items:center;gap:0.3rem;">삽화
+                        <input type="checkbox" ${sc.treasureCode ? 'checked' : ''} onchange="_bookCreatorData.chapters[${ci}].scenes[${si}].treasureCode=this.checked?'TREASURE_'+Date.now():'';"> 🎯 ${t('books.treasure','Treasure')}
+                 </label>
+                    <label style="font-size:0.75rem;display:flex;align-items:center;gap:0.3rem;">${t('books.illustration','Illustration')}
                         <input type="file" accept="image/*" onchange="_handleSceneImage(this,${ci},${si})" style="font-size:0.7rem;width:120px;">
                     </label>
                 </div>
@@ -485,17 +499,17 @@ function _renderCreatorStep2() {
             </div>`;
         });
 
-        html += `<button onclick="_addScene(${ci})" style="width:100%;padding:0.4rem;border:1px dashed #E8E0D8;background:none;border-radius:6px;cursor:pointer;font-size:0.8rem;color:#6B5744;">+ 씬 추가</button>
+        html += `<button onclick="_addScene(${ci})" style="width:100%;padding:0.4rem;border:1px dashed #E8E0D8;background:none;border-radius:6px;cursor:pointer;font-size:0.8rem;color:#6B5744;">+ ${t('books.add_scene','Add Scene')}</button>
         </div>`;
     });
 
-    html += `<button onclick="_addChapter()" style="width:100%;padding:0.7rem;border:2px dashed #E8E0D8;background:none;border-radius:10px;cursor:pointer;font-size:0.9rem;color:#6B5744;">+ 챕터 추가</button>`;
+    html += `<button onclick="_addChapter()" style="width:100%;padding:0.7rem;border:2px dashed #E8E0D8;background:none;border-radius:10px;cursor:pointer;font-size:0.9rem;color:#6B5744;">+ ${t('books.add_chapter','Add Chapter')}</button>`;
 
     html += `<div style="display:flex;justify-content:space-between;margin-top:1rem;">
-        <button onclick="_bookCreatorData.step=1;_renderBookCreator();" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">← 이전</button>
+        <button onclick="_bookCreatorData.step=1;_renderBookCreator();" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">← ${t('books.previous','Previous')}</button>
         <div style="display:flex;gap:0.5rem;">
-            <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">💾 임시저장</button>
-            <button onclick="_bookCreatorData.step=3;_renderBookCreator();" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;">미리보기 →</button>
+            <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">💾 ${t('books.save_draft','Save Draft')}</button>
+            <button onclick="_bookCreatorData.step=3;_renderBookCreator();" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;">${t('books.step_preview','Preview')} →</button>
         </div>
     </div></div>`;
     return html;
@@ -504,19 +518,19 @@ function _renderCreatorStep2() {
 function _renderCreatorStep3() {
     const d = _bookCreatorData;
     return `<div>
-        <p style="text-align:center;color:var(--accent);margin-bottom:1rem;">리더 뷰로 미리보기 (효과/사운드 테스트)</p>
+        <p style="text-align:center;color:var(--accent);margin-bottom:1rem;">${t('books.preview_desc','Reader view preview (test effects/sounds)')}</p>
         <div id="book-preview-container" style="background:#3D2B1F;border-radius:12px;overflow:hidden;height:60vh;position:relative;">
             <div id="book-preview-content" style="padding:2rem;color:#e0e0e0;font-size:1rem;line-height:1.8;height:100%;overflow-y:auto;"></div>
             <div id="book-preview-effects" style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;"></div>
         </div>
         <div style="display:flex;gap:0.5rem;margin-top:0.5rem;justify-content:center;">
-            <button onclick="_previewScene(-1)" style="padding:0.5rem 1rem;border:1px solid var(--border);background:#FFF8F0;border-radius:6px;cursor:pointer;">← 이전 씬</button>
+            <button onclick="_previewScene(-1)" style="padding:0.5rem 1rem;border:1px solid var(--border);background:#FFF8F0;border-radius:6px;cursor:pointer;">← ${t('books.prev_scene','Previous Scene')}</button>
             <span id="preview-scene-info" style="padding:0.5rem;font-size:0.85rem;color:var(--accent);"></span>
-            <button onclick="_previewScene(1)" style="padding:0.5rem 1rem;border:1px solid var(--border);background:#FFF8F0;border-radius:6px;cursor:pointer;">다음 씬 →</button>
+            <button onclick="_previewScene(1)" style="padding:0.5rem 1rem;border:1px solid var(--border);background:#FFF8F0;border-radius:6px;cursor:pointer;">${t('books.next_scene','Next Scene')} →</button>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:1rem;">
-            <button onclick="_bookCreatorData.step=2;_renderBookCreator();" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">← 이전</button>
-            <button onclick="_bookCreatorData.step=4;_renderBookCreator();" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;">발행 설정 →</button>
+            <button onclick="_bookCreatorData.step=2;_renderBookCreator();" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">← ${t('books.previous','Previous')}</button>
+            <button onclick="_bookCreatorData.step=4;_renderBookCreator();" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;">${t('books.publish_settings','Publish Settings')} →</button>
         </div>
     </div>`;
 }
@@ -528,21 +542,21 @@ function _renderCreatorStep4() {
 
     return `<div style="display:grid;gap:1rem;">
         <div style="background:#f0f7ff;padding:1.5rem;border-radius:12px;">
-            <h3 style="margin:0 0 0.5rem;">📋 발행 요약</h3>
+            <h3 style="margin:0 0 0.5rem;">📋 ${t('books.publish_summary','Publish Summary')}</h3>
             <p><strong>${d.title}</strong> — ${d.author}</p>
-            <p style="font-size:0.85rem;color:var(--accent);">${d.chapters.length}챕터 · ${totalScenes}씬 · ${treasures}보물</p>
-            <p style="font-size:0.85rem;color:var(--accent);">${d.edition === 'limited' ? `한정판 ${d.totalSupply}부` : '무제한 에디션'}</p>
+            <p style="font-size:0.85rem;color:var(--accent);">${d.chapters.length} ${t('books.chapters','chapters')} · ${totalScenes} ${t('books.scenes','scenes')} · ${treasures} ${t('books.treasures','treasures')}</p>
+            <p style="font-size:0.85rem;color:var(--accent);">${d.edition === 'limited' ? `${t('books.limited_edition','Limited Edition')} ${d.totalSupply}` : t('books.unlimited_edition','Unlimited Edition')}</p>
         </div>
         
-        <div><label style="font-size:0.85rem;font-weight:600;">판매 가격 (CRGC)</label>
+        <div><label style="font-size:0.85rem;font-weight:600;">${t('books.sale_price','Sale Price')} (CRGC)</label>
         <input type="number" id="bc-price" value="${d.basePrice}" onchange="_bookCreatorData.basePrice=parseFloat(this.value)||0" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;">
-        <p style="font-size:0.75rem;color:var(--accent);">0 = 무료</p></div>
+        <p style="font-size:0.75rem;color:var(--accent);">0 = ${t('books.free','Free')}</p></div>
         
         <div style="display:flex;justify-content:space-between;margin-top:1rem;">
-            <button onclick="_bookCreatorData.step=3;_renderBookCreator();" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">← 이전</button>
+            <button onclick="_bookCreatorData.step=3;_renderBookCreator();" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">← ${t('books.previous','Previous')}</button>
             <div style="display:flex;gap:0.5rem;">
-                <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">💾 임시저장</button>
-                <button onclick="_publishBook()" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;font-weight:700;">📚 발행하기</button>
+                <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">💾 ${t('books.save_draft','Save Draft')}</button>
+                <button onclick="_publishBook()" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;font-weight:700;">📚 ${t('books.publish','Publish')}</button>
             </div>
         </div>
     </div>`;
@@ -559,7 +573,7 @@ async function _handleCoverUpload(input) {
             : await _fileToBase64(file);
         _bookCreatorData.coverImage = resized;
         _renderBookCreator();
-    } catch (e) { showToast('이미지 처리 실패', 'error'); }
+    } catch (e) { showToast(t('books.image_fail','Image processing failed'), 'error'); }
 }
 
 async function _handleSceneImage(input, ci, si) {
@@ -572,7 +586,7 @@ async function _handleSceneImage(input, ci, si) {
             : await _fileToBase64(file);
         _bookCreatorData.chapters[ci].scenes[si].imageUrl = resized;
         _renderBookCreator();
-    } catch (e) { showToast('이미지 처리 실패', 'error'); }
+    } catch (e) { showToast(t('books.image_fail','Image processing failed'), 'error'); }
 }
 
 function _fileToBase64(file) {
@@ -587,7 +601,7 @@ function _fileToBase64(file) {
 function _addChapter() {
     const n = _bookCreatorData.chapters.length + 1;
     _bookCreatorData.chapters.push({
-        chapterNum: n, title: `제 ${n}장`,
+        chapterNum: n, title: `${t('books.chapter','Chapter')} ${n}`,
         scenes: [{ sceneId: `ch${n}_s1`, content: '', effect: '', sound: '', treasureCode: '', imageUrl: '' }]
     });
     _renderBookCreator();
@@ -628,7 +642,7 @@ function _previewScene(dir) {
     if (contentEl) {
         contentEl.innerHTML = `<div style="font-size:0.8rem;color:#6B5744;margin-bottom:1rem;">${sc.chapterTitle}</div>
             ${sc.imageUrl ? `<img src="${sc.imageUrl}" loading="lazy" style="max-width:100%;border-radius:8px;margin-bottom:1rem;">` : ''}
-            <div style="white-space:pre-wrap;">${sc.content || '(내용 없음)'}</div>`;
+            <div style="white-space:pre-wrap;">${sc.content || t('books.no_content','(No content)')}</div>`;
     }
     if (infoEl) infoEl.textContent = `${_previewSceneIndex + 1} / ${allScenes.length}`;
     if (effectsEl) _applyEffect(effectsEl, sc.effect);
@@ -640,7 +654,7 @@ function _previewScene(dir) {
 async function _saveBookDraft() {
     if (!currentUser) return;
     const d = _bookCreatorData;
-    if (!d.title.trim()) { showToast('제목을 입력하세요', 'warning'); return; }
+    if (!d.title.trim()) { showToast(t('books.enter_title','Please enter a title'), 'warning'); return; }
 
     showLoading();
     try {
@@ -686,20 +700,20 @@ async function _saveBookDraft() {
             _bookCreatorData.editBookId = ref.id;
         }
         hideLoading();
-        showToast('💾 임시저장 완료!', 'success');
-    } catch (e) { hideLoading(); showToast('저장 실패: ' + e.message, 'error'); }
+        showToast('💾 ' + t('books.draft_saved','Draft saved!'), 'success');
+    } catch (e) { hideLoading(); showToast(t('books.save_fail','Save failed') + ': ' + e.message, 'error'); }
 }
 
 async function _publishBook() {
     const d = _bookCreatorData;
-    if (!d.title.trim()) { showToast('제목을 입력하세요', 'warning'); return; }
+    if (!d.title.trim()) { showToast(t('books.enter_title','Please enter a title'), 'warning'); return; }
 
     // Validate content
     let hasContent = false;
     d.chapters.forEach(ch => ch.scenes.forEach(sc => { if (sc.content.trim()) hasContent = true; }));
-    if (!hasContent) { showToast('최소 하나의 씬에 내용을 입력하세요', 'warning'); return; }
+    if (!hasContent) { showToast(t('books.enter_content','Please enter content in at least one scene'), 'warning'); return; }
 
-    if (!await showConfirmModal('📚 책 발행', `"${d.title}"을 발행하시겠습니까?\n${d.basePrice > 0 ? d.basePrice + ' CRGC' : '무료'}${d.edition === 'limited' ? ` · 한정판 ${d.totalSupply}부` : ''}`)) return;
+    if (!await showConfirmModal('📚 ' + t('books.publish','Publish'), `"${d.title}"\n${t('books.confirm_publish','Publish this book?')}\n${d.basePrice > 0 ? d.basePrice + ' CRGC' : t('books.free','Free')}${d.edition === 'limited' ? ` · ${t('books.limited_edition','Limited Edition')} ${d.totalSupply}` : ''}`)) return;
 
     d.basePrice = parseFloat(document.getElementById('bc-price')?.value) || d.basePrice;
     await _saveBookDraft();
@@ -708,10 +722,10 @@ async function _publishBook() {
         await db.collection('books').doc(_bookCreatorData.editBookId).update({
             status: 'published', publishedAt: new Date()
         });
-        showToast(`📚 "${d.title}" 발행 완료!`, 'success');
+        showToast(`📚 "${d.title}" ${t('books.published','Published!')}`, 'success');
         document.getElementById('book-creator-modal')?.remove();
         loadBooksGallery();
-    } catch (e) { showToast('발행 실패: ' + e.message, 'error'); }
+    } catch (e) { showToast(t('books.publish_fail','Publish failed') + ': ' + e.message, 'error'); }
 }
 
 // ========== BOOK READER ==========
@@ -720,7 +734,7 @@ async function openBookReader(bookId) {
     showLoading();
     try {
         const doc = await db.collection('books').doc(bookId).get();
-        if (!doc.exists) { hideLoading(); showToast('책을 찾을 수 없습니다', 'error'); return; }
+        if (!doc.exists) { hideLoading(); showToast(t('books.not_found','Book not found'), 'error'); return; }
         const book = doc.data();
 
         // Load reading progress
@@ -743,7 +757,7 @@ async function openBookReader(bookId) {
 
         if (!allScenes.length) {
             hideLoading();
-            showToast('이 책에는 아직 내용이 없습니다', 'info');
+            showToast(t('books.no_content_yet','This book has no content yet'), 'info');
             return;
         }
 
@@ -757,7 +771,7 @@ async function openBookReader(bookId) {
 
         hideLoading();
         _renderBookReader();
-    } catch (e) { hideLoading(); showToast('로딩 실패: ' + e.message, 'error'); }
+    } catch (e) { hideLoading(); showToast(t('books.load_fail','Loading failed') + ': ' + e.message, 'error'); }
 }
 
 function _renderBookReader() {
@@ -805,9 +819,9 @@ function _renderBookReader() {
         </div>
         
         <div style="background:rgba(0,0,0,0.3);padding:0.8rem 1rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
-            <button onclick="_navigateScene(-1)" style="background:${s.currentScene > 0 ? '#3D2B1F' : '#6B5744'};color:${s.currentScene > 0 ? '#FFF8F0' : '#6B5744'};border:none;padding:0.5rem 1.5rem;border-radius:8px;cursor:pointer;" ${s.currentScene <= 0 ? 'disabled' : ''}>← 이전</button>
+            <button onclick="_navigateScene(-1)" style="background:${s.currentScene > 0 ? '#3D2B1F' : '#6B5744'};color:${s.currentScene > 0 ? '#FFF8F0' : '#6B5744'};border:none;padding:0.5rem 1.5rem;border-radius:8px;cursor:pointer;" ${s.currentScene <= 0 ? 'disabled' : ''}>← ${t('books.previous','Previous')}</button>
             <span style="color:#6B5744;font-size:0.8rem;">${s.currentScene + 1} / ${s.allScenes.length}</span>
-            <button onclick="_navigateScene(1)" style="background:${s.currentScene < s.allScenes.length - 1 ? '#3D2B1F' : '#6B5744'};color:${s.currentScene < s.allScenes.length - 1 ? '#FFF8F0' : '#6B5744'};border:none;padding:0.5rem 1.5rem;border-radius:8px;cursor:pointer;" ${s.currentScene >= s.allScenes.length - 1 ? 'disabled' : ''}>다음 →</button>
+            <button onclick="_navigateScene(1)" style="background:${s.currentScene < s.allScenes.length - 1 ? '#3D2B1F' : '#6B5744'};color:${s.currentScene < s.allScenes.length - 1 ? '#FFF8F0' : '#6B5744'};border:none;padding:0.5rem 1.5rem;border-radius:8px;cursor:pointer;" ${s.currentScene >= s.allScenes.length - 1 ? 'disabled' : ''}>${t('books.next','Next')} →</button>
         </div>
     `;
     document.body.appendChild(modal);
@@ -874,7 +888,7 @@ async function _claimTreasure(code, sceneId) {
         const existing = await db.collection('users').doc(currentUser.uid)
             .collection('foundTreasures').doc(treasureId).get();
         if (existing.exists) {
-            showToast('이미 발견한 보물입니다! 🎯', 'info');
+            showToast(t('books.treasure_already_found','Treasure already found!') + ' 🎯', 'info');
             return;
         }
 
@@ -895,7 +909,7 @@ async function _claimTreasure(code, sceneId) {
 
         // Celebration modal
         _showTreasureModal(reward);
-    } catch (e) { showToast('보물 획득 실패: ' + e.message, 'error'); }
+    } catch (e) { showToast(t('books.treasure_claim_fail','Treasure claim failed') + ': ' + e.message, 'error'); }
 }
 
 function _showTreasureModal(reward) {
@@ -904,9 +918,9 @@ function _showTreasureModal(reward) {
     m.onclick = () => m.remove();
     m.innerHTML = `<div style="background:#FFF8F0;border-radius:20px;padding:2rem;text-align:center;max-width:300px;animation:bounceIn 0.5s;">
         <div style="font-size:4rem;">🎉</div>
-        <h2 style="margin:0.5rem 0;">보물 발견!</h2>
-        <p style="color:#3D2B1F;font-size:1.5rem;font-weight:700;">${reward} CRGC 획득!</p>
-        <p style="color:var(--accent);font-size:0.85rem;">숨겨진 보물을 찾으셨습니다!</p>
+        <h2 style="margin:0.5rem 0;">${t('books.treasure_found','Treasure Found!')}</h2>
+        <p style="color:#3D2B1F;font-size:1.5rem;font-weight:700;">${reward} CRGC ${t('books.earned','earned!')}!</p>
+        <p style="color:var(--accent);font-size:0.85rem;">${t('books.treasure_found_desc','You found a hidden treasure!')}</p>
     </div>`;
     document.body.appendChild(m);
     setTimeout(() => m.remove(), 3000);
@@ -933,7 +947,7 @@ function _saveReadingProgress() {
     db.collection('users').doc(currentUser.uid)
         .collection('reading_progress').doc(bookId)
         .set({ sceneIndex: currentScene, updatedAt: new Date() }, { merge: true })
-        .catch(() => {});
+        .catch(e => console.warn(e.message));
 }
 
 function _closeReader() {
@@ -996,7 +1010,7 @@ function _toggleTTS() {
 
 function _startTTS() {
     if (!_bookReaderState || !_bookReaderState.ttsActive) return;
-    if (!window.speechSynthesis) { showToast('TTS를 지원하지 않는 브라우저입니다', 'warning'); return; }
+    if (!window.speechSynthesis) { showToast(t('books.tts_not_supported','Text-to-speech not supported'), 'warning'); return; }
 
     const sc = _bookReaderState.allScenes[_bookReaderState.currentScene];
     const text = sc.content || '';
@@ -1106,7 +1120,7 @@ function _playSound(soundKey) {
     _bookAudio = new Audio(BOOK_SOUNDS[soundKey]);
     _bookAudio.loop = true;
     _bookAudio.volume = 0;
-    _bookAudio.play().catch(() => {});
+    _bookAudio.play().catch(e => console.warn(e.message));
 
     // Fade in
     let vol = 0;
@@ -1132,23 +1146,23 @@ function _stopSound() {
 // ========== MY LIBRARY ==========
 
 async function showMyLibrary() {
-    if (!currentUser) { showToast('로그인이 필요합니다', 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
 
     const modal = document.createElement('div');
     modal.id = 'my-library-modal';
     modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#FFF8F0;z-index:10001;overflow-y:auto;';
 
     modal.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;padding:1rem;border-bottom:1px solid #E8E0D8;">
-        <h2 style="margin:0;font-size:1.1rem;">📚 내 서재</h2>
+        <h2 style="margin:0;font-size:1.1rem;">📚 ${t('books.my_library','My Library')}</h2>
         <button onclick="document.getElementById('my-library-modal')?.remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
     </div>
     <div style="display:flex;border-bottom:1px solid #E8E0D8;">
-        <button onclick="_showLibraryTab('purchased')" class="lib-tab active" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;font-weight:700;border-bottom:2px solid #3D2B1F;">📖 구매한 책</button>
-        <button onclick="_showLibraryTab('wishlist')" class="lib-tab" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;"><i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 위시리스트</button>
-        <button onclick="_showLibraryTab('treasures')" class="lib-tab" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;">🎯 보물</button>
-        <button onclick="_showLibraryTab('translations')" class="lib-tab" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;">🌍 번역</button>
+        <button onclick="_showLibraryTab('purchased')" class="lib-tab active" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;font-weight:700;border-bottom:2px solid #3D2B1F;">📖 ${t('books.purchased','Purchased')}</button>
+        <button onclick="_showLibraryTab('wishlist')" class="lib-tab" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;"><i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('books.wishlist','Wishlist')}</button>
+        <button onclick="_showLibraryTab('treasures')" class="lib-tab" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;">🎯 ${t('books.treasures','Treasures')}</button>
+        <button onclick="_showLibraryTab('translations')" class="lib-tab" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;">🌍 ${t('books.translations','Translations')}</button>
     </div>
-    <div id="library-content" style="padding:1rem;">로딩...</div>`;
+    <div id="library-content" style="padding:1rem;">${t('books.loading','Loading...')}</div>`;
 
     document.body.appendChild(modal);
     _loadLibraryPurchased();
@@ -1168,10 +1182,10 @@ function _showLibraryTab(tab) {
 async function _loadLibraryPurchased() {
     const c = document.getElementById('library-content');
     if (!c) return;
-    c.innerHTML = '로딩...';
+    c.innerHTML = t('books.loading','Loading...');
     try {
         const snap = await db.collection('book_purchases').where('userId', '==', currentUser.uid).orderBy('purchasedAt', 'desc').limit(50).get();
-        if (snap.empty) { c.innerHTML = '<p style="color:var(--accent);text-align:center;padding:2rem;">구매한 책이 없습니다</p>'; return; }
+        if (snap.empty) { c.innerHTML = '<p style="color:var(--accent);text-align:center;padding:2rem;">' + t('books.no_library','No books in your library') + '</p>'; return; }
 
         let html = '<div style="display:grid;gap:0.8rem;">';
         for (const d of snap.docs) {
@@ -1187,7 +1201,7 @@ async function _loadLibraryPurchased() {
                         progress = totalScenes > 0 ? Math.round((progDoc.data().sceneIndex + 1) / totalScenes * 100) : 0;
                     }
                 }
-            } catch (e) {}
+            } catch (e) { console.warn(e.message); }
 
             html += `<div onclick="openBookReader('${p.bookId}')" style="display:flex;gap:0.8rem;padding:0.8rem;background:#f9f9f9;border-radius:10px;cursor:pointer;align-items:center;">
                 <div style="flex-shrink:0;width:50px;height:65px;background:#e0e0e0;border-radius:6px;display:flex;align-items:center;justify-content:center;">📖</div>
@@ -1197,7 +1211,7 @@ async function _loadLibraryPurchased() {
                     <div style="height:4px;background:#e0e0e0;border-radius:2px;margin-top:0.3rem;">
                         <div style="height:100%;background:#8B6914;border-radius:2px;width:${progress}%;"></div>
                     </div>
-                    <div style="font-size:0.7rem;color:var(--accent);margin-top:0.1rem;">${progress}% 읽음</div>
+                    <div style="font-size:0.7rem;color:var(--accent);margin-top:0.1rem;">${progress}% ${t('books.read_progress','read')}</div>
                 </div>
             </div>`;
         }
@@ -1208,10 +1222,10 @@ async function _loadLibraryPurchased() {
 async function _loadLibraryWishlist() {
     const c = document.getElementById('library-content');
     if (!c) return;
-    c.innerHTML = '로딩...';
+    c.innerHTML = t('books.loading','Loading...');
     try {
         const snap = await db.collection('reading_list').where('userId', '==', currentUser.uid).orderBy('addedAt', 'desc').limit(50).get();
-        if (snap.empty) { c.innerHTML = '<p style="color:var(--accent);text-align:center;padding:2rem;">위시리스트가 비어있습니다</p>'; return; }
+        if (snap.empty) { c.innerHTML = '<p style="color:var(--accent);text-align:center;padding:2rem;">' + t('books.wishlist_empty','Wishlist is empty') + '</p>'; return; }
         let html = '<div style="display:grid;gap:0.5rem;">';
         snap.forEach(d => {
             const r = d.data();
@@ -1227,10 +1241,10 @@ async function _loadLibraryWishlist() {
 async function _loadLibraryTreasures() {
     const c = document.getElementById('library-content');
     if (!c) return;
-    c.innerHTML = '로딩...';
+    c.innerHTML = t('books.loading','Loading...');
     try {
         const snap = await db.collection('users').doc(currentUser.uid).collection('foundTreasures').orderBy('foundAt', 'desc').limit(50).get();
-        if (snap.empty) { c.innerHTML = `<p style="color:var(--accent);text-align:center;padding:2rem;">아직 발견한 보물이 없습니다<br>책을 읽으며 숨겨진 보물을 찾아보세요! ${createLucideIcon('target')}</p>`; return; }
+        if (snap.empty) { c.innerHTML = `<p style="color:var(--accent);text-align:center;padding:2rem;">${t('books.no_treasures','No treasures found yet')}<br>${t('books.find_treasures','Read books and find hidden treasures!')} ${createLucideIcon('target')}</p>`; return; }
         let html = '<div style="display:grid;gap:0.5rem;">';
         let total = 0;
         snap.forEach(d => {
@@ -1240,7 +1254,7 @@ async function _loadLibraryTreasures() {
                 <span>🎯 ${t.bookId}</span><span style="color:#C4841D;font-weight:700;">+${t.reward} CRGC</span>
             </div>`;
         });
-        html = `<div style="background:#C4841D;color:#FFF8F0;padding:1rem;border-radius:10px;text-align:center;margin-bottom:1rem;"><h3 style="margin:0;">🏆 총 보물 보상: ${total} CRGC</h3></div>` + html;
+        html = `<div style="background:#C4841D;color:#FFF8F0;padding:1rem;border-radius:10px;text-align:center;margin-bottom:1rem;"><h3 style="margin:0;">🏆 ${t('books.total_treasure_reward','Total Treasure Reward')}: ${total} CRGC</h3></div>` + html;
         c.innerHTML = html + '</div>';
         if (window.lucide) setTimeout(() => lucide.createIcons(), 50);
     } catch (e) { c.innerHTML = `<p style="color:red;">${e.message}</p>`; }
@@ -1249,13 +1263,13 @@ async function _loadLibraryTreasures() {
 async function _loadLibraryTranslations() {
     const c = document.getElementById('library-content');
     if (!c) return;
-    c.innerHTML = '<p style="color:var(--accent);text-align:center;padding:2rem;">번역 기여 기능 준비 중...</p>';
+    c.innerHTML = '<p style="color:var(--accent);text-align:center;padding:2rem;">' + t('books.translations_coming','Translation contribution feature coming soon...') + '</p>';
 }
 
 // ========== TRANSLATION SYSTEM ==========
 
 async function requestTranslation(bookId) {
-    if (!currentUser) { showToast('로그인이 필요합니다', 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
 
     const lang = await _selectLanguage();
     if (!lang) return;
@@ -1264,7 +1278,7 @@ async function requestTranslation(bookId) {
         const existing = await db.collection('translation_requests')
             .where('bookId', '==', bookId).where('targetLang', '==', lang).limit(1).get();
         if (!existing.empty) {
-            showToast('이미 해당 언어 번역이 요청되어 있습니다', 'info');
+            showToast(t('books.translation_already_requested','Translation already requested for this language'), 'info');
             return;
         }
 
@@ -1274,8 +1288,8 @@ async function requestTranslation(bookId) {
             createdAt: new Date()
         });
 
-        showToast(`🌍 ${_langLabel(lang)} 번역 요청 완료!`, 'success');
-    } catch (e) { showToast('요청 실패: ' + e.message, 'error'); }
+        showToast(`🌍 ${_langLabel(lang)} ${t('books.translation_requested','translation requested!')}`, 'success');
+    } catch (e) { showToast(t('books.request_fail','Request failed') + ': ' + e.message, 'error'); }
 }
 
 function _selectLanguage() {
@@ -1292,11 +1306,11 @@ function _selectLanguage() {
         const m = document.createElement('div');
         m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.5);z-index:10010;display:flex;align-items:center;justify-content:center;';
         m.innerHTML = `<div style="background:#FFF8F0;border-radius:12px;padding:1.5rem;max-width:300px;width:90%;">
-            <h3 style="margin:0 0 1rem;">🌍 번역 언어 선택</h3>
+            <h3 style="margin:0 0 1rem;">🌍 ${t('books.select_language','Select Translation Language')}</h3>
             <div style="display:grid;gap:0.5rem;">
                 ${langs.map(l => `<button onclick="this.closest('div').closest('div').closest('div')._resolve('${l.code}')" style="padding:0.7rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;text-align:left;font-size:1rem;">${l.label}</button>`).join('')}
             </div>
-            <button onclick="this.closest('div').closest('div')._resolve(null)" style="width:100%;margin-top:0.5rem;padding:0.5rem;border:none;background:#E8E0D8;border-radius:8px;cursor:pointer;">취소</button>
+            <button onclick="this.closest('div').closest('div')._resolve(null)" style="width:100%;margin-top:0.5rem;padding:0.5rem;border:none;background:#E8E0D8;border-radius:8px;cursor:pointer;">${t('common.cancel','Cancel')}</button>
         </div>`;
         m._resolve = (val) => { m.remove(); resolve(val); };
         document.body.appendChild(m);

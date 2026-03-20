@@ -185,7 +185,7 @@ function applyTradingPermissions() {
             <span style="color:${mnqColor}; font-weight:600;">${mnqText}</span> · 
             <span style="color:${nqColor}; font-weight:600;">${nqText}</span>
             ${copyBadge}
-            <span style="margin-left:8px; color:#6B5744;">| <i data-lucide="coin" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> CRTD: ${(userWallet?.offchainBalances?.crtd || 0).toLocaleString()}</span>
+            <span style="margin-left:8px; color:#6B5744;">| <i data-lucide="circle-dollar-sign" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> CRTD: ${(userWallet?.offchainBalances?.crtd || 0).toLocaleString()}</span>
         `;
     }
     
@@ -272,7 +272,7 @@ async function withdrawCRTD() {
         await saveTradingState({ crtdWithdrawn: myParticipation.crtdWithdrawn });
 
         // Transaction logging handled server-side
-        console.log('CRTD withdraw:', withdrawAmount, 'challengeId:', myParticipation.challengeId);
+        // CRTD withdraw logged server-side
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${withdrawAmount} CRTD ${t('trading.withdraw_done','Withdrawal complete!')}`, 'success');
         updateCRTDDisplay();
@@ -349,7 +349,7 @@ function updateCRTDDisplay() {
                 <span><i data-lucide="gem" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.tier_label','Tier')} ${cfg.tier} · ${cfg.deposit} CRTD</span>
                 <strong style="color:${pnlColor}; font-size:1.05rem;">${pnlSign}$${pnl.toFixed(0)}</strong>
             </div>
-            <div style="font-size:0.7rem; color:#6B5744; margin-bottom:0.3rem;"><i data-lucide="coin" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> CRTD ${t('trading.crtd_balance','Balance')}: <strong style="color:#C4841D;">${(userWallet?.offchainBalances?.crtd || 0).toLocaleString()} pt</strong></div>
+            <div style="font-size:0.7rem; color:#6B5744; margin-bottom:0.3rem;"><i data-lucide="circle-dollar-sign" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> CRTD ${t('trading.crtd_balance','Balance')}: <strong style="color:#C4841D;">${(userWallet?.offchainBalances?.crtd || 0).toLocaleString()} pt</strong></div>
         </div>
         
         <!-- 생존 게이지 -->
@@ -402,85 +402,94 @@ async function loadTradingDashboard() {
             myParticipation = p;
         }
     } catch (error) {
+        _d('ERROR: API 실패 - ' + error.message);
         console.error('loadTradingDashboard error:', error);
     }
     
-    if (myParticipation) {
-        document.getElementById('trading-dashboard').style.display = 'block';
-        
-        // 규칙 동적 표시
-        const p = myParticipation;
-        const tier = getTradingTier();
-        const productParts = [];
-        if (tier.MNQ > 0) productParts.push(`MNQ ×${tier.MNQ}`);
-        if (tier.NQ > 0) productParts.push(`NQ ×${tier.NQ}`);
-        const productText = productParts.length > 0 ? productParts.join(' + ') : t('trading.not_set','Not set');
-        const rulesEl = document.getElementById('prop-rules-display');
-        const cfg = getCRTDConfig();
-        if (rulesEl) {
-            rulesEl.innerHTML = `
-                <p><strong><i data-lucide="gem" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.tier_label','Tier')} ${cfg.tier}:</strong> ${cfg.deposit} CRTD ${t('trading.entry_fee','Entry Fee')}</p>
-                <p><strong><i data-lucide="dollar-sign" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.virtual_account','Virtual Account')}:</strong> $${(p.initialBalance || 100000).toLocaleString()} USD</p>
-                <p><strong><i data-lucide="bar-chart-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.tradable','Tradable')}:</strong> ${productText}</p>
-                <p><strong><i data-lucide="circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.daily_limit','Daily Limit')}:</strong> -$${p.dailyLossLimit || 500} ${t('trading.daily_limit_desc','suspended on loss')}</p>
-                <p><strong><i data-lucide="skull" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.liquidation','Liquidation')}:</strong> -$${cfg.liquidation.toLocaleString()} ${t('trading.liquidation_desc','account closed on loss')} (${cfg.deposit} CRTD ${t('trading.forfeited','forfeited')})</p>
-                <p><strong><i data-lucide="trending-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.profit_convert','Profit Convert')}:</strong> +$${cfg.profitThreshold.toLocaleString()} ${t('trading.profit_convert_desc','excess → 1:1 CRTD')}</p>
-                <p><strong><i data-lucide="dollar-sign" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.withdraw_btn','Withdraw')}:</strong> ${cfg.withdrawUnit.toLocaleString()} CRTD ${t('trading.unit','unit')}</p>
-                <p style="margin-top:0.5rem; padding:0.5rem; background:rgba(255,165,0,0.1); border-radius:6px; border-left:3px solid #C4841D; font-size:0.82rem; color:#C4841D;"><i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.sltp_browser_warning','SL/TP auto-close only works when browser is open. Positions remain but auto-close won\'t execute if closed.')}</p>
-            `;
+    document.getElementById('trading-dashboard').style.display = 'block';
+    try {
+        if (myParticipation) {
+            const p = myParticipation;
+            const tier = getTradingTier();
+            const productParts = [];
+            if (tier.MNQ > 0) productParts.push(`MNQ ×${tier.MNQ}`);
+            if (tier.NQ > 0) productParts.push(`NQ ×${tier.NQ}`);
+            const productText = productParts.length > 0 ? productParts.join(' + ') : t('trading.not_set','Not set');
+            const rulesEl = document.getElementById('prop-rules-display');
+            const cfg = getCRTDConfig();
+            if (rulesEl) {
+                rulesEl.innerHTML = `
+                    <p><strong><i data-lucide="gem" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.tier_label','Tier')} ${cfg.tier}:</strong> ${cfg.deposit} CRTD ${t('trading.entry_fee','Entry Fee')}</p>
+                    <p><strong><i data-lucide="dollar-sign" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.virtual_account','Virtual Account')}:</strong> $${(p.initialBalance || 100000).toLocaleString()} USD</p>
+                    <p><strong><i data-lucide="bar-chart-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.tradable','Tradable')}:</strong> ${productText}</p>
+                    <p><strong><i data-lucide="circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.daily_limit','Daily Limit')}:</strong> -$${p.dailyLossLimit || 500} ${t('trading.daily_limit_desc','suspended on loss')}</p>
+                    <p><strong><i data-lucide="skull" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.liquidation','Liquidation')}:</strong> -$${cfg.liquidation.toLocaleString()} ${t('trading.liquidation_desc','account closed on loss')} (${cfg.deposit} CRTD ${t('trading.forfeited','forfeited')})</p>
+                    <p><strong><i data-lucide="trending-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.profit_convert','Profit Convert')}:</strong> +$${cfg.profitThreshold.toLocaleString()} ${t('trading.profit_convert_desc','excess → 1:1 CRTD')}</p>
+                    <p><strong><i data-lucide="dollar-sign" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.withdraw_btn','Withdraw')}:</strong> ${cfg.withdrawUnit.toLocaleString()} CRTD ${t('trading.unit','unit')}</p>
+                    <p style="margin-top:0.5rem; padding:0.5rem; background:rgba(255,165,0,0.1); border-radius:6px; border-left:3px solid #C4841D; font-size:0.82rem; color:#C4841D;"><i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.sltp_browser_warning','SL/TP auto-close only works when browser is open. Positions remain but auto-close won\'t execute if closed.')}</p>
+                `;
+            }
+            try { checkDailyReset(); } catch(e) { console.warn('checkDailyReset:', e); }
+            // updateSlotStatusUI removed (deprecated CRNY slot system)
+            try { updateRiskGaugeUI(); } catch(e) { console.warn('updateRiskGaugeUI:', e); }
+            try { updateTradingUI(); } catch(e) { console.warn('updateTradingUI:', e); }
+            try { applyTradingPermissions(); } catch(e) { console.warn('applyTradingPermissions:', e); }
+            try { updateCRTDDisplay(); } catch(e) { console.warn('updateCRTDDisplay:', e); }
+            if (!myParticipation.dailyLocked) {
+                ['btn-buy','btn-sell','btn-chart-buy','btn-chart-sell'].forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; btn.style.pointerEvents = 'auto'; }
+                });
+            }
+            updateChartRulesOverlay();
+        } else {
+            const rulesEl = document.getElementById('prop-rules-display');
+            if (rulesEl) {
+                rulesEl.innerHTML = `<p>${t('trading.join_to_see_rules','Join a challenge below to see rules.')}</p>`;
+            }
         }
-        
-        checkDailyReset();
-        updateSlotStatusUI();
-        updateRiskGaugeUI();
-        updateTradingUI();
-        applyTradingPermissions();
-        updateCRTDDisplay();
-        
-        // ★ BUY/SELL 버튼 강제 활성화 (dailyLocked가 아닌 한)
-        if (!myParticipation.dailyLocked) {
-            ['btn-buy','btn-sell','btn-chart-buy','btn-chart-sell'].forEach(id => {
-                const btn = document.getElementById(id);
-                if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; btn.style.pointerEvents = 'auto'; }
-            });
-            // console.log('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> BUY/SELL 버튼 강제 활성화');
-        }
-        
-        // 차트 내 규칙 오버레이
-        updateChartRulesOverlay();
-    } else {
-        document.getElementById('trading-dashboard').style.display = 'block';
-        // 규칙 기본 표시
-        const rulesEl = document.getElementById('prop-rules-display');
-        if (rulesEl) {
-            rulesEl.innerHTML = `<p>${t('trading.join_to_see_rules','Join a challenge below to see rules.')}</p>`;
-        }
+    } catch (uiErr) {
+        console.warn('Trading UI setup error (ignored):', uiErr);
     }
 
     // 차트 & 가격 피드는 참가 여부와 관계없이 항상 초기화
-    // display:block 후 레이아웃 확정까지 대기
-    setTimeout(() => {
+    // 차트 & 가격 피드는 참가 여부와 관계없이 항상 초기화
+    const startChartInit = () => {
         const container = document.getElementById('live-candle-chart');
-        if (container && container.clientWidth < 10) {
-            // 아직 레이아웃 안 잡힘 — 추가 대기
-            setTimeout(() => { _initChartAndFeed(); }, 500);
-        } else {
-            _initChartAndFeed();
+        if (!container) return;
+        // 모바일에서 컨테이너 크기가 아직 0이면 강제 설정
+        if (container.clientWidth < 10) {
+            container.style.width = (window.innerWidth - 16) + 'px';
         }
-    }, 200);
+        _initChartAndFeed();
+    };
+    // 최초 시도 (300ms 대기)
+    setTimeout(() => {
+        startChartInit();
+        // 차트가 생성 안 됐으면 재시도 (1초, 2초, 3초)
+        [1000, 2000, 3000].forEach(delay => {
+            setTimeout(() => {
+                if (!window.liveChart) startChartInit();
+            }, delay);
+        });
+    }, 300);
 }
 
 function _initChartAndFeed() {
+    // 컨테이너 크기 강제 확보 (모바일)
+    const container = document.getElementById('live-candle-chart');
+    if (container && container.clientWidth < 10) {
+        container.style.width = (window.innerWidth - 16) + 'px';
+    }
     if (!window.liveChart) initTradingViewChart();
     if (!window.nqPriceInterval) connectPriceWebSocket();
     // 차트 크기 보정
     setTimeout(() => {
-        const container = document.getElementById('live-candle-chart');
         if (window.liveChart && container && container.clientWidth > 0) {
             window.liveChart.applyOptions({ width: container.clientWidth });
             window.liveChart.timeScale().fitContent();
         }
-    }, 300);
+    }, 500);
 }
 
 function updateTradingUI() {
@@ -556,7 +565,7 @@ function saveChartTabs() {
     try {
         localStorage.setItem('crowny_chart_tabs', JSON.stringify(chartTabs));
         localStorage.setItem('crowny_active_tab', String(activeTabId));
-    } catch (e) {}
+    } catch (e) { /* optional */ }
 }
 function getActiveTab() { return chartTabs.find(t => t.id === activeTabId) || chartTabs[0]; }
 function getActiveTabSymbol() { return (getActiveTab() || {}).symbol || 'MNQ'; }
@@ -687,9 +696,15 @@ function aggregateTicksToTickCandles(ticks, ticksPerCandle) {
 }
 
 async function initTradingViewChart() {
-    // console.log('<i data-lucide="bar-chart-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> initTradingViewChart 호출됨');
     const container = document.getElementById('live-candle-chart');
-    if (!container) { console.error('<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 차트 컨테이너 없음'); return; }
+    if (!container) { console.error('차트 컨테이너 없음'); return; }
+
+    // LightweightCharts CDN이 아직 로드되지 않았으면 대기
+    if (typeof LightweightCharts === 'undefined') {
+        console.warn('LightweightCharts not loaded yet, retrying in 1s...');
+        setTimeout(() => initTradingViewChart(), 1000);
+        return;
+    }
     
     // 탭 시스템 초기화
     loadChartTabs();
@@ -711,16 +726,19 @@ async function initTradingViewChart() {
         updateChartLabel();
     }
     
+    const chartHeight = window.innerWidth < 768 ? Math.min(window.innerHeight * 0.5, 400) : 500;
+    const chartWidth = container.clientWidth > 10 ? container.clientWidth : (window.innerWidth - 20);
     container.innerHTML = '';
-    
+    container.style.minHeight = chartHeight + 'px';
+    container.style.background = '#FFF8F0';
+
     try {
-        const chartHeight = window.innerWidth < 768 ? 400 : 500;
         const tzOffset = getTimezoneOffsetSeconds(selectedTimezone);
-        
+
         const chart = LightweightCharts.createChart(container, {
-            width: container.clientWidth,
+            width: chartWidth,
             height: chartHeight,
-            layout: { background: { color: '#FFF8F0' }, textColor: '#3D2B1F', fontFamily: "'Consolas','Monaco',monospace", fontSize: 11 },
+            layout: { background: { color: '#FFF8F0' }, textColor: '#3D2B1F', fontFamily: "'Consolas','Monaco',monospace", fontSize: window.innerWidth < 768 ? 9 : 11 },
             grid: { vertLines: { color: '#E8E0D8', style: 1 }, horzLines: { color: '#E8E0D8', style: 1 } },
             crosshair: {
                 mode: LightweightCharts.CrosshairMode.Normal,
@@ -767,9 +785,18 @@ async function initTradingViewChart() {
         window.ma2Series = chart.addLineSeries({ color: '#FFA500', lineWidth: 2, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, title: '' });
         window.ma3Series = chart.addLineSeries({ color: '#FF3333', lineWidth: 2, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, title: '' });
         
-        window.addEventListener('resize', () => { chart.applyOptions({ width: container.clientWidth }); });
-        
-        // console.log('<i data-lucide="bar-chart-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 통합 차트 준비 완료');
+        window.addEventListener('resize', () => {
+            const w = container.clientWidth > 10 ? container.clientWidth : (window.innerWidth - 20);
+            chart.applyOptions({ width: w });
+        });
+        // ResizeObserver for mobile (handles delayed layout)
+        if (typeof ResizeObserver !== 'undefined') {
+            const ro = new ResizeObserver(() => {
+                const w = container.clientWidth;
+                if (w > 10) chart.applyOptions({ width: w });
+            });
+            ro.observe(container);
+        }
         loadMASettings();
         setTimeout(() => applyMASettings(), 500);
         startClockTimer();
@@ -777,8 +804,8 @@ async function initTradingViewChart() {
         
         return chart;
     } catch (error) {
-        console.error('<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 차트 로드 실패:', error);
-        container.innerHTML = `<p style="text-align:center; padding:2rem; color:#B54534;">${t('trading.chart_fail','Chart load failed')}</p>`;
+        console.error('차트 로드 실패:', error);
+        container.innerHTML = `<p style="text-align:center; padding:2rem; color:#B54534;">Chart error: ${error.message}<br><small>w=${chartWidth}, h=${chartHeight}, LWC=${typeof LightweightCharts}</small></p>`;
     }
 }
 
@@ -886,7 +913,7 @@ function generateMicroTick() {
         _liveCandle.low = Math.min(_liveCandle.low, price);
         _liveCandle.close = price;
     }
-    try { window.liveCandleSeries.update(_liveCandle); } catch(e) {}
+    try { window.liveCandleSeries.update(_liveCandle); } catch(e) { console.warn(e.message); }
 
     updateNQPriceDisplay();
     updateOpenPositions();
@@ -2768,7 +2795,7 @@ function drawPositionLinesLW() {
     // 항상 먼저 기존 라인 제거
     if (window.positionLines && window.candleSeries) {
         window.positionLines.forEach(line => {
-            try { window.candleSeries.removePriceLine(line); } catch (e) {}
+            try { window.candleSeries.removePriceLine(line); } catch (e) { console.warn(e.message); }
         });
     }
     window.positionLines = [];
@@ -3240,7 +3267,7 @@ function connectMassiveRealtime() {
     
     polygonWS.onopen = () => {
         massiveReconnectAttempts = 0; // 연결 성공 시 리셋
-        console.log('📡 Massive 연결 성공');
+        // Massive connected
         
         // 인증
         polygonWS.send(JSON.stringify({

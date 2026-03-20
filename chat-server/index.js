@@ -60,6 +60,11 @@ function apiGetChatInfo(chatId, username) {
 function apiUpdateGroup(chatId, username, body) {
     const chat = store.getChat(chatId);
     if (!chat || chat.type !== 'group') return { error: '그룹 아님' };
+    // 자기 자신 나가기는 허용
+    if (body.removeMember === username) {
+        store.removeGroupMember(chatId, username);
+        return { success: true, chat: store.getChat(chatId) };
+    }
     if (!chat.admins.includes(username)) return { error: '관리자만 수정 가능' };
 
     if (body.groupName) store.updateGroupName(chatId, body.groupName);
@@ -69,8 +74,31 @@ function apiUpdateGroup(chatId, username, body) {
     return { success: true, chat: store.getChat(chatId) };
 }
 
+function apiDeleteMessage(chatId, username, msgId) {
+    const chat = store.getChat(chatId);
+    if (!chat || !chat.participants.includes(username)) return { error: '권한 없음' };
+    const msg = store.getMessage(chatId, msgId);
+    if (!msg) return { error: '메시지 없음' };
+    if (msg.senderId !== username) return { error: '본인 메시지만 삭제 가능' };
+    store.deleteMessage(msgId, chatId);
+    return { success: true };
+}
+
+function apiEditMessage(chatId, username, msgId, newText) {
+    const chat = store.getChat(chatId);
+    if (!chat || !chat.participants.includes(username)) return { error: '권한 없음' };
+    const msg = store.getMessage(chatId, msgId);
+    if (!msg) return { error: '메시지 없음' };
+    if (msg.senderId !== username) return { error: '본인 메시지만 수정 가능' };
+    if (msg.deleted) return { error: '삭제된 메시지' };
+    const updated = store.editMessage(msgId, chatId, newText);
+    if (!updated) return { error: '수정 실패' };
+    return { success: true, msg: updated };
+}
+
 module.exports = {
     attachWebSocket,
     apiListChats, apiGetMessages, apiCreateChat, apiDeleteChat,
     apiSearchMessages, apiGetChatInfo, apiUpdateGroup,
+    apiDeleteMessage, apiEditMessage,
 };

@@ -1,31 +1,13 @@
 /* ===== MOBILE: All Responsive Styles ===== */
-/* Force remove all margins on mobile */
-    .messenger-container {
-        grid-template-columns: 1fr !important;
-        height: auto !important;
-        border-radius: 12px !important;
-    }
-    .chat-sidebar {
-        border-right: none !important;
-        border-bottom: 1px solid var(--border) !important;
-    }
-}
+
+/* Global utility classes (non-media) */
 .mentor-detail-reason {
     font-size: 0.68rem;
     color: #6B5744;
     line-height: 1.3;
 }
-    width: 120px;
-    height: 120px;
-    background: rgba(255,248,240,0.06);
-    border-radius: 50%;
-    pointer-events: none;
-}
-/* Mobile messenger */
 .art-gallery-card:hover {
     box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;
-}
-    border-radius: 16px; margin-bottom: 1.5rem;
 }
 .dash-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #8B6914; }
 .dash-avatar-placeholder { width: 60px; height: 60px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
@@ -34,165 +16,190 @@
 .search-category h4 { font-size: 0.85rem; color: var(--accent); margin-bottom: 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
 .search-result-item { padding: 0.6rem 0.5rem; cursor: pointer; border-radius: 6px; font-size: 0.9rem; transition: background 0.15s; }
 .search-result-item:hover { background: var(--bg); }
-/* ===== BRAND: Links/accents ===== */
+
+/* Brand links */
 a:not(.nav-item) {
     color: var(--gold-dark);
 }
-@media(max-width:360px){ .panel-char-grid { grid-template-columns:repeat(2,1fr); } }
-    .care-clock { font-size: 3rem; }
-    .care-sos-btn { width: 120px; height: 120px; font-size: 1.6rem; }
-    .care-board-clock { font-size: 5rem; }
-    .care-board-date { font-size: 1.4rem; }
-    .sos-countdown-number { font-size: 5rem; }
-    .sos-countdown-title { font-size: 1.4rem; }
-    .sos-emergency-btn { min-height: 80px; font-size: 1.3rem; }
-}
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-}
-    border-radius: 0 !important;
-    margin: -1.5rem -1.5rem 0 !important;
-    overflow: hidden;
-    overscroll-behavior: none;
-    touch-action: pan-x;
-}
-/* ============================================================
-   MOBILE QA FIXES — 375px 전체 레이아웃 점검
-   ============================================================ */
-/* Extra small screens (375px and below) */
-/* Extra small screens (375px and below) */
 
+/* Very small screens */
+@media (max-width: 360px) {
+    .panel-char-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ============================================================
+   MOBILE — 768px 이하 전체 레이아웃
+   ============================================================ */
 @media (max-width: 768px) {
     body {
         font-size: 14px;
+        margin: 0;
+        padding: 0;
     }
+
+    *, *::before, *::after {
+        box-sizing: border-box;
+    }
+
+    body, html {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+    }
+
     #trading-order-panel {
         max-width: 100% !important;
         margin-left: 0 !important;
     }
-    
-    .menu-toggle {
-        display: block;
-        font-size: 1.3rem;
-        padding: 0.6rem 0.8rem;
-    }
-    
+
     .sidebar {
-        width: 200px;
-        transform: translateX(-100%);
-        transition: transform 0.3s;
-        z-index: 1000;
+        width: 220px;
+        z-index: 1100;
         box-shadow: 2px 0 8px rgba(0,0,0,0.1);
     }
-    
-    .sidebar.active {
-        transform: translateX(0);
-    }
-    
+
     .logo {
         padding: 0 1rem 1rem;
     }
-    
+
     .logo h1 {
         font-size: 1.2rem;
     }
-    
-    .nav-item {
-        padding: 0.6rem 1rem;
-        font-size: 0.85rem;
+
+    .nav-item:active {
+        background: rgba(255,248,240,0.1) !important;
     }
-    
+
     .content {
-        margin-left: 0 !important;
-        padding: 0.3rem !important;
+        margin: 0 !important;
+        padding: 0.5rem !important;
         padding-top: 3.5rem !important;
+        padding-bottom: calc(56px + env(safe-area-inset-bottom) + 14px) !important;
         width: 100% !important;
         max-width: 100vw !important;
+        overflow-x: hidden !important;
     }
-    
+
     h2 {
         font-size: 1.1rem;
         margin-bottom: 0.8rem;
     }
-    
+
     .hero {
-        padding: 1rem 0;
+        padding: 1rem 0.5rem !important;
         margin-bottom: 1rem;
     }
-    
+
     .hero h2 {
         font-size: 0.7rem;
         letter-spacing: 1px;
     }
-    
+
     .hero h1 {
         font-size: 1.3rem;
         line-height: 1.3;
         margin-bottom: 0.5rem;
     }
-    
+
     .hero p {
         font-size: 0.8rem;
     }
-    
+
+    .slogan-text {
+        font-size: 1.1rem;
+    }
+    .slogan-rotator {
+        min-height: 4rem;
+    }
+
+    /* ===== HOME: Service cards — 3 per row ===== */
     .services {
+        display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 0.4rem;
+        gap: 0.5rem;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        justify-content: center;
     }
-    
+
     .service-card {
-        padding: 0.7rem 0.3rem;
+        min-height: 70px;
+        padding: 0.7rem 0.4rem;
+        border: 2px solid var(--border) !important;
+        border-radius: 12px;
+        background: var(--bg-card) !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        -webkit-tap-highlight-color: rgba(0,0,0,0.05);
+        touch-action: manipulation;
+        user-select: none;
+        transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
     }
-    
+
+    .service-card:active {
+        transform: scale(0.96);
+        border-color: var(--accent) !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        background: var(--bg-card-alt) !important;
+    }
+
     .service-card .icon {
-        font-size: 1.5rem;
-        margin-bottom: 0.2rem;
+        font-size: 1.6rem;
+        margin-bottom: 0.3rem;
     }
-    
+
     .service-card h3 {
         font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
         margin-bottom: 0.1rem;
     }
-    
+
     .service-card p {
         font-size: 0.7rem;
     }
-    
+
+    /* ===== Wallet ===== */
     .wallet-info {
         padding: 0.8rem;
     }
-    
+
     .wallet-info > div:first-child {
         flex-direction: column;
         align-items: flex-start !important;
         gap: 0.5rem;
     }
-    
+
     .wallet-info > div:first-child > div {
         width: 100%;
     }
-    
+
     .btn-copy {
         padding: 0.4rem 0.6rem;
         font-size: 0.75rem;
         align-self: flex-start;
     }
-    
+
     #wallet-address-full {
         font-size: 0.6rem;
         word-break: break-all;
         line-height: 1.3;
     }
-    
+
     .token-balances {
         gap: 0.5rem;
         grid-template-columns: 1fr 1fr !important;
         overflow: hidden;
         max-width: 100%;
     }
-    
+
     .token-card {
         padding: 0.6rem;
         gap: 0.4rem;
@@ -203,460 +210,183 @@ a:not(.nav-item) {
         max-width: 100%;
         box-sizing: border-box;
     }
-    
+
     .token-card .token-balance {
         grid-column: 1 / -1;
         text-align: center;
     }
-    
-    .token-icon {
-        font-size: 1.4rem;
-    }
-    
-    .token-name {
-        font-size: 0.8rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .token-desc {
-        font-size: 0.65rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .token-balance {
-        font-size: 1rem;
-    }
-    
-    .btn-action {
-        font-size: 0.85rem;
-        padding: 0.7rem;
-    }
-    
-    .btn-primary {
-        font-size: 0.85rem;
-        padding: 0.7rem 1.2rem;
-    }
-    
-    .messenger-container {
-        grid-template-columns: 1fr;
-        height: auto;
-    }
-    
-    .chat-sidebar {
-        height: auto;
-        max-height: 50vh;
-    }
-    
-    .chat-window {
-        height: 50vh;
-        min-height: 400px;
-    }
-    
-    .sidebar-tabs .tab-btn {
-        padding: 0.6rem;
-        font-size: 0.8rem;
-    }
-    
-    .contact-item,
-    .chat-item {
-        padding: 0.6rem;
-        gap: 0.6rem;
-    }
-    
-    .chat-avatar {
-        font-size: 1.5rem;
-    }
-    
-    .contact-info strong,
-    .chat-preview strong {
-        font-size: 0.85rem;
-    }
-    
-    .contact-info p,
-    .chat-preview p {
-        font-size: 0.75rem;
-    }
-    
-    .btn-chat {
-        padding: 0.4rem 0.6rem;
-        font-size: 0.75rem;
-    }
-    
-    .chat-input {
-        padding: 0.6rem;
-    }
-    
-    .chat-input input {
-        font-size: 0.85rem;
-        padding: 0.6rem;
-    }
-    
-    .chat-input button {
-        padding: 0.6rem;
-        font-size: 0.85rem;
-    }
-    
-    .btn-send-token {
-        padding: 0.6rem;
-        font-size: 1rem;
-    }
-    
-    .post-create {
-        padding: 0.8rem;
-    }
-    
-    .post-create textarea {
-        min-height: 80px;
-        font-size: 0.85rem;
-        padding: 0.7rem;
-    }
-    
-    .post {
-        padding: 0.8rem;
-    }
-    
-    .post-header {
-        gap: 0.6rem;
-        margin-bottom: 0.6rem;
-    }
-    
-    .post-avatar {
-        font-size: 1.5rem;
-    }
-    
-    .post-info strong {
-        font-size: 0.85rem;
-    }
-    
-    .post-info span {
-        font-size: 0.7rem;
-    }
-    
-    .post-content p {
-        font-size: 0.85rem;
-        line-height: 1.4;
-    }
-    
-    .post-actions {
-        gap: 0.5rem;
-        margin-top: 0.6rem;
-        padding-top: 0.6rem;
-    }
-    
-    .post-actions button {
-        padding: 0.4rem 0.7rem;
-        font-size: 0.75rem;
-    }
-    .slogan-text {
-        font-size: 1.1rem;
-    }
-    .slogan-rotator {
-        min-height: 4rem;
-    }
-    .messenger-container {
-        grid-template-columns: 1fr;
-        height: 80vh;
-    }
-    
-    .chat-sidebar {
-        height: 70vh;
-    }
-    
-    .messenger-container:not(.chat-open) .chat-window {
-        display: none !important;
-    }
-    
-    .messenger-container:not(.chat-open) .chat-sidebar {
-        display: flex !important;
-    }
-    
-    .messenger-container.chat-open .chat-sidebar {
-        display: none !important;
-    }
-    
-    .messenger-container.chat-open .chat-window {
-        display: flex !important;
-        flex-direction: column !important;
-        height: 80vh !important;
-    }
-    .sidebar {
-        width: 200px;
-    }
-    
-    .content {
-        margin-left: 0 !important;
-    }
-    
-    .messenger-container {
-        grid-template-columns: 1fr;
-    }
 
-    .services {
-        max-width: 100% !important;
-    }
+    .token-icon { font-size: 1.4rem; }
+    .token-name { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .token-desc { font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .token-balance { font-size: 1rem; }
 
-    .wallet-container {
-        max-width: 100% !important;
-    }
-    body {
-        margin: 0;
-        padding: 0;
-    }
-    
-    .services {
-        margin: 0 auto;
-        padding: 0 0.5rem;
-    }
-    * {
-        box-sizing: border-box;
-    }
-    
-    body, html {
-        margin: 0 !important;
-        padding: 0 !important;
-        width: 100% !important;
-        overflow-x: hidden !important;
-        max-width: 100vw !important;
-    }
-    
-    .content {
-        margin: 0 !important;
-        padding: 0.5rem !important;
-        padding-top: 3.5rem !important;
-        width: 100% !important;
-        max-width: 100vw !important;
-        overflow-x: hidden !important;
-    }
-    
-    .hero {
-        padding: 1rem 0.5rem !important;
-    }
-    
-    .services {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-
-    /* 차트 영역 모바일 오버플로 방지 */
-    #live-candle-chart {
-        max-width: 100% !important;
-        overflow: hidden !important;
-    }
-    
-    /* 모든 직접 자식 요소 넘침 방지 */
-    .content > .page > div {
-        max-width: 100% !important;
-        overflow-x: hidden !important;
-    }
-    .services {
-        justify-content: center !important;
-        grid-template-columns: repeat(3, 1fr) !important;
-        max-width: 100% !important;
+    .wallet-actions {
+        grid-template-columns: 1fr 1fr !important;
         gap: 0.5rem !important;
     }
-
-    /* ===== TASK 1: Mobile Button UI ===== */
-    .service-card {
-        min-height: 70px !important;
-        padding: 0.7rem 0.4rem !important;
-        border: 2px solid var(--border) !important;
-        border-radius: 12px !important;
-        background: var(--bg-card) !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        justify-content: center !important;
-        -webkit-tap-highlight-color: rgba(0,0,0,0.05);
-        touch-action: manipulation;
-        user-select: none;
-        transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s !important;
+    .wallet-actions .btn-action:last-child {
+        grid-column: 1 / -1 !important;
     }
+    .wallet-container { max-width: 100% !important; }
 
-    .service-card:active {
-        transform: scale(0.96) !important;
-        border-color: var(--accent) !important;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
-        background: var(--bg-card-alt) !important;
-    }
+    /* ===== Buttons ===== */
+    .btn-action { font-size: 0.85rem; padding: 0.7rem; }
+    .btn-primary { font-size: 0.85rem; padding: 0.7rem 1.2rem; }
 
-    .service-card .icon {
-        font-size: 1.6rem !important;
-        margin-bottom: 0.3rem !important;
-    }
-
-    .service-card h3 {
-        font-size: 0.7rem !important;
-        font-weight: 700 !important;
-        letter-spacing: 0.5px !important;
-    }
-
-    /* Nav items as buttons on mobile */
-    .nav-item {
-        min-height: 38px !important;
-        display: flex !important;
-        align-items: center !important;
-        padding: 0.5rem 1.2rem !important;
-        font-size: 0.9rem !important;
-        font-weight: 600 !important;
-        border-bottom: 1px solid var(--border) !important;
-        transition: background 0.15s !important;
-    }
-
-    .nav-item:active {
-        background: var(--bg) !important;
-    }
-
-    /* All tappable buttons minimum size */
     .btn-primary, .btn-secondary, .btn-action, .btn-chat, .btn-logout,
     .chat-input button, .post-actions button, .tab-btn, .credit-tab {
         min-height: 44px !important;
         min-width: 44px !important;
     }
-    /* Mobile chat input: hide overflow buttons */
-    .chat-input .chat-extra-btn,
-    .chat-extra-btn {
-        display: none !important;
-    }
-    
-    /* Mobile chat input optimization */
-    .chat-input {
-        padding: 0.4rem 0.5rem !important;
-        gap: 0.3rem !important;
-        display: flex !important;
-        align-items: center !important;
-        flex-wrap: nowrap !important;
-        overflow: hidden !important;
-        box-sizing: border-box !important;
-    }
-    
-    /* iOS zoom prevention for all messenger inputs */
-    .chat-input input,
-    .chat-input textarea,
-    .chat-search-bar input,
-    .chat-search-overlay input,
-    #message-input,
-    #chat-search-input {
-        font-size: 16px !important;
-        -webkit-text-size-adjust: 100% !important;
-        -webkit-appearance: none !important;
-    }
-    
-    /* Responsive button sizing */
-    .chat-input .btn-send-token:not(.chat-extra-btn) {
-        width: 36px !important;
-        height: 36px !important;
-        min-width: 36px !important;
-        flex-shrink: 0 !important;
-    }
-    
-    .chat-input .btn-send-msg {
-        width: 40px !important;
-        height: 40px !important;
-        min-width: 40px !important;
-        flex-shrink: 0 !important;
+
+    /* ===== Messenger ===== */
+    .messenger-container {
+        grid-template-columns: 1fr;
+        height: 80vh;
     }
 
-    .chat-input input {
-        padding: 0.5rem 0.7rem !important;
-        font-size: 0.85rem !important;
-    }
-
-    .chat-input button:last-child {
-        padding: 0.5rem 0.8rem !important;
-        font-size: 0.8rem !important;
-        min-width: auto !important;
-        min-height: 36px !important;
-    }
-
-    .chat-input .btn-send-token {
-        width: 32px !important;
-        height: 32px !important;
-        font-size: 0.9rem !important;
-        min-width: 32px !important;
-        min-height: 32px !important;
-    }
-    .mentor-avatar {
-        width: 64px;
-        padding: 6px 3px;
-    }
-    .mentor-avatar-icon {
-        font-size: 1.3rem;
-    }
-    .mentor-detail-card {
-        padding: 8px 10px;
-    }
-    .section-banner {
-        padding: 16px;
-        min-height: 90px;
-    }
-    .section-banner h3 { font-size: 1rem; }
-    .section-banner p { font-size: 0.75rem; }
-    #messenger.chat-active .messenger-header-bar {
-        display: none !important;
-    }
-    .messenger-container.chat-open .chat-sidebar {
-        display: none !important;
-    }
-    .messenger-container.chat-open .chat-window {
-        display: flex !important;
-        flex-direction: column !important;
-        height: calc(100vh - 80px) !important;
-        max-height: calc(100vh - 80px) !important;
-    }
-    .messenger-container.chat-open .chat-messages {
-        flex: 1 !important;
-        overflow-y: auto !important;
-        min-height: 0 !important;
-    }
-    .messenger-container.chat-open .chat-input {
-        flex-shrink: 0 !important;
-        position: relative !important;
-    }
     .messenger-container:not(.chat-open) .chat-window {
         display: none !important;
     }
+
     .messenger-container:not(.chat-open) .chat-sidebar {
         display: flex !important;
         height: 70vh !important;
         max-height: none !important;
     }
+
+    .messenger-container.chat-open .chat-sidebar {
+        display: none !important;
+    }
+
+    .messenger-container.chat-open .chat-window {
+        display: flex !important;
+        flex-direction: column !important;
+        height: calc(100vh - 48px - 56px - env(safe-area-inset-bottom, 0px)) !important;
+        max-height: calc(100vh - 48px - 56px - env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    .messenger-container.chat-open .chat-messages {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        min-height: 0 !important;
+    }
+
+    .messenger-container.chat-open .chat-input {
+        flex-shrink: 0 !important;
+        position: relative !important;
+        padding-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
+    }
+
     .chat-header-back {
         display: block !important;
     }
-    .collection-card {
-        width: 110px;
+
+    #messenger.chat-active .messenger-header-bar {
+        display: none !important;
     }
-    .collection-card img {
-        height: 80px;
+
+    .chat-sidebar {
+        border-right: none !important;
+        border-bottom: 1px solid var(--border) !important;
     }
-    #my-collection-section {
-        padding: 0.8rem !important;
+
+    .sidebar-tabs .tab-btn { padding: 0.6rem; font-size: 0.8rem; }
+    .contact-item, .chat-item { padding: 10px 4px; gap: 10px; }
+    .chat-avatar { font-size: 1.5rem; }
+    .contact-info strong, .chat-preview strong { font-size: 0.85rem; }
+    .contact-info p, .chat-preview p { font-size: 0.75rem; }
+    .btn-chat { padding: 0.4rem 0.6rem; font-size: 0.75rem; }
+
+    /* Chat input */
+    .chat-input {
+        padding: 0.4rem 0.5rem;
+        gap: 0.3rem;
+        display: flex;
+        align-items: center;
+        flex-wrap: nowrap;
+        overflow: hidden;
+        box-sizing: border-box;
     }
-    .bottom-tab-bar { display: block; }
-    .content {
-        padding-bottom: 70px !important;
+    .chat-input .chat-extra-btn, .chat-extra-btn { display: none !important; }
+    .chat-input input, .chat-input textarea,
+    .chat-search-bar input, .chat-search-overlay input,
+    #message-input, #chat-search-input {
+        font-size: 16px !important;
+        -webkit-text-size-adjust: 100% !important;
+        -webkit-appearance: none !important;
     }
+    .chat-input input { padding: 0.5rem 0.7rem; }
+    .chat-input button { padding: 0.6rem; font-size: 0.85rem; }
+    .chat-input button:last-child { padding: 0.5rem 0.8rem; font-size: 0.8rem; min-width: auto; min-height: 36px; }
+    .chat-input .btn-send-token:not(.chat-extra-btn) { width: 36px; height: 36px; min-width: 36px; flex-shrink: 0; }
+    .chat-input .btn-send-msg { width: 40px; height: 40px; min-width: 40px; flex-shrink: 0; }
+    .chat-input .btn-send-token { width: 32px; height: 32px; font-size: 0.9rem; min-width: 32px; min-height: 32px; }
+    .btn-send-token { padding: 0.6rem; font-size: 1rem; }
+
+    .chat-window .chat-input { position: relative; z-index: 2; }
+
+    /* ===== Social ===== */
+    .post-create { padding: 0.8rem; }
+    .post-create textarea { min-height: 80px; font-size: 0.85rem; padding: 0.7rem; }
+    .post { padding: 0.8rem; }
+    .post-header { gap: 0.6rem; margin-bottom: 0.6rem; }
+    .post-avatar { font-size: 1.5rem; }
+    .post-info strong { font-size: 0.85rem; }
+    .post-info span { font-size: 0.7rem; }
+    .post-content p { font-size: 0.85rem; line-height: 1.4; }
+    .post-actions { gap: 0.5rem; margin-top: 0.6rem; padding-top: 0.6rem; }
+    .post-actions button { padding: 0.4rem 0.7rem; font-size: 0.75rem; }
+    .post .post-media-wrap img, .post .post-media-wrap video { max-width: 100% !important; height: auto !important; }
+    .post-image-carousel { max-width: 100vw !important; }
+    .post img { max-width: 100% !important; height: auto !important; }
+
+    /* ===== Mentor panel ===== */
+    .mentor-avatar { width: 64px; padding: 6px 3px; }
+    .mentor-avatar-icon { font-size: 1.3rem; }
+    .mentor-detail-card { padding: 8px 10px; }
+    .mentor-avatars { max-width: 100% !important; }
+
+    /* ===== Section banner ===== */
+    .section-banner { padding: 16px; min-height: 90px; }
+    .section-banner h3 { font-size: 1rem; }
+    .section-banner p { font-size: 0.75rem; }
+
+    /* ===== Collections / Art ===== */
+    .collection-card { width: 110px; }
+    .collection-card img { height: 80px; }
+    #my-collection-section { padding: 0.8rem !important; }
+    .collection-scroll { max-width: 100% !important; }
+
+    /* ===== Bottom tab bar ===== */
+    .bottom-tab-bar {
+        display: block !important;
+        box-shadow: 0 -1px 4px rgba(0,0,0,0.1);
+    }
+
+    /* ===== Reels ===== */
     #reels-container {
         margin: -0.5rem -0.5rem 0 !important;
-        height: calc(100dvh - 56px) !important;
+        height: calc(100dvh - 56px - env(safe-area-inset-bottom)) !important;
     }
-    #reels.active {
-        padding: 0 !important;
-    }
+    #reels.active { padding: 0 !important; }
+    .reels-fullscreen { height: calc(100dvh - 56px - env(safe-area-inset-bottom)) !important; }
+    .reel-item { height: calc(100dvh - 56px - env(safe-area-inset-bottom)) !important; }
+    .reel-side-actions { bottom: 80px !important; }
 
-    /* 1. Bottom tab bar: content padding to prevent overlap */
-    .content {
-        padding-bottom: calc(56px + env(safe-area-inset-bottom) + 14px) !important;
-    }
+    /* ===== Story bar ===== */
+    #story-ring-container { padding-left: 8px !important; padding-right: 8px !important; scroll-padding: 8px; }
+    .story-ring-item { min-width: 66px !important; }
 
-    /* AI Assistant: input bar above bottom tab */
+    /* ===== Profile ===== */
+    .insta-profile-top { gap: 16px !important; }
+    .insta-profile-stats { gap: 16px !important; }
+    .insta-stat-num { font-size: 1rem !important; }
+    .insta-profile-pic, .insta-profile-pic-placeholder { width: 70px !important; height: 70px !important; }
+    .insta-grid { gap: 1px !important; }
+
+    /* ===== AI Assistant ===== */
     #ai-assistant {
         height: calc(100dvh - 3rem - 56px - env(safe-area-inset-bottom)) !important;
         max-height: calc(100dvh - 3rem - 56px - env(safe-area-inset-bottom)) !important;
@@ -666,352 +396,108 @@ a:not(.nav-item) {
         padding-bottom: max(0.8rem, env(safe-area-inset-bottom)) !important;
         margin-bottom: 0 !important;
     }
+    .panel-chat-header-left, .panel-back-btn { min-height: 44px; }
+    .panel-char-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 0.5rem !important; }
+    .panel-char-card { padding: 0.8rem 0.4rem !important; }
+    .panel-char-avatar { width: 42px !important; height: 42px !important; font-size: 1.3rem !important; }
+    .panel-select-screen { max-width: 100% !important; padding: 1rem 0.5rem !important; }
 
-    /* Lounge / Panel chat input above bottom tab */
-    .panel-chat-header-left,
-    .panel-back-btn { min-height: 44px; }
+    /* ===== CrownyCare ===== */
+    .care-card { padding: 1rem !important; margin-bottom: 0.8rem !important; }
+    .care-quick-replies { gap: 0.4rem !important; }
+    .care-quick-btn { min-width: 70px !important; min-height: 70px !important; font-size: 1.5rem !important; padding: 0.6rem !important; }
+    .care-quick-btn span { font-size: 0.75rem !important; }
+    .care-schedule-item { gap: 0.6rem !important; padding: 0.6rem !important; }
+    .care-schedule-time { font-size: 1rem !important; min-width: 50px !important; }
+    .care-schedule-label { font-size: 0.95rem !important; }
+    .care-med-item { padding: 0.8rem !important; gap: 0.5rem !important; flex-wrap: wrap !important; }
+    .sos-emergency-btns { grid-template-columns: 1fr 1fr !important; gap: 0.6rem !important; }
+    .sos-ec-card { flex-direction: column !important; align-items: flex-start !important; gap: 0.4rem !important; }
+    .care-board-fullscreen .care-board-overlay { padding: 1rem !important; }
+    .care-board-clock { font-size: 4rem !important; }
+    .care-board-date { font-size: 1.2rem !important; }
+    .care-board-msg { font-size: 1.1rem !important; }
 
-    /* Panel character grid: 2 columns on very small screens */
-    .panel-char-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 0.5rem !important;
-    }
-    .panel-char-card {
-        padding: 0.8rem 0.4rem !important;
-    }
-    .panel-char-avatar {
-        width: 42px !important;
-        height: 42px !important;
-        font-size: 1.3rem !important;
-    }
-    .panel-select-screen {
+    /* ===== Mall ===== */
+    .products { grid-template-columns: repeat(2, 1fr) !important; gap: 0.6rem !important; }
+    .product-card { padding: 0.8rem !important; }
+    .product-image { font-size: 2rem !important; margin-bottom: 0.5rem !important; }
+    .product-card h3 { font-size: 0.85rem !important; }
+    .price { font-size: 1rem !important; }
+    .reward { font-size: 0.75rem !important; }
+    #pd-gallery { max-width: 100% !important; overflow-x: auto !important; }
+    #pd-gallery img { max-width: 100% !important; height: auto !important; }
+
+    /* ===== Trading: chart + panel ===== */
+    .trading-panel { max-width: 100% !important; padding: 1rem !important; }
+    .trading-header { padding: 0.8rem !important; }
+    .balance-display { flex-wrap: wrap !important; gap: 0.5rem !important; font-size: 0.9rem !important; }
+    .trade-tabs { gap: 0.5rem !important; }
+    .trade-tabs .tab-btn { padding: 0.7rem 0.5rem !important; font-size: 0.8rem !important; }
+
+    /* Trading chart: 모바일 표시 + 높이 */
+    #live-candle-chart {
+        height: 50vh !important;
+        min-height: 280px !important;
+        max-height: 400px !important;
+        width: 100% !important;
         max-width: 100% !important;
-        padding: 1rem 0.5rem !important;
-    }
-
-    /* 2. Social feed: image overflow prevention */
-    .post .post-media-wrap img,
-    .post .post-media-wrap video {
-        max-width: 100% !important;
-        height: auto !important;
-    }
-    .post-image-carousel {
-        max-width: 100vw !important;
-    }
-    .post img {
-        max-width: 100% !important;
-        height: auto !important;
-    }
-
-    /* 3. Reels: account for bottom tab */
-    #reels-container {
-        height: calc(100dvh - 56px - env(safe-area-inset-bottom)) !important;
-    }
-    .reels-fullscreen {
-        height: calc(100dvh - 56px - env(safe-area-inset-bottom)) !important;
-    }
-    .reel-item {
-        height: calc(100dvh - 56px - env(safe-area-inset-bottom)) !important;
-    }
-    .reel-side-actions {
-        bottom: 80px !important;
-    }
-
-    /* 4. Story bar: horizontal scroll padding */
-    #story-ring-container {
-        padding-left: 8px !important;
-        padding-right: 8px !important;
-        scroll-padding: 8px;
-    }
-    .story-ring-item {
-        min-width: 66px !important;
-    }
-
-    /* 5. Profile page: stats alignment on small screens */
-    .insta-profile-top {
-        gap: 16px !important;
-    }
-    .insta-profile-stats {
-        gap: 16px !important;
-    }
-    .insta-stat-num {
-        font-size: 1rem !important;
-    }
-    .insta-profile-pic,
-    .insta-profile-pic-placeholder {
-        width: 70px !important;
-        height: 70px !important;
-    }
-    .insta-grid {
-        gap: 1px !important;
-    }
-
-    /* 6. Crowny Lounge / AI chat: input area spacing for bottom tab */
-    .messenger-container.chat-open .chat-window {
-        height: calc(80vh - 56px) !important;
-    }
-    .messenger-container.chat-open .chat-input {
-        padding-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
-    }
-    .chat-window .chat-input {
-        position: relative;
-        z-index: 2;
-    }
-
-    /* 7. CrownyCare: tabs and layout */
-    .care-card {
-        padding: 1rem !important;
-        margin-bottom: 0.8rem !important;
-    }
-    .care-quick-replies {
-        gap: 0.4rem !important;
-    }
-    .care-quick-btn {
-        min-width: 70px !important;
-        min-height: 70px !important;
-        font-size: 1.5rem !important;
-        padding: 0.6rem !important;
-    }
-    .care-quick-btn span {
-        font-size: 0.75rem !important;
-    }
-    .care-schedule-item {
-        gap: 0.6rem !important;
-        padding: 0.6rem !important;
-    }
-    .care-schedule-time {
-        font-size: 1rem !important;
-        min-width: 50px !important;
-    }
-    .care-schedule-label {
-        font-size: 0.95rem !important;
-    }
-    .care-med-item {
-        padding: 0.8rem !important;
-        gap: 0.5rem !important;
-        flex-wrap: wrap !important;
-    }
-    .sos-emergency-btns {
-        grid-template-columns: 1fr 1fr !important;
-        gap: 0.6rem !important;
-    }
-    .sos-ec-card {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 0.4rem !important;
-    }
-
-    /* 8. Mall: product cards mobile grid */
-    .products {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 0.6rem !important;
-    }
-    .product-card {
-        padding: 0.8rem !important;
-    }
-    .product-image {
-        font-size: 2rem !important;
-        margin-bottom: 0.5rem !important;
-    }
-    .product-card h3 {
-        font-size: 0.85rem !important;
-    }
-    .price {
-        font-size: 1rem !important;
-    }
-    .reward {
-        font-size: 0.75rem !important;
-    }
-    /* Product detail gallery overflow */
-    #pd-gallery {
-        max-width: 100% !important;
-        overflow-x: auto !important;
-    }
-    #pd-gallery img {
-        max-width: 100% !important;
-        height: auto !important;
-    }
-
-    /* 9. Trading: chart + panel overflow */
-    .trading-panel {
-        max-width: 100% !important;
-        padding: 1rem !important;
-    }
-    .trading-header {
-        padding: 0.8rem !important;
-    }
-    .balance-display {
-        flex-wrap: wrap !important;
-        gap: 0.5rem !important;
-        font-size: 0.9rem !important;
-    }
-    .trade-tabs {
-        gap: 0.5rem !important;
-    }
-    .trade-tabs .tab-btn {
-        padding: 0.7rem 0.5rem !important;
-        font-size: 0.8rem !important;
-    }
-    /* Mentor panel scroll on mobile */
-    .mentor-avatars {
-        max-width: 100% !important;
-    }
-    .mentor-avatar {
-        width: 60px !important;
-    }
-
-    /* 10. All modals: prevent cutoff */
-    .modal-content {
-        max-width: 95vw !important;
-        max-height: 85vh !important;
-        overflow-y: auto !important;
-        margin: 0 auto !important;
-    }
-    .register-modal-content {
-        max-width: 95vw !important;
-        max-height: 85vh !important;
-    }
-    .bottom-sheet {
-        max-height: 90vh !important;
-    }
-    .bottom-sheet-body {
-        max-height: calc(90vh - 60px) !important;
-        overflow-y: auto !important;
-    }
-    .group-member-select-modal {
-        max-width: 95vw !important;
-        max-height: 80vh !important;
-    }
-    /* Profile edit modal */
-    #profile-edit-modal > div {
-        max-width: 95vw !important;
-        max-height: 85vh !important;
-        overflow-y: auto !important;
-    }
-
-    /* 11. Wallet actions: 3-col to 2-col on very small */
-    .wallet-actions {
-        grid-template-columns: 1fr 1fr !important;
-        gap: 0.5rem !important;
-    }
-    .wallet-actions .btn-action:last-child {
-        grid-column: 1 / -1 !important;
-    }
-
-    /* 12. Dark mode consistency: ensure all bg colors propagate */
-    .care-board-fullscreen .care-board-overlay {
-        padding: 1rem !important;
-    }
-    .care-board-clock {
-        font-size: 4rem !important;
-    }
-    .care-board-date {
-        font-size: 1.2rem !important;
-    }
-    .care-board-msg {
-        font-size: 1.1rem !important;
-    }
-
-    /* Books page overflow */
-    .book-scroll-row {
-        max-width: 100vw !important;
-    }
-
-    /* Explore page card overflow */
-    .collection-scroll {
-        max-width: 100% !important;
-    }
-
-    /* Sidebar overlay: prevent body scroll when open */
-    body.sidebar-open {
         overflow: hidden !important;
+        position: relative !important;
+        display: block !important;
+    }
+    /* Chart dark wrapper */
+    #chart-dark-wrapper {
+        overflow: visible !important;
+    }
+    #prop-trading > div {
+        max-width: 100% !important;
+    }
+    /* Force all text/buttons inside trading chart dark area to be visible */
+    #prop-trading button,
+    #prop-trading select,
+    #prop-trading label {
+        color: inherit;
+    }
+    #trading-reload-btn {
+        color: #FFF8F0 !important;
+    }
+    #trading-reload-btn i,
+    #trading-reload-btn span {
+        color: #FFF8F0 !important;
     }
 
-    /* Fix: menu toggle should not be hidden by bottom tab */
-    .menu-toggle {
-        z-index: 1001 !important;
-    }
+    /* ===== Modals ===== */
+    .modal-content { max-width: 95vw !important; max-height: 85vh !important; overflow-y: auto !important; margin: 0 auto !important; }
+    .register-modal-content { max-width: 95vw !important; max-height: 85vh !important; }
+    .bottom-sheet { max-height: 90vh !important; }
+    .bottom-sheet-body { max-height: calc(90vh - 60px) !important; overflow-y: auto !important; }
+    .group-member-select-modal { max-width: 95vw !important; max-height: 80vh !important; }
+    #profile-edit-modal > div { max-width: 95vw !important; max-height: 85vh !important; overflow-y: auto !important; }
 
-    /* Fix: bottom tab should not overlap floating elements */
-    .bottom-tab-bar {
-        box-shadow: 0 -1px 8px rgba(0,0,0,0.3) !important;
-    }
+    /* ===== Books ===== */
+    .book-scroll-row { max-width: 100vw !important; }
+
+    /* ===== Sidebar overlay ===== */
+    body.sidebar-open { overflow: hidden !important; }
+
+    /* ===== Chart overflow ===== */
+    .content > .page > div { max-width: 100% !important; overflow-x: hidden !important; }
 }
 
+/* ===== Extra small screens (380px and below) ===== */
 @media (max-width: 380px) {
-    .panel-char-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-    }
-    .services {
-        gap: 0.4rem !important;
-    }
-    .service-card .icon {
-        font-size: 1.6rem !important;
-    }
-    .service-card h3 {
-        font-size: 0.7rem !important;
-    }
-    .insta-profile-top {
-        gap: 12px !important;
-    }
-    .insta-profile-pic,
-    .insta-profile-pic-placeholder {
-        width: 60px !important;
-        height: 60px !important;
-    }
-    .insta-profile-stats {
-        gap: 12px !important;
-    }
-    .dash-grid {
-        gap: 0.6rem !important;
-    }
-    .dash-welcome {
-        padding: 1rem !important;
-        gap: 0.6rem !important;
-    }
-    .care-quick-btn {
-        min-width: 60px !important;
-        min-height: 60px !important;
-        font-size: 1.3rem !important;
-    }
-    .panel-char-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-    }
-    .services {
-        gap: 0.4rem !important;
-    }
-    .service-card .icon {
-        font-size: 1.6rem !important;
-    }
-    .service-card h3 {
-        font-size: 0.7rem !important;
-    }
-    .insta-profile-top {
-        gap: 12px !important;
-    }
-    .insta-profile-pic,
-    .insta-profile-pic-placeholder {
-        width: 60px !important;
-        height: 60px !important;
-    }
-    .insta-profile-stats {
-        gap: 12px !important;
-    }
-    .dash-grid {
-        gap: 0.6rem !important;
-    }
-    .dash-welcome {
-        padding: 1rem !important;
-        gap: 0.6rem !important;
-    }
-    .care-quick-btn {
-        min-width: 60px !important;
-        min-height: 60px !important;
-        font-size: 1.3rem !important;
-    }
+    .panel-char-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .services { gap: 0.4rem; }
+    .service-card .icon { font-size: 1.6rem; }
+    .service-card h3 { font-size: 0.65rem; }
+    .insta-profile-top { gap: 12px !important; }
+    .insta-profile-pic, .insta-profile-pic-placeholder { width: 60px !important; height: 60px !important; }
+    .insta-profile-stats { gap: 12px !important; }
+    .dash-grid { gap: 0.6rem !important; }
+    .dash-welcome { padding: 1rem !important; gap: 0.6rem !important; }
+    .care-quick-btn { min-width: 60px !important; min-height: 60px !important; font-size: 1.3rem !important; }
 }
-
-/* Chat input: comprehensive mobile optimization - handled above in main @media section */
 
 /* iOS: prevent auto-zoom on input focus */
 @media (max-width: 768px) {

@@ -93,7 +93,7 @@ function deleteChat(chatId) {
 
 // ── 메시지 ──
 
-function addMessage(chatId, senderId, text, type, replyTo) {
+function addMessage(chatId, senderId, text, type, replyTo, extra) {
     const msgDir = path.join(MSG_DIR, chatId);
     if (!fs.existsSync(msgDir)) fs.mkdirSync(msgDir, { recursive: true });
 
@@ -107,19 +107,39 @@ function addMessage(chatId, senderId, text, type, replyTo) {
         readBy: [senderId],
         replyTo: replyTo || null,
         deleted: false,
+        edited: false,
     };
+
+    // 파일/이미지 메타데이터
+    if (extra) {
+        if (extra.fileUrl) msg.fileUrl = extra.fileUrl;
+        if (extra.fileName) msg.fileName = extra.fileName;
+        if (extra.fileSize) msg.fileSize = extra.fileSize;
+        if (extra.replyToText) msg.replyToText = extra.replyToText;
+    }
+
     fs.writeFileSync(path.join(msgDir, msg.id + '.json'), JSON.stringify(msg));
 
     // 채팅방 lastMessage 업데이트
     const chat = getChat(chatId);
     if (chat) {
         chat.lastMessage = senderId;
-        chat.lastMessageText = msg.text.slice(0, 50);
+        // 파일 메시지의 경우 미리보기 텍스트 설정
+        if (type === 'image') chat.lastMessageText = '📷 ' + (text || 'Photo');
+        else if (type === 'video') chat.lastMessageText = '🎥 ' + (text || 'Video');
+        else if (type === 'file') chat.lastMessageText = '[File] ' + (extra?.fileName || 'File');
+        else chat.lastMessageText = msg.text.slice(0, 50);
         chat.lastMessageTime = msg.timestamp;
         saveChat(chat);
     }
 
     return msg;
+}
+
+function getMessage(chatId, msgId) {
+    const fp = path.join(MSG_DIR, chatId, msgId + '.json');
+    if (!fs.existsSync(fp)) return null;
+    try { return JSON.parse(fs.readFileSync(fp, 'utf8')); } catch { return null; }
 }
 
 function getMessages(chatId, limit, before) {
@@ -130,7 +150,7 @@ function getMessages(chatId, limit, before) {
     for (const f of files) {
         try {
             const msg = JSON.parse(fs.readFileSync(path.join(msgDir, f), 'utf8'));
-            if (!msg.deleted && (!before || msg.timestamp < before)) {
+            if (!before || msg.timestamp < before) {
                 msgs.push(msg);
             }
         } catch { /* skip */ }
@@ -165,8 +185,22 @@ function deleteMessage(msgId, chatId) {
     const msg = JSON.parse(fs.readFileSync(fp, 'utf8'));
     msg.deleted = true;
     msg.text = '';
+    msg.fileUrl = undefined;
+    msg.fileName = undefined;
     fs.writeFileSync(fp, JSON.stringify(msg));
     return true;
+}
+
+function editMessage(msgId, chatId, newText) {
+    const fp = path.join(MSG_DIR, chatId, msgId + '.json');
+    if (!fs.existsSync(fp)) return null;
+    const msg = JSON.parse(fs.readFileSync(fp, 'utf8'));
+    if (msg.deleted) return null;
+    msg.text = (newText || '').slice(0, 4000);
+    msg.edited = true;
+    msg.editedAt = Date.now();
+    fs.writeFileSync(fp, JSON.stringify(msg));
+    return msg;
 }
 
 function getUnreadCount(chatId, username) {
@@ -255,7 +289,7 @@ function searchMessages(username, query) {
 
 module.exports = {
     createChat, getChat, saveChat, listChats, deleteChat, dmChatId,
-    addMessage, getMessages, markRead, deleteMessage, getUnreadCount,
+    addMessage, getMessage, getMessages, markRead, deleteMessage, editMessage, getUnreadCount,
     updatePresence, getPresence,
     addGroupMember, removeGroupMember, updateGroupName,
     searchMessages,

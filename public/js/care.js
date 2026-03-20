@@ -850,7 +850,6 @@ window.CARE = (function() {
                     .collection('sos_alerts').doc(sosAlertId)
                     .update({ recordingUrl: url, recordingPath: path });
             }
-            console.log('Recording uploaded:', path);
         } catch(e) {
             console.error('Recording upload error:', e);
         }

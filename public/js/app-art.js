@@ -149,13 +149,13 @@ async function uploadToFirebaseStorage(file, artworkId) {
 }
 
 async function uploadToIPFS(file) {
-    if (!storageSDK) throw new Error('Thirdweb Storage 미초기화. NFT 민팅 불가.');
+    if (!storageSDK) throw new Error(t('art.storage_not_init','Thirdweb Storage not initialized. NFT minting unavailable.'));
     const uri = await storageSDK.upload(file);
     return uri;
 }
 
 async function uploadMetadataToIPFS(metadata) {
-    if (!storageSDK) throw new Error('Thirdweb Storage 미초기화');
+    if (!storageSDK) throw new Error(t('art.storage_not_init_short','Thirdweb Storage not initialized'));
     const uri = await storageSDK.upload(metadata);
     return uri;
 }
@@ -297,7 +297,7 @@ function updateBasePricePreview() {
     }
     _getArtistWeight(currentUser.uid).then(w => {
         const effective = _calcEffectivePrice(basePrice, w);
-        previewEl.textContent = `⭐ 가중치 ${w}x → 실제 판매가: ${effective} CRAC`;
+        previewEl.textContent = '\u2B50 ' + t('art.weight','Weight') + ' ' + w + 'x \u2192 ' + t('art.effective_price','Effective price') + ': ' + effective + ' CRAC';
     }).catch(() => {
         previewEl.textContent = '';
     });
@@ -630,7 +630,7 @@ async function viewArtwork(artId) {
         if (!doc.exists) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
         const art = doc.data();
 
-        db.collection('artworks').doc(artId).update({ views: (art.views || 0) + 1 }).catch(() => {});
+        db.collection('artworks').doc(artId).update({ views: (art.views || 0) + 1 }).catch(e => console.warn(e.message));
 
         const catLabel = ART_CATEGORIES[art.category] || '🎨';
         const isOwner  = currentUser && art.artistId === currentUser.uid;
@@ -783,7 +783,7 @@ function shareArtwork(artId, title) {
     if (navigator.share) {
         navigator.share({ title: `CROWNY ART: ${title}`, url });
     } else {
-        navigator.clipboard.writeText(url).then(() => showToast('🔗 링크 복사됨!', 'success')).catch(() => {});
+        navigator.clipboard.writeText(url).then(() => showToast('🔗 링크 복사됨!', 'success')).catch(e => console.warn(e.message));
     }
 }
 

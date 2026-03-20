@@ -63,9 +63,9 @@ async function ctvmLoadWallet() {
 
 // ═══ 잔액 새로고침 ═══
 async function ctvmRefreshWallet() {
-    if (typeof showToast === 'function') showToast('새로고침 중...', 'info');
+    if (typeof showToast === 'function') showToast(t('wallet.refreshing','새로고침 중...'), 'info');
     await ctvmLoadWallet();
-    if (typeof showToast === 'function') showToast('잔액이 업데이트되었습니다', 'success');
+    if (typeof showToast === 'function') showToast(t('wallet.balance_updated','잔액이 업데이트되었습니다'), 'success');
 }
 
 // ═══ 주소 복사 ═══
@@ -74,35 +74,35 @@ function ctvmCopyAddress() {
     if (!addr) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(addr).then(() => {
-            if (typeof showToast === 'function') showToast('주소가 복사되었습니다', 'success');
+            if (typeof showToast === 'function') showToast(t('wallet.address_copied','주소가 복사되었습니다'), 'success');
         });
     } else {
-        const t = document.createElement('textarea');
-        t.value = addr; t.style.position = 'fixed'; t.style.left = '-9999px';
-        document.body.appendChild(t); t.select();
-        try { document.execCommand('copy'); if (typeof showToast === 'function') showToast('주소가 복사되었습니다', 'success'); } catch(e) {}
-        document.body.removeChild(t);
+        const _ta = document.createElement('textarea');
+        _ta.value = addr; _ta.style.position = 'fixed'; _ta.style.left = '-9999px';
+        document.body.appendChild(_ta); _ta.select();
+        try { document.execCommand('copy'); if (typeof showToast === 'function') showToast(t('wallet.address_copied','주소가 복사되었습니다'), 'success'); } catch(e) { /* optional */ }
+        document.body.removeChild(_ta);
     }
 }
 
 // ═══ 송금 ═══
 async function ctvmSendToken() {
     const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
-    if (!token) { showToast('로그인이 필요합니다', 'error'); return; }
+    if (!token) { showToast(t('wallet.login_required','로그인이 필요합니다'), 'error'); return; }
 
     const toUser = (document.getElementById('send-to')?.value || '').trim();
     const amount = parseFloat(document.getElementById('send-amount')?.value || 0);
     const currency = document.getElementById('send-currency')?.value || 'CRN';
     const memo = (document.getElementById('send-memo')?.value || '').trim();
 
-    if (!toUser) { showToast('받는 사람을 입력하세요', 'warning'); return; }
-    if (!amount || amount <= 0) { showToast('수량을 입력하세요', 'warning'); return; }
+    if (!toUser) { showToast(t('wallet.enter_recipient','받는 사람을 입력하세요'), 'warning'); return; }
+    if (!amount || amount <= 0) { showToast(t('wallet.enter_amount','수량을 입력하세요'), 'warning'); return; }
 
     const bal = _walletData?.balances?.[currency] || 0;
-    if (amount > bal) { showToast(`${currency} 잔액 부족 (보유: ${bal})`, 'error'); return; }
+    if (amount > bal) { showToast(`${currency} ${t('wallet.insufficient','잔액 부족')} (보유: ${bal})`, 'error'); return; }
 
     const confirmed = typeof showConfirmModal === 'function'
-        ? await showConfirmModal('송금 확인', `${toUser}에게 ${amount} ${currency} 전송\n${memo ? '메모: ' + memo : ''}`)
+        ? await showConfirmModal(t('wallet.confirm_send','송금 확인'), `${toUser}에게 ${amount} ${currency} 전송\n${memo ? '메모: ' + memo : ''}`)
         : confirm(`${toUser}에게 ${amount} ${currency} 전송하시겠습니까?`);
     if (!confirmed) return;
 
@@ -115,29 +115,29 @@ async function ctvmSendToken() {
         const data = await res.json();
         if (data.error) { showToast(data.error, 'error'); return; }
 
-        showToast(`${amount} ${currency} → ${toUser} 전송 완료!`, 'success');
+        showToast(`${amount} ${currency} → ${toUser} ${t('wallet.send_success','전송 완료!')}`, 'success');
         document.getElementById('send-to').value = '';
         document.getElementById('send-amount').value = '';
         document.getElementById('send-memo').value = '';
         await ctvmLoadWallet();
     } catch (e) {
-        showToast('전송 실패: ' + e.message, 'error');
+        showToast(t('wallet.send_failed','전송 실패') + ': ' + e.message, 'error');
     }
 }
 
 // ═══ 스왑 ═══
 async function ctvmSwapToken() {
     const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
-    if (!token) { showToast('로그인이 필요합니다', 'error'); return; }
+    if (!token) { showToast(t('wallet.login_required','로그인이 필요합니다'), 'error'); return; }
 
     const from = document.getElementById('swap-from')?.value || 'CRM';
     const to = document.getElementById('swap-to')?.value || 'FNC';
     const amount = parseFloat(document.getElementById('swap-amount')?.value || 0);
 
-    if (!amount || amount <= 0) { showToast('수량을 입력하세요', 'warning'); return; }
+    if (!amount || amount <= 0) { showToast(t('wallet.enter_amount','수량을 입력하세요'), 'warning'); return; }
 
     const confirmed = typeof showConfirmModal === 'function'
-        ? await showConfirmModal('스왑 확인', `${amount} ${from} → ${to} 스왑`)
+        ? await showConfirmModal(t('wallet.confirm_swap','스왑 확인'), `${amount} ${from} → ${to} 스왑`)
         : confirm(`${amount} ${from} → ${to} 스왑하시겠습니까?`);
     if (!confirmed) return;
 
@@ -150,11 +150,11 @@ async function ctvmSwapToken() {
         const data = await res.json();
         if (data.error) { showToast(data.error, 'error'); return; }
 
-        showToast(`${data.sent} ${data.sentCurrency} → ${data.received} ${data.receivedCurrency} 스왑 완료!`, 'success');
+        showToast(`${data.sent} ${data.sentCurrency} → ${data.received} ${data.receivedCurrency} ${t('wallet.swap_success','스왑 완료!')}`, 'success');
         document.getElementById('swap-amount').value = '';
         await ctvmLoadWallet();
     } catch (e) {
-        showToast('스왑 실패: ' + e.message, 'error');
+        showToast(t('wallet.swap_failed','스왑 실패') + ': ' + e.message, 'error');
     }
 }
 
@@ -164,7 +164,7 @@ function renderTransactions(txns) {
     if (!container) return;
 
     if (!txns || txns.length === 0) {
-        container.innerHTML = '<p style="color:var(--accent); font-size:0.85rem; text-align:center; padding:1rem;">거래 내역이 없습니다.</p>';
+        container.innerHTML = '<p style="color:var(--accent); font-size:0.85rem; text-align:center; padding:1rem;">' + t('wallet.no_transactions','거래 내역이 없습니다.') + '</p>';
         return;
     }
 
@@ -196,19 +196,63 @@ async function loadUserWallet() {
 
 function refreshAllBalances() { ctvmRefreshWallet(); }
 function copyAddress() { ctvmCopyAddress(); }
-function updateBalances() { /* no-op in independent mode */ }
-function updateBalancesUI() { /* no-op in independent mode */ }
-function selectToken() { /* no-op */ }
-function showSendModal() { document.getElementById('send-to')?.focus(); }
-function showAddWalletModal() { showToast('CrownyTVM은 계정당 1개 지갑입니다', 'info'); }
-function switchWallet() { /* no-op */ }
-function displayCurrentWallet() { ctvmLoadWallet(); }
-function renameCurrentWallet() { /* no-op */ }
-function deleteCurrentWallet() { /* no-op */ }
-function showMaticDeposit() { /* no-op */ }
-function showMaticSend() { /* no-op */ }
-function loadMaticBalance() { /* no-op */ }
-function loadRealBalances() { /* no-op */ }
-function loadOffchainBalances() { /* no-op */ }
-function checkWalletSecurityOnLogin() { /* no-op */ }
+function updateBalances() { /* no-op in independent mode — called by social.js */ }
 async function refreshBalancesFromDB() { await ctvmLoadWallet(); }
+
+// ═══ 송금 연락처 선택 ═══
+function ctvmToggleSendContacts() {
+    const dd = document.getElementById('send-contact-dropdown');
+    if (!dd) return;
+    if (dd.style.display === 'none') {
+        ctvmFilterSendContacts();
+        dd.style.display = 'block';
+    } else {
+        dd.style.display = 'none';
+    }
+}
+
+function ctvmFilterSendContacts() {
+    const dd = document.getElementById('send-contact-dropdown');
+    if (!dd) return;
+    const q = (document.getElementById('send-to')?.value || '').toLowerCase();
+    const contacts = (window._ctvmContacts || []).filter(c => c.isUser || c.crownyUsername);
+    const filtered = q ? contacts.filter(c =>
+        (c.name||'').toLowerCase().includes(q) ||
+        (c.crownyUsername||'').toLowerCase().includes(q)
+    ) : contacts;
+
+    if (filtered.length === 0) {
+        dd.style.display = 'none';
+        return;
+    }
+    dd.style.display = 'block';
+    dd.innerHTML = filtered.slice(0, 10).map(c => {
+        const colors = ['#5C4033','#3D2B1F','#7A5C47','#8B6914','#6B5B4F','#4A3728','#8B7355','#5D4E37'];
+        const hash = (c.name||'').split('').reduce((a,ch)=>a+ch.charCodeAt(0),0);
+        const bg = colors[hash % colors.length];
+        const initial = (c.name||'?').charAt(0).toUpperCase();
+        const uname = c.crownyUsername || '';
+        return `<div onclick="ctvmSelectSendContact('${uname}')" style="display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;border-bottom:1px solid #F7F3ED;transition:background .1s" onmouseover="this.style.background='#F7F3ED'" onmouseout="this.style.background='transparent'">
+            <div style="width:28px;height:28px;border-radius:50%;background:${bg};color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0">${initial}</div>
+            <div style="flex:1;min-width:0">
+                <div style="font-size:0.8rem;font-weight:600;color:#3D2B1F;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name||uname}</div>
+                <div style="font-size:0.65rem;color:#7A5C47">@${uname}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function ctvmSelectSendContact(username) {
+    const input = document.getElementById('send-to');
+    if (input) input.value = username;
+    const dd = document.getElementById('send-contact-dropdown');
+    if (dd) dd.style.display = 'none';
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+    const dd = document.getElementById('send-contact-dropdown');
+    if (dd && !e.target.closest('#send-to') && !e.target.closest('#send-contact-dropdown') && !e.target.closest('[onclick*="ctvmToggleSendContacts"]')) {
+        dd.style.display = 'none';
+    }
+});

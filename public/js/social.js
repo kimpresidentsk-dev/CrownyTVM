@@ -59,7 +59,7 @@ async function getUserDisplayInfo(uid) {
             if (info && !info.error) {
                 return { nickname: info.displayName || uid, photoURL: info.photoURL || '', email: info.email || '', isOnline: false, lastSeen: null };
             }
-        } catch(e) {}
+        } catch(e) { console.warn(e.message); }
         return { nickname: uid, photoURL: '', email: '', isOnline: false, lastSeen: null };
     }
     try {
@@ -246,7 +246,7 @@ async function loadReferralRewardDesc() {
         if (r.creb) parts.push(`${r.creb} CREB`);
         const descEl = document.getElementById('referral-reward-desc');
         if (descEl && parts.length > 0) {
-            descEl.textContent = `친구 초대 시 ${parts.join(' + ')} 즉시 지급!`;
+            descEl.textContent = t('social.referral_invite_desc', 'Invite friends to receive') + ` ${parts.join(' + ')} ` + t('social.referral_instant', 'instantly!');
         }
     } catch (e) {
         console.warn('소개자 보상 안내 로드 실패:', e);
@@ -277,7 +277,7 @@ async function loadReferralInfo() {
         if (nickEditEl) nickEditEl.style.display = data.referralCode ? 'inline-block' : 'none';
         
         const countEl = document.getElementById('my-referral-count');
-        if (countEl) countEl.textContent = `${data.referralCount || 0}명`;
+        if (countEl) countEl.textContent = `${data.referralCount || 0} ${t('social.people','people')}`;
         
         const earnings = data.referralEarnings || {};
         const tokenKeys = ['crny','fnc','crfn','crtd','crac','crgc','creb'];
@@ -299,7 +299,7 @@ async function loadReferralInfo() {
                         pendingHTML += `<div style="font-size:0.75rem;color:#C4841D;">⏳ ${r.amount} ${(r.token||'').toUpperCase()} → ${releaseDate}</div>`;
                     });
                 }
-                pendingEl.innerHTML = pendingHTML || '<div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">대기 중인 보상 없음</div>';
+                pendingEl.innerHTML = pendingHTML || `<div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">${t('social.no_pending_rewards','No pending rewards')}</div>`;
             } catch (e) {
                 pendingEl.innerHTML = '';
             }
@@ -407,7 +407,7 @@ async function searchContactUsers() {
     const resultsDiv = document.getElementById('contact-search-results');
     if (!query) { resultsDiv.innerHTML = `<p style="text-align:center;color:var(--text-muted,#6B5744);font-size:0.85rem;">${t('social.enter_search','Please enter a search term')}</p>`; return; }
 
-    resultsDiv.innerHTML = '<p style="text-align:center;color:var(--accent);"><i data-lucide="search"></i> 검색 중...</p>';
+    resultsDiv.innerHTML = `<p style="text-align:center;color:var(--accent);"><i data-lucide="search"></i> ${t('common.searching','Searching...')}</p>`;
 
     try {
         const results = new Map();
@@ -432,7 +432,7 @@ async function searchContactUsers() {
         for (const [uid, doc] of results) {
             if (uid === currentUser.uid) continue;
             const data = doc.data();
-            const nick = data.nickname || data.email?.split('@')[0] || '사용자';
+            const nick = data.nickname || data.email?.split('@')[0] || t('social.user','User');
             const el = document.createElement('div');
             el.style.cssText = 'display:flex;align-items:center;gap:0.8rem;padding:0.7rem;border-bottom:1px solid var(--border,#E8E0D8);';
             el.innerHTML = `
@@ -441,7 +441,7 @@ async function searchContactUsers() {
                     <strong style="font-size:0.9rem;">${nick}</strong> ${onlineDotHTML(data.isOnline)}
                     <p style="font-size:0.75rem;color:var(--text-muted,#6B5744);margin:0;">${data.email || ''}</p>
                 </div>
-                <button onclick="addContactFromSearch('${uid}','${(data.email||'').replace(/'/g,"\\'")}','${nick.replace(/'/g,"\\'")}')" style="padding:0.4rem 0.8rem;border:none;border-radius:6px;background:var(--gold,#8B6914);color:#3D2B1F;font-size:0.8rem;cursor:pointer;">추가</button>`;
+                <button onclick="addContactFromSearch('${uid}','${(data.email||'').replace(/'/g,"\\'")}','${nick.replace(/'/g,"\\'")}')" style="padding:0.4rem 0.8rem;border:none;border-radius:6px;background:var(--gold,#8B6914);color:#3D2B1F;font-size:0.8rem;cursor:pointer;">${t('social.add','Add')}</button>`;
             resultsDiv.appendChild(el);
         }
         if(window.lucide) lucide.createIcons();
@@ -658,7 +658,7 @@ function formatMsgTime(date) {
     if (!date) return '';
     const h = date.getHours();
     const m = date.getMinutes().toString().padStart(2, '0');
-    const ampm = h < 12 ? '오전' : '오후';
+    const ampm = h < 12 ? t('common.am','AM') : t('common.pm','PM');
     const h12 = h % 12 || 12;
     return `${ampm} ${h12}:${m}`;
 }
@@ -667,8 +667,8 @@ function formatDateLabel(date) {
     const y = date.getFullYear();
     const m = date.getMonth() + 1;
     const d = date.getDate();
-    const days = ['일','월','화','수','목','금','토'];
-    return `${y}년 ${m}월 ${d}일 ${days[date.getDay()]}요일`;
+    const days = [t('messenger.day_sun','Sun'),t('messenger.day_mon','Mon'),t('messenger.day_tue','Tue'),t('messenger.day_wed','Wed'),t('messenger.day_thu','Thu'),t('messenger.day_fri','Fri'),t('messenger.day_sat','Sat')];
+    return `${y}/${m}/${d} (${days[date.getDay()]})`;
 }
 
 // ===== Load chat list =====
@@ -689,7 +689,7 @@ async function loadMessages() {
         chats = await db.collection('chats').where('participants', 'array-contains', currentUser.uid).get();
     } catch (e) {
         console.error('[loadMessages] Firestore error:', e);
-        chatList.innerHTML = `<p style="padding:1rem;color:#e53935;text-align:center;">채팅 로드 실패: ${e.message}</p>`;
+        chatList.innerHTML = `<p style="padding:1rem;color:#e53935;text-align:center;">${t('social.chat_load_fail','Chat load failed')}: ${e.message}</p>`;
         return;
     }
     if (chats.empty) { chatList.innerHTML = `<p style="padding:1rem; color:var(--accent); text-align:center;">${t('social.start_chat','Start a chat')}</p>`; return; }
@@ -758,6 +758,8 @@ async function openChat(chatId, otherId) {
     if (bottomTab) bottomTab.style.display = 'none';
     const menuToggle = document.querySelector('.menu-toggle');
     if (menuToggle) menuToggle.style.display = 'none';
+    const topBar = document.getElementById('crowny-top-bar');
+    if (topBar) topBar.style.display = 'none';
 
     const info = await getUserDisplayInfo(otherId);
     document.getElementById('chat-username').innerHTML = `
@@ -794,7 +796,7 @@ async function openChat(chatId, otherId) {
         const pinnedBanner = document.getElementById('pinned-message-banner');
         if (data.pinnedMessage && pinnedBanner) {
             pinnedBanner.style.display = 'flex';
-            document.getElementById('pinned-message-text').textContent = data.pinnedMessage.text || '고정된 메시지';
+            document.getElementById('pinned-message-text').textContent = data.pinnedMessage.text || t('social.pinned_message','Pinned message');
         } else if (pinnedBanner) {
             pinnedBanner.style.display = 'none';
         }
@@ -806,7 +808,7 @@ async function openChat(chatId, otherId) {
     try {
         const chatDocData = await db.collection('chats').doc(chatId).get();
         _chatSettings = chatDocData.data() || {};
-    } catch (e) {}
+    } catch (e) { console.warn(e.message); }
 
     // Secret chat screenshot detection
     if (_chatSettings.secret && typeof E2ECrypto !== 'undefined') {
@@ -856,7 +858,7 @@ async function openChat(chatId, otherId) {
                 for (const ref of unreadDocs) {
                     batch.update(ref, { readBy: firebase.firestore.FieldValue.arrayUnion(currentUser.uid) });
                 }
-                batch.commit().catch(() => {}).finally(() => { setTimeout(() => { _isMarkingRead = false; }, 1000); });
+                batch.commit().catch(e => console.warn(e.message)).finally(() => { setTimeout(() => { _isMarkingRead = false; }, 1000); });
             }
 
             for (const doc of snapshot.docs) {
@@ -871,7 +873,7 @@ async function openChat(chatId, otherId) {
                     try {
                         msg._decryptedText = await E2ECrypto.decryptMessage(msg, currentUser.uid);
                     } catch (e) {
-                        msg._decryptedText = '<i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 암호화된 메시지 (복호화 불가)';
+                        msg._decryptedText = '<i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('social.encrypted_msg_fail','Encrypted message (cannot decrypt)');
                     }
                 }
 
@@ -903,12 +905,12 @@ async function openChat(chatId, otherId) {
                     // Reply quote
                     if (msg.replyTo) {
                         content += `<div class="msg-reply-quote" style="border-left:3px solid #3D2B1F;padding:0.2rem 0.5rem;margin-bottom:0.3rem;background:rgba(0,102,204,0.05);border-radius:0 6px 6px 0;font-size:0.75rem;color:var(--text-muted,#6B5744);cursor:pointer;" onclick="document.querySelector('[data-msg-id=\\'${msg.replyTo.messageId}\\']')?.scrollIntoView({behavior:'smooth',block:'center'})">
-                            <div style="font-weight:600;color:#3D2B1F;font-size:0.7rem;">답장</div>
-                            ${(msg.replyTo.text || '미디어').substring(0, 60)}</div>`;
+                            <div style="font-weight:600;color:#3D2B1F;font-size:0.7rem;">${t('social.reply','Reply')}</div>
+                            ${(msg.replyTo.text || t('social.media','Media')).substring(0, 60)}</div>`;
                     }
                     // Forwarded label
                     if (msg.forwarded) {
-                        content += `<div style="font-size:0.7rem;color:var(--text-muted,#6B5744);margin-bottom:0.2rem;font-style:italic;"><i data-lucide="arrow-up-right" style="width:10px;height:10px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> 전달된 메시지</div>`;
+                        content += `<div style="font-size:0.7rem;color:var(--text-muted,#6B5744);margin-bottom:0.2rem;font-style:italic;"><i data-lucide="arrow-up-right" style="width:10px;height:10px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ${t('social.forwarded_msg','Forwarded message')}</div>`;
                     }
                     // Media types
                     const msgType = msg.type || 'text';
@@ -922,7 +924,7 @@ async function openChat(chatId, otherId) {
                     if (msgType === 'file') {
                         const sizeStr = msg.fileSize ? ` (${(msg.fileSize/1024).toFixed(0)} KB)` : '';
                         content += `<a href="${msg.mediaUrl}" target="_blank" download="${msg.fileName||'file'}" style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.6rem;background:rgba(0,0,0,0.05);border-radius:8px;text-decoration:none;color:inherit;margin-bottom:0.3rem;">
-                            <span style="font-size:1.2rem;">📄</span><div><div style="font-size:0.8rem;font-weight:600;">${msg.fileName||'파일'}</div><div style="font-size:0.7rem;color:var(--text-muted,#6B5744);">${sizeStr}</div></div></a>`;
+                            <span style="font-size:1.2rem;display:flex;align-items:center"><i data-lucide="paperclip" style="width:18px;height:18px"></i></span><div><div style="font-size:0.8rem;font-weight:600;">${msg.fileName||t('social.file','File')}</div><div style="font-size:0.7rem;color:var(--text-muted,#6B5744);">${sizeStr}</div></div></a>`;
                     }
                     if (msgType === 'voice') {
                         content += `<div class="voice-msg-player" style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem;">
@@ -940,7 +942,7 @@ async function openChat(chatId, otherId) {
                         const pageMap = { product: 'mall', artist: 'artist', campaign: 'fundraise', art: 'art' };
                         content += `<div onclick="showPage('${pageMap[sc.itemType]||sc.itemType}')" style="border:1px solid var(--border,#E8E0D8);border-radius:10px;overflow:hidden;cursor:pointer;margin-bottom:0.3rem;max-width:220px;">
                             ${sc.imageUrl ? `<img src="${sc.imageUrl}" style="width:100%;height:100px;object-fit:cover;">` : ''}
-                            <div style="padding:0.4rem 0.6rem;"><div style="font-size:0.8rem;font-weight:600;">${sc.name}</div>${sc.price ? `<div style="font-size:0.75rem;color:#C4841D;">${sc.price}</div>` : ''}<div style="font-size:0.7rem;color:#3D2B1F;margin-top:0.2rem;"><i data-lucide="shopping-cart" style="width:10px;height:10px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> 보기</div></div></div>`;
+                            <div style="padding:0.4rem 0.6rem;"><div style="font-size:0.8rem;font-weight:600;">${sc.name}</div>${sc.price ? `<div style="font-size:0.75rem;color:#C4841D;">${sc.price}</div>` : ''}<div style="font-size:0.7rem;color:#3D2B1F;margin-top:0.2rem;"><i data-lucide="shopping-cart" style="width:10px;height:10px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ${t('social.view','View')}</div></div></div>`;
                     } else if (msgType === 'transfer') {
                         content += `<div style="background:linear-gradient(135deg,#8B6914,#F0C060);color:#FFF8F0;padding:0.5rem 0.8rem;border-radius:8px;margin-bottom:0.3rem;font-weight:600;"><i data-lucide="dollar-sign" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${msg.tokenAmount} ${msg.tokenType}</div>`;
                     }
@@ -952,8 +954,8 @@ async function openChat(chatId, otherId) {
                     if (displayText && msgType !== 'sticker' && msgType !== 'gif') {
                         // Signature warning
                         let sigWarning = '';
-                        if (msg._decryptedText && msg._decryptedText.endsWith('⚠️ 서명 검증 실패')) {
-                            sigWarning = '<div style="font-size:0.7rem;color:#C4841D;margin-top:0.2rem;">⚠️ 서명 검증 실패</div>';
+                        if (msg._decryptedText && (msg._decryptedText.endsWith('⚠️ 서명 검증 실패') || msg._decryptedText.endsWith('Signature verification failed'))) {
+                            sigWarning = `<div style="font-size:0.7rem;color:#C4841D;margin-top:0.2rem;">⚠️ ${t('social.sig_verify_fail','Signature verification failed')}</div>`;
                         }
                         // Link preview
                         if (typeof parseLinkPreviews === 'function') {
@@ -1044,7 +1046,9 @@ function closeChatMobile() {
     if (bottomTab) bottomTab.style.display = '';
     const menuToggle = document.querySelector('.menu-toggle');
     if (menuToggle) menuToggle.style.display = '';
-    
+    const topBar2 = document.getElementById('crowny-top-bar');
+    if (topBar2) topBar2.style.display = '';
+
     if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
     if (chatDocUnsubscribe) { chatDocUnsubscribe(); chatDocUnsubscribe = null; }
     currentChat = null;
@@ -1070,7 +1074,7 @@ function setTyping(val) {
     if (!currentChat) return;
     db.collection('chats').doc(currentChat).update({
         [`typing.${currentUser.uid}`]: val
-    }).catch(() => {});
+    }).catch(e => console.warn(e.message));
 }
 
 // ===== Message input: Enter to send, Shift+Enter for newline =====
@@ -1100,7 +1104,7 @@ function setReplyTo(msgId, text, senderId, senderName) {
     replyToMessage = { messageId: msgId, text: (text || '').substring(0, 100), senderId, senderName };
     document.getElementById('reply-preview-bar').style.display = 'flex';
     document.getElementById('reply-preview-name').textContent = senderName;
-    document.getElementById('reply-preview-text').textContent = text || '미디어';
+    document.getElementById('reply-preview-text').textContent = text || t('social.media','Media');
     document.getElementById('message-input').focus();
 }
 
@@ -1166,7 +1170,7 @@ async function sendMessage() {
                     msgData.iv = encrypted.iv;
                     msgData.encrypted = true;
                     msgData.signature = encrypted.signature;
-                    msgData.text = '<i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>암호화된 메시지';
+                    msgData.text = '<i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>' + t('social.encrypted_msg','Encrypted message');
                 }
             }
             // Auto-delete
@@ -1201,8 +1205,8 @@ async function sendMessage() {
         input.value = '';
         input.style.height = 'auto';
     } catch (e) {
-        console.error('[sendMessage] 전송 실패:', e);
-        showToast('메시지 전송 실패: ' + e.message, 'error');
+        console.error('[sendMessage] send failed:', e);
+        showToast(t('social.msg_send_fail','Message send failed') + ': ' + e.message, 'error');
     }
 }
 
@@ -1213,13 +1217,13 @@ function showAttachMenu() {
     menu.className = 'attach-menu-popup';
     menu.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--bg-card,#3D2B1F);border:1px solid var(--border,#E8E0D8);border-radius:12px;padding:0.5rem;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:9999;display:flex;gap:0.3rem;';
     const items = [
-        { icon: '<i data-lucide="camera" style="width:20px;height:20px;"></i>', label: '사진', fn: () => sendMediaFile('image') },
-        { icon: '<i data-lucide="video" style="width:20px;height:20px;"></i>', label: '영상', fn: () => sendMediaFile('video') },
-        { icon: '<i data-lucide="file" style="width:20px;height:20px;"></i>', label: '파일', fn: () => sendMediaFile('file') },
-        { icon: '<i data-lucide="mic" style="width:20px;height:20px;"></i>', label: '음성', fn: () => startVoiceRecord(), mobile: true },
-        { icon: '<i data-lucide="dollar-sign" style="width:20px;height:20px;"></i>', label: '토큰', fn: () => sendTokenWithMessage(), mobile: true },
-        { icon: '<i data-lucide="smile" style="width:20px;height:20px;"></i>', label: '스티커', fn: () => showStickerGifPanel(), mobile: true },
-        { icon: '<i data-lucide="smile-plus" style="width:20px;height:20px;"></i>', label: '이모티콘', fn: () => showEmojiInsertPicker(), mobile: true },
+        { icon: '<i data-lucide="camera" style="width:20px;height:20px;"></i>', label: t('social.photo','Photo'), fn: () => sendMediaFile('image') },
+        { icon: '<i data-lucide="video" style="width:20px;height:20px;"></i>', label: t('social.video','Video'), fn: () => sendMediaFile('video') },
+        { icon: '<i data-lucide="file" style="width:20px;height:20px;"></i>', label: t('social.file','File'), fn: () => sendMediaFile('file') },
+        { icon: '<i data-lucide="mic" style="width:20px;height:20px;"></i>', label: t('social.voice','Voice'), fn: () => startVoiceRecord(), mobile: true },
+        { icon: '<i data-lucide="dollar-sign" style="width:20px;height:20px;"></i>', label: t('social.token','Token'), fn: () => sendTokenWithMessage(), mobile: true },
+        { icon: '<i data-lucide="smile" style="width:20px;height:20px;"></i>', label: t('social.sticker','Sticker'), fn: () => showStickerGifPanel(), mobile: true },
+        { icon: '<i data-lucide="smile-plus" style="width:20px;height:20px;"></i>', label: t('social.emoji','Emoji'), fn: () => showEmojiInsertPicker(), mobile: true },
     ];
     items.forEach(item => {
         const btn = document.createElement('button');
@@ -1249,15 +1253,15 @@ async function sendMediaFile(mediaType) {
         if (!input.files[0]) return;
         const file = input.files[0];
         try {
-            showLoading(`${mediaType === 'image' ? '<i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>' : mediaType === 'video' ? '<i data-lucide="video" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>' : '<i data-lucide="file" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>'} 전송 중...`);
+            showLoading(`${mediaType === 'image' ? '<i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>' : mediaType === 'video' ? '<i data-lucide="video" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>' : '<i data-lucide="file" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>'} ${t('social.sending','Sending...')}`);
 
             if (mediaType === 'image') {
                 // Firebase Storage로 업로드 (base64 대신 성능 개선)
                 const url = await uploadToStorage(`media/${currentChat}/${Date.now()}_${file.name}`, file);
-                await sendMediaMessage({ type: 'image', mediaUrl: url, text: '' }, '<i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> 사진');
+                await sendMediaMessage({ type: 'image', mediaUrl: url, text: '' }, '<i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ' + t('social.photo','Photo'));
             } else if (mediaType === 'video') {
                 const url = await uploadToStorage(`media/${currentChat}/${Date.now()}_${file.name}`, file);
-                await sendMediaMessage({ type: 'video', mediaUrl: url, text: '', fileName: file.name, fileSize: file.size }, '<i data-lucide="video" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> 영상');
+                await sendMediaMessage({ type: 'video', mediaUrl: url, text: '', fileName: file.name, fileSize: file.size }, '<i data-lucide="video" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ' + t('social.video','Video'));
             } else {
                 const url = await uploadToStorage(`files/${currentChat}/${Date.now()}_${file.name}`, file);
                 await sendMediaMessage({ type: 'file', mediaUrl: url, text: '', fileName: file.name, fileSize: file.size }, `<i data-lucide="file" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ${file.name}`);
@@ -1265,7 +1269,7 @@ async function sendMediaFile(mediaType) {
             hideLoading();
         } catch (e) {
             hideLoading();
-            showToast('전송 실패: ' + e.message, 'error');
+            showToast(t('social.send_failed','Send failed') + ': ' + e.message, 'error');
         }
     };
     input.click();
@@ -1276,7 +1280,7 @@ async function uploadToStorage(path, file) {
     const task = ref.put(file);
     return new Promise((resolve, reject) => {
         task.on('state_changed',
-            (snap) => { const p = Math.round((snap.bytesTransferred / snap.totalBytes) * 100); showLoading(`📤 업로드 ${p}%`); },
+            (snap) => { const p = Math.round((snap.bytesTransferred / snap.totalBytes) * 100); showLoading(`📤 ${t('social.upload','Upload')} ${p}%`); },
             reject,
             async () => { resolve(await task.snapshot.ref.getDownloadURL()); }
         );
@@ -1318,11 +1322,11 @@ function startVoiceRecord() {
             const blob = new Blob(voiceChunks, { type: 'audio/webm' });
             const duration = Math.round((Date.now() - voiceRecordStart) / 1000);
             try {
-                showLoading('🎤 음성 전송 중...');
+                showLoading(`🎤 ${t('social.voice_sending','Sending voice...')}`);
                 const url = await uploadToStorage(`voice/${currentChat}/${Date.now()}.webm`, blob);
-                await sendMediaMessage({ type: 'voice', mediaUrl: url, duration, text: '' }, `🎤 음성 ${duration}초`);
+                await sendMediaMessage({ type: 'voice', mediaUrl: url, duration, text: '' }, `🎤 ${t('social.voice','Voice')} ${duration}s`);
                 hideLoading();
-            } catch (e) { hideLoading(); showToast('음성 전송 실패', 'error'); }
+            } catch (e) { hideLoading(); showToast(t('social.voice_send_fail','Voice send failed'), 'error'); }
         };
         voiceRecorder.start();
         voiceRecordStart = Date.now();
@@ -1332,7 +1336,7 @@ function startVoiceRecord() {
             const s = Math.floor((Date.now() - voiceRecordStart) / 1000);
             document.getElementById('voice-rec-timer').textContent = `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
         }, 200);
-    }).catch(() => showToast('마이크 접근 실패', 'error'));
+    }).catch(() => showToast(t('social.mic_access_fail','Microphone access failed'), 'error'));
 }
 
 function stopVoiceRecord() {
@@ -1380,9 +1384,9 @@ async function forwardMessage(msgId) {
         listHTML += `<div style="padding:0.6rem;border-bottom:1px solid var(--border,#E8E0D8);cursor:pointer;" onmouseover="this.style.background='#F7F3ED'" onmouseout="this.style.background=''" onclick="executeForward('${doc.id}',${JSON.stringify(JSON.stringify(msg.text||''))},${JSON.stringify(JSON.stringify(msg.senderId||''))});this.closest('[style*=position]').remove();">${name}</div>`;
     }
     overlay.innerHTML = `<div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:400px;width:100%;max-height:60vh;overflow-y:auto;">
-        <h3 style="margin-bottom:1rem;">↗️ 전달할 채팅방 선택</h3>
-        ${listHTML || '<p style="color:var(--text-muted,#6B5744);text-align:center;">전달 가능한 채팅방이 없습니다</p>'}
-        <button onclick="this.closest('[style*=position]').remove()" style="width:100%;margin-top:1rem;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">취소</button>
+        <h3 style="margin-bottom:1rem;">↗️ ${t('social.select_forward_chat','Select chat to forward')}</h3>
+        ${listHTML || `<p style="color:var(--text-muted,#6B5744);text-align:center;">${t('social.no_forward_chats','No chats available for forwarding')}</p>`}
+        <button onclick="this.closest('[style*=position]').remove()" style="width:100%;margin-top:1rem;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('common.cancel','Cancel')}</button>
     </div>`;
     document.body.appendChild(overlay);
 }
@@ -1395,10 +1399,10 @@ async function executeForward(targetChatId, text, originalSenderId) {
             timestamp: new Date(), readBy: [currentUser.uid]
         });
         await db.collection('chats').doc(targetChatId).update({
-            lastMessage: '↗️ 전달된 메시지', lastMessageTime: new Date()
+            lastMessage: '↗️ ' + t('social.forwarded_msg','Forwarded message'), lastMessageTime: new Date()
         });
-        showToast('✅ 메시지 전달 완료', 'success');
-    } catch (e) { showToast('전달 실패', 'error'); }
+        showToast('✅ ' + t('social.forward_done','Message forwarded'), 'success');
+    } catch (e) { showToast(t('social.forward_fail','Forward failed'), 'error'); }
 }
 
 // ===== Pin message =====
@@ -1408,8 +1412,8 @@ async function pinMessage(msgId, text) {
         await db.collection('chats').doc(currentChat).update({
             pinnedMessage: { messageId: msgId, text: (text || '').substring(0, 100), pinnedAt: new Date() }
         });
-        showToast('📌 메시지 고정 완료', 'success');
-    } catch (e) { showToast('고정 실패', 'error'); }
+        showToast('📌 ' + t('social.pin_done','Message pinned'), 'success');
+    } catch (e) { showToast(t('social.pin_fail','Pin failed'), 'error'); }
 }
 
 async function unpinMessage() {
@@ -1437,7 +1441,7 @@ function showStickerGifPanel() {
     panel.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);width:340px;max-width:90vw;background:var(--bg-card,#3D2B1F);border:1px solid var(--border,#E8E0D8);border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:9999;overflow:hidden;';
     panel.innerHTML = `
         <div style="display:flex;border-bottom:1px solid var(--border,#E8E0D8);">
-            <button onclick="showStickerTab()" class="sticker-tab-btn active" style="flex:1;padding:0.6rem;border:none;background:var(--bg-card,#3D2B1F);cursor:pointer;font-weight:600;border-bottom:2px solid #3D2B1F;">😊 스티커</button>
+            <button onclick="showStickerTab()" class="sticker-tab-btn active" style="flex:1;padding:0.6rem;border:none;background:var(--bg-card,#3D2B1F);cursor:pointer;font-weight:600;border-bottom:2px solid #3D2B1F;">😊 ${t('social.sticker','Sticker')}</button>
             <button onclick="showGifTab()" class="sticker-tab-btn" style="flex:1;padding:0.6rem;border:none;background:var(--bg-card,#3D2B1F);cursor:pointer;font-weight:600;border-bottom:2px solid transparent;">GIF</button>
         </div>
         <div id="sticker-gif-content" style="height:250px;overflow-y:auto;padding:0.5rem;"></div>
@@ -1468,8 +1472,8 @@ function showGifTab() {
     const content = document.getElementById('sticker-gif-content');
     content.innerHTML = `
         <div style="display:flex;gap:0.3rem;margin-bottom:0.5rem;">
-            <input type="text" id="gif-search-input" placeholder="GIF 검색..." style="flex:1;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.85rem;" onkeypress="if(event.key==='Enter')searchGifs()">
-            <button onclick="searchGifs()" style="padding:0.5rem 0.8rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;">검색</button>
+            <input type="text" id="gif-search-input" placeholder="${t('social.gif_search','Search GIF...')}" style="flex:1;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.85rem;" onkeypress="if(event.key==='Enter')searchGifs()">
+            <button onclick="searchGifs()" style="padding:0.5rem 0.8rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;">${t('common.search','Search')}</button>
         </div>
         <div id="gif-results" style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.3rem;"></div>
     `;
@@ -1478,20 +1482,20 @@ function showGifTab() {
 
 async function loadTrendingGifs() {
     try {
-        const res = await fetch('https://api.giphy.com/v1/gifs/trending?api_key=dc6zaTOxFJmzC&limit=20&rating=g');
+        const res = await fetch('/api/ai/giphy?limit=20');
         const data = await res.json();
         renderGifs(data.data);
-    } catch (e) { document.getElementById('gif-results').innerHTML = '<p style="color:var(--text-muted,#6B5744);text-align:center;grid-column:1/-1;">GIF 로드 실패</p>'; }
+    } catch (e) { document.getElementById('gif-results').innerHTML = `<p style="color:var(--text-muted,#6B5744);text-align:center;grid-column:1/-1;">${t('social.gif_load_fail','GIF load failed')}</p>`; }
 }
 
 async function searchGifs() {
     const q = document.getElementById('gif-search-input').value.trim();
     if (!q) { loadTrendingGifs(); return; }
     try {
-        const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${encodeURIComponent(q)}&limit=20&rating=g`);
+        const res = await fetch(`/api/ai/giphy?q=${encodeURIComponent(q)}&limit=20`);
         const data = await res.json();
         renderGifs(data.data);
-    } catch (e) { document.getElementById('gif-results').innerHTML = '<p style="color:var(--text-muted,#6B5744);text-align:center;grid-column:1/-1;">검색 실패</p>'; }
+    } catch (e) { document.getElementById('gif-results').innerHTML = `<p style="color:var(--text-muted,#6B5744);text-align:center;grid-column:1/-1;">${t('social.search_fail','Search failed')}</p>`; }
 }
 
 function renderGifs(gifs) {
@@ -1517,20 +1521,20 @@ async function sendGifMessage(gifUrl) {
 
 // ===== Share item from services =====
 async function showShareItemModal() {
-    if (!currentChat) { showToast('채팅을 선택하세요', 'warning'); return; }
+    if (!currentChat) { showToast(t('social.select_chat','Please select a chat'), 'warning'); return; }
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.6);z-index:99997;display:flex;align-items:center;justify-content:center;padding:1rem;';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
     <div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:420px;width:100%;">
-        <h3 style="margin-bottom:1rem;">🔗 공유하기</h3>
+        <h3 style="margin-bottom:1rem;">🔗 ${t('common.share','Share')}</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('product')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">🛒 상품</button>
-            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('artist')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">💖 아티스트</button>
-            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('campaign')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="heart" style="width:14px;height:14px;display:inline;"></i> 캠페인</button>
-            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('art')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">🎨 작품</button>
+            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('product')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">🛒 ${t('social.product','Product')}</button>
+            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('artist')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">💖 ${t('social.artist','Artist')}</button>
+            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('campaign')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="heart" style="width:14px;height:14px;display:inline;"></i> ${t('social.campaign','Campaign')}</button>
+            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('art')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">🎨 ${t('social.artwork','Artwork')}</button>
         </div>
-        <button onclick="this.closest('[style*=position]').remove()" style="width:100%;margin-top:1rem;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">취소</button>
+        <button onclick="this.closest('[style*=position]').remove()" style="width:100%;margin-top:1rem;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('common.cancel','Cancel')}</button>
     </div>`;
     document.body.appendChild(overlay);
 }
@@ -1541,7 +1545,7 @@ async function shareServiceItem(type) {
     if (!cfg) return;
     try {
         const snap = await db.collection(cfg.col).limit(20).get();
-        if (snap.empty) { showToast('항목이 없습니다', 'info'); return; }
+        if (snap.empty) { showToast(t('social.no_items','No items available'), 'info'); return; }
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.6);z-index:99997;display:flex;align-items:center;justify-content:center;padding:1rem;';
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
@@ -1557,11 +1561,11 @@ async function shareServiceItem(type) {
             </div>`;
         });
         overlay.innerHTML = `<div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:420px;width:100%;max-height:60vh;overflow-y:auto;">
-            <h3 style="margin-bottom:1rem;">선택하세요</h3>${listHTML}
-            <button onclick="this.closest('[style*=position]').remove()" style="width:100%;margin-top:1rem;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">취소</button>
+            <h3 style="margin-bottom:1rem;">${t('social.select_item','Select an item')}</h3>${listHTML}
+            <button onclick="this.closest('[style*=position]').remove()" style="width:100%;margin-top:1rem;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('common.cancel','Cancel')}</button>
         </div>`;
         document.body.appendChild(overlay);
-    } catch (e) { showToast('로드 실패', 'error'); }
+    } catch (e) { showToast(t('common.load_failed','Load failed'), 'error'); }
 }
 
 async function sendShareCard(type, id, name, imageUrl, price) {
@@ -1585,10 +1589,10 @@ async function sendTokenWithMessage() {
     if (!userWallet || !currentWalletId) { showToast(t('social.connect_wallet','Please connect your wallet first'), 'warning'); return; }
 
     const tokenChoice = await showPromptModal(t('social.select_token','Select Token'),
-        '온체인:\n1. CRNY (' + (userWallet.balances?.crny || 0).toFixed(2) + ')\n' +
+        t('social.onchain','On-chain') + ':\n1. CRNY (' + (userWallet.balances?.crny || 0).toFixed(2) + ')\n' +
         '2. FNC (' + (userWallet.balances?.fnc || 0).toFixed(2) + ')\n' +
         '3. CRFN (' + (userWallet.balances?.crfn || 0).toFixed(2) + ')\n\n' +
-        '오프체인:\n4. CRTD (' + (userWallet.offchainBalances?.crtd || 0) + ' pt)\n' +
+        t('social.offchain','Off-chain') + ':\n4. CRTD (' + (userWallet.offchainBalances?.crtd || 0) + ' pt)\n' +
         '5. CRAC (' + (userWallet.offchainBalances?.crac || 0) + ' pt)\n' +
         '6. CRGC (' + (userWallet.offchainBalances?.crgc || 0) + ' pt)\n' +
         '7. CREB (' + (userWallet.offchainBalances?.creb || 0) + ' pt)', '1');
@@ -1631,7 +1635,7 @@ async function sendTokenWithMessage() {
             senderId: currentUser.uid, text: message, tokenAmount: amountNum, tokenType: tokenName, timestamp: new Date(), readBy: [currentUser.uid]
         });
         await db.collection('chats').doc(currentChat).update({
-            lastMessage: `💰 ${amountNum} ${tokenName} 전송`,
+            lastMessage: `💰 ${amountNum} ${tokenName} ${t('social.transfer','transfer')}`,
             lastMessageTime: new Date(),
             [`unreadCount.${currentChatOtherId}`]: firebase.firestore.FieldValue.increment(1)
         });
@@ -1802,7 +1806,7 @@ function showChatMenu() {
     menu.style.top = '48px';
     menu.style.right = '8px';
     menu.innerHTML = `
-        ${currentChat ? `<button class="chat-menu-item" onclick="E2ECrypto.showChatSecuritySettings('${currentChat}');this.closest('.chat-menu-dropdown').remove();"><i data-lucide="shield" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;"></i> 보안 설정</button>` : ''}
+        ${currentChat ? `<button class="chat-menu-item" onclick="E2ECrypto.showChatSecuritySettings('${currentChat}');this.closest('.chat-menu-dropdown').remove();"><i data-lucide="shield" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;"></i> ${t('social.security_settings','Security Settings')}</button>` : ''}
         <button class="chat-menu-item danger" onclick="leaveChat()"><i data-lucide="log-out" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;"></i> ${t('social.leave_chat','Leave Chat')}</button>`;
     if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);
     header.style.position = 'relative';
@@ -1829,7 +1833,7 @@ async function leaveChat() {
         document.getElementById('chat-messages').innerHTML = '';
         document.getElementById('chat-header-actions').style.display = 'none';
         document.getElementById('chat-input-area').style.display = 'none';
-        document.getElementById('chat-username').innerHTML = `<div class="chat-empty-state"><div style="font-size:3rem;margin-bottom:1rem;">💬</div><p>채팅을 선택하세요</p></div>`;
+        document.getElementById('chat-username').innerHTML = `<div class="chat-empty-state"><div style="font-size:3rem;margin-bottom:1rem;">💬</div><p>${t('social.select_chat','Please select a chat')}</p></div>`;
         showToast(t('social.left_chat','You left the chat'), 'info');
         loadMessages();
     } catch (e) {
@@ -1874,7 +1878,7 @@ async function loadSocialFeed() {
             if (currentFilter === 'shorts' && !post.videoUrl) continue;
 
             const userInfo = await getUserDisplayInfo(post.userId);
-            const timeAgo = post.timestamp ? getTimeAgo(post.timestamp.toDate()) : '방금';
+            const timeAgo = post.timestamp ? getTimeAgo(post.timestamp.toDate()) : t('social.just_now','Just now');
             const likedByMe = post.likedBy && post.likedBy.includes(currentUser.uid);
             const likeCount = post.likes || 0;
             const commentCount = post.commentCount || 0;
@@ -1893,7 +1897,7 @@ async function loadSocialFeed() {
                 const textPos = post.videoTextPosition || 'bottom';
                 const posCSS = textPos === 'top' ? 'top:10%' : textPos === 'center' ? 'top:45%' : 'bottom:10%';
                 mediaHTML = `<div class="post-media-wrap" style="position:relative;cursor:pointer;" onclick="openShortsViewer('${doc.id}')">
-                    <video src="${post.videoUrl}" style="width:100%;display:block;max-height:500px;object-fit:contain;${filterStyle}" muted playsinline preload="metadata" onmouseenter="this.play().catch(()=>{})" onmouseleave="this.pause();this.currentTime=0;"></video>
+                    <video src="${post.videoUrl}" style="width:100%;display:block;max-height:500px;object-fit:contain;${filterStyle}" muted playsinline preload="metadata" onmouseenter="this.play().catch(e=>console.warn(e.message))" onmouseleave="this.pause();this.currentTime=0;"></video>
                     ${textOverlay ? `<div style="position:absolute;left:0;right:0;text-align:center;${posCSS};font-size:1.1rem;font-weight:700;color:${textColor};text-shadow:0 2px 4px rgba(61,43,31,0.8);pointer-events:none;">${textOverlay}</div>` : ''}
                     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.4);border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;pointer-events:none;"><span style="color:#FFF8F0;font-size:1.5rem;margin-left:4px;">▶</span></div>
                 </div>`;
@@ -1923,9 +1927,9 @@ async function loadSocialFeed() {
                     <div onclick="showUserProfile('${post.userId}')" style="cursor:pointer;">${avatarHTML(userInfo.photoURL, userInfo.nickname, 36)}</div>
                     <div style="flex:1;min-width:0;">
                         <strong onclick="showUserProfile('${post.userId}')" style="cursor:pointer;font-size:0.9rem;">${userInfo.nickname}${typeof AI_SOCIAL !== 'undefined' && AI_SOCIAL.isBotUser(post.userId) ? AI_SOCIAL.getBotBadge(post.userId) : ''}</strong>
-                        ${post.location ? `<span style="font-size:0.75rem;color:var(--dark-muted,#6B5744);display:block;">${post.location}</span>` : ''}
+                        ${post.location ? `<span style="font-size:0.75rem;color:var(--text-muted,#6B5744);display:block;">${post.location}</span>` : ''}
                     </div>
-                    <button onclick="showPostMenu('${doc.id}',${isMyPost})" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--dark-muted,#6B5744);padding:4px;">⋯</button>
+                    <button onclick="showPostMenu('${doc.id}',${isMyPost})" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--text-muted,#6B5744);padding:4px;">⋯</button>
                 </div>
                 ${mediaHTML}
                 <div class="post-actions-bar" style="display:flex;align-items:center;gap:16px;padding:8px 14px;">
@@ -1936,14 +1940,14 @@ async function loadSocialFeed() {
                     <button onclick="toggleSavePost('${doc.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:0;">🔖</button>
                 </div>
                 ${likeCount > 0 ? `<div style="padding:0 14px;font-weight:700;font-size:0.85rem;margin-bottom:4px;cursor:pointer;" onclick="showLikedUsers('${doc.id}')">${t('social.likes','Likes')} ${likeCount}${t('social.count','')}</div>` : ''}
-                ${captionText ? `<div style="padding:0 14px 4px;font-size:0.9rem;line-height:1.5;"><strong style="margin-right:4px;">${userInfo.nickname}</strong>${captionDisplay}${captionTruncated ? ' <span style="color:var(--dark-muted,#6B5744);cursor:pointer;" onclick="this.parentElement.textContent=\'\'" >더 보기</span>' : ''}</div>` : ''}
+                ${captionText ? `<div style="padding:0 14px 4px;font-size:0.9rem;line-height:1.5;"><strong style="margin-right:4px;">${userInfo.nickname}</strong>${captionDisplay}${captionTruncated ? ` <span style="color:var(--text-muted,#6B5744);cursor:pointer;" onclick="this.parentElement.textContent=\'\'" >${t('common.more','More')}</span>` : ''}</div>` : ''}
                 ${serviceLinkHTML}
-                ${commentCount > 0 ? `<div onclick="toggleComments('${doc.id}')" style="padding:0 14px;color:var(--dark-muted,#6B5744);font-size:0.85rem;cursor:pointer;margin-bottom:4px;">댓글 ${commentCount}개 모두 보기</div>` : ''}
-                <div style="padding:0 14px 12px;font-size:0.7rem;color:var(--dark-muted,#6B5744);text-transform:uppercase;">${timeAgo}</div>
-                <div id="comments-${doc.id}" style="display:none;border-top:1px solid var(--dark-border,#2a2a4a);padding:8px 14px;">
+                ${commentCount > 0 ? `<div onclick="toggleComments('${doc.id}')" style="padding:0 14px;color:var(--text-muted,#6B5744);font-size:0.85rem;cursor:pointer;margin-bottom:4px;">${t('social.view_all_comments','View all')} ${commentCount} ${t('social.comment','comments')}</div>` : ''}
+                <div style="padding:0 14px 12px;font-size:0.7rem;color:var(--text-muted,#6B5744);text-transform:uppercase;">${timeAgo}</div>
+                <div id="comments-${doc.id}" style="display:none;border-top:1px solid var(--border,#E8E0D8);padding:8px 14px;">
                     <div id="comment-list-${doc.id}"></div>
                     <div style="display:flex;gap:0.5rem;margin-top:6px;align-items:center;">
-                        <input type="text" id="comment-input-${doc.id}" placeholder="${t('social.add_comment','Add a comment...')}" style="flex:1;padding:8px;border:none;border-bottom:1px solid var(--dark-border,#2a2a4a);font-size:0.85rem;outline:none;background:transparent;" onkeypress="if(event.key==='Enter')addComment('${doc.id}')">
+                        <input type="text" id="comment-input-${doc.id}" placeholder="${t('social.add_comment','Add a comment...')}" style="flex:1;padding:8px;border:none;border-bottom:1px solid var(--border,#E8E0D8);font-size:0.85rem;outline:none;background:transparent;" onkeypress="if(event.key==='Enter')addComment('${doc.id}')">
                         <button onclick="addComment('${doc.id}')" style="background:none;border:none;color:#0095f6;font-weight:700;cursor:pointer;font-size:0.85rem;">${t('social.post','Post')}</button>
                     </div>
                 </div>`;
@@ -1955,8 +1959,8 @@ async function loadSocialFeed() {
         if (isPermission) {
             feed.innerHTML = `<div style="text-align:center; padding:3rem;">
                 <p style="font-size:2.5rem; margin-bottom:1rem;">📝</p>
-                <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;margin-bottom:8px;">소셜 피드 준비 중</p>
-                <p style="font-size:0.85rem;color:#7A5C47;line-height:1.6;">CrownyTVM 독립 소셜 기능이 곧 추가됩니다.<br>게시물을 작성하려면 위 입력란을 이용하세요.</p>
+                <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;margin-bottom:8px;">${t('social.feed_preparing','Social feed loading')}</p>
+                <p style="font-size:0.85rem;color:#7A5C47;line-height:1.6;">${t('social.feed_preparing_desc','The social feed will be available soon.<br>Use the input field above to write a post.')}</p>
             </div>`;
         } else {
             feed.innerHTML = `<div style="text-align:center; padding:3rem;">
@@ -1982,7 +1986,7 @@ async function toggleLike(postId, isLiked) {
         // Social notification
         if (data.userId !== currentUser.uid && typeof createSocialNotification === 'function') {
             const myInfo = await getUserDisplayInfo(currentUser.uid);
-            createSocialNotification(data.userId, 'like', `${myInfo.nickname}님이 게시물을 좋아합니다`, { targetId: postId });
+            createSocialNotification(data.userId, 'like', `${myInfo.nickname} ${t('social.notif_liked','liked your post')}`, { targetId: postId });
         }
     }
     await postRef.update({ likedBy, likes });
@@ -2034,7 +2038,7 @@ async function addComment(postId) {
     // Social notification
     if (postData.userId !== currentUser.uid && typeof createSocialNotification === 'function') {
         const myInfo = await getUserDisplayInfo(currentUser.uid);
-        createSocialNotification(postData.userId, 'comment', `${myInfo.nickname}님이 댓글을 남겼습니다`, { targetId: postId });
+        createSocialNotification(postData.userId, 'comment', `${myInfo.nickname} ${t('social.notif_commented','commented on your post')}`, { targetId: postId });
     }
     // Check mentions
     const mentions = extractMentions ? extractMentions(text) : [];
@@ -2043,9 +2047,9 @@ async function addComment(postId) {
             const users = await db.collection('users').where('nickname', '==', mention).limit(1).get();
             if (!users.empty && users.docs[0].id !== currentUser.uid) {
                 const myInfo = await getUserDisplayInfo(currentUser.uid);
-                createSocialNotification(users.docs[0].id, 'mention', `${myInfo.nickname}님이 회원님을 언급했습니다`, { targetId: postId });
+                createSocialNotification(users.docs[0].id, 'mention', `${myInfo.nickname} ${t('social.notif_mentioned','mentioned you')}`, { targetId: postId });
             }
-        } catch (e) {}
+        } catch (e) { console.warn(e.message); }
     }
     input.value = '';
     await (typeof loadCommentsWithReplies === 'function' ? loadCommentsWithReplies(postId) : loadComments(postId));
@@ -2055,34 +2059,34 @@ async function addComment(postId) {
 async function editPost(postId) {
     try {
         const doc = await db.collection('posts').doc(postId).get();
-        if (!doc.exists) { showToast('게시물을 찾을 수 없습니다', 'error'); return; }
+        if (!doc.exists) { showToast(t('social.post_not_found','Post not found'), 'error'); return; }
         const data = doc.data();
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay active';
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
         overlay.innerHTML = `<div class="modal-content" style="max-width:500px;width:90%;padding:1.5rem;">
-            <h3 style="margin-bottom:1rem;">✏️ 게시물 수정</h3>
+            <h3 style="margin-bottom:1rem;">✏️ ${t('social.edit_post','Edit Post')}</h3>
             <textarea id="edit-post-text" style="width:100%;min-height:120px;padding:0.8rem;border:1px solid var(--border,#E8E0D8);border-radius:10px;font-size:0.95rem;resize:vertical;background:var(--card-bg,#3D2B1F);color:var(--text,#FFF8F0);box-sizing:border-box;">${data.text || ''}</textarea>
             <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
-                <button onclick="this.closest('.modal-overlay').remove();" style="padding:0.6rem 1.2rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;background:none;color:var(--text,#3D2B1F);cursor:pointer;">취소</button>
-                <button onclick="saveEditPost('${postId}');" style="padding:0.6rem 1.2rem;border:none;border-radius:8px;background:#8B6914;color:#3D2B1F;font-weight:600;cursor:pointer;">저장</button>
+                <button onclick="this.closest('.modal-overlay').remove();" style="padding:0.6rem 1.2rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;background:none;color:var(--text,#3D2B1F);cursor:pointer;">${t('common.cancel','Cancel')}</button>
+                <button onclick="saveEditPost('${postId}');" style="padding:0.6rem 1.2rem;border:none;border-radius:8px;background:#8B6914;color:#3D2B1F;font-weight:600;cursor:pointer;">${t('common.save','Save')}</button>
             </div>
         </div>`;
         document.body.appendChild(overlay);
-    } catch (e) { showToast('수정 실패: ' + e.message, 'error'); }
+    } catch (e) { showToast(t('social.edit_fail','Edit failed') + ': ' + e.message, 'error'); }
 }
 
 async function saveEditPost(postId) {
     const textarea = document.getElementById('edit-post-text');
     if (!textarea) return;
     const newText = textarea.value.trim();
-    if (!newText) { showToast('내용을 입력해주세요', 'warning'); return; }
+    if (!newText) { showToast(t('social.enter_content','Please enter content'), 'warning'); return; }
     try {
         await db.collection('posts').doc(postId).update({ text: newText, editedAt: firebase.firestore.FieldValue.serverTimestamp() });
-        showToast('게시물이 수정되었습니다 ✅', 'success');
+        showToast(t('social.post_edited','Post edited') + ' ✅', 'success');
         document.querySelector('.modal-overlay')?.remove();
         loadSocialFeed();
-    } catch (e) { showToast('수정 실패: ' + e.message, 'error'); }
+    } catch (e) { showToast(t('social.edit_fail','Edit failed') + ': ' + e.message, 'error'); }
 }
 
 async function deletePost(postId) {
@@ -2109,12 +2113,12 @@ let _pendingServiceLink = null;
 
 // ========== SERVICE LINK CONFIG ==========
 const SERVICE_LINK_CONFIG = {
-    artist:   { action: '💖 후원하기', color: '#B54534', collection: 'artists', nameField: 'name', nav: (id) => { showPage('artist'); viewArtistDetail(id); } },
-    campaign: { action: '<i data-lucide="heart" style="width:14px;height:14px;display:inline;"></i> 모금하기', color: '#6B8F3C', collection: 'campaigns', nameField: 'title', nav: (id) => { showPage('fundraise'); showCampaignDetail(id); } },
-    business: { action: '<i data-lucide="coins" style="width:14px;height:14px;display:inline;"></i> 투자하기', color: '#3D2B1F', collection: 'businesses', nameField: 'name', nav: (id) => { showPage('business'); viewBusinessDetail(id); } },
-    art:      { action: '🎨 작품 구매', color: '#8B6914', collection: 'artworks', nameField: 'title', nav: (id) => showPage('art') },
-    book:     { action: '📚 책 구매', color: '#FF9800', collection: 'books', nameField: 'title', nav: (id) => showPage('books') },
-    product:  { action: '🛒 상품 구매', color: '#5B7B8C', collection: 'products', nameField: 'name', nav: (id) => { showPage('product-detail'); renderProductDetail(id); } }
+    artist:   { action: '💖 ' + t('social.support_artist','Support'), color: '#B54534', collection: 'artists', nameField: 'name', nav: (id) => { showPage('artist'); viewArtistDetail(id); } },
+    campaign: { action: '<i data-lucide="heart" style="width:14px;height:14px;display:inline;"></i> ' + t('social.donate','Donate'), color: '#6B8F3C', collection: 'campaigns', nameField: 'title', nav: (id) => { showPage('fundraise'); showCampaignDetail(id); } },
+    business: { action: '<i data-lucide="coins" style="width:14px;height:14px;display:inline;"></i> ' + t('social.invest','Invest'), color: '#3D2B1F', collection: 'businesses', nameField: 'name', nav: (id) => { showPage('business'); viewBusinessDetail(id); } },
+    art:      { action: '🎨 ' + t('social.buy_artwork','Buy Artwork'), color: '#8B6914', collection: 'artworks', nameField: 'title', nav: (id) => showPage('art') },
+    book:     { action: '📚 ' + t('social.buy_book','Buy Book'), color: '#FF9800', collection: 'books', nameField: 'title', nav: (id) => showPage('books') },
+    product:  { action: '🛒 ' + t('social.buy_product','Buy Product'), color: '#5B7B8C', collection: 'products', nameField: 'name', nav: (id) => { showPage('product-detail'); renderProductDetail(id); } }
 };
 
 // ========== SERVICE LINK MODAL ==========
@@ -2125,8 +2129,8 @@ async function showServiceLinkModal() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
     <div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:480px;width:100%;max-height:80vh;overflow-y:auto;">
-        <h3 style="margin-bottom:1rem;">🔗 서비스 연결</h3>
-        <p style="font-size:0.85rem;color:var(--text-muted,#6B5744);margin-bottom:1rem;">게시물에 연결할 서비스를 선택하세요</p>
+        <h3 style="margin-bottom:1rem;">🔗 ${t('social.service_link','Service Link')}</h3>
+        <p style="font-size:0.85rem;color:var(--text-muted,#6B5744);margin-bottom:1rem;">${t('social.select_service','Select a service to link to your post')}</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:1rem;">
             ${Object.entries(SERVICE_LINK_CONFIG).map(([type, cfg]) => `
                 <button onclick="selectServiceType('${type}')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;font-weight:600;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor='${cfg.color}';this.style.background='${cfg.color}11'" onmouseout="this.style.borderColor='#E8E0D8';this.style.background='white'">
@@ -2136,13 +2140,13 @@ async function showServiceLinkModal() {
         </div>
         <div id="service-link-search" style="display:none;">
             <div style="display:flex;gap:0.5rem;margin-bottom:0.8rem;">
-                <input type="text" id="service-link-query" placeholder="검색..." style="flex:1;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.9rem;">
-                <button onclick="searchServiceItems()" style="padding:0.6rem 1rem;border:none;border-radius:8px;background:var(--gold,#8B6914);color:#3D2B1F;cursor:pointer;">검색</button>
+                <input type="text" id="service-link-query" placeholder="${t('common.search','Search')}..." style="flex:1;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.9rem;">
+                <button onclick="searchServiceItems()" style="padding:0.6rem 1rem;border:none;border-radius:8px;background:var(--gold,#8B6914);color:#3D2B1F;cursor:pointer;">${t('common.search','Search')}</button>
             </div>
             <div id="service-link-results" style="max-height:250px;overflow-y:auto;"></div>
         </div>
         <div style="margin-top:1rem;text-align:right;">
-            <button onclick="document.getElementById('service-link-modal').remove()" style="padding:0.5rem 1rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">취소</button>
+            <button onclick="document.getElementById('service-link-modal').remove()" style="padding:0.5rem 1rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('common.cancel','Cancel')}</button>
         </div>
     </div>`;
     document.body.appendChild(overlay);
@@ -2166,7 +2170,7 @@ async function searchServiceItems() {
     const cfg = SERVICE_LINK_CONFIG[type];
     const query = document.getElementById('service-link-query').value.trim();
     const results = document.getElementById('service-link-results');
-    results.innerHTML = '<p style="text-align:center;color:var(--accent);">로딩...</p>';
+    results.innerHTML = `<p style="text-align:center;color:var(--accent);">${t('common.loading','Loading...')}</p>`;
 
     try {
         let snap;
@@ -2177,7 +2181,7 @@ async function searchServiceItems() {
         }
         results.innerHTML = '';
         if (snap.empty) {
-            results.innerHTML = '<p style="text-align:center;color:var(--text-muted,#6B5744);font-size:0.85rem;">결과 없음</p>';
+            results.innerHTML = `<p style="text-align:center;color:var(--text-muted,#6B5744);font-size:0.85rem;">${t('social.no_results','No results found')}</p>`;
             return;
         }
         snap.forEach(doc => {
@@ -2187,7 +2191,7 @@ async function searchServiceItems() {
             el.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.6rem;border-bottom:1px solid var(--border,#E8E0D8);cursor:pointer;';
             el.onmouseover = () => el.style.background = '#f9f9f9';
             el.onmouseout = () => el.style.background = 'white';
-            el.innerHTML = `<span style="font-size:0.9rem;">${name}</span><button style="padding:0.3rem 0.6rem;border:none;border-radius:6px;background:${cfg.color};color:#FFF8F0;font-size:0.8rem;cursor:pointer;">선택</button>`;
+            el.innerHTML = `<span style="font-size:0.9rem;">${name}</span><button style="padding:0.3rem 0.6rem;border:none;border-radius:6px;background:${cfg.color};color:#FFF8F0;font-size:0.8rem;cursor:pointer;">${t('social.select','Select')}</button>`;
             el.onclick = () => {
                 _pendingServiceLink = { type, id: doc.id, title: name, action: cfg.action.replace(/[^\w가-힣\s]/g, '').trim() };
                 document.getElementById('service-link-modal').remove();
@@ -2222,45 +2226,45 @@ function openVideoEditor() {
             <div id="editor-text-overlay" style="position:absolute;left:0;right:0;text-align:center;font-size:1.2rem;font-weight:700;text-shadow:0 2px 4px rgba(61,43,31,0.8);pointer-events:none;"></div>
         </div>
         <div style="background:var(--bg-card,#3D2B1F);border-radius:12px;padding:1rem;">
-            <h4 style="margin:0 0 0.8rem;">✂️ 영상 편집</h4>
+            <h4 style="margin:0 0 0.8rem;">✂️ ${t('social.video_edit','Video Edit')}</h4>
             <!-- Trim -->
             <div style="margin-bottom:0.8rem;">
-                <label style="font-size:0.8rem;color:var(--text-muted,#6B5744);">트리밍 (구간 선택)</label>
+                <label style="font-size:0.8rem;color:var(--text-muted,#6B5744);">${t('social.trim','Trim')} (${t('social.range_select','range selection')})</label>
                 <div style="display:flex;gap:0.5rem;align-items:center;">
-                    <span style="font-size:0.75rem;">시작</span>
+                    <span style="font-size:0.75rem;">${t('social.start','Start')}</span>
                     <input type="range" id="trim-start" min="0" max="60" value="0" step="0.1" style="flex:1;" oninput="updateTrimPreview()">
                     <span id="trim-start-val" style="font-size:0.75rem;min-width:30px;">0s</span>
                 </div>
                 <div style="display:flex;gap:0.5rem;align-items:center;">
-                    <span style="font-size:0.75rem;">끝</span>
+                    <span style="font-size:0.75rem;">${t('social.end','End')}</span>
                     <input type="range" id="trim-end" min="0" max="60" value="60" step="0.1" style="flex:1;" oninput="updateTrimPreview()">
                     <span id="trim-end-val" style="font-size:0.75rem;min-width:30px;">60s</span>
                 </div>
             </div>
             <!-- Filters -->
             <div style="margin-bottom:0.8rem;">
-                <label style="font-size:0.8rem;color:var(--text-muted,#6B5744);">필터</label>
+                <label style="font-size:0.8rem;color:var(--text-muted,#6B5744);">${t('social.filter','Filter')}</label>
                 <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
-                    <button onclick="setVideoFilter('none')" class="vfilter-btn active" style="padding:0.3rem 0.6rem;border:2px solid #3D2B1F;border-radius:8px;font-size:0.75rem;cursor:pointer;background:var(--bg-card,#3D2B1F);">원본</button>
-                    <button onclick="setVideoFilter('grayscale(100%)')" class="vfilter-btn" style="padding:0.3rem 0.6rem;border:2px solid #E8E0D8;border-radius:8px;font-size:0.75rem;cursor:pointer;background:var(--bg-card,#3D2B1F);">흑백</button>
-                    <button onclick="setVideoFilter('sepia(40%) saturate(1.4)')" class="vfilter-btn" style="padding:0.3rem 0.6rem;border:2px solid #E8E0D8;border-radius:8px;font-size:0.75rem;cursor:pointer;background:var(--bg-card,#3D2B1F);">따뜻한</button>
-                    <button onclick="setVideoFilter('saturate(0.8) hue-rotate(20deg)')" class="vfilter-btn" style="padding:0.3rem 0.6rem;border:2px solid #E8E0D8;border-radius:8px;font-size:0.75rem;cursor:pointer;background:var(--bg-card,#3D2B1F);">시원한</button>
+                    <button onclick="setVideoFilter('none')" class="vfilter-btn active" style="padding:0.3rem 0.6rem;border:2px solid #3D2B1F;border-radius:8px;font-size:0.75rem;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('social.filter_original','Original')}</button>
+                    <button onclick="setVideoFilter('grayscale(100%)')" class="vfilter-btn" style="padding:0.3rem 0.6rem;border:2px solid #E8E0D8;border-radius:8px;font-size:0.75rem;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('social.filter_bw','B&W')}</button>
+                    <button onclick="setVideoFilter('sepia(40%) saturate(1.4)')" class="vfilter-btn" style="padding:0.3rem 0.6rem;border:2px solid #E8E0D8;border-radius:8px;font-size:0.75rem;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('social.filter_warm','Warm')}</button>
+                    <button onclick="setVideoFilter('saturate(0.8) hue-rotate(20deg)')" class="vfilter-btn" style="padding:0.3rem 0.6rem;border:2px solid #E8E0D8;border-radius:8px;font-size:0.75rem;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('social.filter_cool','Cool')}</button>
                 </div>
             </div>
             <!-- Text overlay -->
             <div style="margin-bottom:0.8rem;">
-                <label style="font-size:0.8rem;color:var(--text-muted,#6B5744);">텍스트 오버레이</label>
-                <input type="text" id="editor-text-input" placeholder="텍스트 입력" maxlength="50" style="width:100%;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.85rem;margin-top:0.3rem;box-sizing:border-box;" oninput="updateTextOverlay()">
+                <label style="font-size:0.8rem;color:var(--text-muted,#6B5744);">${t('social.text_overlay','Text Overlay')}</label>
+                <input type="text" id="editor-text-input" placeholder="${t('social.enter_text','Enter text')}" maxlength="50" style="width:100%;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.85rem;margin-top:0.3rem;box-sizing:border-box;" oninput="updateTextOverlay()">
                 <div style="display:flex;gap:0.5rem;margin-top:0.3rem;align-items:center;">
                     <select id="editor-text-pos" style="padding:0.3rem;border:1px solid var(--border,#E8E0D8);border-radius:6px;font-size:0.8rem;" onchange="updateTextOverlay()">
-                        <option value="top">상단</option><option value="center">중앙</option><option value="bottom" selected>하단</option>
+                        <option value="top">${t('social.pos_top','Top')}</option><option value="center">${t('social.pos_center','Center')}</option><option value="bottom" selected>${t('social.pos_bottom','Bottom')}</option>
                     </select>
                     <input type="color" id="editor-text-color" value="#FFF8F0" style="width:30px;height:30px;border:none;cursor:pointer;" onchange="updateTextOverlay()">
                 </div>
             </div>
             <div style="display:flex;gap:0.5rem;">
-                <button onclick="document.getElementById('video-editor-modal').remove()" style="flex:1;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">취소</button>
-                <button onclick="applyVideoEdits()" style="flex:1;padding:0.6rem;border:none;border-radius:8px;cursor:pointer;background:var(--gold,#8B6914);color:#3D2B1F;font-weight:700;">✅ 적용</button>
+                <button onclick="document.getElementById('video-editor-modal').remove()" style="flex:1;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('common.cancel','Cancel')}</button>
+                <button onclick="applyVideoEdits()" style="flex:1;padding:0.6rem;border:none;border-radius:8px;cursor:pointer;background:var(--gold,#8B6914);color:#3D2B1F;font-weight:700;">✅ ${t('social.apply','Apply')}</button>
             </div>
         </div>
     </div>`;
@@ -2274,7 +2278,7 @@ function openVideoEditor() {
         document.getElementById('trim-end').value = dur;
         document.getElementById('trim-end-val').textContent = dur.toFixed(1) + 's';
         _videoEditorState.trimEnd = dur;
-        video.play().catch(() => {});
+        video.play().catch(e => console.warn(e.message));
     };
 }
 
@@ -2314,7 +2318,7 @@ function updateTextOverlay() {
 
 function applyVideoEdits() {
     document.getElementById('video-editor-modal').remove();
-    showToast('✅ 편집 적용됨', 'success');
+    showToast('✅ ' + t('social.edits_applied','Edits applied'), 'success');
 }
 
 // ========== THUMBNAIL EXTRACTION ==========
@@ -2385,7 +2389,7 @@ async function createPost() {
                 uploadTask.on('state_changed',
                     (snapshot) => {
                         const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                        showLoading(`📤 영상 업로드 중... ${progress}%`);
+                        showLoading(`📤 ${t('social.video_uploading','Video uploading...')} ${progress}%`);
                     },
                     reject,
                     async () => {
@@ -2437,9 +2441,9 @@ async function createPost() {
                 try {
                     const users = await db.collection('users').where('nickname', '==', mention).limit(1).get();
                     if (!users.empty && users.docs[0].id !== currentUser.uid) {
-                        createSocialNotification(users.docs[0].id, 'mention', `${myInfo.nickname}님이 회원님을 언급했습니다`, { targetId: newPostRef.id });
+                        createSocialNotification(users.docs[0].id, 'mention', `${myInfo.nickname} ${t('social.notif_mentioned','mentioned you')}`, { targetId: newPostRef.id });
                     }
-                } catch (e) {}
+                } catch (e) { console.warn(e.message); }
             }
         }
 
@@ -2470,16 +2474,16 @@ async function sharePost(postId) {
     const shareUrl = `https://crowny-org.vercel.app/#page=social&post=${postId}`;
     try {
         if (navigator.share) {
-            await navigator.share({ title: 'Crowny', text: '크라우니에서 공유된 게시물', url: shareUrl });
+            await navigator.share({ title: 'Crowny', text: t('social.shared_post','A post shared from Crowny'), url: shareUrl });
         } else {
             await navigator.clipboard.writeText(shareUrl);
-            showToast('📋 링크가 복사되었습니다', 'success');
+            showToast('📋 ' + t('social.link_copied','Link copied'), 'success');
         }
         // Increment share count
         await db.collection('posts').doc(postId).update({ shareCount: firebase.firestore.FieldValue.increment(1) });
     } catch (e) {
         if (e.name !== 'AbortError') {
-            try { await navigator.clipboard.writeText(shareUrl); showToast('📋 링크가 복사되었습니다', 'success'); } catch (_) {}
+            try { await navigator.clipboard.writeText(shareUrl); showToast('📋 ' + t('social.link_copied','Link copied'), 'success'); } catch (_) { console.warn(_.message); }
         }
     }
 }
@@ -2530,7 +2534,7 @@ function renderShortsViewer() {
         
         <!-- Info overlay -->
         <div style="position:absolute;bottom:20px;left:16px;right:80px;color:#FFF8F0;z-index:5;">
-            <strong style="font-size:0.95rem;">${post.nickname || '사용자'}</strong>
+            <strong style="font-size:0.95rem;">${post.nickname || t('social.user','User')}</strong>
             <p style="font-size:0.85rem;margin:0.2rem 0;opacity:0.9;">${(post.data.text || '').substring(0, 100)}</p>
         </div>
 
@@ -2599,13 +2603,13 @@ function navigateServiceLink(type, id) {
 
 // ========== Contact management ==========
 async function editContact(contactDocId, currentName) {
-    const newName = await showPromptModal('연락처 이름 변경', '새 이름을 입력하세요', currentName);
+    const newName = await showPromptModal(t('social.rename_contact','Rename Contact'), t('social.enter_new_name','Enter a new name'), currentName);
     if (!newName || newName.trim() === currentName) return;
     try {
         await db.collection('users').doc(currentUser.uid).collection('contacts').doc(contactDocId).update({ name: newName.trim() });
         showToast(t('social.contact_renamed','Contact name changed'), 'success');
         loadContacts();
-    } catch (error) { showToast('변경 실패: ' + error.message, 'error'); }
+    } catch (error) { showToast(t('social.change_fail','Change failed') + ': ' + error.message, 'error'); }
 }
 
 // ========== SOCIAL FEED FILTER ==========
@@ -2699,11 +2703,11 @@ function showChannels() {
 
 async function loadChannelList() {
     const list = document.getElementById('channel-list');
-    list.innerHTML = '<p style="padding:1rem;text-align:center;color:var(--accent);">로딩...</p>';
+    list.innerHTML = `<p style="padding:1rem;text-align:center;color:var(--accent);">${t('common.loading','Loading...')}</p>`;
     try {
         const snap = await db.collection('channels').orderBy('createdAt', 'desc').limit(50).get();
         list.innerHTML = '';
-        if (snap.empty) { list.innerHTML = '<p style="padding:1rem;text-align:center;color:var(--accent);">채널이 없습니다</p>'; return; }
+        if (snap.empty) { list.innerHTML = `<p style="padding:1rem;text-align:center;color:var(--accent);">${t('social.no_channels','No channels')}</p>`; return; }
         snap.forEach(doc => {
             const ch = doc.data();
             const isSub = (ch.subscribers || []).includes(currentUser?.uid);
@@ -2714,7 +2718,7 @@ async function loadChannelList() {
                 <div style="width:44px;height:44px;border-radius:50%;background:#F7F3ED;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">📢</div>
                 <div class="chat-preview" style="flex:1;min-width:0;">
                     <strong>${ch.name}</strong>
-                    <p style="font-size:0.75rem;color:var(--accent);">${ch.subscribers?.length || 0} 구독자${isSub ? ' · ✅ 구독중' : ''}</p>
+                    <p style="font-size:0.75rem;color:var(--accent);">${ch.subscribers?.length || 0} ${t('social.subscribers','subscribers')}${isSub ? ' · ✅ ' + t('social.subscribed','Subscribed') : ''}</p>
                 </div>`;
             list.appendChild(el);
         });
@@ -2722,19 +2726,19 @@ async function loadChannelList() {
 }
 
 async function showCreateChannelModal() {
-    const name = await showPromptModal('📢 채널 만들기', '채널 이름을 입력하세요', '');
+    const name = await showPromptModal('📢 ' + t('social.create_channel','Create Channel'), t('social.enter_channel_name','Enter channel name'), '');
     if (!name?.trim()) return;
-    const desc = await showPromptModal('📢 채널 설명', '채널 설명 (선택)', '');
+    const desc = await showPromptModal('📢 ' + t('social.channel_desc','Channel Description'), t('social.channel_desc_optional','Channel description (optional)'), '');
     try {
-        showLoading('채널 생성 중...');
+        showLoading(t('social.creating_channel','Creating channel...'));
         await db.collection('channels').add({
             name: name.trim(), description: desc || '', ownerId: currentUser.uid,
             subscribers: [currentUser.uid], createdAt: new Date()
         });
         hideLoading();
-        showToast('✅ 채널 생성 완료', 'success');
+        showToast('✅ ' + t('social.channel_created','Channel created'), 'success');
         loadChannelList();
-    } catch (e) { hideLoading(); showToast('생성 실패: ' + e.message, 'error'); }
+    } catch (e) { hideLoading(); showToast(t('social.create_fail','Creation failed') + ': ' + e.message, 'error'); }
 }
 
 async function openChannel(channelId) {
@@ -2757,9 +2761,9 @@ async function openChannel(channelId) {
     document.getElementById('chat-username').innerHTML = `
         <div style="display:flex;align-items:center;gap:0.5rem;">
             <div style="width:32px;height:32px;border-radius:50%;background:#F7F3ED;display:flex;align-items:center;justify-content:center;">📢</div>
-            <div><strong>${ch.name}</strong><div style="font-size:0.7rem;color:var(--accent);">${ch.subscribers?.length || 0} 구독자</div></div>
-            ${!isSub ? `<button onclick="subscribeChannel('${channelId}')" style="margin-left:0.5rem;padding:0.3rem 0.6rem;border:none;border-radius:6px;background:#3D2B1F;color:#FFF8F0;font-size:0.75rem;cursor:pointer;">구독</button>` :
-                `<button onclick="unsubscribeChannel('${channelId}')" style="margin-left:0.5rem;padding:0.3rem 0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:6px;background:var(--bg-card,#3D2B1F);font-size:0.75rem;cursor:pointer;">구독취소</button>`}
+            <div><strong>${ch.name}</strong><div style="font-size:0.7rem;color:var(--accent);">${ch.subscribers?.length || 0} ${t('social.subscribers','subscribers')}</div></div>
+            ${!isSub ? `<button onclick="subscribeChannel('${channelId}')" style="margin-left:0.5rem;padding:0.3rem 0.6rem;border:none;border-radius:6px;background:#3D2B1F;color:#FFF8F0;font-size:0.75rem;cursor:pointer;">${t('social.subscribe','Subscribe')}</button>` :
+                `<button onclick="unsubscribeChannel('${channelId}')" style="margin-left:0.5rem;padding:0.3rem 0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:6px;background:var(--bg-card,#3D2B1F);font-size:0.75rem;cursor:pointer;">${t('social.unsubscribe','Unsubscribe')}</button>`}
         </div>`;
     document.getElementById('chat-header-actions').style.display = 'flex';
     document.getElementById('chat-input-area').style.display = isOwner ? 'flex' : 'none';
@@ -2771,7 +2775,7 @@ async function openChannel(channelId) {
             const messagesDiv = document.getElementById('chat-messages');
             messagesDiv.innerHTML = '';
             if (snapshot.empty) {
-                messagesDiv.innerHTML = `<p style="text-align:center;color:var(--accent);padding:2rem;">아직 메시지가 없습니다</p>`;
+                messagesDiv.innerHTML = `<p style="text-align:center;color:var(--accent);padding:2rem;">${t('social.no_messages','No messages')}</p>`;
             }
             for (const doc of snapshot.docs) {
                 const msg = doc.data();
@@ -2795,13 +2799,13 @@ async function openChannel(channelId) {
 
 async function subscribeChannel(channelId) {
     await db.collection('channels').doc(channelId).update({ subscribers: firebase.firestore.FieldValue.arrayUnion(currentUser.uid) });
-    showToast('✅ 구독 완료', 'success');
+    showToast('✅ ' + t('social.subscribed','Subscribed'), 'success');
     openChannel(channelId);
 }
 
 async function unsubscribeChannel(channelId) {
     await db.collection('channels').doc(channelId).update({ subscribers: firebase.firestore.FieldValue.arrayRemove(currentUser.uid) });
-    showToast('구독 취소됨', 'info');
+    showToast(t('social.unsubscribed','Unsubscribed'), 'info');
     openChannel(channelId);
 }
 
@@ -2851,22 +2855,22 @@ async function showSocialNotifications() {
     const btn = document.querySelector('.social-filter-tab[data-filter="notifications"]');
     if (btn) { btn.classList.add('active'); btn.style.color = 'var(--text)'; btn.style.borderBottomColor = 'var(--text)'; }
 
-    notifContent.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--accent);">🔔 알림 로딩 중...</p>';
+    notifContent.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent);">🔔 ${t('social.notif_loading','Loading notifications...')}</p>`;
 
     try {
         const snap = await db.collection('social_notifications').doc(currentUser.uid).collection('items')
             .orderBy('createdAt', 'desc').limit(50).get();
 
         if (snap.empty) {
-            notifContent.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--accent);"><p style="font-size:2rem;">🔔</p><p>아직 알림이 없습니다</p></div>';
+            notifContent.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--accent);"><p style="font-size:2rem;">🔔</p><p>${t('social.no_notifications','No notifications yet')}</p></div>`;
             return;
         }
 
-        let html = '<div style="display:flex;justify-content:flex-end;margin-bottom:0.5rem;"><button onclick="markAllSocialNotifsRead()" style="background:none;border:none;color:#3D2B1F;font-size:0.8rem;cursor:pointer;font-weight:600;">모두 읽음</button></div>';
+        let html = `<div style="display:flex;justify-content:flex-end;margin-bottom:0.5rem;"><button onclick="markAllSocialNotifsRead()" style="background:none;border:none;color:#3D2B1F;font-size:0.8rem;cursor:pointer;font-weight:600;">${t('social.mark_all_read','Mark all read')}</button></div>`;
         for (const doc of snap.docs) {
             const n = doc.data();
             const isRead = n.read;
-            const info = n.fromUid ? await getUserDisplayInfo(n.fromUid) : { nickname: '시스템', photoURL: '' };
+            const info = n.fromUid ? await getUserDisplayInfo(n.fromUid) : { nickname: t('social.system','System'), photoURL: '' };
             const timeAgo = getTimeAgo(n.createdAt?.toDate?.() || new Date());
             const icons = { like: '❤️', comment: '💬', follow: '👤', mention: '📢', story_reply: '📸' };
             const icon = icons[n.notifType] || '🔔';
@@ -2893,7 +2897,7 @@ async function handleSocialNotifClick(docId, type, targetId, fromUid) {
     // Mark as read
     try {
         await db.collection('social_notifications').doc(currentUser.uid).collection('items').doc(docId).update({ read: true });
-    } catch (e) {}
+    } catch (e) { console.warn(e.message); }
 
     if (type === 'follow' && fromUid) {
         showUserProfile(fromUid);
@@ -2917,7 +2921,7 @@ async function markAllSocialNotifsRead() {
         snap.docs.forEach(doc => batch.update(doc.ref, { read: true }));
         await batch.commit();
         showSocialNotifications();
-    } catch (e) {}
+    } catch (e) { console.warn(e.message); }
 }
 
 async function createSocialNotification(userId, notifType, message, data = {}) {
@@ -2945,7 +2949,7 @@ async function updateSocialNotifBadge() {
             if (snap.size > 0) { badge.style.display = 'inline-block'; badge.textContent = snap.size > 99 ? '99+' : snap.size; }
             else badge.style.display = 'none';
         }
-    } catch (e) {}
+    } catch (e) { console.warn(e.message); }
 }
 
 // ========== FULL PROFILE PAGE ==========
@@ -2971,7 +2975,7 @@ async function showFullProfile(uid) {
     const btn = document.querySelector('.social-filter-tab[data-filter="profile"]');
     if (btn) { btn.classList.add('active'); btn.style.color = 'var(--text)'; btn.style.borderBottomColor = 'var(--text)'; }
 
-    profileContent.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--accent);">프로필 로딩 중...</p>';
+    profileContent.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent);">${t('social.profile_loading','Loading profile...')}</p>`;
 
     try {
         const info = await getUserDisplayInfo(uid);
@@ -2987,16 +2991,16 @@ async function showFullProfile(uid) {
             <div class="insta-profile-top">
                 ${info.photoURL ? `<img class="insta-profile-pic" src="${info.photoURL}">` : `<div class="insta-profile-pic-placeholder">${(info.nickname||"?").charAt(0).toUpperCase()}</div>`}
                 <div class="insta-profile-stats">
-                    <div class="insta-stat"><div class="insta-stat-num">${postsSnap.size}</div><div class="insta-stat-label">게시물</div></div>
-                    <div class="insta-stat" onclick="showFollowList('${uid}','followers')"><div class="insta-stat-num">${followCounts.followers}</div><div class="insta-stat-label">팔로워</div></div>
-                    <div class="insta-stat" onclick="showFollowList('${uid}','following')"><div class="insta-stat-num">${followCounts.following}</div><div class="insta-stat-label">팔로잉</div></div>
+                    <div class="insta-stat"><div class="insta-stat-num">${postsSnap.size}</div><div class="insta-stat-label">${t('social.posts','Posts')}</div></div>
+                    <div class="insta-stat" onclick="showFollowList('${uid}','followers')"><div class="insta-stat-num">${followCounts.followers}</div><div class="insta-stat-label">${t('social.followers','Followers')}</div></div>
+                    <div class="insta-stat" onclick="showFollowList('${uid}','following')"><div class="insta-stat-num">${followCounts.following}</div><div class="insta-stat-label">${t('social.following','Following')}</div></div>
                 </div>
             </div>
             <div class="insta-profile-name">${info.nickname}</div>
             ${info.statusMessage ? `<div class="insta-profile-bio">${info.statusMessage}</div>` : ""}
             ${userData.bio ? `<div class="insta-profile-bio">${userData.bio}</div>` : ""}
             <div class="insta-profile-actions">
-                ${isMe ? `<button class="insta-btn-edit" onclick="showProfileEdit()">프로필 편집</button><button class="insta-btn-edit" onclick="copyShareURL('user','${uid}')">공유</button>` : `<button class="${amFollowing ? 'insta-btn-following' : 'insta-btn-follow'}" onclick="followUser('${uid}');showFullProfile('${uid}')">${amFollowing ? "팔로잉" : "팔로우"}</button><button class="insta-btn-edit" onclick="startChatFromProfile('${uid}')">메시지</button>`}
+                ${isMe ? `<button class="insta-btn-edit" onclick="showProfileEdit()">${t('social.edit_profile','Edit Profile')}</button><button class="insta-btn-edit" onclick="copyShareURL('user','${uid}')">${t('common.share','Share')}</button>` : `<button class="${amFollowing ? 'insta-btn-following' : 'insta-btn-follow'}" onclick="followUser('${uid}');showFullProfile('${uid}')">${amFollowing ? t('social.following','Following') : t('social.follow','Follow')}</button><button class="insta-btn-edit" onclick="startChatFromProfile('${uid}')">${t('social.message','Message')}</button>`}
             </div>`;
         // Profile tabs (Instagram-style)
         html += `<div class="insta-profile-tabs">
@@ -3031,7 +3035,7 @@ async function switchProfileTab(tab, uid) {
 
     const grid = document.getElementById('profile-posts-grid');
     if (!grid) return;
-    grid.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--accent);">로딩...</p>';
+    grid.innerHTML = `<p style="text-align:center;padding:1rem;color:var(--accent);">${t('common.loading','Loading...')}</p>`;
 
     try {
         if (tab === 'posts') {
@@ -3046,7 +3050,7 @@ async function switchProfileTab(tab, uid) {
                     grid.innerHTML += `<div class="insta-grid-item" onclick="scrollToPostOrOpen('${post.id}')"><div style="width:100%;height:100%;background:linear-gradient(135deg,#8B6914,#6B5744);display:flex;align-items:center;justify-content:center;padding:0.5rem;"><span style="color:#FFF8F0;font-size:0.7rem;">${(post.text || '').substring(0, 60)}</span></div></div>`;
                 }
             }
-            if (posts.length === 0) grid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--accent);">게시물이 없습니다</p>';
+            if (posts.length === 0) grid.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent);">${t('social.no_posts','No posts yet')}</p>`;
         } else if (tab === 'shorts') {
             const snap = await db.collection('posts').where('userId', '==', uid).orderBy('timestamp', 'desc').get();
             const videos = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.videoUrl);
@@ -3055,7 +3059,7 @@ async function switchProfileTab(tab, uid) {
             for (const post of videos) {
                 grid.innerHTML += `<div class="insta-grid-item" onclick="openShortsViewer('${post.id}')"><video src="${post.videoUrl}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video><span style="position:absolute;top:4px;right:4px;color:#FFF8F0;font-size:0.8rem;text-shadow:0 1px 3px rgba(61,43,31,0.8);">🎬</span></div>`;
             }
-            if (videos.length === 0) grid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--accent);">숏폼이 없습니다</p>';
+            if (videos.length === 0) grid.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent);">${t('social.no_shorts','No shorts yet')}</p>`;
         } else if (tab === 'saved') {
             const savedSnap = await db.collection('users').doc(uid).collection('savedPosts').orderBy('savedAt', 'desc').get();
             grid.innerHTML = '';
@@ -3072,7 +3076,7 @@ async function switchProfileTab(tab, uid) {
                     grid.innerHTML += `<div class="insta-grid-item"><div style="width:100%;height:100%;background:var(--bg-card-alt,#F7F3ED);display:flex;align-items:center;justify-content:center;"><span style="font-size:0.7rem;">${(post.text || '').substring(0, 40)}</span></div></div>`;
                 }
             }
-            if (savedSnap.empty) grid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--accent);">저장된 게시물이 없습니다</p>';
+            if (savedSnap.empty) grid.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent);">${t('social.no_saved_posts','No saved posts')}</p>`;
         }
     } catch (e) {
         grid.innerHTML = `<p style="color:red;">${e.message}</p>`;
@@ -3082,7 +3086,7 @@ async function switchProfileTab(tab, uid) {
 async function showFollowList(uid, type) {
     try {
         const snap = await db.collection('users').doc(uid).collection(type === 'followers' ? 'followers' : 'following').get();
-        if (snap.empty) { showToast('목록이 비어있습니다', 'info'); return; }
+        if (snap.empty) { showToast(t('social.list_empty','List is empty'), 'info'); return; }
 
         let html = '';
         for (const doc of snap.docs) {
@@ -3091,7 +3095,7 @@ async function showFollowList(uid, type) {
             html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid var(--border,#E8E0D8);">
                 <div onclick="showFullProfile('${doc.id}')" style="cursor:pointer;">${avatarHTML(info.photoURL, info.nickname, 36)}</div>
                 <span style="flex:1;font-size:0.9rem;font-weight:600;cursor:pointer;" onclick="showFullProfile('${doc.id}')">${info.nickname}</span>
-                ${doc.id !== currentUser?.uid ? `<button onclick="followUser('${doc.id}');this.textContent='${amFollowingThis ? '팔로우' : '팔로잉 ✓'}'" style="padding:0.3rem 0.6rem;border:${amFollowingThis ? 'none' : '1px solid #E8E0D8'};border-radius:6px;background:${amFollowingThis ? '#0095f6' : 'white'};color:${amFollowingThis ? 'white' : 'var(--text)'};font-size:0.8rem;cursor:pointer;">${amFollowingThis ? '팔로잉' : '팔로우'}</button>` : ''}
+                ${doc.id !== currentUser?.uid ? `<button onclick="followUser('${doc.id}');this.textContent='${amFollowingThis ? t('social.follow','Follow') : t('social.following','Following') + ' ✓'}'" style="padding:0.3rem 0.6rem;border:${amFollowingThis ? 'none' : '1px solid #E8E0D8'};border-radius:6px;background:${amFollowingThis ? '#0095f6' : 'white'};color:${amFollowingThis ? 'white' : 'var(--text)'};font-size:0.8rem;cursor:pointer;">${amFollowingThis ? t('social.following','Following') : t('social.follow','Follow')}</button>` : ''}
             </div>`;
         }
 
@@ -3099,12 +3103,12 @@ async function showFollowList(uid, type) {
         modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.6);z-index:99997;display:flex;align-items:center;justify-content:center;padding:1rem;';
         modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
         modal.innerHTML = `<div style="background:var(--bg-card,#3D2B1F);padding:1.2rem;border-radius:16px;max-width:380px;width:100%;max-height:70vh;overflow-y:auto;">
-            <h4 style="margin-bottom:0.8rem;">${type === 'followers' ? '팔로워' : '팔로잉'} ${snap.size}명</h4>
+            <h4 style="margin-bottom:0.8rem;">${type === 'followers' ? t('social.followers','Followers') : t('social.following','Following')} ${snap.size}</h4>
             ${html}
-            <button onclick="this.parentElement.parentElement.remove()" style="width:100%;margin-top:0.8rem;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;background:var(--bg-card,#3D2B1F);cursor:pointer;">닫기</button>
+            <button onclick="this.parentElement.parentElement.remove()" style="width:100%;margin-top:0.8rem;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;background:var(--bg-card,#3D2B1F);cursor:pointer;">${t('common.close','Close')}</button>
         </div>`;
         document.body.appendChild(modal);
-    } catch (e) { showToast('목록 로드 실패', 'error'); }
+    } catch (e) { showToast(t('social.list_load_fail','Failed to load list'), 'error'); }
 }
 
 // ========== DOUBLE-TAP LIKE ==========
@@ -3146,7 +3150,7 @@ async function doubleTapLike(postId, container) {
     // Notification
     if (data.userId !== currentUser.uid) {
         const myInfo = await getUserDisplayInfo(currentUser.uid);
-        await createSocialNotification(data.userId, 'like', `${myInfo.nickname}님이 게시물을 좋아합니다`, { targetId: postId });
+        await createSocialNotification(data.userId, 'like', `${myInfo.nickname} ${t('social.notif_liked','liked your post')}`, { targetId: postId });
     }
     loadSocialFeed();
 }
@@ -3185,7 +3189,7 @@ async function loadCommentsWithReplies(postId) {
                     ${truncateWalletAddresses(c.text)}
                     <div style="font-size:0.7rem;color:var(--accent);margin-top:0.1rem;">
                         ${getTimeAgo(c.timestamp?.toDate?.() || new Date())}
-                        <button onclick="showReplyInput('${postId}','${c.id}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.7rem;font-weight:600;">답글</button>
+                        <button onclick="showReplyInput('${postId}','${c.id}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.7rem;font-weight:600;">${t('social.reply','Reply')}</button>
                     </div>
                 </div>
             </div>`;
@@ -3211,8 +3215,8 @@ async function loadCommentsWithReplies(postId) {
         replyDiv.id = `reply-input-${postId}-${c.id}`;
         replyDiv.style.cssText = 'display:none;margin-left:2rem;margin-top:0.3rem;';
         replyDiv.innerHTML = `<div style="display:flex;gap:0.4rem;align-items:center;">
-            <input type="text" placeholder="답글..." style="flex:1;padding:0.3rem 0.6rem;border:none;border-bottom:1px solid var(--border);font-size:0.8rem;outline:none;" onkeypress="if(event.key==='Enter')addReply('${postId}','${c.id}',this)">
-            <button onclick="addReply('${postId}','${c.id}',this.previousElementSibling)" style="background:none;border:none;color:#3D2B1F;font-weight:700;cursor:pointer;font-size:0.8rem;">게시</button>
+            <input type="text" placeholder="${t('social.reply','Reply')}..." style="flex:1;padding:0.3rem 0.6rem;border:none;border-bottom:1px solid var(--border);font-size:0.8rem;outline:none;" onkeypress="if(event.key==='Enter')addReply('${postId}','${c.id}',this)">
+            <button onclick="addReply('${postId}','${c.id}',this.previousElementSibling)" style="background:none;border:none;color:#3D2B1F;font-weight:700;cursor:pointer;font-size:0.8rem;">${t('social.post','Post')}</button>
         </div>`;
         el.appendChild(replyDiv);
 
@@ -3247,8 +3251,8 @@ async function sharePostWebAPI(postId) {
     if (navigator.share) {
         try {
             await navigator.share({
-                title: 'Crowny 게시물',
-                text: data.text ? data.text.substring(0, 100) : '게시물을 확인하세요!',
+                title: 'Crowny ' + t('social.post','Post'),
+                text: data.text ? data.text.substring(0, 100) : t('social.check_post','Check out this post!'),
                 url
             });
         } catch (e) { /* user cancelled */ }
@@ -3296,16 +3300,16 @@ function showPostMenu(postId, isMyPost) {
     
     let menuItems = '';
     if (isMyPost) {
-        menuItems += `<button onclick="editPost('${postId}');closeBottomSheet();" style="width:100%;padding:14px;border:none;background:none;color:var(--dark-text,#3D2B1F);font-size:0.95rem;cursor:pointer;text-align:left;">✏️ 수정</button>`;
-        menuItems += `<button onclick="deletePost('${postId}');closeBottomSheet();" style="width:100%;padding:14px;border:none;background:none;color:#B54534;font-size:0.95rem;font-weight:600;cursor:pointer;text-align:left;">🗑️ 삭제</button>`;
+        menuItems += `<button class="bottom-sheet-item" onclick="editPost('${postId}');closeBottomSheet();"><i data-lucide="pencil"></i> ${t('common.edit','수정')}</button>`;
+        menuItems += `<button class="bottom-sheet-item" style="color:#B54534;font-weight:600;" onclick="deletePost('${postId}');closeBottomSheet();"><i data-lucide="trash-2" style="color:#B54534;"></i> ${t('common.delete','삭제')}</button>`;
     }
-    menuItems += `<button onclick="copyShareURL('post','${postId}');closeBottomSheet();" style="width:100%;padding:14px;border:none;background:none;color:var(--dark-text,#3D2B1F);font-size:0.95rem;cursor:pointer;text-align:left;">🔗 링크 복사</button>`;
-    menuItems += `<button onclick="repostPost('${postId}');closeBottomSheet();" style="width:100%;padding:14px;border:none;background:none;color:var(--dark-text,#3D2B1F);font-size:0.95rem;cursor:pointer;text-align:left;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 리포스트</button>`;
-    menuItems += `<button onclick="closeBottomSheet();" style="width:100%;padding:14px;border:none;background:none;color:var(--dark-muted,#6B5744);font-size:0.95rem;cursor:pointer;text-align:left;">취소</button>`;
-    
+    menuItems += `<button class="bottom-sheet-item" onclick="copyShareURL('post','${postId}');closeBottomSheet();"><i data-lucide="link"></i> ${t('social.copy_link','링크 복사')}</button>`;
+    menuItems += `<button class="bottom-sheet-item" onclick="repostPost('${postId}');closeBottomSheet();"><i data-lucide="refresh-cw"></i> ${t('social.repost','리포스트')}</button>`;
+    menuItems += `<button class="bottom-sheet-item cancel" onclick="closeBottomSheet();"><i data-lucide="x"></i> ${t('common.cancel','취소')}</button>`;
+
     sheet.innerHTML = `
         <div class="bottom-sheet-handle"></div>
-        <div style="padding:8px 0;">${menuItems}</div>`;
+        ${menuItems}`;
     
     document.body.appendChild(overlay);
     document.body.appendChild(sheet);
@@ -3331,7 +3335,7 @@ function ctvmHeaders() {
 }
 
 async function loadIndependentSocialFeed(feed) {
-    feed.innerHTML = '<div style="text-align:center;padding:2rem;color:#7A5C47;">로딩 중...</div>';
+    feed.innerHTML = `<div style="text-align:center;padding:2rem;color:#7A5C47;">${t('common.loading','Loading...')}</div>`;
     try {
         const res = await fetch('/api/social/feed?limit=30', { headers: ctvmHeaders() });
         const data = await res.json();
@@ -3499,7 +3503,7 @@ async function showIndependentComments(postId) {
     if (!container) return;
     if (container.style.display !== 'none') { container.style.display = 'none'; return; }
     container.style.display = 'block';
-    container.innerHTML = '<div style="padding:8px 12px;color:#7A5C47;font-size:0.8rem;">로딩 중...</div>';
+    container.innerHTML = `<div style="padding:8px 12px;color:#7A5C47;font-size:0.8rem;">${t('common.loading','Loading...')}</div>`;
 
     try {
         const res = await fetch(`/api/social/comments?postId=${postId}`, { headers: ctvmHeaders() });
@@ -3562,7 +3566,7 @@ async function deleteIndependentPost(postId) {
 function shareIndependentPost(postId, text) {
     const shareUrl = `${location.origin}/social#${postId}`;
     if (navigator.share) {
-        navigator.share({ title: 'Crowny', text: text?.substring(0, 100) || 'Crowny 게시물', url: shareUrl }).catch(() => {});
+        navigator.share({ title: 'Crowny', text: text?.substring(0, 100) || ('Crowny ' + t('social.post','Post')), url: shareUrl }).catch(e => console.warn(e.message));
     } else {
         navigator.clipboard.writeText(shareUrl).then(() => {
             if (typeof showToast === 'function') showToast(t('social.link_copied', 'Link copied'), 'success');

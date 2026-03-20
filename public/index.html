@@ -14,6 +14,15 @@
         }
     }
     </script>
+    <script>
+    // Global error handler (#38)
+    window.onerror = function(msg, src, line, col, err) {
+        console.error('[GLOBAL]', msg, src + ':' + line);
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+        console.error('[PROMISE]', e.reason);
+    });
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>CROWNY PLATFORM</title>
@@ -41,39 +50,38 @@
     <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.js"></script>
     
     <!-- CSS Modules (organized by section) -->
-    <link rel="stylesheet" href="/css/base.css?v=24.3">
-    <link rel="stylesheet" href="/css/home.css?v=23.4">
-    <link rel="stylesheet" href="/css/wallet.css?v=23.7">
-    <link rel="stylesheet" href="/css/social.css?v=23.4">
-    <link rel="stylesheet" href="/css/messenger.css?v=24.3">
+    <link rel="stylesheet" href="/css/base.css?v=24.4">
+    <link rel="stylesheet" href="/css/home.css?v=24.4">
+    <link rel="stylesheet" href="/css/wallet.css?v=24.4">
+    <link rel="stylesheet" href="/css/social.css?v=24.4">
+    <link rel="stylesheet" href="/css/messenger.css?v=24.4">
     <style>
     /* CrownyTVM 독립 메신저 — 클린 UI */
-    .crny-chat{display:flex;height:calc(100vh - 120px);background:#FFF8F0;border-radius:12px;overflow:hidden;border:1px solid #E8E0D8}
-    .crny-chat-sidebar{width:320px;min-width:280px;border-right:1px solid #E8E0D8;display:flex;flex-direction:column;background:#fff}
-    .crny-chat-sidebar-header{display:flex;justify-content:space-between;align-items:center;padding:16px 16px 12px;border-bottom:1px solid #F0E8DC}
+    .crny-chat{display:flex;height:calc(100vh - 80px);background:var(--bg,#FFF8F0);border-radius:0;overflow:hidden;border:none}
+    .crny-chat-sidebar{width:320px;min-width:280px;border-right:1px solid #F0E8DC;display:flex;flex-direction:column;background:#FFF8F0}
+    .crny-chat-sidebar-header{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:none}
     .crny-chat-sidebar-header h3{margin:0;font-size:1.1rem;font-weight:700;color:#3D2B1F}
     .crny-btn-icon{width:32px;height:32px;border-radius:50%;border:1px solid #E8E0D8;background:#F7F3ED;color:#3D2B1F;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
     .crny-btn-icon:hover{background:#E8E0D8}
-    .crny-chat-search{padding:8px 12px}
-    .crny-chat-search input{width:100%;padding:8px 12px;border:1px solid #E8E0D8;border-radius:20px;font-size:0.85rem;background:#F7F3ED;outline:none}
-    .crny-chat-search input:focus{border-color:#8B6914}
+    .crny-chat-search{padding:4px 4px 8px}
+    .crny-chat-search input{width:100%;background:#F7F3ED}
     .crny-chat-list{flex:1;overflow-y:auto}
-    .chat-item{display:flex;align-items:center;padding:12px 16px;gap:12px;cursor:pointer;border-bottom:1px solid #F7F3ED;transition:background .15s}
+    .chat-item{display:flex;align-items:center;padding:10px 4px;gap:10px;cursor:pointer;border-bottom:1px solid #F0E8DC;transition:background .15s}
     .chat-item:hover,.chat-item.active{background:#F7F3ED}
     .chat-item.unread{background:#FFF3E6}
-    .chat-avatar{width:42px;height:42px;border-radius:50%;background:#8B6914;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;position:relative}
+    .chat-avatar{width:40px;height:40px;border-radius:50%;background:#8B6914;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;position:relative}
     .chat-avatar.online::after{content:'';position:absolute;bottom:1px;right:1px;width:10px;height:10px;background:#6B8F3C;border:2px solid #fff;border-radius:50%}
     .chat-item-body{flex:1;min-width:0}
     .chat-item-top{display:flex;justify-content:space-between;align-items:center}
     .chat-item-name{font-size:0.9rem;font-weight:600;color:#3D2B1F;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .chat-item-time{font-size:0.7rem;color:#A08060;flex-shrink:0;margin-left:8px}
-    .chat-item-preview{font-size:0.8rem;color:#7A5C47;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;justify-content:space-between}
+    .chat-item-preview{font-size:0.75rem;color:#7A5C47;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;justify-content:space-between}
     .chat-badge{background:#B54534;color:#fff;font-size:0.65rem;padding:1px 6px;border-radius:10px;margin-left:auto;flex-shrink:0}
     .chat-empty{text-align:center;padding:40px 20px;color:#A08060;font-size:0.9rem;line-height:1.6}
     .chat-loading{text-align:center;padding:40px;color:#A08060}
     /* 대화 패널 */
     .crny-chat-panel{flex:1;display:flex;flex-direction:column;background:#FFF8F0}
-    .crny-chat-panel-header{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid #E8E0D8;background:#fff;min-height:52px}
+    .crny-chat-panel-header{display:flex;align-items:center;gap:8px;padding:10px 8px;border-bottom:1px solid #F0E8DC;background:#FFF8F0;min-height:44px}
     .crny-btn-back{display:none;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#3D2B1F;padding:4px 8px}
     .crny-chat-header-name{font-size:0.95rem;color:#3D2B1F}
     .crny-chat-header-name strong{font-weight:700}
@@ -85,14 +93,14 @@
     .chat-msg-sender{font-size:0.7rem;color:#7A5C47;margin-bottom:2px;padding-left:4px}
     .chat-bubble{padding:10px 14px;border-radius:16px;font-size:0.9rem;line-height:1.5;word-break:break-word;white-space:pre-wrap}
     .chat-msg.mine .chat-bubble{background:#3D2B1F;color:#FFF8F0;border-bottom-right-radius:4px}
-    .chat-msg.theirs .chat-bubble{background:#fff;color:#3D2B1F;border:1px solid #E8E0D8;border-bottom-left-radius:4px}
+    .chat-msg.theirs .chat-bubble{background:#F7F3ED;color:#3D2B1F;border:1px solid #E8E0D8;border-bottom-left-radius:4px}
     .chat-msg-meta{display:flex;align-items:center;gap:6px;margin-top:2px;padding:0 4px}
     .chat-msg-time{font-size:0.65rem;color:#A08060}
     .chat-sent{font-size:0.6rem;color:#A08060}
     .chat-read{font-size:0.6rem;color:#6B8F3C;font-weight:600}
     .chat-reply-ref{font-size:0.75rem;color:#8B6914;padding:4px 8px;margin-bottom:4px;border-left:2px solid #8B6914;background:rgba(139,105,20,.06);border-radius:4px}
     .crny-chat-typing{padding:4px 20px;font-size:0.8rem;color:#7A5C47;font-style:italic}
-    .crny-chat-input{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid #E8E0D8;background:#fff}
+    .crny-chat-input{display:flex;align-items:center;gap:8px;padding:8px 4px;border-top:1px solid #F0E8DC;background:#FFF8F0}
     .crny-chat-input input{flex:1;padding:10px 14px;border:1px solid #E8E0D8;border-radius:20px;font-size:0.9rem;background:#F7F3ED;outline:none}
     .crny-chat-input input:focus{border-color:#8B6914}
     .crny-btn-send{padding:10px 18px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:20px;font-size:0.85rem;font-weight:600;cursor:pointer;white-space:nowrap}
@@ -101,34 +109,37 @@
     .crny-btn-tip:hover{background:#FFF3E6}
     .crny-chat-crmm{display:flex;align-items:center;gap:8px;padding:6px 16px;border-top:1px solid #F0E8DC;background:#FFF8F0}
     .chat-tip-badge{display:inline-block;background:#8B6914;color:#FFF8F0;font-size:0.7rem;padding:2px 8px;border-radius:10px;margin-left:8px;font-weight:600}
+    .crny-btn-attach{background:none;border:1px solid #E8E0D8;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;flex-shrink:0}
+    .crny-btn-attach:hover{background:#F7F3ED}
+    .chat-context-bar{display:flex;align-items:center;gap:0.5rem;padding:6px 12px;background:#F7F3ED;border-left:3px solid #8B6914;margin:0 8px;border-radius:0 8px 8px 0}
+    .chat-context-bar-close{background:none;border:none;font-size:1rem;cursor:pointer;color:#7A5C47;padding:2px 6px;flex-shrink:0}
+    .chat-context-bar-content{flex:1;min-width:0;overflow:hidden}
     /* 모바일 */
     @media(max-width:768px){
-        .crny-chat{border:none;border-radius:0;height:calc(100vh - 60px)}
+        .crny-chat{border:none;border-radius:0;height:calc(100vh - 48px - 56px - env(safe-area-inset-bottom,0px))}
         .crny-chat-sidebar{width:100%;border-right:none}
-        .crny-chat-panel{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1002;transform:translateX(100%);transition:transform .2s ease;background:#FFF8F0;display:flex;flex-direction:column}
+        .crny-chat-panel{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1002;transform:translateX(100%);transition:transform .2s ease;background:var(--bg,#FFF8F0);display:flex;flex-direction:column}
         .crny-chat-panel.open{transform:translateX(0)}
         .crny-chat{position:relative;overflow:hidden}
         .crny-btn-back{display:block}
-        .crny-chat-sidebar-header{padding:12px}
-        .chat-item{padding:10px 12px}
-        .crny-chat-panel-header{position:relative;top:0;z-index:5;padding:12px 16px;padding-top:calc(env(safe-area-inset-top,0px) + 12px);margin:0;border-bottom:1px solid #E8E0D8;background:#fff;flex-shrink:0;width:100%;box-sizing:border-box}
+        .crny-chat-sidebar-header{padding:8px 4px}
+        .chat-item{padding:10px 4px}
+        .crny-chat-panel-header{position:relative;top:0;z-index:5;padding:10px 8px;padding-top:calc(env(safe-area-inset-top,0px) + 10px);margin:0;border-bottom:1px solid var(--border,#F0E8DC);background:var(--bg,#FFF8F0);flex-shrink:0;width:100%;box-sizing:border-box}
         .crny-chat-messages{flex:1;overflow-y:auto;padding:10px;min-height:0}
-        .crny-chat-input{position:sticky;bottom:0;z-index:5;padding:8px 10px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 8px);background:#fff;border-top:1px solid #E8E0D8;flex-shrink:0;width:100%}
+        .crny-chat-input{position:sticky;bottom:0;z-index:5;padding:8px 4px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 8px);background:var(--bg,#FFF8F0);border-top:1px solid var(--border,#F0E8DC);flex-shrink:0;width:100%}
         .crny-chat-input input{flex:1;min-width:0;font-size:16px}
         .crny-btn-send{padding:10px 14px;font-size:0.8rem;flex-shrink:0}
         .crny-chat-crmm{padding:6px 10px;width:100%}
         .crny-chat-typing{padding:4px 10px}
     }
     </style>
-    <link rel="stylesheet" href="/css/trading.css?v=23.4">
-    <link rel="stylesheet" href="/css/ai.css?v=23.4">
-    <link rel="stylesheet" href="/css/care.css?v=23.4">
-    <link rel="stylesheet" href="/css/components.css?v=24.3">
+    <link rel="stylesheet" href="/css/trading.css?v=24.4">
+    <link rel="stylesheet" href="/css/ai.css?v=24.4">
+    <link rel="stylesheet" href="/css/care.css?v=24.4">
+    <link rel="stylesheet" href="/css/components.css?v=24.4">
     <link rel="stylesheet" href="/css/settings.css?v=24.4">
-    <link rel="stylesheet" href="/css/dark.css?v=23.4">
-    <link rel="stylesheet" href="/css/mobile.css?v=24.3">
-    <!-- <link rel="stylesheet" href="style.css?v=23.4"> OLD: kept as backup -->
-    
+    <link rel="stylesheet" href="/css/dark.css?v=24.4">
+    <link rel="stylesheet" href="/css/mobile.css?v=24.4">
     <!-- 🔧 HOTFIX: 로그인 폼 스타일 강제 적용 -->
     <style>
         .btn-primary {
@@ -168,19 +179,7 @@
         .nav-item:hover {
             color: #8B6914 !important;
         }
-        /* 🔧 HOTFIX: 새로 만들기 버튼 가독성 개선 */
-        .bottom-sheet div[style*="새로 만들기"] {
-            color: #2A1A0F !important;
-            font-weight: 700 !important;
-        }
-        .bottom-sheet button {
-            color: #3D2B1F !important;
-            font-weight: 600 !important;
-        }
-        .bottom-sheet button:last-child {
-            color: #6B5744 !important;
-            font-weight: 500 !important;
-        }
+        /* bottom-sheet styling is now in social.css (.bottom-sheet-title, .bottom-sheet-item) */
         /* 🔧 HOTFIX: 대시보드 fallback UI 개선 */
         #dashboard-content button[onclick*="showPage"] {
             transition: all 0.2s !important;
@@ -586,7 +585,11 @@
         </div>
     </div>
 
-    <button class="menu-toggle" onclick="toggleMenu()" aria-label="메뉴"><img src="/img/crowny-logo.png" alt="C" style="width:34px;height:34px;object-fit:contain;"></button>
+    <div id="crowny-top-bar">
+        <button class="top-logo" onclick="toggleMenu()" aria-label="Menu"><img src="/img/crowny-logo.png" alt="C"></button>
+        <span class="top-title" id="top-page-title">HOME</span>
+        <div class="top-actions" id="top-page-actions"></div>
+    </div>
     
     <aside class="sidebar" id="sidebar">
         <div class="logo" onclick="showPage('today')">
@@ -607,43 +610,43 @@
         </div>
         
         <nav class="nav">
-            <a href="#" onclick="showPage('today')" class="nav-item active"><i data-lucide="home" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">HOME</span><span class="nav-sub" data-i18n="nav.home">홈</span></a>
-            <a href="#" onclick="showPage('dashboard')" class="nav-item"><i data-lucide="bar-chart-3" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">DASHBOARD</span><span class="nav-sub" data-i18n="nav.dashboard">대시보드</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('today')" class="nav-item active"><i data-lucide="home" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">HOME</span><span class="nav-sub" data-i18n="nav.home">홈</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('dashboard')" class="nav-item"><i data-lucide="bar-chart-3" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">DASHBOARD</span><span class="nav-sub" data-i18n="nav.dashboard">대시보드</span></a>
             <hr class="nav-divider">
             <div class="nav-group-label" data-i18n="nav.group_social">SOCIAL</div>
-            <a href="#" onclick="showPage('messenger')" class="nav-item"><i data-lucide="message-circle" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">MESSENGER</span><span class="nav-sub" data-i18n="nav.messenger">메신저</span></a>
-            <a href="#" onclick="showPage('social')" class="nav-item"><i data-lucide="camera" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">SOCIAL</span><span class="nav-sub" data-i18n="nav.social">소셜</span></a>
-            <a href="#" onclick="showPage('reels')" class="nav-item"><i data-lucide="video" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">REELS</span><span class="nav-sub" data-i18n="nav.reels">숏폼</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('messenger')" class="nav-item"><i data-lucide="message-circle" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CHAT</span><span class="nav-sub" data-i18n="nav.chat">채팅</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('social')" class="nav-item"><i data-lucide="tv" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">TUBE</span><span class="nav-sub" data-i18n="nav.social">튜브</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('reels')" class="nav-item"><i data-lucide="video" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">SHORTS</span><span class="nav-sub" data-i18n="nav.reels">쇼츠</span></a>
             <hr class="nav-divider">
             <div class="nav-group-label" data-i18n="nav.group_finance">FINANCE</div>
-            <a href="#" onclick="showPage('wallet')" class="nav-item"><i data-lucide="wallet" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">WALLET</span><span class="nav-sub" data-i18n="nav.wallet">지갑</span></a>
-            <a href="#" onclick="showPage('prop-trading')" class="nav-item"><i data-lucide="trending-up" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">TRADING GAME</span><span class="nav-sub" data-i18n="nav.trading">트레이딩 게임</span></a>
-            <a href="#" onclick="showPage('credit')" class="nav-item"><i data-lucide="credit-card" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CREDIT</span><span class="nav-sub" data-i18n="nav.credit">신용</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('wallet')" class="nav-item"><i data-lucide="wallet" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">WALLET</span><span class="nav-sub" data-i18n="nav.wallet">지갑</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('prop-trading')" class="nav-item"><i data-lucide="trending-up" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">TRADING GAME</span><span class="nav-sub" data-i18n="nav.trading">트레이딩 게임</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('credit')" class="nav-item"><i data-lucide="credit-card" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CREDIT</span><span class="nav-sub" data-i18n="nav.credit">신용</span></a>
             <hr class="nav-divider">
             <div class="nav-group-label" data-i18n="nav.group_marketplace">MARKETPLACE</div>
-            <a href="#" onclick="showPage('mall')" class="nav-item"><i data-lucide="shopping-bag" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">MALL</span><span class="nav-sub" data-i18n="nav.mall">쇼핑몰</span></a>
-            <a href="#" onclick="showPage('art')" class="nav-item"><i data-lucide="palette" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">ART</span><span class="nav-sub" data-i18n="nav.art">작품</span></a>
-            <a href="#" onclick="showPage('books')" class="nav-item"><i data-lucide="book-open" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">BOOKS</span><span class="nav-sub" data-i18n="nav.books">도서</span></a>
-            <a href="#" onclick="showPage('artist')" class="nav-item"><i data-lucide="star" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">ARTIST</span><span class="nav-sub" data-i18n="nav.artist">아티스트</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('mall')" class="nav-item"><i data-lucide="shopping-bag" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">MALL</span><span class="nav-sub" data-i18n="nav.mall">쇼핑몰</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('art')" class="nav-item"><i data-lucide="palette" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">ART</span><span class="nav-sub" data-i18n="nav.art">작품</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('books')" class="nav-item"><i data-lucide="book-open" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">BOOKS</span><span class="nav-sub" data-i18n="nav.books">도서</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('artist')" class="nav-item"><i data-lucide="star" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">ARTIST</span><span class="nav-sub" data-i18n="nav.artist">아티스트</span></a>
             <hr class="nav-divider">
             <div class="nav-group-label" data-i18n="nav.group_ecosystem">ECOSYSTEM</div>
-            <a href="#" onclick="showPage('energy')" class="nav-item"><i data-lucide="flask-round" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CREB LABS</span><span class="nav-sub" data-i18n="nav.creb_labs">미래기술</span></a>
-            <a href="#" onclick="showPage('business')" class="nav-item"><i data-lucide="building-2" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">BUSINESS</span><span class="nav-sub" data-i18n="nav.business">사업</span></a>
-            <a href="#" onclick="showPage('fundraise')" class="nav-item"><i data-lucide="heart-handshake" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">FUNDRAISE</span><span class="nav-sub" data-i18n="nav.fundraise">모금</span></a>
-            <a href="#" onclick="showPage('ai-assistant')" class="nav-item"><i data-lucide="crown" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CROWNY PANEL</span><span class="nav-sub" data-i18n="nav.crowny_panel">크라우니 패널</span></a>
-            <a href="#" onclick="showPage('care')" class="nav-item"><i data-lucide="heart" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CARE</span><span class="nav-sub" data-i18n="nav.care">크라우니케어</span></a>
-            <a href="#" onclick="showPage('beauty-manager')" class="nav-item"><i data-lucide="sparkles" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">BEAUTY</span><span class="nav-sub" data-i18n="nav.beauty">뷰티매니저</span></a>
-            <a href="#" onclick="showPage('brain')" class="nav-item"><i data-lucide="brain" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">BRAIN</span><span class="nav-sub" data-i18n="nav.brain">크라우니브레인</span></a>
-            <a href="#" onclick="showPage('movement')" class="nav-item"><i data-lucide="activity" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">MOVEMENT</span><span class="nav-sub" data-i18n="nav.movement">크라우니무브먼트</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('energy')" class="nav-item"><i data-lucide="flask-round" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CREB LABS</span><span class="nav-sub" data-i18n="nav.creb_labs">미래기술</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('business')" class="nav-item"><i data-lucide="building-2" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">BUSINESS</span><span class="nav-sub" data-i18n="nav.business">사업</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('fundraise')" class="nav-item"><i data-lucide="heart-handshake" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">FUNDRAISE</span><span class="nav-sub" data-i18n="nav.fundraise">모금</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('ai-assistant')" class="nav-item"><i data-lucide="crown" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CROWNY PANEL</span><span class="nav-sub" data-i18n="nav.crowny_panel">크라우니 패널</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('care')" class="nav-item"><i data-lucide="heart" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CARE</span><span class="nav-sub" data-i18n="nav.care">크라우니케어</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('beauty-manager')" class="nav-item"><i data-lucide="sparkles" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">BEAUTY</span><span class="nav-sub" data-i18n="nav.beauty">뷰티매니저</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('brain')" class="nav-item"><i data-lucide="brain" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">BRAIN</span><span class="nav-sub" data-i18n="nav.brain">크라우니브레인</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('movement')" class="nav-item"><i data-lucide="activity" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">MOVEMENT</span><span class="nav-sub" data-i18n="nav.movement">크라우니무브먼트</span></a>
             <hr class="nav-divider">
             <div class="nav-group-label" data-i18n="nav.group_crowny_org">CROWNY.ORG</div>
-            <a href="#" onclick="showPage('bible-quiz')" class="nav-item"><i data-lucide="book-open-check" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">BIBLE QUIZ</span><span class="nav-sub" data-i18n="nav.bible_quiz">바이블퀴즈</span></a>
-            <a href="#" onclick="showPage('crowny-mail')" class="nav-item"><i data-lucide="mail" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">MAIL</span><span class="nav-sub" data-i18n="nav.mail">크라우니메일</span></a>
-            <a href="#" onclick="showPage('contacts-crm')" class="nav-item"><i data-lucide="contact" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CONTACTS</span><span class="nav-sub" data-i18n="nav.contacts">연락처 CRM</span></a>
-            <a href="#" onclick="showPage('hanseon-vm')" class="nav-item"><i data-lucide="code-2" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">HANSEON VM</span><span class="nav-sub" data-i18n="nav.hanseon_vm">한선씨</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('bible-quiz')" class="nav-item"><i data-lucide="book-open-check" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">QUIZ</span><span class="nav-sub" data-i18n="nav.quiz">퀴즈</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('crowny-mail')" class="nav-item"><i data-lucide="mail" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">MAIL</span><span class="nav-sub" data-i18n="nav.mail">크라우니메일</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('contacts-crm')" class="nav-item"><i data-lucide="contact" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CONTACTS</span><span class="nav-sub" data-i18n="nav.contacts">연락처</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('hanseon-vm')" class="nav-item"><i data-lucide="code-2" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">HANSEON VM</span><span class="nav-sub" data-i18n="nav.hanseon_vm">한선씨</span></a>
             <hr class="nav-divider">
-            <a href="#" onclick="showPage('crowny-admin')" class="nav-item" id="admin-nav-item" style="display:none; color:#B54534;"><i data-lucide="shield-check" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">ADMIN</span><span class="nav-sub" data-i18n="nav.admin">관리자</span></a>
-            <a href="#" onclick="showPage('settings')" class="nav-item" style="margin-top:auto;"><i data-lucide="settings" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">SETTINGS</span><span class="nav-sub" data-i18n="nav.settings">설정</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('crowny-admin')" class="nav-item" id="admin-nav-item" style="display:none; color:#B54534;"><i data-lucide="shield-check" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">ADMIN</span><span class="nav-sub" data-i18n="nav.admin">관리자</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('settings')" class="nav-item" style="margin-top:auto;"><i data-lucide="settings" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">SETTINGS</span><span class="nav-sub" data-i18n="nav.settings">설정</span></a>
         </nav>
     </aside>
 
@@ -660,8 +663,25 @@
 
     <main class="content">
         <section id="dashboard" class="page">
-            <h2><i data-lucide="bar-chart-3" style="width:24px;height:24px;margin-right:8px;"></i>DASHBOARD</h2>
-            <div id="dashboard-content"><p style="text-align:center;padding:2rem;color:var(--accent);">Loading...</p></div>
+            <div id="dashboard-content">
+                <div style="padding:2rem 1rem;text-align:center;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;max-width:400px;margin:0 auto;">
+                        <button onclick="showPage('wallet')" style="background:#FFF8F0;border:1px solid #E8E0D8;border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:#3D2B1F;font-weight:600;font-size:0.85rem;">
+                            <i data-lucide="coins" style="width:24px;height:24px;color:#8B6914;"></i> WALLET
+                        </button>
+                        <button onclick="showPage('social')" style="background:#FFF8F0;border:1px solid #E8E0D8;border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:#3D2B1F;font-weight:600;font-size:0.85rem;">
+                            <i data-lucide="tv" style="width:24px;height:24px;color:#8B6914;"></i> TUBE
+                        </button>
+                        <button onclick="showPage('mall')" style="background:#FFF8F0;border:1px solid #E8E0D8;border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:#3D2B1F;font-weight:600;font-size:0.85rem;">
+                            <i data-lucide="shopping-cart" style="width:24px;height:24px;color:#8B6914;"></i> MALL
+                        </button>
+                        <button onclick="showPage('reels')" style="background:#FFF8F0;border:1px solid #E8E0D8;border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:#3D2B1F;font-weight:600;font-size:0.85rem;">
+                            <i data-lucide="clapperboard" style="width:24px;height:24px;color:#8B6914;"></i> SHORTS
+                        </button>
+                    </div>
+                    <p style="margin-top:1.5rem;font-size:0.8rem;color:#8B6914;">로그인하면 대시보드가 활성화됩니다</p>
+                </div>
+            </div>
         </section>
 
         <section id="today" class="page active">
@@ -681,11 +701,11 @@
                 </div>
                 <div class="service-card" onclick="showPage('messenger')">
                     <span class="icon"><i data-lucide="message-circle" style="width:24px;height:24px;color:var(--primary);"></i></span>
-                    <h3 data-i18n="home.messenger">MESSENGER</h3>
+                    <h3 data-i18n="nav.chat">CHAT</h3>
                 </div>
                 <div class="service-card" onclick="showPage('social')">
-                    <span class="icon"><i data-lucide="camera" style="width:24px;height:24px;color:var(--primary);"></i></span>
-                    <h3 data-i18n="home.social">SOCIAL</h3>
+                    <span class="icon"><i data-lucide="tv" style="width:24px;height:24px;color:var(--primary);"></i></span>
+                    <h3 data-i18n="home.social">TUBE</h3>
                 </div>
                 <div class="service-card" data-feature="art" onclick="showPage('art')">
                     <span class="icon"><i data-lucide="palette" style="width:24px;height:24px;color:var(--primary);"></i></span>
@@ -745,7 +765,7 @@
                 </div>
                 <div class="service-card" data-feature="reels" onclick="showPage('reels')">
                     <span class="icon"><i data-lucide="video" style="width:32px;height:32px;color:#3D2B1F;stroke-width:1.5;"></i></span>
-                    <h3 data-i18n="home.reels">REELS</h3>
+                    <h3 data-i18n="home.reels">SHORTS</h3>
                 </div>
                 <div class="service-card" onclick="showPage('dashboard')">
                     <span class="icon"><i data-lucide="layout-dashboard" style="width:32px;height:32px;color:#3D2B1F;stroke-width:1.5;"></i></span>
@@ -785,116 +805,82 @@
         </section>
 
         <section id="wallet" class="page">
-            <h2 style="display:flex; align-items:center; gap:0.5rem;"><i data-lucide="coins"></i> MY WALLET</h2>
 
-            <!-- 계정 + 지갑 주소 카드 -->
-            <div style="background:#3D2B1F; color:#E8D5C4; padding:1.5rem; border-radius:16px; margin-bottom:1rem; position:relative; overflow:hidden;">
-                <div style="position:absolute; top:-20px; right:-20px; width:100px; height:100px; background:rgba(232,213,196,0.05); border-radius:50%;"></div>
-                <div style="display:flex; align-items:center; gap:0.8rem; margin-bottom:1rem;">
-                    <div style="width:40px; height:40px; background:linear-gradient(135deg,#8B6914,#6B5744); border-radius:50%; display:flex; align-items:center; justify-content:center;"><i data-lucide="user" style="width:20px;height:20px;color:#FFF8F0;"></i></div>
-                    <div>
-                        <div style="font-size:0.7rem; opacity:0.5;">CrownyTVM ID</div>
-                        <div id="wallet-username" style="font-size:1.1rem; font-weight:700;">--</div>
+            <!-- Account card -->
+            <div style="background:#3D2B1F;color:#E8D5C4;padding:1rem 1.2rem;border-radius:12px;margin-bottom:0.8rem">
+                <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem">
+                    <div style="width:32px;height:32px;background:rgba(255,248,240,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center"><i data-lucide="user" style="width:16px;height:16px;color:#E8D5C4"></i></div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:0.6rem;opacity:0.5" data-i18n="wallet.ctvm_id">CrownyTVM ID</div>
+                        <div id="wallet-username" style="font-size:0.95rem;font-weight:700">--</div>
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-size:0.6rem;opacity:0.5" data-i18n="wallet.total_assets">Total Assets</div>
+                        <div id="total-asset-crn" style="font-size:1.1rem;font-weight:800">0 CRN</div>
                     </div>
                 </div>
-                <div style="background:rgba(255,248,240,0.08); padding:0.8rem; border-radius:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.3rem;">
-                        <span style="font-size:0.65rem; opacity:0.5; text-transform:uppercase; letter-spacing:1px;">Crowny Network Address</span>
-                        <button onclick="ctvmCopyAddress()" style="background:rgba(255,248,240,0.1); border:none; padding:0.3rem 0.5rem; border-radius:6px; cursor:pointer; color:#E8D5C4; font-size:0.7rem; display:flex; align-items:center; gap:0.3rem;"><i data-lucide="copy" style="width:12px;height:12px;"></i> 복사</button>
-                    </div>
-                    <div id="wallet-address-full" style="font-family:'Consolas',monospace; font-size:0.8rem; word-break:break-all; color:#E8D5C4; font-weight:600;">--</div>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:end; margin-top:1rem;">
-                    <div>
-                        <div style="font-size:0.65rem; opacity:0.5; text-transform:uppercase; letter-spacing:1px;">Total Assets (CRN)</div>
-                        <div id="total-asset-crn" style="font-size:1.8rem; font-weight:800; letter-spacing:-0.5px;">0 CRN</div>
-                    </div>
-                    <button onclick="ctvmRefreshWallet()" style="background:rgba(255,248,240,0.1); border:none; padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer; color:#E8D5C4; font-size:0.75rem; display:flex; align-items:center; gap:0.3rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> 새로고침</button>
+                <div style="display:flex;align-items:center;gap:6px;background:rgba(255,248,240,0.06);padding:6px 8px;border-radius:8px">
+                    <div id="wallet-address-full" style="font-family:monospace;font-size:0.7rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.7">--</div>
+                    <button onclick="ctvmCopyAddress()" style="background:rgba(255,248,240,0.1);border:none;padding:3px 8px;border-radius:4px;cursor:pointer;color:#E8D5C4;font-size:0.65rem"><i data-lucide="copy" style="width:10px;height:10px"></i></button>
                 </div>
             </div>
 
-            <!-- 토큰 잔액 -->
-            <div style="margin-bottom:1rem;">
-                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem;">
-                    <span style="font-size:0.75rem; background:#F7F3ED; color:#5B7B8C; padding:0.2rem 0.6rem; border-radius:10px; font-weight:700;">Crowny Network</span>
+            <!-- Token balances — compact list -->
+            <div style="margin-bottom:0.8rem">
+                <div id="token-card-crn" style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #F0E8DC">
+                    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8B6914,#6B5744);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i data-lucide="crown" style="width:18px;height:18px;color:#FFF8F0"></i></div>
+                    <div style="flex:1;min-width:0"><div style="font-size:0.9rem;font-weight:700;color:#3D2B1F">CRN</div><div style="font-size:0.7rem;color:#7A5C47" data-i18n="wallet.token_crn_desc">Crowny · 10 FNC</div></div>
+                    <strong id="crn-balance" style="font-size:1.1rem;font-weight:800;color:#3D2B1F">0</strong>
                 </div>
-                <div class="token-balances">
-                    <div class="token-card" id="token-card-crn" style="cursor:default;">
-                        <div class="token-icon" style="background:linear-gradient(135deg,#8B6914,#6B5744); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center;"><i data-lucide="crown"></i></div>
-                        <div class="token-info">
-                            <span class="token-name">CRN</span>
-                            <span class="token-desc">크라우니 · = 10 FNC = 1,000 CRM</span>
-                        </div>
-                        <strong class="token-balance" id="crn-balance">0</strong>
-                    </div>
-                    <div class="token-card" id="token-card-fnc" style="cursor:default;">
-                        <div class="token-icon" style="background:linear-gradient(135deg,#5B7B8C,#5B7B8C); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center;"><i data-lucide="zap"></i></div>
-                        <div class="token-info">
-                            <span class="token-name">FNC</span>
-                            <span class="token-desc">포네 · = 0.1 CRN = 100 CRM</span>
-                        </div>
-                        <strong class="token-balance" id="fnc-balance">0</strong>
-                    </div>
-                    <div class="token-card" id="token-card-crm" style="cursor:default;">
-                        <div class="token-icon" style="background:linear-gradient(135deg,#C4841D,#FF9100); color:#FFF8F0; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center;"><i data-lucide="heart"></i></div>
-                        <div class="token-info">
-                            <span class="token-name">CRM</span>
-                            <span class="token-desc">맘 · = 0.001 CRN = 0.01 FNC</span>
-                        </div>
-                        <strong class="token-balance" id="crm-balance">0</strong>
-                    </div>
+                <div id="token-card-fnc" style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #F0E8DC">
+                    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#5B7B8C,#5B7B8C);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i data-lucide="zap" style="width:18px;height:18px;color:#FFF8F0"></i></div>
+                    <div style="flex:1;min-width:0"><div style="font-size:0.9rem;font-weight:700;color:#3D2B1F">FNC</div><div style="font-size:0.7rem;color:#7A5C47" data-i18n="wallet.token_fnc_desc">Fone · 100 CRM</div></div>
+                    <strong id="fnc-balance" style="font-size:1.1rem;font-weight:800;color:#3D2B1F">0</strong>
+                </div>
+                <div id="token-card-crm" style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #F0E8DC">
+                    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#C4841D,#FF9100);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i data-lucide="heart" style="width:18px;height:18px;color:#FFF8F0"></i></div>
+                    <div style="flex:1;min-width:0"><div style="font-size:0.9rem;font-weight:700;color:#3D2B1F">CRM</div><div style="font-size:0.7rem;color:#7A5C47" data-i18n="wallet.token_crm_desc">Mam · 0.001 CRN</div></div>
+                    <strong id="crm-balance" style="font-size:1.1rem;font-weight:800;color:#3D2B1F">0</strong>
                 </div>
             </div>
 
-            <!-- 송금 -->
-            <div style="background:#FFF8F0; padding:1.2rem; border-radius:12px; margin-bottom:1rem; box-shadow:0 2px 8px rgba(61,43,31,0.06);">
-                <h4 style="margin:0 0 0.8rem; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;"><i data-lucide="send" style="width:16px;height:16px;"></i> 송금</h4>
-                <div style="display:flex; flex-direction:column; gap:0.5rem;">
-                    <input type="text" id="send-to" placeholder="받는 사람 아이디" style="padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem;">
-                    <div style="display:flex; gap:0.5rem;">
-                        <input type="number" id="send-amount" placeholder="수량" style="flex:1; padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem;">
-                        <select id="send-currency" style="padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem; background:#FFF8F0;">
-                            <option value="CRN">CRN</option>
-                            <option value="FNC">FNC</option>
-                            <option value="CRM">CRM</option>
-                        </select>
+            <!-- Send -->
+            <details style="margin-bottom:0.6rem">
+                <summary style="padding:8px 4px;font-size:0.82rem;font-weight:600;color:#3D2B1F;cursor:pointer;border-bottom:1px solid #F0E8DC;display:flex;align-items:center;gap:6px;list-style:none"><i data-lucide="send" style="width:14px;height:14px;color:#7A5C47"></i> <span data-i18n="wallet.send">Send</span><span style="margin-left:auto;font-size:0.65rem;color:#7A5C47">▾</span></summary>
+                <div style="padding:10px 0;display:flex;flex-direction:column;gap:6px">
+                    <div style="position:relative">
+                        <input type="text" id="send-to" placeholder="Recipient ID" data-i18n-placeholder="wallet.recipient_placeholder" style="padding:7px 10px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0;width:100%;box-sizing:border-box;padding-right:36px" oninput="ctvmFilterSendContacts()" onfocus="ctvmFilterSendContacts()">
+                        <button onclick="ctvmToggleSendContacts()" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:#7A5C47"><i data-lucide="contact" style="width:16px;height:16px"></i></button>
+                        <div id="send-contact-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:#FFF8F0;border:1px solid #E8E0D8;border-radius:8px;box-shadow:0 4px 12px rgba(61,43,31,0.12);z-index:10;margin-top:2px"></div>
                     </div>
-                    <input type="text" id="send-memo" placeholder="메모 (선택)" style="padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem;">
-                    <button onclick="ctvmSendToken()" style="padding:0.7rem; background:#3D2B1F; color:#FFF8F0; border:none; border-radius:8px; cursor:pointer; font-weight:700; display:flex; align-items:center; justify-content:center; gap:0.4rem;"><i data-lucide="send" style="width:14px;height:14px;"></i> 전송</button>
+                    <div style="display:flex;gap:6px">
+                        <input type="number" id="send-amount" placeholder="Amount" data-i18n-placeholder="wallet.amount_placeholder" style="flex:1;padding:7px 10px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0">
+                        <select id="send-currency" style="padding:7px 8px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0"><option value="CRN">CRN</option><option value="FNC">FNC</option><option value="CRM">CRM</option></select>
+                    </div>
+                    <input type="text" id="send-memo" placeholder="Memo (optional)" data-i18n-placeholder="wallet.memo_placeholder" style="padding:7px 10px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0">
+                    <button onclick="ctvmSendToken()" style="padding:8px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.78rem"><span data-i18n="wallet.send_btn">Send</span></button>
                 </div>
-            </div>
+            </details>
 
-            <!-- 스왑 -->
-            <div style="background:#FFF8F0; padding:1.2rem; border-radius:12px; margin-bottom:1rem; box-shadow:0 2px 8px rgba(61,43,31,0.06);">
-                <h4 style="margin:0 0 0.8rem; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;"><i data-lucide="repeat" style="width:16px;height:16px;"></i> 스왑 (상향 전환)</h4>
-                <p style="font-size:0.75rem; color:var(--accent); margin-bottom:0.6rem;">100 CRM = 1 FNC · 10 FNC = 1 CRN</p>
-                <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:0.5rem; align-items:end;">
-                    <div>
-                        <label style="font-size:0.75rem; color:var(--accent);">보내기</label>
-                        <select id="swap-from" style="width:100%; padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem; background:#FFF8F0;">
-                            <option value="CRM">CRM (맘)</option>
-                            <option value="FNC">FNC (포네)</option>
-                        </select>
+            <!-- Swap -->
+            <details style="margin-bottom:0.6rem">
+                <summary style="padding:8px 4px;font-size:0.82rem;font-weight:600;color:#3D2B1F;cursor:pointer;border-bottom:1px solid #F0E8DC;display:flex;align-items:center;gap:6px;list-style:none"><i data-lucide="repeat" style="width:14px;height:14px;color:#7A5C47"></i> <span data-i18n="wallet.swap_title">Swap</span><span style="margin-left:auto;font-size:0.65rem;color:#7A5C47">▾</span></summary>
+                <div style="padding:10px 0;display:flex;flex-direction:column;gap:6px">
+                    <div style="font-size:0.7rem;color:#7A5C47" data-i18n="wallet.swap_rate">100 CRM = 1 FNC · 10 FNC = 1 CRN</div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <select id="swap-from" style="flex:1;padding:7px 8px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0"><option value="CRM">CRM</option><option value="FNC">FNC</option></select>
+                        <span style="color:#7A5C47;font-size:0.8rem">→</span>
+                        <select id="swap-to" style="flex:1;padding:7px 8px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0"><option value="FNC">FNC</option><option value="CRN">CRN</option></select>
                     </div>
-                    <span style="font-size:1.3rem; padding-bottom:0.4rem;">→</span>
-                    <div>
-                        <label style="font-size:0.75rem; color:var(--accent);">받기</label>
-                        <select id="swap-to" style="width:100%; padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; font-size:0.85rem; background:#FFF8F0;">
-                            <option value="FNC">FNC (포네)</option>
-                            <option value="CRN">CRN (크라우니)</option>
-                        </select>
-                    </div>
+                    <input type="number" id="swap-amount" placeholder="Amount" data-i18n-placeholder="wallet.amount_placeholder" style="padding:7px 10px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0">
+                    <button onclick="ctvmSwapToken()" style="padding:8px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.78rem"><span data-i18n="wallet.swap_exec">Swap</span></button>
                 </div>
-                <input type="number" id="swap-amount" placeholder="수량" style="width:100%; padding:0.6rem; border:1px solid #E8E0D8; border-radius:8px; margin-top:0.5rem; box-sizing:border-box; font-size:0.85rem;">
-                <button onclick="ctvmSwapToken()" style="width:100%; padding:0.7rem; background:#3D2B1F; color:#FFF8F0; border:none; border-radius:8px; cursor:pointer; font-weight:700; margin-top:0.5rem; display:flex; align-items:center; justify-content:center; gap:0.4rem;"><i data-lucide="repeat" style="width:14px;height:14px;"></i> 스왑 실행</button>
-            </div>
+            </details>
 
-            <!-- 최근 거래 -->
-            <div style="margin-top:1rem;">
-                <h4 style="margin:0 0 0.6rem; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;"><i data-lucide="list" style="width:16px;height:16px;"></i> 최근 거래</h4>
-                <div id="wallet-transactions" style="max-height:300px; overflow-y:auto;">
-                    <p style="color:var(--accent); font-size:0.85rem; text-align:center; padding:1rem;">거래 내역이 없습니다.</p>
-                </div>
+            <!-- Transactions -->
+            <div style="padding:8px 4px;font-size:0.82rem;font-weight:600;color:#3D2B1F;display:flex;align-items:center;gap:6px;border-bottom:1px solid #F0E8DC"><i data-lucide="list" style="width:14px;height:14px;color:#7A5C47"></i> <span data-i18n="wallet.recent_tx">Transactions</span></div>
+            <div id="wallet-transactions" style="max-height:300px;overflow-y:auto">
+                <p style="color:#7A5C47;font-size:0.8rem;text-align:center;padding:1rem" data-i18n="wallet.no_tx">No transactions yet</p>
             </div>
         </section>
 
@@ -902,15 +888,8 @@
             <div class="crny-chat">
                 <!-- 채팅 목록 패널 -->
                 <div class="crny-chat-sidebar" id="chat-sidebar-panel">
-                    <div class="crny-chat-sidebar-header">
-                        <h3>메시지</h3>
-                        <div style="display:flex;gap:6px">
-                            <button onclick="chatNewDm()" class="crny-btn-icon" title="새 대화">+</button>
-                            <button onclick="chatNewGroup()" class="crny-btn-icon" title="새 그룹">G</button>
-                        </div>
-                    </div>
                     <div class="crny-chat-search">
-                        <input type="text" id="chat-search" placeholder="검색..." oninput="chatSearch()">
+                        <input type="text" id="chat-search" class="crny-search-input" placeholder="검색..." oninput="chatSearch()">
                     </div>
                     <div id="chat-list-items" class="crny-chat-list">
                         <div class="chat-empty">대화가 없습니다<br><small>+ 버튼으로 새 채팅을 시작하세요</small></div>
@@ -931,8 +910,27 @@
                         <input type="number" id="chat-crmm" placeholder="0" min="1" max="100" style="width:60px;padding:6px 8px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.85rem;text-align:center;background:#FFF8F0">
                         <span id="chat-crmm-balance" style="font-size:0.75rem;color:#7A5C47;margin-left:auto"></span>
                     </div>
+                    <!-- 답장 미리보기 바 -->
+                    <div id="chat-reply-bar" class="chat-context-bar" style="display:none">
+                        <div class="chat-context-bar-icon">↩</div>
+                        <div class="chat-context-bar-content">
+                            <div class="chat-reply-sender" style="font-weight:600;font-size:0.75rem;color:#8B6914"></div>
+                            <div class="chat-reply-text" style="font-size:0.8rem;color:#7A5C47;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+                        </div>
+                        <button onclick="chatHideReplyBar()" class="chat-context-bar-close">✕</button>
+                    </div>
+                    <!-- 수정 바 -->
+                    <div id="chat-edit-bar" class="chat-context-bar" style="display:none">
+                        <div class="chat-context-bar-icon">✏</div>
+                        <div class="chat-context-bar-content">
+                            <div style="font-weight:600;font-size:0.75rem;color:#8B6914">수정 중</div>
+                            <div class="chat-edit-text" style="font-size:0.8rem;color:#7A5C47;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+                        </div>
+                        <button onclick="chatCancelEdit()" class="chat-context-bar-close">✕</button>
+                    </div>
                     <div id="chat-input-area" class="crny-chat-input" style="display:none">
                         <button onclick="chatToggleCrmm()" class="crny-btn-tip" title="CRM 팁 보내기">C</button>
+                        <button onclick="chatAttachFile()" class="crny-btn-attach" title="파일 첨부"><i data-lucide="paperclip" style="width:16px;height:16px"></i></button>
                         <input type="text" id="chat-input" placeholder="메시지 입력..." oninput="chatOnInputTyping()" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();chatSend();}">
                         <button onclick="chatSend()" class="crny-btn-send">전송</button>
                     </div>
@@ -941,19 +939,13 @@
         </section>
 
         <section id="social" class="page">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;">
-                <h2 style="margin:0;font-size:1.5rem;font-weight:800;color:var(--dark-gold,#8B6914);" data-i18n="social.title">Crowny</h2>
-                <div style="display:flex;gap:12px;">
-                    <button onclick="SHORTFORM.openUpload()" style="background:none;border:none;cursor:pointer;font-size:1.3rem;color:var(--dark-text,#3D2B1F);"><i data-lucide="plus"></i></button>
-                    <button onclick="showPage('messenger')" style="background:none;border:none;cursor:pointer;font-size:1.3rem;color:var(--dark-text,#3D2B1F);"><i data-lucide="message-circle"></i></button>
-                </div>
-            </div>
+            <div class="section-header"></div>
             
             <!-- Friend Requests -->
             <div id="friend-requests-list" style="display:none;margin-bottom:0.8rem;"></div>
             
             <!-- Story Ring -->
-            <div id="story-ring-container" style="display:flex;gap:0.8rem;overflow-x:auto;padding:0.5rem 0 0.8rem;margin-bottom:0.5rem;scrollbar-width:none;-webkit-overflow-scrolling:touch;"></div>
+            <div id="story-ring-container"></div>
             
             <!-- Friends Grid (Instagram stories style) -->
             <div id="friends-grid" class="friends-grid"></div>
@@ -979,14 +971,14 @@
             <div class="post-create">
                 <textarea id="post-text" placeholder="무슨 생각을 하고 계신가요? #해시태그 @멘션 가능" data-i18n-placeholder="social.post_placeholder" style="border:1px solid var(--border); border-radius:12px; padding:0.8rem; font-size:0.95rem; line-height:1.5; resize:none; min-height:60px; width:100%; margin-bottom:0.5rem;"></textarea>
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-                    <label for="post-image" style="display:flex; align-items:center; gap:0.3rem; padding:0.4rem 0.8rem; background:var(--bg); border-radius:20px; cursor:pointer; font-size:0.85rem; border:1px solid var(--border);"><i data-lucide="camera" style="width:14px;height:14px;"></i> <span data-i18n="social.photo">사진</span></label>
+                    <label for="post-image" class="attach-btn"><i data-lucide="camera"></i> <span data-i18n="social.photo">사진</span></label>
                     <input type="file" id="post-image" accept="image/*" multiple style="display:none;">
-                    <label for="post-video" style="display:flex; align-items:center; gap:0.3rem; padding:0.4rem 0.8rem; background:var(--bg); border-radius:20px; cursor:pointer; font-size:0.85rem; border:1px solid var(--border);"><i data-lucide="clapperboard" style="width:14px;height:14px;"></i> <span data-i18n="social.video">영상</span></label>
+                    <label for="post-video" class="attach-btn"><i data-lucide="clapperboard"></i> <span data-i18n="social.video">영상</span></label>
                     <input type="file" id="post-video" accept="video/mp4,video/quicktime,video/webm" style="display:none;">
-                    <button onclick="showServiceLinkModal()" style="display:flex; align-items:center; gap:0.3rem; padding:0.4rem 0.8rem; background:var(--bg); border-radius:20px; cursor:pointer; font-size:0.85rem; border:1px solid var(--border);"><i data-lucide="link" style="width:14px;height:14px;"></i> <span data-i18n="social.service_link">서비스 연결</span></button>
-                    <div style="display:flex;align-items:center;gap:0.3rem;padding:0.4rem 0.8rem;background:var(--bg);border-radius:20px;border:1px solid var(--border);font-size:0.85rem;"><i data-lucide="map-pin" style="width:14px;height:14px;flex-shrink:0;"></i><input type="text" id="post-location" placeholder="위치 태그" data-i18n-placeholder="social.location_tag" style="border:none;background:none;font-size:0.85rem;width:80px;outline:none;"></div>
+                    <button onclick="showServiceLinkModal()" class="attach-btn"><i data-lucide="link"></i> <span data-i18n="social.service_link">서비스 연결</span></button>
+                    <div class="attach-btn"><i data-lucide="map-pin" style="flex-shrink:0;"></i><input type="text" id="post-location" placeholder="위치 태그" data-i18n-placeholder="social.location_tag" style="border:none;background:none;font-size:0.85rem;width:80px;outline:none;"></div>
                     <span id="post-image-name" style="font-size:0.75rem; color:var(--accent); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
-                    <button onclick="createPost()" style="padding:0.5rem 1rem; border-radius:20px; font-size:0.85rem; font-weight:700; background:#B8860B; color:#FFF8F0; border:none; cursor:pointer; display:flex; align-items:center; gap:0.3rem;"><i data-lucide="send" style="width:14px;height:14px;"></i> <span data-i18n="social.post_btn">게시</span></button>
+                    <button onclick="createPost()" class="post-btn"><i data-lucide="send"></i> <span data-i18n="social.post_btn">게시</span></button>
                 </div>
                 <div id="post-video-preview" style="display:none; margin-top:0.5rem;"></div>
                 <div id="post-service-link-preview" style="display:none; margin-top:0.5rem;"></div>
@@ -1034,13 +1026,9 @@
             </script>
         </section>
 
-        <!-- ========== REELS - 숏폼 영상 ========== -->
+        <!-- ========== SHORTS (쇼츠) ========== -->
         <section id="reels" class="page" data-feature="reels">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                <h2 style="margin:0;" data-i18n="shortform.title"><i data-lucide="clapperboard"></i> REELS</h2>
-                <button onclick="SHORTFORM.openUpload()" style="padding:0.5rem 1rem;border:none;border-radius:20px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;font-size:0.85rem;"><i data-lucide="plus"></i> 업로드</button>
-            </div>
-            <div id="reels-container" style="width:100%;height:calc(100vh - 120px);background:#FFF8F0;border-radius:16px;overflow:hidden;position:relative;"></div>
+            <div id="reels-container"></div>
         </section>
 
         <!-- ========== ART v2.0 - 디지털 아트 거래소 + NFT ========== -->
@@ -1452,165 +1440,162 @@
         <!-- ========== CREDIT - P2P 크레딧 ========== -->
         <section id="credit" class="page" data-feature="mall">
             <h2 data-i18n="credit.title"><i data-lucide="credit-card"></i> CREDIT - P2P 크레딧</h2>
-            
-            <div style="background:#3D2B1F; padding:1.5rem; border-radius:12px; margin-bottom:1rem; color:#E8D5C4;">
+
+            <div class="credit-banner">
                 <h3 data-i18n="credit.banner_title"><i data-lucide="handshake"></i> 형제에게 이자를 받지 않는다</h3>
-                <p style="margin-top:0.5rem; opacity:0.9; font-size:0.85rem;" data-i18n="credit.banner_desc">무이자 P2P 크레딧 · 환전 · 품앗이 대출 · 공동체 보험 · 기부 연동</p>
+                <p data-i18n="credit.banner_desc">무이자 P2P 크레딧 · 환전 · 품앗이 대출 · 공동체 보험 · 기부 연동</p>
             </div>
-            
-            <!-- 4개 서비스 탭 -->
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:0.3rem; margin-bottom:1rem;">
-                <button onclick="showCreditTab('exchange')" class="credit-tab active" id="tab-exchange" style="padding:0.6rem; border:2px solid var(--primary); background:var(--primary); color:#FFF8F0; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:700;" data-i18n="credit.tab_exchange"><i data-lucide="arrow-right-left"></i> 환전</button>
-                <button onclick="showCreditTab('pumasi')" class="credit-tab" id="tab-pumasi" style="padding:0.6rem; border:2px solid var(--border); background:#FFF8F0; border-radius:6px; cursor:pointer; font-size:0.8rem;" data-i18n="credit.tab_pumasi"><i data-lucide="handshake"></i> 품앗이</button>
-                <button onclick="showCreditTab('insurance')" class="credit-tab" id="tab-insurance" style="padding:0.6rem; border:2px solid var(--border); background:#FFF8F0; border-radius:6px; cursor:pointer; font-size:0.8rem;" data-i18n="credit.tab_insurance"><i data-lucide="shield"></i> 보험</button>
-                <button onclick="showCreditTab('donate')" class="credit-tab" id="tab-donate" style="padding:0.6rem; border:2px solid var(--border); background:#FFF8F0; border-radius:6px; cursor:pointer; font-size:0.8rem;" data-i18n="credit.tab_donate"><i data-lucide="heart"></i> 기부</button>
-                <button onclick="showCreditTab('gye')" class="credit-tab" id="tab-gye" style="padding:0.6rem; border:2px solid var(--border); background:#FFF8F0; border-radius:6px; cursor:pointer; font-size:0.8rem;" data-i18n="credit.tab_gye"><i data-lucide="refresh-cw"></i> 계</button>
+
+            <!-- 5개 서비스 탭 -->
+            <div class="credit-tabs">
+                <button data-action="credit-tab" data-tab="exchange" class="credit-tab active" id="tab-exchange" data-i18n="credit.tab_exchange"><i data-lucide="arrow-right-left"></i> 환전</button>
+                <button data-action="credit-tab" data-tab="pumasi" class="credit-tab" id="tab-pumasi" data-i18n="credit.tab_pumasi"><i data-lucide="handshake"></i> 품앗이</button>
+                <button data-action="credit-tab" data-tab="insurance" class="credit-tab" id="tab-insurance" data-i18n="credit.tab_insurance"><i data-lucide="shield"></i> 보험</button>
+                <button data-action="credit-tab" data-tab="donate" class="credit-tab" id="tab-donate" data-i18n="credit.tab_donate"><i data-lucide="heart"></i> 기부</button>
+                <button data-action="credit-tab" data-tab="gye" class="credit-tab" id="tab-gye" data-i18n="credit.tab_gye"><i data-lucide="refresh-cw"></i> 계</button>
             </div>
-            
+
             <!-- 환전 -->
             <div id="credit-exchange" class="credit-panel">
-                <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-bottom:1rem;">
-                    <h3 style="margin-bottom:0.5rem;" data-i18n="credit.exchange_title"><i data-lucide="arrow-right-left"></i> 토큰 환전</h3>
-                    <p style="font-size:0.85rem; color:var(--accent); margin-bottom:1rem;" data-i18n="credit.exchange_desc">수수료 없이 CRNY ↔ FNC ↔ CRFN 교환</p>
-                    <div style="display:grid; gap:0.8rem;">
-                        <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:0.5rem; align-items:end;">
+                <div class="credit-card">
+                    <h3 data-i18n="credit.exchange_title"><i data-lucide="arrow-right-left"></i> 토큰 환전</h3>
+                    <p data-i18n="credit.exchange_desc">수수료 없이 CRNY ↔ FNC ↔ CRFN 교환</p>
+                    <div class="credit-form">
+                        <div class="credit-row-swap">
                             <div>
-                                <label style="font-size:0.8rem; color:var(--accent);" data-i18n="credit.exchange_from">보내는 토큰</label>
-                                <select id="swap-from" style="width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
+                                <label data-i18n="credit.exchange_from">보내는 토큰</label>
+                                <select id="swap-from">
                                     <optgroup label="⛓ 온체인"><option value="crny">CRNY</option><option value="fnc">FNC</option><option value="crfn">CRFN</option></optgroup>
-                                    <optgroup label="<i data-lucide="flame"></i> 오프체인"><option value="crtd">CRTD</option><option value="crac">CRAC</option><option value="crgc">CRGC</option><option value="creb">CREB</option></optgroup>
+                                    <optgroup label="🔥 오프체인"><option value="crtd">CRTD</option><option value="crac">CRAC</option><option value="crgc">CRGC</option><option value="creb">CREB</option></optgroup>
                                 </select>
                             </div>
-                            <span style="font-size:1.5rem; padding-bottom:0.5rem;"><i data-lucide="arrow-right"></i></span>
+                            <span class="swap-arrow"><i data-lucide="arrow-right"></i></span>
                             <div>
-                                <label style="font-size:0.8rem; color:var(--accent);" data-i18n="credit.exchange_to">받는 토큰</label>
-                                <select id="swap-to" style="width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
+                                <label data-i18n="credit.exchange_to">받는 토큰</label>
+                                <select id="swap-to">
                                     <optgroup label="⛓ 온체인"><option value="fnc">FNC</option><option value="crny">CRNY</option><option value="crfn">CRFN</option></optgroup>
-                                    <optgroup label="<i data-lucide="flame"></i> 오프체인"><option value="crtd">CRTD</option><option value="crac">CRAC</option><option value="crgc">CRGC</option><option value="creb">CREB</option></optgroup>
+                                    <optgroup label="🔥 오프체인"><option value="crtd">CRTD</option><option value="crac">CRAC</option><option value="crgc">CRGC</option><option value="creb">CREB</option></optgroup>
                                 </select>
                             </div>
                         </div>
-                        <input type="number" id="swap-amount" placeholder="수량" data-i18n-placeholder="placeholder.amount" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
-                        <p style="font-size:0.8rem; color:#6B8F3C; font-weight:700;" data-i18n="credit.exchange_fee"<i data-lucide="check-circle" style="width:14px;height:14px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> 환전 수수료: 0%</p>
+                        <input type="number" id="swap-amount" placeholder="수량" data-i18n-placeholder="placeholder.amount">
+                        <p class="credit-info" data-i18n="credit.exchange_fee"><i data-lucide="check-circle"></i> 환전 수수료: 0%</p>
                         <button onclick="swapTokens()" class="btn-primary" data-i18n="credit.exchange_btn"><i data-lucide="arrow-right-left"></i> 환전하기</button>
                     </div>
                 </div>
             </div>
-            
+
             <!-- 품앗이 -->
             <div id="credit-pumasi" class="credit-panel" style="display:none;">
-                <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-bottom:1rem;">
-                    <h3 style="margin-bottom:0.5rem;" data-i18n="credit.pumasi_title"><i data-lucide="handshake"></i> 품앗이 대출</h3>
-                    <p style="font-size:0.85rem; color:var(--accent); margin-bottom:1rem;" data-i18n-html="credit.pumasi_desc">여러 사람의 토큰을 담보로 한 사람에게 무이자 대출<br>CROWNY.church 공동체 기반</p>
-                    <div style="display:grid; gap:0.8rem;">
+                <div class="credit-card">
+                    <h3 data-i18n="credit.pumasi_title"><i data-lucide="handshake"></i> 품앗이 대출</h3>
+                    <p data-i18n-html="credit.pumasi_desc">여러 사람의 토큰을 담보로 한 사람에게 무이자 대출<br>CROWNY.church 공동체 기반</p>
+                    <div class="credit-form">
                         <div>
-                            <label style="font-size:0.8rem; color:var(--accent);">대상 (이메일 또는 닉네임)</label>
-                            <input type="text" id="pumasi-target" placeholder="비워두면 공동체 전체 공개" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px; width:100%; box-sizing:border-box;">
+                            <label data-i18n="credit.pumasi_target_label">대상 (이메일 또는 닉네임)</label>
+                            <input type="text" id="pumasi-target" placeholder="비워두면 공동체 전체 공개" data-i18n-placeholder="credit.pumasi_target_placeholder">
                         </div>
-                        <input type="number" id="pumasi-amount" placeholder="필요 금액 (CRTD)" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
-                        <textarea id="pumasi-reason" placeholder="사유 (공동체에 공유됩니다)" data-i18n-placeholder="placeholder.reason" rows="2" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px; resize:vertical;"></textarea>
-                        <input type="number" id="pumasi-days" value="30" placeholder="상환 기간(일)" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
-                        <p style="font-size:0.8rem; color:#6B8F3C; font-weight:700;" data-i18n="credit.pumasi_no_interest"<i data-lucide="check-circle" style="width:14px;height:14px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> 이자: 0% (형제에게 이자를 받지 않습니다)</p>
+                        <input type="number" id="pumasi-amount" placeholder="필요 금액 (CRTD)" data-i18n-placeholder="credit.pumasi_amount_placeholder">
+                        <textarea id="pumasi-reason" placeholder="사유 (공동체에 공유됩니다)" data-i18n-placeholder="placeholder.reason" rows="2"></textarea>
+                        <input type="number" id="pumasi-days" value="30" placeholder="상환 기간(일)" data-i18n-placeholder="credit.pumasi_days_placeholder">
+                        <p class="credit-info" data-i18n="credit.pumasi_no_interest"><i data-lucide="check-circle"></i> 이자: 0% (형제에게 이자를 받지 않습니다)</p>
                         <button onclick="requestPumasi()" class="btn-primary" data-i18n="credit.pumasi_btn"><i data-lucide="handshake"></i> 품앗이 요청</button>
                     </div>
                 </div>
                 <div id="pumasi-list"></div>
             </div>
-            
+
             <!-- 보험 -->
             <div id="credit-insurance" class="credit-panel" style="display:none;">
-                <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-bottom:1rem;">
-                    <h3 style="margin-bottom:0.5rem;" data-i18n="credit.insurance_title"><i data-lucide="shield"></i> 공동체 보험</h3>
-                    <p style="font-size:0.85rem; color:var(--accent); margin-bottom:1rem;" data-i18n-html="credit.insurance_desc">급한 자금 필요 시 사전 정한 금액을 선지급<br>공동체가 나누어 채우는 상호부조 보험</p>
-                    <div style="display:grid; gap:0.8rem;">
-                        <select id="insurance-type" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
-                            <option value="medical">메디컬 의료비</option>
-                            <option value="disaster"><i data-lucide="alert-circle"></i> 재난/사고</option>
-                            <option value="education"><i data-lucide="book-open"></i> 교육비</option>
-                            <option value="housing"><i data-lucide="home"></i> 주거비</option>
-                            <option value="other">내 주문 기타</option>
+                <div class="credit-card">
+                    <h3 data-i18n="credit.insurance_title"><i data-lucide="shield"></i> 공동체 보험</h3>
+                    <p data-i18n-html="credit.insurance_desc">급한 자금 필요 시 사전 정한 금액을 선지급<br>공동체가 나누어 채우는 상호부조 보험</p>
+                    <div class="credit-form">
+                        <select id="insurance-type">
+                            <option value="medical" data-i18n="credit.insurance_medical">메디컬 의료비</option>
+                            <option value="disaster" data-i18n="credit.insurance_disaster">재난/사고</option>
+                            <option value="education" data-i18n="credit.insurance_education">교육비</option>
+                            <option value="housing" data-i18n="credit.insurance_housing">주거비</option>
+                            <option value="other" data-i18n="credit.insurance_other">기타</option>
                         </select>
-                        <input type="number" id="insurance-amount" placeholder="필요 금액 (CRNY)" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
-                        <textarea id="insurance-reason" placeholder="사유 (중간 관리자가 검토합니다)" rows="2" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px; resize:vertical;"></textarea>
-                        <p style="font-size:0.8rem; color:var(--accent);"><i data-lucide="shield"></i> 보험금 선수령 <i data-lucide="arrow-right"></i> 공동체가 후에 채움</p>
+                        <input type="number" id="insurance-amount" placeholder="필요 금액 (CRNY)" data-i18n-placeholder="credit.insurance_amount_placeholder">
+                        <textarea id="insurance-reason" placeholder="사유 (중간 관리자가 검토합니다)" data-i18n-placeholder="credit.insurance_reason_placeholder" rows="2"></textarea>
+                        <p class="credit-info--muted"><i data-lucide="shield"></i> <span data-i18n="credit.insurance_info">보험금 선수령 → 공동체가 후에 채움</span></p>
                         <button onclick="requestInsurance()" class="btn-primary" data-i18n="credit.insurance_btn"><i data-lucide="shield"></i> 보험 신청</button>
                     </div>
                 </div>
                 <div id="insurance-list"></div>
-                <!-- 관리자 보험 승인 -->
-                <div id="insurance-admin-list" style="background:#FFF8F0; padding:1rem; border-radius:12px; margin-top:1rem;"></div>
-                <!-- 내 보험 신청 내역 -->
-                <div style="background:#FFF8F0; padding:1rem; border-radius:12px; margin-top:1rem;">
-                    <h4 style="margin-bottom:0.5rem;">내 주문 내 보험 신청 내역</h4>
+                <div id="insurance-admin-list" class="credit-card" style="margin-top:1rem;"></div>
+                <div class="credit-card" style="margin-top:1rem;">
+                    <h4 data-i18n="credit.my_claims">내 보험 신청 내역</h4>
                     <div id="my-insurance-claims"></div>
                 </div>
             </div>
-            
+
             <!-- 기부 연동 -->
             <div id="credit-donate" class="credit-panel" style="display:none;">
-                <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-bottom:1rem;">
-                    <h3 style="margin-bottom:0.5rem;" data-i18n="credit.donate_title"><i data-lucide="heart"></i> 기부 활성화</h3>
-                    <p style="font-size:0.85rem; color:var(--accent); margin-bottom:1rem;" data-i18n-html="credit.donate_desc">거래 건마다 1 CRTD 이상 자동 기부<br>사전 지정 대상 또는 오픈 기부 (시스템 우선순위 처리)</p>
-                    <div style="display:grid; gap:0.8rem;">
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+                <div class="credit-card">
+                    <h3 data-i18n="credit.donate_title"><i data-lucide="heart"></i> 기부 활성화</h3>
+                    <p data-i18n-html="credit.donate_desc">거래 건마다 1 CRTD 이상 자동 기부<br>사전 지정 대상 또는 오픈 기부 (시스템 우선순위 처리)</p>
+                    <div class="credit-form">
+                        <div class="credit-row-2">
                             <div>
-                                <label style="font-size:0.8rem; color:var(--accent);">기부 금액</label>
-                                <input type="number" id="donate-amount" value="1" min="1" style="width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
+                                <label data-i18n="credit.donate_amount_label">기부 금액</label>
+                                <input type="number" id="donate-amount" value="1" min="1">
                             </div>
                             <div>
-                                <label style="font-size:0.8rem; color:var(--accent);">토큰</label>
+                                <label data-i18n="credit.donate_token_label">토큰</label>
                                 <input type="hidden" id="donate-token-type" value="CRTD">
-                                <span style="display:block; padding:0.7rem; background:var(--bg); border-radius:6px; font-weight:700; color:#C4841D;">CRTD</span>
+                                <span class="credit-token-badge">CRTD</span>
                             </div>
                         </div>
-                        <select id="donate-target" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
-                            <option value="open"><i data-lucide="globe"></i> 오픈 기부 (시스템 우선순위)</option>
-                            <option value="designated"><i data-lucide="target"></i> 지정 대상 기부</option>
+                        <select id="donate-target">
+                            <option value="open" data-i18n="credit.donate_open">오픈 기부 (시스템 우선순위)</option>
+                            <option value="designated" data-i18n="credit.donate_designated">지정 대상 기부</option>
                         </select>
-                        <input type="email" id="donate-target-email" placeholder="지정 대상 이메일 (선택)" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
+                        <input type="email" id="donate-target-email" placeholder="지정 대상 이메일 (선택)" data-i18n-placeholder="credit.donate_email_placeholder">
                         <button onclick="quickDonate()" class="btn-primary" data-i18n="credit.donate_btn"><i data-lucide="heart"></i> 기부하기</button>
                     </div>
                 </div>
                 <div id="donation-history"></div>
             </div>
-            
+
             <!-- 계모임 -->
             <div id="credit-gye" class="credit-panel" style="display:none;">
-                <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px;">
+                <div class="credit-card">
                     <h3 data-i18n="credit.gye_title"><i data-lucide="refresh-cw"></i> 계모임 (Gye)</h3>
-                    <p style="font-size:0.85rem; color:var(--accent); margin-bottom:1rem;" data-i18n="credit.gye_desc">무이자 순환 저축 · 매월 한 명씩 수령</p>
-                    <div style="display:grid; gap:0.5rem; margin-bottom:1rem;">
-                        <input type="text" id="gye-name" placeholder="계모임 이름" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
-                            <input type="number" id="gye-amount" placeholder="월 납입금 (CRNY)" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
-                            <input type="number" id="gye-members" value="10" placeholder="최대 인원" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
+                    <p data-i18n="credit.gye_desc">무이자 순환 저축 · 매월 한 명씩 수령</p>
+                    <div class="credit-form" style="margin-bottom:1rem;">
+                        <input type="text" id="gye-name" placeholder="계모임 이름" data-i18n-placeholder="credit.gye_name_placeholder">
+                        <div class="credit-row-2">
+                            <input type="number" id="gye-amount" placeholder="월 납입금 (CRNY)" data-i18n-placeholder="credit.gye_amount_placeholder">
+                            <input type="number" id="gye-members" value="10" placeholder="최대 인원" data-i18n-placeholder="credit.gye_members_placeholder">
                         </div>
                         <button onclick="createGye()" class="btn-primary" data-i18n="credit.gye_create"><i data-lucide="refresh-cw"></i> 계모임 만들기</button>
                     </div>
                     <div id="gye-list"></div>
                 </div>
             </div>
-            
+
             <!-- 내 크레딧 현황 -->
-            <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-top:1rem;">
-                <h3 style="margin-bottom:1rem;" data-i18n="credit.score_title"><i data-lucide="bar-chart-3" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> 내 크레딧 현황</h3>
-                <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;">
-                    <div style="flex:1; min-width:100px; background:var(--bg); padding:0.8rem; border-radius:8px; text-align:center;">
-                        <div style="font-size:0.75rem; color:var(--accent);" data-i18n="credit.score">크레딧 점수</div>
-                        <div id="credit-score" style="font-size:1.8rem; font-weight:700; color:#3D2B1F;">--</div>
+            <div class="credit-card" style="margin-top:1rem;">
+                <h3 data-i18n="credit.score_title"><i data-lucide="bar-chart-3"></i> 내 크레딧 현황</h3>
+                <div class="credit-stats">
+                    <div class="credit-stat">
+                        <div class="label" data-i18n="credit.score">크레딧 점수</div>
+                        <div class="value value--lg" id="credit-score">--</div>
                     </div>
-                    <div style="flex:1; min-width:100px; background:var(--bg); padding:0.8rem; border-radius:8px; text-align:center;">
-                        <div style="font-size:0.75rem; color:var(--accent);" data-i18n="credit.active_loans">활성 대출</div>
-                        <div id="active-loans" style="font-size:1.5rem; font-weight:700;">0건</div>
+                    <div class="credit-stat">
+                        <div class="label" data-i18n="credit.active_loans">활성 대출</div>
+                        <div class="value" id="active-loans">0건</div>
                     </div>
-                    <div style="flex:1; min-width:100px; background:var(--bg); padding:0.8rem; border-radius:8px; text-align:center;">
-                        <div style="font-size:0.75rem; color:var(--accent);" data-i18n="credit.total_donated">총 기부</div>
-                        <div id="total-donated" style="font-size:1.5rem; font-weight:700; color:#3D2B1F;">0</div>
+                    <div class="credit-stat">
+                        <div class="label" data-i18n="credit.total_donated">총 기부</div>
+                        <div class="value" id="total-donated">0</div>
                     </div>
                 </div>
-                <!-- 크레딧 점수 상세 분석 -->
-                <h4 style="margin-bottom:0.5rem;" data-i18n="credit.score_detail"><i data-lucide="search"></i> 점수 상세 분석</h4>
-                <div id="credit-score-breakdown"><p style="color:var(--accent); font-size:0.85rem;">로딩...</p></div>
+                <h4 data-i18n="credit.score_detail"><i data-lucide="search"></i> 점수 상세 분석</h4>
+                <div id="credit-score-breakdown"><p class="credit-info--muted" data-i18n="common.loading">로딩...</p></div>
             </div>
         </section>
 
@@ -1657,7 +1642,7 @@
                 </div>
                 
                 <!-- 통합 차트 (탭 시스템) -->
-                <div style="background:#3D2B1F; padding:0.5rem; border-radius:12px; margin-bottom:1rem; overflow:hidden;">
+                <div id="chart-dark-wrapper" style="background:#3D2B1F; padding:0.5rem; border-radius:12px; margin-bottom:1rem;">
                     <!-- 차트 탭 바 -->
                     <div id="chart-tab-bar" style="display:flex; gap:2px; padding:4px 6px; background:#F7F3ED; border-radius:8px; margin-bottom:4px; overflow-x:auto; align-items:center;"></div>
                     
@@ -1703,17 +1688,17 @@
                         <label style="float:right; font-size:0.65rem; color:#6B5744; cursor:pointer;"><input type="checkbox" id="nq-ma-label-show" onchange="applyMASettings()" style="margin:0 2px 0 0; vertical-align:middle;"> <span data-i18n="trading.ma_labels">Labels</span></label>
                         <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-top:4px;">
                             <input type="checkbox" id="nq-ma1-show" checked onchange="applyMASettings()" style="margin:0;">
-                            <select id="nq-ma1-type" onchange="applyMASettings()" style="background:#6B5744; color:#6B5744; border:1px solid #3D2B1F; border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
+                            <select id="nq-ma1-type" onchange="applyMASettings()" style="background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
                             <input type="number" id="nq-ma1-period" value="5" style="width:32px; background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 3px; font-size:0.7rem; text-align:center;">
                             <input type="color" id="nq-ma1-color" value="#ffeb3b" onchange="applyMASettings()" style="width:20px; height:20px; border:none; cursor:pointer; padding:0;">
                             <span style="margin-left:2px;"></span>
                             <input type="checkbox" id="nq-ma2-show" checked onchange="applyMASettings()" style="margin:0;">
-                            <select id="nq-ma2-type" onchange="applyMASettings()" style="background:#6B5744; color:#6B5744; border:1px solid #3D2B1F; border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
+                            <select id="nq-ma2-type" onchange="applyMASettings()" style="background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
                             <input type="number" id="nq-ma2-period" value="20" style="width:32px; background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 3px; font-size:0.7rem; text-align:center;">
                             <input type="color" id="nq-ma2-color" value="#FFA500" onchange="applyMASettings()" style="width:20px; height:20px; border:none; cursor:pointer; padding:0;">
                             <span style="margin-left:2px;"></span>
                             <input type="checkbox" id="nq-ma3-show" checked onchange="applyMASettings()" style="margin:0;">
-                            <select id="nq-ma3-type" onchange="applyMASettings()" style="background:#6B5744; color:#6B5744; border:1px solid #3D2B1F; border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
+                            <select id="nq-ma3-type" onchange="applyMASettings()" style="background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
                             <input type="number" id="nq-ma3-period" value="60" style="width:32px; background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 3px; font-size:0.7rem; text-align:center;">
                             <input type="color" id="nq-ma3-color" value="#FF3333" onchange="applyMASettings()" style="width:20px; height:20px; border:none; cursor:pointer; padding:0;">
                         </div>
@@ -1724,44 +1709,44 @@
                     <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; padding:8px 10px; background:#6B5744; border-radius:8px; margin-bottom:4px; gap:6px;">
                         <div>
                             <div style="display:flex; align-items:baseline; gap:8px;">
-                                <span id="chart-symbol-label" style="color:#6B5744; font-size:0.7rem;">MNQ 1m (×$2)</span>
+                                <span id="chart-symbol-label" style="color:#E8D5C4; font-size:0.7rem;">MNQ 1m (×$2)</span>
                                 <span id="live-clock" style="font-size:0.75rem; color:#6B8F3C;">--:--:--</span>
                             </div>
                             <div id="live-price" style="font-size:1.4rem; font-weight:700; color:#6B8F3C;">--</div>
                         </div>
                         <div style="display:flex; gap:12px;">
                             <div style="text-align:center;">
-                                <span style="color:#6B5744; font-size:0.65rem;">BID</span>
+                                <span style="color:#E8D5C4; font-size:0.65rem;">BID</span>
                                 <div id="live-bid" style="color:#26a69a; font-weight:600; font-size:0.85rem;">--</div>
                             </div>
                             <div style="text-align:center;">
-                                <span style="color:#6B5744; font-size:0.65rem;">ASK</span>
+                                <span style="color:#E8D5C4; font-size:0.65rem;">ASK</span>
                                 <div id="live-ask" style="color:#ef5350; font-weight:600; font-size:0.85rem;">--</div>
                             </div>
                             <div style="text-align:center;">
-                                <span style="color:#6B5744; font-size:0.65rem;">SPREAD</span>
+                                <span style="color:#E8D5C4; font-size:0.65rem;">SPREAD</span>
                                 <div id="live-spread" style="color:#C4841D; font-weight:600; font-size:0.85rem;">--</div>
                             </div>
                         </div>
                         <div style="text-align:right;">
                             <span id="live-status-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#B54534; margin-right:4px;"></span>
-                            <span id="live-status-text" style="color:#6B5744; font-size:0.65rem;" data-i18n="trading.connecting">연결 중...</span>
+                            <span id="live-status-text" style="color:#E8D5C4; font-size:0.65rem;" data-i18n="trading.connecting">연결 중...</span>
                         </div>
                     </div>
                     
                     <!-- 통합 차트 -->
-                    <div id="live-candle-chart" style="height:500px;"></div>
+                    <div id="live-candle-chart" style="height:500px;max-height:60vh;min-height:300px;"></div>
                     
                     <!-- ★ 퀵 SL/TP 설정 바 -->
                     <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#3D2B1F; border-radius:6px; margin-top:4px; font-size:0.75rem;">
                         <span style="color:#B54534; font-weight:600;">SL</span>
                         <input type="number" id="stop-loss-points" value="50" step="5" min="1" style="width:50px; background:#0f0f23; color:#B54534; border:1px solid #3D2B1F; border-radius:3px; padding:3px 5px; text-align:center; font-size:0.8rem;">
-                        <span style="color:#6B5744;">pt</span>
-                        <span style="color:#6B5744;">|</span>
+                        <span style="color:#B8A090;">pt</span>
+                        <span style="color:#B8A090;">|</span>
                         <span style="color:#00cc00; font-weight:600;">TP</span>
                         <input type="number" id="take-profit-points" value="100" step="5" min="1" style="width:50px; background:#0f0f23; color:#00cc00; border:1px solid #3D2B1F; border-radius:3px; padding:3px 5px; text-align:center; font-size:0.8rem;">
-                        <span style="color:#6B5744;">pt</span>
-                        <span style="color:#6B5744;">|</span>
+                        <span style="color:#B8A090;">pt</span>
+                        <span style="color:#B8A090;">|</span>
                         <label style="display:flex; align-items:center; gap:3px; cursor:pointer;">
                             <input type="checkbox" id="use-trailing-stop" style="accent-color:#C4841D;">
                             <span style="color:#C4841D; font-size:0.7rem;" data-i18n="trading.trailing">Trail</span>
@@ -1776,23 +1761,23 @@
                     </div>
                     
                     <!-- 실시간 손익 -->
-                    <div id="live-pnl-bar" style="text-align:center; padding:8px; margin-top:8px; background:#6B5744; border-radius:8px; display:none;">
+                    <div id="live-pnl-bar" style="text-align:center; padding:8px; margin-top:8px; background:#F7F3ED; border-radius:8px; display:none;">
                         <span style="color:#6B5744; font-size:0.75rem;" data-i18n="trading.live_pnl">실시간 손익</span>
                         <div style="display:flex; justify-content:center; align-items:baseline; gap:12px;">
-                            <div id="live-pnl" style="font-size:1.3rem; font-weight:700; color:#6B5744;">$0.00</div>
-                            <div id="live-crtd-est" style="font-size:0.85rem; font-weight:600; color:#6B5744;"><i data-lucide="gem"></i>0 CRTD</div>
+                            <div id="live-pnl" style="font-size:1.3rem; font-weight:700; color:#3D2B1F;">$0.00</div>
+                            <div id="live-crtd-est" style="font-size:0.85rem; font-weight:600; color:#8B6914;"><i data-lucide="gem"></i>0 CRTD</div>
                         </div>
                     </div>
                     
                     <!-- AI 멘토 패널 -->
                     <div id="mentor-settings-bar" style="margin-top:8px; display:flex; gap:6px; justify-content:flex-end; align-items:center;">
-                        <label style="font-size:0.65rem; color:#6B5744; display:flex; align-items:center; gap:3px; cursor:pointer;">
+                        <label style="font-size:0.65rem; color:#E8D5C4; display:flex; align-items:center; gap:3px; cursor:pointer;">
                             <input type="checkbox" id="mentor-toggle-panel" checked onchange="toggleMentorSetting('panel')" style="width:14px;height:14px;accent-color:#C9A84C;" data-i18n="trading.mentor_bot"> 멘토봇
                         </label>
-                        <label style="font-size:0.65rem; color:#6B5744; display:flex; align-items:center; gap:3px; cursor:pointer;">
+                        <label style="font-size:0.65rem; color:#E8D5C4; display:flex; align-items:center; gap:3px; cursor:pointer;">
                             <input type="checkbox" id="mentor-toggle-comment" checked onchange="toggleMentorSetting('comment')" style="width:14px;height:14px;accent-color:#C9A84C;" data-i18n="trading.mentor_comment"> 안내멘트
                         </label>
-                        <label style="font-size:0.65rem; color:#6B5744; display:flex; align-items:center; gap:3px; cursor:pointer;">
+                        <label style="font-size:0.65rem; color:#E8D5C4; display:flex; align-items:center; gap:3px; cursor:pointer;">
                             <input type="checkbox" id="mentor-toggle-notif" checked onchange="toggleMentorSetting('notif')" style="width:14px;height:14px;accent-color:#C9A84C;" data-i18n="trading.mentor_notif"> 알림
                         </label>
                     </div>
@@ -2006,31 +1991,26 @@
         <!-- ═══ CrownyTVM 통합 섹션 ═══ -->
 
         <section id="bible-quiz" class="page">
-            <div class="section-header"><h2><i data-lucide="book-open-check"></i> BIBLE QUIZ</h2></div>
+
             <div id="ctvm-quiz-round-bar" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 16px;background:#FFF8F0;border-radius:10px;border:1px solid rgba(139,105,20,.12)"></div>
-            <div id="ctvm-quiz-area" style="padding:0 4px;"><p style="text-align:center;padding:2rem;color:#7A5C47;">로딩 중...</p></div>
+            <div id="ctvm-quiz-area" style="padding:0 4px;"><p style="text-align:center;padding:2rem;color:#7A5C47;" data-i18n="common.loading">Loading...</p></div>
         </section>
 
         <section id="crowny-mail" class="page">
-            <div class="section-header">
-                <h2><i data-lucide="mail"></i> MAIL</h2>
-                <div style="display:flex;gap:6px;">
-                    <button onclick="ctvmShowCompose()" style="background:#8B6914;color:#FFF8F0;border:none;padding:6px 14px;border-radius:6px;font-size:0.85rem;cursor:pointer;font-weight:600;"><i data-lucide="pencil" style="width:14px;height:14px;display:inline;vertical-align:text-bottom;"></i> 작성</button>
-                    <button onclick="ctvmCloudSync()" style="background:none;border:1px solid #E8E0D8;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.85rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline;vertical-align:text-bottom;"></i></button>
-                </div>
-            </div>
             <div id="ctvm-mail-sub" style="font-size:0.85rem;color:#7A5C47;margin-bottom:12px;"></div>
             <div id="ctvm-mail-folders" style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;"></div>
             <div id="ctvm-mail-area"><p style="text-align:center;padding:2rem;color:#7A5C47;">로딩 중...</p></div>
         </section>
 
         <section id="contacts-crm" class="page">
-            <div class="section-header">
-                <h2><i data-lucide="contact"></i> CONTACTS CRM</h2>
-                <button onclick="ctvmShowAddContact()" style="background:#8B6914;color:#FFF8F0;border:none;padding:6px 14px;border-radius:6px;font-size:0.85rem;cursor:pointer;font-weight:600;"><i data-lucide="user-plus" style="width:14px;height:14px;display:inline;vertical-align:text-bottom;"></i> 추가</button>
+            <div style="display:flex;gap:8px;margin-bottom:0.8rem">
+                <input type="text" id="contact-search-input" placeholder="Search contacts..." data-i18n-placeholder="contacts.search_placeholder" oninput="ctvmFilterContacts(this.value)" class="crny-search-input" style="flex:1">
+                <select id="contact-group-filter" onchange="ctvmFilterContacts()" class="crny-search-input" style="padding:5px 8px;font-size:0.7rem"
+                    <option value="" data-i18n="contacts.all_groups">All Groups</option>
+                </select>
             </div>
-            <div id="ctvm-contact-count" style="font-size:0.85rem;color:#7A5C47;margin-bottom:12px;"></div>
-            <div id="ctvm-contacts-area"><p style="text-align:center;padding:2rem;color:#7A5C47;">로딩 중...</p></div>
+            <div id="ctvm-contact-count" style="font-size:0.8rem;color:#7A5C47;margin-bottom:0.5rem;padding:0 4px"></div>
+            <div id="ctvm-contacts-area"><p style="text-align:center;padding:2rem;color:#7A5C47" data-i18n="common.loading">Loading...</p></div>
         </section>
 
         <section id="hanseon-vm" class="page">
@@ -2484,51 +2464,51 @@
     </script>
     
     <!-- ===== i18n 국제화 ===== -->
-    <script src="/js/i18n.js?v=23.4"></script>
+    <script src="/js/i18n.js?v=24.4"></script>
     
     <!-- ===== CROWNY v9.5 모듈화 JS (로드 순서 중요!) ===== -->
     <script src="/js/config.js?v=25.0"></script>
-    <script src="/js/ui.js?v=24.1"></script>
+    <script src="/js/ui.js?v=24.4"></script>
     <script src="/js/auth.js?v=25.0"></script>
-    <script src="/js/wallet.js?v=25.0"></script>
+    <script src="/js/wallet.js?v=25.1"></script>
     <script src="/js/offchain.js?v=25.0"></script>
-    <script src="/js/chat.js?v=25.1"></script>
-    <script src="/js/e2e-crypto.js?v=23.4"></script>
-    <script src="/js/social.js?v=24.2"></script>
-    <script src="/js/friends.js?v=23.4"></script>
-    <script src="/js/stories.js?v=23.4"></script>
+    <script src="/js/chat.js?v=25.2"></script>
+    <script src="/js/e2e-crypto.js?v=24.4"></script>
+    <script src="/js/social.js?v=24.4"></script>
+    <script src="/js/friends.js?v=24.4"></script>
+    <script src="/js/stories.js?v=24.4"></script>
     <script src="/js/explore.js?v=25.0"></script>
-    <script src="/js/group-chat.js?v=23.4"></script>
-    <script src="/js/send.js?v=23.4"></script>
-    <script src="/js/admin.js?v=23.4"></script>
-    <script src="/js/marketplace.js?v=25.0"></script>
+    <script src="/js/group-chat.js?v=24.4"></script>
+    <script src="/js/send.js?v=24.4"></script>
+    <script src="/js/admin.js?v=25.1"></script>
+    <script src="/js/marketplace.js?v=25.1"></script>
     <script src="/js/books.js?v=25.0"></script>
-    <script src="/js/trading.js?v=25.0"></script>
-    <script src="/js/mentor-learning.js?v=23.4" defer></script>
-    <script src="/js/mentors.js?v=23.4" defer></script>
-    <script src="/js/notifications.js?v=23.4"></script>
+    <script src="/js/trading.js?v=25.2"></script>
+    <script src="/js/mentor-learning.js?v=24.4" defer></script>
+    <script src="/js/mentors.js?v=24.4" defer></script>
+    <script src="/js/notifications.js?v=24.4"></script>
     <script src="/js/app-art.js?v=25.0"></script>
     <script src="/js/dashboard.js?v=25.0" defer></script>
-    <script src="/js/dashboard-emergency.js?v=23.4" defer></script>
-    <script src="/js/search.js?v=23.4" defer></script>
-    <script src="/js/settings.js?v=24.5" defer></script>
-    <script src="/js/slogans.js?v=23.4" defer></script>
-    <script src="/js/care.js?v=23.4" defer></script>
-    <script src="/js/ai-assistant.js?v=25.0" defer></script>
+    <script src="/js/dashboard-emergency.js?v=24.4" defer></script>
+    <script src="/js/search.js?v=24.4" defer></script>
+    <script src="/js/settings.js?v=24.4" defer></script>
+    <script src="/js/slogans.js?v=24.4" defer></script>
+    <script src="/js/care.js?v=24.4" defer></script>
+    <script src="/js/ai-assistant.js?v=25.1" defer></script>
     <script src="/js/ai-social.js?v=24.2" defer></script>
     <script src="/js/translate.js?v=24.0" defer></script>
     <script src="/js/cif.js?v=24.0" defer></script>
-    <script src="/js/seed-data.js?v=23.4" defer></script>
-    <script src="/js/artist.js?v=23.4" defer></script>
-    <script src="/js/business.js?v=23.4" defer></script>
-    <script src="/js/menu-visibility.js?v=23.4" defer></script>
-    <script src="/js/beauty-manager.js?v=23.4" defer></script>
-    <script src="/js/brain.js?v=23.4" defer></script>
-    <script src="/js/movement.js?v=23.4" defer></script>
-    <script src="/js/shortform.js?v=23.4" defer></script>
-    <script src="/js/landing.js?v=23.4" defer></script>
-    <script src="/js/invite.js?v=23.4" defer></script>
-    <script src="/js/pwa.js?v=23.4"></script>
+    <script src="/js/seed-data.js?v=24.4" defer></script>
+    <script src="/js/artist.js?v=24.4" defer></script>
+    <script src="/js/business.js?v=24.4" defer></script>
+    <script src="/js/menu-visibility.js?v=24.4" defer></script>
+    <script src="/js/beauty-manager.js?v=24.4" defer></script>
+    <script src="/js/brain.js?v=24.4" defer></script>
+    <script src="/js/movement.js?v=24.4" defer></script>
+    <script src="/js/shortform.js?v=24.4" defer></script>
+    <script src="/js/landing.js?v=24.4" defer></script>
+    <script src="/js/invite.js?v=24.4" defer></script>
+    <script src="/js/pwa.js?v=24.4"></script>
     
     <!-- Lucide Icons 초기화 -->
     <script>
@@ -2587,11 +2567,11 @@
         <div class="bottom-tab-bar-inner">
             <button class="bottom-tab-item" onclick="showPage('contacts-crm')" data-page="contacts-crm">
                 <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-                <span>연락처</span>
+                <span data-i18n="nav.contacts">Contacts</span>
             </button>
             <button class="bottom-tab-item" onclick="showPage('messenger')" data-page="messenger">
                 <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span>
-                <span>채팅</span>
+                <span data-i18n="nav.chat">Chat</span>
             </button>
             <button class="bottom-tab-item create-btn" onclick="showCreatePostModal()" data-page="create">
                 <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
@@ -2599,11 +2579,11 @@
             </button>
             <button class="bottom-tab-item" onclick="showPage('bible-quiz')" data-page="bible-quiz">
                 <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="m9 9.5 2 2 4-4"/></svg></span>
-                <span>퀴즈</span>
+                <span data-i18n="nav.quiz">Quiz</span>
             </button>
             <button class="bottom-tab-item" onclick="showPage('wallet')" data-page="wallet">
                 <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg></span>
-                <span>지갑</span>
+                <span data-i18n="nav.wallet">Wallet</span>
             </button>
         </div>
     </nav>
@@ -2621,23 +2601,26 @@
         sheet.className = 'bottom-sheet active';
         sheet.innerHTML = `
             <div class="bottom-sheet-handle"></div>
-            <div style="padding:12px 0;">
-                <div style="padding:12px 16px;font-weight:700;font-size:1rem;color:#2A1A0F;"><i data-lucide="plus"></i> 새로 만들기</div>
-                <button onclick="this.closest('.bottom-sheet').previousElementSibling.remove();this.closest('.bottom-sheet').remove();showPage('social');setTimeout(()=>{const t=document.getElementById('post-text');if(t){t.focus();t.scrollIntoView({behavior:'smooth',block:'center'})}},300);" style="width:100%;padding:12px 16px;border:none;background:none;color:#3D2B1F;font-size:0.95rem;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;"><i data-lucide="camera" style="width:18px;height:18px;"></i> 소셜 게시물</button>
-                <button onclick="this.closest('.bottom-sheet').previousElementSibling.remove();this.closest('.bottom-sheet').remove();showPage('reels');setTimeout(()=>{if(typeof SHORTFORM!=='undefined'&&SHORTFORM.openUpload)SHORTFORM.openUpload()},300);" style="width:100%;padding:12px 16px;border:none;background:none;color:#3D2B1F;font-size:0.95rem;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;"><i data-lucide="clapperboard" style="width:18px;height:18px;"></i> 숏폼 영상</button>
-                <button onclick="this.closest('.bottom-sheet').previousElementSibling.remove();this.closest('.bottom-sheet').remove();showPage('social');setTimeout(()=>{if(typeof openStoryUpload==='function')openStoryUpload()},300);" style="width:100%;padding:12px 16px;border:none;background:none;color:#3D2B1F;font-size:0.95rem;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;"><i data-lucide="book-open" style="width:18px;height:18px;"></i> 스토리</button>
-                <button onclick="this.closest('.bottom-sheet').previousElementSibling.remove();this.closest('.bottom-sheet').remove();" style="width:100%;padding:12px 16px;border:none;background:none;color:#6B5744;font-size:0.95rem;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;"><i data-lucide="x" style="width:18px;height:18px;"></i> 취소</button>
-            </div>`;
+            <div class="bottom-sheet-title"><i data-lucide="plus"></i> 새로 만들기</div>
+            <button class="bottom-sheet-item" data-action="post"><i data-lucide="tv"></i> 튜브</button>
+            <button class="bottom-sheet-item" data-action="reels"><i data-lucide="clapperboard"></i> 쇼츠</button>
+            <button class="bottom-sheet-item" data-action="story"><i data-lucide="circle-play"></i> 스토리</button>
+            <button class="bottom-sheet-item cancel" data-action="cancel"><i data-lucide="x"></i> 취소</button>
+        `;
+        const close = () => { overlay.remove(); sheet.remove(); };
+        overlay.onclick = close;
+        sheet.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const a = btn.dataset.action;
+            close();
+            if (a === 'post') { showPage('social'); setTimeout(() => { const t = document.getElementById('post-text'); if (t) { t.focus(); t.scrollIntoView({ behavior:'smooth', block:'center' }); } }, 300); }
+            else if (a === 'reels') { showPage('reels'); setTimeout(() => { if (typeof REELS !== 'undefined') REELS.openUpload(); }, 300); }
+            else if (a === 'story') { showPage('social'); setTimeout(() => { if (typeof openStoryUpload === 'function') openStoryUpload(); }, 300); }
+        });
         document.body.appendChild(overlay);
         document.body.appendChild(sheet);
-    }
-    function _oldShowCreatePostModal() {
-        showPage('social');
-        if (typeof setSocialFilter === 'function') setSocialFilter('all');
-        setTimeout(() => {
-            const ta = document.getElementById('post-text');
-            if (ta) { ta.focus(); ta.scrollIntoView({ behavior:'smooth', block:'center' }); }
-        }, 200);
+        if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [sheet] });
     }
     </script>
     <script>
@@ -2797,49 +2780,164 @@
     function ctvmFmtNum(n) { return (n||0).toLocaleString('ko-KR'); }
 
     // ═══ Bible Quiz ═══
-    let ctvmQuiz = null, ctvmQuizSel = -1, ctvmQuizLocked = false;
+    // ═══ Bible Quiz (All-at-once scroll mode) ═══
+    let ctvmQuizAnswers = {}; // { qIdx: { optIdx, quizId } }
 
     async function ctvmLoadQuiz() {
         ctvmToken = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
-        if (!ctvmToken) { document.getElementById('ctvm-quiz-area').innerHTML='<p style="text-align:center;padding:2rem;color:#7A5C47">CrownyTVM 로그인 필요</p>'; return; }
-        const q = await ctvmApi('/bible/quiz');
-        ctvmQuiz = q; ctvmQuizSel = -1; ctvmQuizLocked = false;
+        if (!ctvmToken) { document.getElementById('ctvm-quiz-area').innerHTML='<p style="text-align:center;padding:2rem;color:#7A5C47">'+t('common.login_required','Login required')+'</p>'; return; }
+
+        // Try to load all questions; fallback to single-question repeated fetch
+        let questions = [];
+        const allResp = await ctvmApi('/bible/quiz/all');
+        if (Array.isArray(allResp) && allResp.length > 0) {
+            questions = allResp;
+        } else {
+            // Fallback: fetch single questions and deduplicate (max 50 tries for 27 unique)
+            const seen = new Set();
+            let retries = 0;
+            while (questions.length < 27 && retries < 60) {
+                retries++;
+                const q = await ctvmApi('/bible/quiz');
+                if (!q || q.error || q.complete) {
+                    if (questions.length === 0 && q && q.complete) {
+                        const area = document.getElementById('ctvm-quiz-area');
+                        const bar = document.getElementById('ctvm-quiz-round-bar');
+                        area.innerHTML=`<div style="padding:40px;text-align:center"><div style="font-size:48px;margin-bottom:16px;color:#8B6914">\u2713</div><p style="font-size:1.1rem;font-weight:600">${t('quiz.all_complete','All quizzes completed!')}</p><p style="color:#7A5C47;margin-top:8px">${q.correct||0}/${q.total||0} ${t('quiz.correct','correct')}</p></div>`;
+                        if(bar) bar.innerHTML='';
+                        return;
+                    }
+                    if (questions.length === 0 && q && q.error) {
+                        document.getElementById('ctvm-quiz-area').innerHTML=`<div style="padding:40px;text-align:center;color:#7A5C47">${ctvmEsc(q.error)}</div>`;
+                        return;
+                    }
+                    break;
+                }
+                if (!seen.has(q.quizId)) {
+                    seen.add(q.quizId);
+                    questions.push(q);
+                }
+            }
+        }
+        // Handle complete response from /all endpoint
+        if (allResp && !Array.isArray(allResp) && allResp.complete) {
+            const area = document.getElementById('ctvm-quiz-area');
+            const bar = document.getElementById('ctvm-quiz-round-bar');
+            area.innerHTML=`<div style="padding:40px;text-align:center"><div style="font-size:48px;margin-bottom:16px;color:#8B6914">\u2713</div><p style="font-size:1.1rem;font-weight:600">${t('quiz.all_complete','All quizzes completed!')}</p><p style="color:#7A5C47;margin-top:8px">${allResp.correct||0}/${allResp.total||0} ${t('quiz.correct','correct')}</p></div>`;
+            if(bar) bar.innerHTML='';
+            return;
+        }
+
+        ctvmQuizAnswers = {};
         const area = document.getElementById('ctvm-quiz-area');
         const bar = document.getElementById('ctvm-quiz-round-bar');
-        if (q.error) { area.innerHTML=`<div class="ctvm-quiz-card"><p>${ctvmEsc(q.error)}</p></div>`; bar.innerHTML=''; return; }
-        if (q.complete) { area.innerHTML=`<div class="ctvm-quiz-card"><div style="font-size:48px;margin-bottom:16px;color:#8B6914">✓</div><p style="font-size:1.1rem;font-weight:600">모든 퀴즈를 완료했습니다!</p><p style="color:#7A5C47;margin-top:8px">${q.correct}/${q.total} 정답</p></div>`; bar.innerHTML=''; return; }
-        const round = q.round || {};
-        const pct = round.total ? (round.current/round.total*100) : 0;
-        bar.innerHTML=`<span style="font-size:0.8rem;font-weight:600;color:#7A5C47;white-space:nowrap">라운드 ${round.current||1}/${round.total||27}</span><div style="flex:1;height:6px;background:#FFE8CC;border-radius:3px;overflow:hidden"><div style="height:100%;background:linear-gradient(90deg,#8B6914,#D4AF37);border-radius:3px;width:${pct}%;transition:width .3s"></div></div><span style="font-size:0.8rem;font-weight:600;color:#7A5C47;white-space:nowrap">${round.correct||0}정답 | Lv.${q.level}</span>`;
-        const optL = ['A','B','C','D'];
-        area.innerHTML=`<div class="ctvm-quiz-card"><div style="font-size:0.75rem;color:#7A5C47;margin-bottom:8px;display:flex;justify-content:center;gap:12px"><span style="background:#FFF3E6;padding:2px 10px;border-radius:12px">${ctvmEsc(q.category||'')}</span><span style="background:#FFF3E6;padding:2px 10px;border-radius:12px">${ctvmEsc(q.domain||'')}</span><span style="background:#FFF3E6;padding:2px 10px;border-radius:12px">난이도 ${'★'.repeat(q.difficulty||1)}${'☆'.repeat(3-(q.difficulty||1))}</span></div><div style="font-size:0.85rem;color:#8B6914;font-weight:700;margin-bottom:8px">${ctvmEsc(q.reference||'')}</div><div style="font-size:1.1rem;font-weight:600;line-height:1.6;color:#3D2B1F;margin-bottom:16px">${ctvmEsc(q.question)}</div></div><div style="margin-bottom:16px">${(q.options||[]).map((o,i)=>`<button class="ctvm-quiz-option" data-idx="${i}" onclick="ctvmSelectQuiz(${i})"><span style="display:inline-block;width:26px;height:26px;border-radius:50%;border:2px solid rgba(139,105,20,.2);text-align:center;line-height:22px;font-size:0.8rem;font-weight:700;margin-right:10px">${optL[i]}</span>${ctvmEsc(o)}</button>`).join('')}</div><button id="ctvm-quiz-submit" onclick="ctvmSubmitQuiz()" style="width:100%;padding:14px;background:#8B6914;color:#FFF8F0;border:none;border-radius:10px;font-size:1rem;font-weight:600;opacity:.4;cursor:not-allowed" disabled>선택 후 제출</button><div id="ctvm-quiz-result" style="margin-top:12px"></div>`;
+        const total = questions.length;
+
+        if(bar) bar.innerHTML=`<span style="font-size:0.85rem;font-weight:600;color:#3D2B1F">${total} ${t('quiz.questions','questions')}</span><div style="flex:1"></div><span id="quiz-answered-count" style="font-size:0.8rem;color:#7A5C47">0/${total} ${t('quiz.answered','answered')}</span>`;
+
+        const optLabels = ['A','B','C','D'];
+        let html = '';
+        questions.forEach((q, qIdx) => {
+            html += `<div class="quiz-scroll-item" id="quiz-item-${qIdx}" style="padding:12px 0;border-bottom:1px solid #F0E8DC">
+                <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+                    <span style="font-size:0.8rem;font-weight:700;color:#8B6914;flex-shrink:0">${qIdx+1}.</span>
+                    <div>
+                        <div style="font-size:0.65rem;color:#7A5C47;margin-bottom:2px">${ctvmEsc(q.reference||'')} \u00b7 ${ctvmEsc(q.category||'')} \u00b7 ${'\u2605'.repeat(q.difficulty||1)}${'\u2606'.repeat(3-(q.difficulty||1))}</div>
+                        <div style="font-size:0.9rem;font-weight:600;color:#3D2B1F;line-height:1.5">${ctvmEsc(q.question)}</div>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;margin-left:24px">
+                    ${(q.options||[]).map((o,i) => `<button class="quiz-opt" data-qidx="${qIdx}" data-oidx="${i}" onclick="ctvmSelectQuizOption(${qIdx},${i},'${q.quizId}')" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border:1.5px solid #F0E8DC;border-radius:8px;cursor:pointer;text-align:left;font-size:0.82rem;color:#3D2B1F;transition:all .15s">
+                        <span style="width:22px;height:22px;border-radius:50%;border:2px solid #E8E0D8;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0">${optLabels[i]}</span>
+                        <span>${ctvmEsc(o)}</span>
+                    </button>`).join('')}
+                </div>
+                <div id="quiz-result-${qIdx}" style="margin-left:24px;margin-top:4px"></div>
+            </div>`;
+        });
+
+        html += `<div style="padding:16px 0;text-align:center">
+            <button id="quiz-submit-all" onclick="ctvmSubmitAllQuiz()" style="padding:12px 40px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;opacity:0.4" disabled>${t('quiz.submit_all','Submit All')}</button>
+        </div>`;
+
+        area.innerHTML = html;
+        // Store questions for submission
+        window._quizQuestions = questions;
         if(typeof lucide!=='undefined') lucide.createIcons();
     }
 
-    function ctvmSelectQuiz(idx) {
-        if(ctvmQuizLocked) return;
-        ctvmQuizSel = idx;
-        document.querySelectorAll('.ctvm-quiz-option').forEach((el,i)=>el.classList.toggle('selected',i===idx));
-        const btn=document.getElementById('ctvm-quiz-submit');
-        btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; btn.textContent='제출';
+    function ctvmSelectQuizOption(qIdx, optIdx, quizId) {
+        ctvmQuizAnswers[qIdx] = { optIdx, quizId };
+        // Update UI - highlight selected option
+        document.querySelectorAll(`.quiz-opt[data-qidx="${qIdx}"]`).forEach((el,i) => {
+            if (i === optIdx) {
+                el.style.borderColor = '#8B6914';
+                el.style.background = 'rgba(139,105,20,0.06)';
+            } else {
+                el.style.borderColor = '#F0E8DC';
+                el.style.background = '#fff';
+            }
+        });
+        // Update answered count
+        const total = (window._quizQuestions||[]).length;
+        const answered = Object.keys(ctvmQuizAnswers).length;
+        const countEl = document.getElementById('quiz-answered-count');
+        if(countEl) countEl.textContent = `${answered}/${total} ${t('quiz.answered','answered')}`;
+        // Enable submit when all answered
+        const btn = document.getElementById('quiz-submit-all');
+        if (btn && answered === total) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }
     }
 
-    async function ctvmSubmitQuiz() {
-        if(!ctvmQuiz||ctvmQuiz.complete||ctvmQuizSel<0||ctvmQuizLocked) return;
-        ctvmQuizLocked=true;
-        const r = await ctvmApi('/bible/answer',{method:'POST',body:{quizId:ctvmQuiz.quizId,selectedIndex:ctvmQuizSel}});
-        const result=document.getElementById('ctvm-quiz-result');
-        document.querySelectorAll('.ctvm-quiz-option').forEach((el,i)=>{
-            if(i===(ctvmQuiz.options||[]).indexOf(r.correctAnswer)) el.classList.add('correct-answer');
-            if(i===ctvmQuizSel&&!r.correct) el.classList.add('wrong-answer');
-        });
-        const btn=document.getElementById('ctvm-quiz-submit'); btn.disabled=true; btn.style.opacity='.4';
-        let msg=r.correct?`<div style="padding:14px;border-radius:10px;text-align:center;background:rgba(107,143,60,.12);color:#6B8F3C;font-weight:500">✓ 정답! ${ctvmEsc(r.reference||'')}</div>`
-            :`<div style="padding:14px;border-radius:10px;text-align:center;background:rgba(181,69,52,.08);color:#B54534;font-weight:500">✗ ${ctvmEsc(r.message||'오답')}</div>`;
-        if(r.roundResult) msg+=`<div style="padding:12px;background:#F0E4C8;border-radius:8px;text-align:center;margin-top:8px;font-weight:600">라운드 완료! ${r.roundResult.correct}/${r.roundResult.total}${r.roundResult.passed?'<br><span style="color:#8B6914">+1 CRM 보상!</span>':'<br>다음에 도전하세요!'}</div>`;
-        result.innerHTML=msg;
-        setTimeout(()=>ctvmLoadQuiz(),2000);
+    async function ctvmSubmitAllQuiz() {
+        const btn = document.getElementById('quiz-submit-all');
+        if(btn) { btn.disabled = true; btn.textContent = t('common.processing','Processing...'); }
+
+        const questions = window._quizQuestions || [];
+        let correctCount = 0;
+
+        for (let qIdx = 0; qIdx < questions.length; qIdx++) {
+            const answer = ctvmQuizAnswers[qIdx];
+            if (!answer) continue;
+
+            const r = await ctvmApi('/bible/answer', {method:'POST', body:{quizId:answer.quizId, selectedIndex:answer.optIdx}});
+            const resultEl = document.getElementById(`quiz-result-${qIdx}`);
+
+            // Highlight correct/wrong
+            document.querySelectorAll(`.quiz-opt[data-qidx="${qIdx}"]`).forEach((el,i) => {
+                el.style.pointerEvents = 'none';
+                if (r.correctAnswer && i === (questions[qIdx].options||[]).indexOf(r.correctAnswer)) {
+                    el.style.borderColor = '#6B8F3C';
+                    el.style.background = 'rgba(107,143,60,0.1)';
+                }
+                if (i === answer.optIdx && !r.correct) {
+                    el.style.borderColor = '#B54534';
+                    el.style.background = 'rgba(181,69,52,0.06)';
+                }
+            });
+
+            if (r.correct) {
+                correctCount++;
+                if(resultEl) resultEl.innerHTML = `<span style="font-size:0.75rem;color:#6B8F3C;font-weight:600">\u2713 ${t('quiz.correct_answer','Correct!')}</span>`;
+            } else {
+                if(resultEl) resultEl.innerHTML = `<span style="font-size:0.75rem;color:#B54534">${ctvmEsc(r.message||t('quiz.wrong','Wrong'))}</span>`;
+            }
+        }
+
+        // Show final score
+        if(btn) {
+            btn.outerHTML = `<div style="padding:16px;background:rgba(139,105,20,0.08);border-radius:10px;text-align:center">
+                <div style="font-size:1.2rem;font-weight:700;color:#3D2B1F">${correctCount}/${questions.length} ${t('quiz.correct','correct')}</div>
+                <button onclick="ctvmLoadQuiz()" style="margin-top:8px;padding:8px 20px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem">${t('quiz.retry','Next Round')}</button>
+            </div>`;
+        }
     }
+
+    // Legacy aliases for backwards compatibility
+    function ctvmSelectQuiz(idx) { /* no-op, replaced by ctvmSelectQuizOption */ }
+    function ctvmSubmitQuiz() { /* no-op, replaced by ctvmSubmitAllQuiz */ }
 
     // ═══ Mail ═══
     let ctvmMailFolder = 'inbox';
@@ -2909,20 +3007,94 @@
     // ═══ Contacts CRM ═══
     async function ctvmLoadContacts() {
         ctvmToken = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token') || ctvmToken;
-        if(!ctvmToken){document.getElementById('ctvm-contacts-area').innerHTML='<p style="text-align:center;padding:2rem;color:#7A5C47">CrownyTVM 로그인 필요</p>';return;}
+        if(!ctvmToken){document.getElementById('ctvm-contacts-area').innerHTML=`<p style="text-align:center;padding:2rem;color:#7A5C47">${t('contacts.login_required','Please log in to CrownyTVM')}</p>`;return;}
         const contacts=await ctvmApi('/contacts');
         const list=Array.isArray(contacts)?contacts:[];
-        document.getElementById('ctvm-contact-count').textContent=list.length+'명의 연락처';
-        const area=document.getElementById('ctvm-contacts-area');
-        if(list.length===0){area.innerHTML='<div style="padding:40px;text-align:center;color:#7A5C47"><p>연락처가 없습니다</p><button onclick="ctvmShowAddContact()" style="margin-top:12px;padding:10px 24px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer">추가하기</button></div>';return;}
-        // 연락처 목록을 window._ctvmContacts에 저장 (상세보기용)
         window._ctvmContacts = list;
-        area.innerHTML=list.map((c,idx)=>{const color=ctvmColor(c.name);const sub=[c.company,c.position].filter(Boolean).join(' / ')||c.phone||'';const grp=c.group?`<span style="font-size:0.7rem;background:#FFF3E6;color:#7A5C47;padding:2px 8px;border-radius:4px;margin-left:6px">${ctvmEsc(c.group)}</span>`:'';const chatBtn=c.isUser?`<button onclick="event.stopPropagation();if(typeof chatNewDmWith==='function')chatNewDmWith('${c.crownyUsername||''}');if(typeof showPage==='function')showPage('messenger')" style="padding:6px 14px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;white-space:nowrap">대화</button>`:`<span style="font-size:0.7rem;color:#A08060">외부</span>`;return`<div class="ctvm-contact-card" onclick="ctvmShowContactDetail(${idx})" style="cursor:pointer"><div class="ctvm-avatar" style="background:${color}">${ctvmInitial(c.name)}</div><div style="flex:1;min-width:0"><div style="font-size:0.95rem;font-weight:600;color:#3D2B1F">${ctvmEsc(c.name)}${grp}</div><div style="font-size:0.8rem;color:#7A5C47;margin-top:2px">${ctvmEsc(sub)}</div></div>${chatBtn}</div>`}).join('');
+        // Populate group filter dropdown
+        const groupSet = new Set(list.map(c=>c.group).filter(Boolean));
+        const groupSelect = document.getElementById('contact-group-filter');
+        if(groupSelect){
+            const cur = groupSelect.value;
+            groupSelect.innerHTML = `<option value="" data-i18n="contacts.all_groups">${t('contacts.all_groups','All Groups')}</option>`;
+            groupSet.forEach(g=>{const o=document.createElement('option');o.value=g;o.textContent=g;groupSelect.appendChild(o)});
+            groupSelect.value = cur;
+        }
+        ctvmRenderContacts(list);
+    }
+
+    function ctvmRenderContacts(list) {
+        const countEl=document.getElementById('ctvm-contact-count');
+        if(countEl) countEl.textContent = list.length + ' ' + t('contacts.count_suffix','contacts');
+        const area=document.getElementById('ctvm-contacts-area');
+        if(list.length===0){
+            area.innerHTML=`<div style="padding:40px;text-align:center;color:#7A5C47"><p>${t('contacts.empty','No contacts yet')}</p><button onclick="ctvmShowAddContact()" style="margin-top:12px;padding:10px 24px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer">${t('contacts.add_first','Add Contact')}</button></div>`;
+            return;
+        }
+        area.innerHTML=list.map((c)=>{
+            const idx = (window._ctvmContacts||[]).indexOf(c);
+            const color=ctvmColor(c.name);
+            const initial=ctvmInitial(c.name);
+            const name=ctvmEsc(c.name);
+            const sub=[c.company,c.position].filter(Boolean).join(' · ')||c.phone||c.email||'';
+            const groupBadge=c.group?`<span style="font-size:0.6rem;background:rgba(139,105,20,.08);color:#8B6914;padding:1px 6px;border-radius:8px;margin-left:4px">${ctvmEsc(c.group)}</span>`:'';
+            const chatBtn=c.isUser?`<button onclick="event.stopPropagation();if(typeof chatNewDmWith==='function')chatNewDmWith('${c.crownyUsername||''}');if(typeof showPage==='function')showPage('messenger')" style="padding:4px 10px;background:none;border:1px solid #E8E0D8;border-radius:8px;font-size:0.7rem;color:#3D2B1F;cursor:pointer;white-space:nowrap">${t('contacts.chat','Chat')}</button>`:'';
+            return `<div onclick="ctvmShowContactDetail(${idx})" style="display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;border-bottom:1px solid #F0E8DC">
+    <div style="width:40px;height:40px;border-radius:50%;background:${color};color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0">${initial}</div>
+    <div style="flex:1;min-width:0">
+        <div style="font-size:0.9rem;font-weight:600;color:#3D2B1F">${name}${groupBadge}</div>
+        <div style="font-size:0.75rem;color:#7A5C47;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ctvmEsc(sub)}</div>
+    </div>
+    ${chatBtn}
+</div>`;
+        }).join('');
+    }
+
+    function ctvmFilterContacts(query) {
+        const q = (query || document.getElementById('contact-search-input')?.value || '').toLowerCase();
+        const groupFilter = document.getElementById('contact-group-filter')?.value || '';
+        const list = window._ctvmContacts || [];
+        const filtered = list.filter(c => {
+            if(groupFilter && c.group !== groupFilter) return false;
+            if(!q) return true;
+            return (c.name||'').toLowerCase().includes(q) ||
+                   (c.phone||'').toLowerCase().includes(q) ||
+                   (c.email||'').toLowerCase().includes(q) ||
+                   (c.company||'').toLowerCase().includes(q) ||
+                   (c.group||'').toLowerCase().includes(q);
+        });
+        ctvmRenderContacts(filtered);
     }
 
     function ctvmShowAddContact() {
         const area=document.getElementById('ctvm-contacts-area');
-        area.innerHTML=`<div style="background:#fff;border-radius:10px;padding:16px;border:1px solid rgba(139,105,20,.12);margin-bottom:16px"><h4 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:#3D2B1F">연락처 추가</h4><input id="ctvm-cf-name" placeholder="이름 *" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><input id="ctvm-cf-phone" placeholder="전화번호" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><input id="ctvm-cf-email" placeholder="이메일" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><div style="position:relative;margin-bottom:8px"><input id="ctvm-cf-crowny" placeholder="크라우니 아이디 (선택)" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;background:#FFF8F0" oninput="ctvmSearchContactUser(this.value)"><div id="ctvm-cf-crowny-results" style="position:absolute;top:100%;left:0;right:0;z-index:10;background:#fff;border:1px solid #E8E0D8;border-radius:8px;max-height:150px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div></div><input id="ctvm-cf-company" placeholder="회사" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><select id="ctvm-cf-group" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0"><option value="">그룹 선택...</option><option>가족</option><option>친구</option><option>직장</option><option>고객</option><option>거래처</option><option>교회</option><option>기타</option></select><div style="display:flex;gap:8px;justify-content:flex-end"><button onclick="ctvmLoadContacts()" style="padding:10px 20px;background:#F7F3ED;border:none;border-radius:8px;font-size:0.9rem;cursor:pointer">취소</button><button onclick="ctvmAddContact()" style="padding:10px 20px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer">저장</button></div></div>`;
+        const inputStyle = 'width:100%;padding:10px 14px;border:1px solid #E8E0D8;border-radius:10px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0;outline:none';
+        area.innerHTML=`<div style="background:#fff;border-radius:14px;padding:20px;border:1px solid #F0E8DC;margin-bottom:16px">
+<h4 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:#3D2B1F;display:flex;align-items:center;gap:8px"><i data-lucide="user-plus" style="width:18px;height:18px"></i> ${t('contacts.add_title','Add Contact')}</h4>
+<input id="ctvm-cf-name" placeholder="${t('contacts.name','Name')} *" style="${inputStyle}">
+<input id="ctvm-cf-phone" placeholder="${t('contacts.phone','Phone')}" style="${inputStyle}">
+<input id="ctvm-cf-email" placeholder="${t('contacts.email','Email')}" style="${inputStyle}">
+<div style="position:relative;margin-bottom:8px"><input id="ctvm-cf-crowny" placeholder="${t('contacts.crowny_id','Crowny ID (optional)')}" style="${inputStyle};margin-bottom:0" oninput="ctvmSearchContactUser(this.value)"><div id="ctvm-cf-crowny-results" style="position:absolute;top:100%;left:0;right:0;z-index:10;background:#fff;border:1px solid #E8E0D8;border-radius:10px;max-height:150px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div></div>
+<input id="ctvm-cf-company" placeholder="${t('contacts.company','Company')}" style="${inputStyle}">
+<input id="ctvm-cf-position" placeholder="${t('contacts.position','Position')}" style="${inputStyle}">
+<input id="ctvm-cf-address" placeholder="${t('contacts.address','Address')}" style="${inputStyle}">
+<input id="ctvm-cf-birthday" type="date" placeholder="${t('contacts.birthday','Birthday')}" style="${inputStyle}">
+<select id="ctvm-cf-group" style="${inputStyle}">
+    <option value="">${t('contacts.select_group','Select Group...')}</option>
+    <option value="Family">${t('contacts.group_family','Family')}</option>
+    <option value="Friends">${t('contacts.group_friends','Friends')}</option>
+    <option value="Work">${t('contacts.group_work','Work')}</option>
+    <option value="Clients">${t('contacts.group_clients','Clients')}</option>
+    <option value="Partners">${t('contacts.group_partners','Partners')}</option>
+    <option value="Church">${t('contacts.group_church','Church')}</option>
+    <option value="Other">${t('contacts.group_other','Other')}</option>
+</select>
+<textarea id="ctvm-cf-notes" placeholder="${t('contacts.notes','Notes')}" rows="2" style="${inputStyle};resize:vertical"></textarea>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+    <button onclick="ctvmLoadContacts()" style="padding:10px 20px;background:#F7F3ED;border:none;border-radius:10px;font-size:0.9rem;cursor:pointer;color:#3D2B1F">${t('common.cancel','Cancel')}</button>
+    <button onclick="ctvmAddContact()" style="padding:10px 20px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer">${t('common.save','Save')}</button>
+</div></div>`;
+        if(typeof lucide!=='undefined') lucide.createIcons();
     }
 
     let _cfSearchTimer=null;
@@ -2939,7 +3111,7 @@
                 const users=await r.json();
                 if(!Array.isArray(users)||users.length===0){box.style.display='none';return;}
                 box.style.display='block';
-                box.innerHTML=users.map(u=>`<div style="padding:8px 12px;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #F0E8DC;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#F7F3ED'" onmouseout="this.style.background=''" onclick="ctvmPickContactUser('${u.username}','${(u.displayName||u.username).replace(/'/g,'\\&#39;')}')"><div style="width:28px;height:28px;border-radius:50%;background:#8B6914;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;flex-shrink:0">${(u.username[0]||'?').toUpperCase()}</div><div><span style="font-weight:600;color:#3D2B1F">${u.displayName||u.username}</span> <span style="color:#7A5C47">@${u.username}</span></div></div>`).join('');
+                box.innerHTML=users.map(u=>`<div style="padding:8px 12px;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #F0E8DC;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#F7F3ED'" onmouseout="this.style.background=''" onclick="ctvmPickContactUser('${u.username}','${(u.displayName||u.username).replace(/'/g,'\\&#39;')}')"><div style="width:28px;height:28px;border-radius:50%;background:#3D2B1F;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;flex-shrink:0">${(u.username[0]||'?').toUpperCase()}</div><div><span style="font-weight:600;color:#3D2B1F">${u.displayName||u.username}</span> <span style="color:#7A5C47">@${u.username}</span></div></div>`).join('');
             }catch{box.style.display='none';}
         },300);
     }
@@ -2948,10 +3120,8 @@
         if(inp)inp.value=username;
         const box=document.getElementById('ctvm-cf-crowny-results');
         if(box)box.style.display='none';
-        // 이름이 비어있으면 자동 채우기
         const nameInp=document.getElementById('ctvm-cf-name');
         if(nameInp&&!nameInp.value.trim())nameInp.value=displayName;
-        // 이메일 자동 채우기
         const emailInp=document.getElementById('ctvm-cf-email');
         if(emailInp&&!emailInp.value.trim())emailInp.value=username+'@crowny.org';
     }
@@ -2960,10 +3130,23 @@
 
     async function ctvmAddContact() {
         const name=document.getElementById('ctvm-cf-name').value.trim();
-        if(!name){showToast('이름을 입력하세요','error');return;}
+        if(!name){showToast(t('contacts.name_required','Please enter a name'),'error');return;}
         const crownyId=(document.getElementById('ctvm-cf-crowny')||{}).value||'';
-        await ctvmApi('/contacts',{method:'POST',body:{name,phone:document.getElementById('ctvm-cf-phone').value.trim(),email:document.getElementById('ctvm-cf-email').value.trim(),company:document.getElementById('ctvm-cf-company').value.trim(),group:document.getElementById('ctvm-cf-group').value,relation:1,crownyUsername:crownyId.trim()}});
-        showToast('연락처 추가됨','success');
+        const body={
+            name,
+            phone:(document.getElementById('ctvm-cf-phone')?.value||'').trim(),
+            email:(document.getElementById('ctvm-cf-email')?.value||'').trim(),
+            company:(document.getElementById('ctvm-cf-company')?.value||'').trim(),
+            position:(document.getElementById('ctvm-cf-position')?.value||'').trim(),
+            address:(document.getElementById('ctvm-cf-address')?.value||'').trim(),
+            birthday:(document.getElementById('ctvm-cf-birthday')?.value||'').trim(),
+            group:document.getElementById('ctvm-cf-group')?.value||'',
+            notes:(document.getElementById('ctvm-cf-notes')?.value||'').trim(),
+            relation:1,
+            crownyUsername:crownyId.trim()
+        };
+        await ctvmApi('/contacts',{method:'POST',body});
+        showToast(t('contacts.added','Contact added'),'success');
         ctvmLoadContacts();
     }
 
@@ -3043,19 +3226,21 @@
     window.ctvmLoadContacts = ctvmLoadContacts;
     window.ctvmShowAddContact = ctvmShowAddContact;
     window.ctvmAddContact = ctvmAddContact;
+    window.ctvmFilterContacts = ctvmFilterContacts;
     window.ctvmShowContactDetail = function(idx) {
         const c = (window._ctvmContacts || [])[idx];
         if (!c) return;
         const name = c.name || '?';
         const fields = [
-            { icon: 'phone', label: '전화', value: c.phone },
-            { icon: 'mail', label: '이메일', value: c.email },
-            { icon: 'building-2', label: '회사', value: c.company },
-            { icon: 'briefcase', label: '직책', value: c.position },
-            { icon: 'map-pin', label: '주소', value: c.address },
-            { icon: 'cake', label: '생일', value: c.birthday },
-            { icon: 'tag', label: '그룹', value: c.group },
-            { icon: 'sticky-note', label: '메모', value: c.notes },
+            { icon: 'phone', label: t('contacts.phone','Phone'), value: c.phone },
+            { icon: 'mail', label: t('contacts.email','Email'), value: c.email },
+            { icon: 'building-2', label: t('contacts.company','Company'), value: c.company },
+            { icon: 'briefcase', label: t('contacts.position','Position'), value: c.position },
+            { icon: 'map-pin', label: t('contacts.address','Address'), value: c.address },
+            { icon: 'cake', label: t('contacts.birthday','Birthday'), value: c.birthday },
+            { icon: 'tag', label: t('contacts.group','Group'), value: c.group },
+            { icon: 'sticky-note', label: t('contacts.notes','Notes'), value: c.notes },
+            { icon: 'hash', label: t('contacts.tags','Tags'), value: c.tags },
         ].filter(f => f.value);
         let modal = document.getElementById('ctvm-contact-detail');
         if (modal) modal.remove();
@@ -3064,41 +3249,111 @@
         modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;';
         modal.onclick = e => { if (e.target === modal) modal.remove(); };
         const color = ctvmColor(name);
-        modal.innerHTML = `<div style="background:#F7F3ED;padding:1.5rem;border-radius:16px;max-width:400px;width:100%;color:#3D2B1F;">
+        modal.innerHTML = `<div style="background:#F7F3ED;padding:1.5rem;border-radius:16px;max-width:400px;width:100%;color:#3D2B1F;max-height:90vh;overflow-y:auto">
             <div style="text-align:center;margin-bottom:1rem;">
                 <div style="width:64px;height:64px;border-radius:50%;background:${color};color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;margin:0 auto 8px;">${ctvmInitial(name)}</div>
                 <h3 style="margin:0;font-size:1.1rem;">${ctvmEsc(name)}</h3>
-                ${c.isUser ? '<span style="font-size:0.75rem;color:#6B8F3C;">Crowny 회원</span>' : '<span style="font-size:0.75rem;color:#7A5C47;">외부</span>'}
+                ${c.isUser ? `<span style="font-size:0.75rem;color:#6B8F3C;">${t('contacts.crowny_member','Crowny Member')}</span>` : `<span style="font-size:0.75rem;color:#7A5C47;">${t('contacts.external','External')}</span>`}
             </div>
-            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:1rem;">
-                ${fields.map(f => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F0E8DC;">
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:1rem;">
+                ${fields.map(f => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#FFF8F0;border-radius:10px;">
                     <i data-lucide="${f.icon}" style="width:16px;height:16px;color:#7A5C47;flex-shrink:0;"></i>
-                    <div><div style="font-size:0.7rem;color:#7A5C47;">${f.label}</div><div style="font-size:0.9rem;">${ctvmEsc(f.value)}</div></div>
+                    <div style="flex:1;min-width:0"><div style="font-size:0.7rem;color:#7A5C47;margin-bottom:1px;">${f.label}</div><div style="font-size:0.9rem;word-break:break-word;">${ctvmEsc(f.value)}</div></div>
                 </div>`).join('')}
             </div>
             <div style="display:flex;gap:8px;">
-                ${c.crownyUsername ? `<button onclick="if(typeof chatNewDmWith==='function')chatNewDmWith('${c.crownyUsername}');document.getElementById('ctvm-contact-detail').remove();showPage('messenger')" style="flex:1;padding:0.5rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;"><i data-lucide="message-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>채팅</button>` : ''}
-                <button onclick="ctvmDeleteContact(${c.id})" style="flex:1;padding:0.5rem;border:1px solid #c0392b;border-radius:8px;background:none;color:#c0392b;cursor:pointer;font-weight:600;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>삭제</button>
-                <button onclick="document.getElementById('ctvm-contact-detail').remove()" style="flex:1;padding:0.5rem;border:1px solid #E8E0D8;border-radius:8px;background:none;cursor:pointer;">닫기</button>
+                ${c.crownyUsername ? `<button onclick="if(typeof chatNewDmWith==='function')chatNewDmWith('${c.crownyUsername}');document.getElementById('ctvm-contact-detail').remove();showPage('messenger')" style="flex:1;padding:0.6rem;border:none;border-radius:10px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:4px"><i data-lucide="message-circle" style="width:14px;height:14px"></i>${t('contacts.chat','Chat')}</button>` : ''}
+                <button onclick="ctvmEditContact(${idx})" style="flex:1;padding:0.6rem;border:1px solid #3D2B1F;border-radius:10px;background:none;color:#3D2B1F;cursor:pointer;font-weight:600;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:4px"><i data-lucide="pencil" style="width:14px;height:14px"></i>${t('contacts.edit','Edit')}</button>
+                <button onclick="ctvmDeleteContact(${c.id})" style="flex:1;padding:0.6rem;border:1px solid #c0392b;border-radius:10px;background:none;color:#c0392b;cursor:pointer;font-weight:600;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:4px"><i data-lucide="trash-2" style="width:14px;height:14px"></i>${t('contacts.delete','Delete')}</button>
             </div>
         </div>`;
         document.body.appendChild(modal);
         if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [modal] });
     };
+    window.ctvmEditContact = function(idx) {
+        const c = (window._ctvmContacts || [])[idx];
+        if (!c) return;
+        // Close detail modal if open
+        const dm = document.getElementById('ctvm-contact-detail');
+        if (dm) dm.remove();
+        const area = document.getElementById('ctvm-contacts-area');
+        const inputStyle = 'width:100%;padding:10px 14px;border:1px solid #E8E0D8;border-radius:10px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0;outline:none';
+        const groupOptions = ['Family','Friends','Work','Clients','Partners','Church','Other'];
+        const groupKeys = ['group_family','group_friends','group_work','group_clients','group_partners','group_church','group_other'];
+        const groupLabels = ['Family','Friends','Work','Clients','Partners','Church','Other'];
+        area.innerHTML = `<div style="background:#fff;border-radius:14px;padding:20px;border:1px solid #F0E8DC;margin-bottom:16px">
+<h4 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:#3D2B1F;display:flex;align-items:center;gap:8px"><i data-lucide="pencil" style="width:18px;height:18px"></i> ${t('contacts.edit_title','Edit Contact')}</h4>
+<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.name','Name')} *</label>
+<input id="ctvm-ef-name" value="${ctvmEsc(c.name||'')}" placeholder="${t('contacts.name','Name')} *" style="${inputStyle}">
+<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.phone','Phone')}</label>
+<input id="ctvm-ef-phone" value="${ctvmEsc(c.phone||'')}" placeholder="${t('contacts.phone','Phone')}" style="${inputStyle}">
+<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.email','Email')}</label>
+<input id="ctvm-ef-email" value="${ctvmEsc(c.email||'')}" placeholder="${t('contacts.email','Email')}" style="${inputStyle}">
+<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.company','Company')}</label>
+<input id="ctvm-ef-company" value="${ctvmEsc(c.company||'')}" placeholder="${t('contacts.company','Company')}" style="${inputStyle}">
+<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.position','Position')}</label>
+<input id="ctvm-ef-position" value="${ctvmEsc(c.position||'')}" placeholder="${t('contacts.position','Position')}" style="${inputStyle}">
+<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.address','Address')}</label>
+<input id="ctvm-ef-address" value="${ctvmEsc(c.address||'')}" placeholder="${t('contacts.address','Address')}" style="${inputStyle}">
+<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.birthday','Birthday')}</label>
+<input id="ctvm-ef-birthday" type="date" value="${ctvmEsc(c.birthday||'')}" style="${inputStyle}">
+<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.group','Group')}</label>
+<select id="ctvm-ef-group" style="${inputStyle}">
+    <option value="">${t('contacts.select_group','Select Group...')}</option>
+    ${groupOptions.map((g,i) => `<option value="${g}" ${c.group===g?'selected':''}>${t('contacts.'+groupKeys[i],groupLabels[i])}</option>`).join('\n    ')}
+</select>
+<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.notes','Notes')}</label>
+<textarea id="ctvm-ef-notes" rows="3" placeholder="${t('contacts.notes','Notes')}" style="${inputStyle};resize:vertical">${ctvmEsc(c.notes||'')}</textarea>
+<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.tags','Tags')}</label>
+<input id="ctvm-ef-tags" value="${ctvmEsc(c.tags||'')}" placeholder="${t('contacts.tags_placeholder','Comma-separated tags')}" style="${inputStyle}">
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+    <button onclick="ctvmLoadContacts()" style="padding:10px 20px;background:#F7F3ED;border:none;border-radius:10px;font-size:0.9rem;cursor:pointer;color:#3D2B1F">${t('common.cancel','Cancel')}</button>
+    <button onclick="ctvmSaveContact(${c.id})" style="padding:10px 20px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer">${t('common.save','Save')}</button>
+</div></div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    };
+    window.ctvmSaveContact = async function(contactId) {
+        const name = (document.getElementById('ctvm-ef-name')?.value||'').trim();
+        if (!name) { showToast(t('contacts.name_required','Please enter a name'),'error'); return; }
+        const body = {
+            name,
+            phone: (document.getElementById('ctvm-ef-phone')?.value||'').trim(),
+            email: (document.getElementById('ctvm-ef-email')?.value||'').trim(),
+            company: (document.getElementById('ctvm-ef-company')?.value||'').trim(),
+            position: (document.getElementById('ctvm-ef-position')?.value||'').trim(),
+            address: (document.getElementById('ctvm-ef-address')?.value||'').trim(),
+            birthday: (document.getElementById('ctvm-ef-birthday')?.value||'').trim(),
+            group: document.getElementById('ctvm-ef-group')?.value||'',
+            notes: (document.getElementById('ctvm-ef-notes')?.value||'').trim(),
+            tags: (document.getElementById('ctvm-ef-tags')?.value||'').trim(),
+        };
+        const token = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        try {
+            const r = await fetch('/api/contacts/' + contactId, {
+                method: 'PATCH',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await r.json();
+            if (data.error) throw new Error(data.error);
+            showToast(t('contacts.saved','Contact saved'), 'success');
+            ctvmLoadContacts();
+        } catch(e) { showToast(t('contacts.save_failed','Save failed') + ': ' + e.message, 'error'); }
+    };
     window.ctvmDeleteContact = async function(contactId) {
         const dm = document.getElementById('ctvm-contact-detail');
         if (dm) dm.remove();
         if (typeof showConfirmModal === 'function') {
-            if (!await showConfirmModal('연락처 삭제', '이 연락처를 삭제하시겠습니까?')) return;
+            if (!await showConfirmModal(t('contacts.delete_title','Delete Contact'), t('contacts.delete_confirm','Delete this contact?'))) return;
         }
         const token = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
         try {
             const r = await fetch('/api/contacts/' + contactId, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
             const data = await r.json();
             if (data.error) throw new Error(data.error);
-            showToast('연락처 삭제됨', 'success');
+            showToast(t('contacts.deleted','Contact deleted'), 'success');
             ctvmLoadContacts();
-        } catch(e) { showToast('삭제 실패: ' + e.message, 'error'); }
+        } catch(e) { showToast(t('contacts.delete_failed','Delete failed') + ': ' + e.message, 'error'); }
     };
     window.ctvmRunHs = ctvmRunHs;
     window.ctvmDisHs = ctvmDisHs;
@@ -3108,6 +3363,8 @@
     window.ctvmLoadHanseon = ctvmLoadHanseon;
     window.ctvmSubmitQuiz = ctvmSubmitQuiz;
     window.ctvmSelectQuiz = ctvmSelectQuiz;
+    window.ctvmSelectQuizOption = ctvmSelectQuizOption;
+    window.ctvmSubmitAllQuiz = ctvmSubmitAllQuiz;
 
     console.log('[CrownyTVM] 통합 엔진 로드 완료');
     </script>

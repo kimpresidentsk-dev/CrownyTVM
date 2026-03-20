@@ -5,7 +5,7 @@
     padding: 24px;
     border-radius: 12px;
     margin-bottom: 16px;
-    color: #FFF8F0;
+    color: var(--bg);
     position: relative;
     overflow: hidden;
     min-height: 120px;
@@ -19,7 +19,7 @@
     letter-spacing: 1px;
     margin: 0;
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    color: #FFF8F0;
+    color: var(--bg);
 }
 .section-banner p {
     margin-top: 0.5rem;
@@ -97,7 +97,7 @@
 /* Admin register button */
 .admin-register-btn {
     background: linear-gradient(135deg, #3D2B1F, #6B5744);
-    color: #FFF8F0;
+    color: var(--bg);
     border: none;
     padding: 0.6rem 1.2rem;
     border-radius: 10px;
@@ -125,12 +125,12 @@
     position: absolute;
     height: 18px; width: 18px;
     left: 3px; bottom: 3px;
-    background: #FFF8F0;
+    background: var(--bg);
     border-radius: 50%;
     transition: 0.3s;
 }
 input:checked + .notif-toggle-slider {
-    background: #6B8F3C;
+    background: var(--success);
 }
 input:checked + .notif-toggle-slider::before {
     transform: translateX(20px);
@@ -142,7 +142,7 @@ input:checked + .notif-toggle-slider::before {
     box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     border-radius: 10px;
     padding: 0.7rem 1rem;
-    color: #FFF8F0;
+    color: var(--bg);
 }
 
 
@@ -177,7 +177,7 @@ input:checked + .notif-toggle-slider::before {
 .settings-toggle { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; cursor: pointer; font-size: 0.9rem; }
 .settings-toggle input[type="checkbox"] { width: 40px; height: 22px; appearance: none; background: var(--border); border-radius: 11px; position: relative; cursor: pointer; transition: background 0.2s; }
 .settings-toggle input[type="checkbox"]:checked { background: #2e7d32; }
-.settings-toggle input[type="checkbox"]::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #FFF8F0; border-radius: 50%; transition: transform 0.2s; }
+.settings-toggle input[type="checkbox"]::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: var(--bg); border-radius: 50%; transition: transform 0.2s; }
 .settings-toggle input[type="checkbox"]:checked::after { transform: translateX(18px); }
 .settings-lang-list { display: flex; flex-direction: column; gap: 0.4rem; }
 .settings-radio { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem; cursor: pointer; font-size: 0.9rem; }
@@ -257,11 +257,11 @@ a:not(.nav-item) {
 
 /* Sidebar user-info brand styling */
 .sidebar .user-info {
-    color: #E8D5C4 !important;
+    color: var(--sidebar-text) !important;
     border-bottom-color: rgba(255,248,240,0.15) !important;
 }
 .sidebar .user-info .btn-logout {
-    color: #E8D5C4 !important;
+    color: var(--sidebar-text) !important;
     border-color: rgba(232,213,196,0.25) !important;
     background: rgba(255,248,240,0.08) !important;
     font-weight: 600 !important;
@@ -272,7 +272,7 @@ a:not(.nav-item) {
 }
 .sidebar .user-info .btn-logout:hover {
     background: rgba(255,248,240,0.2) !important;
-    color: #8B6914 !important;
+    color: var(--gold) !important;
 }
 
 /* Sidebar search button brand */
@@ -305,7 +305,7 @@ a:not(.nav-item) {
     100% { background-position: 200% 0; }
 }
 .skeleton {
-    background: linear-gradient(90deg, var(--dark-card) 25%, var(--dark-card-alt) 50%, var(--dark-card) 75%);
+    background: linear-gradient(90deg, var(--bg-card, #FFF8F0) 25%, var(--bg-alt, #F0E8DC) 50%, var(--bg-card, #FFF8F0) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
     border-radius: 8px;
@@ -318,7 +318,7 @@ a:not(.nav-item) {
 
 .skeleton-post {
     padding: 1rem;
-    background: var(--dark-card);
+    background: var(--bg-card, #FFF8F0);
     border-radius: 12px;
     margin-bottom: 1rem;
 }
@@ -352,7 +352,7 @@ a:not(.nav-item) {
     right: 0;
     background: var(--bg-card, #F7F3ED);
     border-top: 1px solid var(--border, #E8E0D8);
-    z-index: 999;
+    z-index: 1000;
     padding-bottom: env(safe-area-inset-bottom);
 }
 .bottom-tab-bar-inner {
@@ -392,7 +392,7 @@ a:not(.nav-item) {
 }
 .bottom-tab-item.create-btn .tab-icon {
     background: linear-gradient(135deg, #8B6914, #6B5744);
-    color: #FFF8F0;
+    color: var(--bg);
     width: 36px;
     height: 36px;
     border-radius: 10px;
@@ -403,9 +403,9 @@ a:not(.nav-item) {
 }
 
 @media (max-width: 768px) {
-    .bottom-tab-bar { display: block; }
+    .bottom-tab-bar { display: block !important; }
     .content {
-        padding-bottom: 70px;
+        padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 14px);
     }
 }
 
@@ -455,29 +455,29 @@ a:not(.nav-item) {
 /* Post create "게시" button gold */
 .post-create .btn-primary {
     background: var(--gold, #8B6914);
-    color: #FFF8F0;
+    color: var(--bg);
     font-weight: 700;
 }
 
 /* Input fields unified */
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
 textarea, select {
-    background: #FFF8F0;
-    color: #3D2B1F;
-    border: 1px solid #E8E0D8;
+    background: var(--bg);
+    color: var(--primary);
+    border: 1px solid var(--border);
 }
 
 /* Auth form inputs */
 .auth-form input {
-    background: #FFF8F0;
-    color: #3D2B1F;
+    background: var(--bg);
+    color: var(--primary);
 }
 .auth-form input::placeholder {
-    color: #6B5744;
+    color: var(--text-secondary);
     opacity: 0.7;
 }
 input:focus, textarea:focus, select:focus {
-    border-color: #8B6914;
+    border-color: var(--gold);
     outline: none;
 }
 
@@ -540,8 +540,8 @@ input:focus, textarea:focus, select:focus {
 
 /* Comment bottom sheet dark */
 .bottom-sheet {
-    background: #FFF8F0;
-    color: #3D2B1F;
+    background: var(--bg);
+    color: var(--primary);
 }
 
 /* Link preview dark */
@@ -647,7 +647,7 @@ input:focus, textarea:focus, select:focus {
 }
 .tab-btn.active {
     background: var(--gold, #8B6914);
-    color: #3D2B1F;
+    color: var(--primary);
     border-color: var(--gold, #8B6914);
 }
 
@@ -703,19 +703,19 @@ input:focus, textarea:focus, select:focus {
 
 /* Sidebar dark */
 .sidebar {
-    background: #3D2B1F !important;
-    color: #E8D5C4 !important;
+    background: var(--primary) !important;
+    color: var(--sidebar-text) !important;
 }
 .sidebar .nav-item {
-    color: #E8D5C4 !important;
+    color: var(--sidebar-text) !important;
 }
 .sidebar .nav-item:hover {
     background: rgba(232,213,196,0.1) !important;
-    color: #FFF8F0 !important;
+    color: var(--bg) !important;
 }
 .sidebar .nav-item.active {
     background: rgba(139,105,20,0.2) !important;
-    border-left: 3px solid #8B6914 !important;
+    border-left: 3px solid var(--gold) !important;
     color: var(--gold) !important;
 }
 
