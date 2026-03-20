@@ -104,8 +104,8 @@ function showPage(pageId) {
             'crowny-mail':  `<button class="hdr-btn hdr-btn-primary" onclick="ctvmShowCompose()"><i data-lucide="pencil"></i> ${t('mail.compose','Compose')}</button><button class="hdr-btn hdr-btn-ghost" onclick="ctvmCloudSync()"><i data-lucide="refresh-cw"></i></button>`,
             'bible-quiz':   '',
             'messenger':    `<button class="hdr-btn hdr-btn-primary" onclick="chatNewDm()"><i data-lucide="plus"></i> ${t('messenger.new_chat','New')}</button><button class="hdr-btn hdr-btn-ghost" onclick="chatNewGroup()"><i data-lucide="users"></i></button>`,
-            'reels':        `<button class="hdr-btn hdr-btn-primary" onclick="REELS.openUpload()"><i data-lucide="plus"></i> ${t('reels.upload','업로드')}</button>`,
-            'social':       `<button class="hdr-btn hdr-btn-primary" onclick="openStoryUpload()"><i data-lucide="circle-play"></i> ${t('social.story','스토리')}</button>`,
+            'reels':        `<button class="hdr-btn hdr-btn-primary" onclick="REELS.openUpload()"><i data-lucide="plus"></i> ${t('reels.upload','Upload')}</button>`,
+            'social':       `<button class="hdr-btn hdr-btn-primary" onclick="openStoryUpload()"><i data-lucide="circle-play"></i> ${t('social.story','Story')}</button>`,
         };
         _topActions.innerHTML = _acts[pageId] !== undefined ? _acts[pageId] : '';
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -203,6 +203,9 @@ function showPage(pageId) {
     }
     if (pageId === 'books') {
         loadBooksList();
+    }
+    if (pageId === 'chain-explorer') {
+        if (typeof chainLoadStatus === 'function') chainLoadStatus();
     }
     if (pageId === 'care') {
         if (typeof CARE !== 'undefined' && CARE.init) CARE.init();

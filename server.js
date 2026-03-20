@@ -25,6 +25,7 @@ const { URL } = require('url');
 const { execFile } = require('child_process');
 
 const https = require('https');
+const zlib = require('zlib');
 
 // ── .env 로딩 (dotenv 없이 직접 파싱) ──
 try {
@@ -1881,11 +1882,21 @@ const server = http.createServer(async (req, res) => {
         if (safe && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
             const ext = pathModule.extname(filePath);
             res.setHeader('Content-Type', MIME[ext] || 'application/octet-stream');
-            // 개발 중 캐시 방지 (JS/CSS/HTML)
-            if (['.js', '.css', '.html'].includes(ext)) {
+            // 캐시: 이미지/폰트는 장기 캐시, JS/CSS/HTML은 no-cache (개발)
+            if (['.js', '.css', '.html', '.json'].includes(ext)) {
                 res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            } else if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.woff2', '.woff', '.ttf'].includes(ext)) {
+                res.setHeader('Cache-Control', 'public, max-age=604800');
             }
-            fs.createReadStream(filePath).pipe(res);
+            // gzip compression for text-based files
+            const compressible = ['.js', '.css', '.html', '.json', '.svg'];
+            const acceptEncoding = req.headers['accept-encoding'] || '';
+            if (compressible.includes(ext) && acceptEncoding.includes('gzip')) {
+                res.setHeader('Content-Encoding', 'gzip');
+                fs.createReadStream(filePath).pipe(zlib.createGzip()).pipe(res);
+            } else {
+                fs.createReadStream(filePath).pipe(res);
+            }
             return;
         }
         // SPA fallback
@@ -3700,3 +3711,17 @@ server.listen(PORT, () => {
         }
     }
 });
+
+// ── Graceful shutdown ──
+function shutdown(signal) {
+    console.log(`\n[${signal}] Shutting down gracefully...`);
+    server.close(() => {
+        console.log('[SERVER] HTTP server closed');
+        process.exit(0);
+    });
+    setTimeout(() => { console.warn('[SERVER] Forced shutdown'); process.exit(1); }, 5000);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('uncaughtException', (err) => { console.error('[FATAL] Uncaught:', err); });
+process.on('unhandledRejection', (reason) => { console.error('[FATAL] Unhandled promise:', reason); });

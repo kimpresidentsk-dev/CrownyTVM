@@ -643,6 +643,7 @@
             <a href="#" onclick="event.preventDefault();showPage('bible-quiz')" class="nav-item"><i data-lucide="book-open-check" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">QUIZ</span><span class="nav-sub" data-i18n="nav.quiz">퀴즈</span></a>
             <a href="#" onclick="event.preventDefault();showPage('crowny-mail')" class="nav-item"><i data-lucide="mail" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">MAIL</span><span class="nav-sub" data-i18n="nav.mail">크라우니메일</span></a>
             <a href="#" onclick="event.preventDefault();showPage('contacts-crm')" class="nav-item"><i data-lucide="contact" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CONTACTS</span><span class="nav-sub" data-i18n="nav.contacts">연락처</span></a>
+            <a href="#" onclick="showPage('chain-explorer')" class="nav-item"><i data-lucide="blocks" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CHAIN</span><span class="nav-sub" data-i18n="nav.chain">블록체인</span></a>
             <a href="#" onclick="event.preventDefault();showPage('hanseon-vm')" class="nav-item"><i data-lucide="code-2" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">HANSEON VM</span><span class="nav-sub" data-i18n="nav.hanseon_vm">한선씨</span></a>
             <hr class="nav-divider">
             <a href="#" onclick="event.preventDefault();showPage('crowny-admin')" class="nav-item" id="admin-nav-item" style="display:none; color:#B54534;"><i data-lucide="shield-check" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">ADMIN</span><span class="nav-sub" data-i18n="nav.admin">관리자</span></a>
@@ -2013,6 +2014,16 @@
             <div id="ctvm-contacts-area"><p style="text-align:center;padding:2rem;color:#7A5C47" data-i18n="common.loading">Loading...</p></div>
         </section>
 
+        <!-- ========== BLOCK EXPLORER + CONTRACT IDE ========== -->
+        <section id="chain-explorer" class="page">
+            <div style="display:flex;gap:8px;margin-bottom:0.8rem">
+                <button onclick="chainLoadStatus()" class="chain-tab active" data-tab="status" style="flex:1;padding:8px;border:1px solid #E8E0D8;border-radius:8px;background:#3D2B1F;color:#FFF8F0;font-size:0.8rem;font-weight:600;cursor:pointer" data-i18n="chain.status">Status</button>
+                <button onclick="chainLoadBlocks()" class="chain-tab" data-tab="blocks" style="flex:1;padding:8px;border:1px solid #E8E0D8;border-radius:8px;background:none;color:#3D2B1F;font-size:0.8rem;cursor:pointer" data-i18n="chain.blocks">Blocks</button>
+                <button onclick="chainLoadContracts()" class="chain-tab" data-tab="contracts" style="flex:1;padding:8px;border:1px solid #E8E0D8;border-radius:8px;background:none;color:#3D2B1F;font-size:0.8rem;cursor:pointer" data-i18n="chain.contracts">Contracts</button>
+            </div>
+            <div id="chain-content"><p style="text-align:center;padding:2rem;color:#7A5C47" data-i18n="common.loading">Loading...</p></div>
+        </section>
+
         <section id="hanseon-vm" class="page">
             <div class="section-header">
                 <h2><i data-lucide="code-2"></i> HANSEON VM</h2>
@@ -2938,6 +2949,184 @@
     // Legacy aliases for backwards compatibility
     function ctvmSelectQuiz(idx) { /* no-op, replaced by ctvmSelectQuizOption */ }
     function ctvmSubmitQuiz() { /* no-op, replaced by ctvmSubmitAllQuiz */ }
+
+    // ═══ Chain Explorer + Contract IDE ═══
+
+    function chainSetTab(tab) {
+        document.querySelectorAll('.chain-tab').forEach(b => {
+            b.style.background = b.dataset.tab === tab ? '#3D2B1F' : 'none';
+            b.style.color = b.dataset.tab === tab ? '#FFF8F0' : '#3D2B1F';
+        });
+    }
+
+    async function chainApi(path) {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const r = await fetch(path, { headers: { 'Authorization': 'Bearer ' + token } });
+        return r.json();
+    }
+
+    async function chainLoadStatus() {
+        chainSetTab('status');
+        const el = document.getElementById('chain-content');
+        el.innerHTML = '<p style="text-align:center;padding:1rem;color:#7A5C47">Loading...</p>';
+        const s = await chainApi('/api/chain/status');
+        if (!s.chain) { el.innerHTML = '<p style="text-align:center;color:#B54534">Chain not available</p>'; return; }
+        el.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:1rem">
+                <div style="text-align:center;padding:12px;background:#F7F3ED;border-radius:10px">
+                    <div style="font-size:0.65rem;color:#7A5C47">HEIGHT</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#3D2B1F">${s.chain.height}</div>
+                </div>
+                <div style="text-align:center;padding:12px;background:#F7F3ED;border-radius:10px">
+                    <div style="font-size:0.65rem;color:#7A5C47">ACCOUNTS</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#3D2B1F">${s.chain.accounts}</div>
+                </div>
+                <div style="text-align:center;padding:12px;background:#F7F3ED;border-radius:10px">
+                    <div style="font-size:0.65rem;color:#7A5C47">MEMPOOL</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#3D2B1F">${s.chain.mempoolSize}</div>
+                </div>
+            </div>
+            <div style="padding:8px 4px;border-bottom:1px solid #F0E8DC">
+                <div style="font-size:0.65rem;color:#7A5C47">LATEST HASH</div>
+                <div style="font-family:monospace;font-size:0.7rem;word-break:break-all;color:#3D2B1F">${s.chain.latestHash}</div>
+            </div>
+            <div style="padding:8px 4px;border-bottom:1px solid #F0E8DC">
+                <div style="font-size:0.65rem;color:#7A5C47">STATE ROOT</div>
+                <div style="font-family:monospace;font-size:0.7rem;word-break:break-all;color:#3D2B1F">${s.chain.stateRoot}</div>
+            </div>
+            <div style="padding:8px 4px">
+                <div style="font-size:0.65rem;color:#7A5C47">STATUS</div>
+                <div style="font-size:0.85rem;color:${s.chain.running ? '#6B8F3C' : '#B54534'}">${s.chain.running ? '● Running (solo)' : '○ Stopped'}</div>
+            </div>`;
+    }
+
+    async function chainLoadBlocks() {
+        chainSetTab('blocks');
+        const el = document.getElementById('chain-content');
+        el.innerHTML = '<p style="text-align:center;padding:1rem;color:#7A5C47">Loading...</p>';
+        const s = await chainApi('/api/chain/status');
+        if (!s.chain) return;
+        let html = '';
+        const maxH = s.chain.height;
+        for (let h = maxH; h >= Math.max(0, maxH - 15); h--) {
+            const b = await chainApi('/api/chain/block?height=' + h);
+            if (!b || b.error) continue;
+            const time = b.timestamp ? new Date(b.timestamp * 1000).toLocaleString() : '';
+            html += '<div onclick="chainShowBlock(' + h + ')" style="display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;border-bottom:1px solid #F0E8DC">' +
+                '<div style="font-weight:700;font-size:0.9rem;min-width:40px;color:#8B6914">#' + b.height + '</div>' +
+                '<div style="flex:1;min-width:0"><div style="font-size:0.8rem;color:#3D2B1F">' + (b.txCount||0) + ' txs</div>' +
+                '<div style="font-size:0.65rem;color:#7A5C47">' + time + '</div></div>' +
+                '<div style="font-family:monospace;font-size:0.6rem;color:#7A5C47">' + (b.hash||'').slice(0,12) + '...</div></div>';
+        }
+        el.innerHTML = html || '<p style="text-align:center;color:#7A5C47">No blocks</p>';
+    }
+
+    async function chainShowBlock(height) {
+        const el = document.getElementById('chain-content');
+        const b = await chainApi('/api/chain/block?height=' + height);
+        if (!b) return;
+        const txTypes = {1:'transfer',2:'swap',3:'create',4:'link',5:'evidence',6:'stake',7:'unstake',8:'register'};
+        const curNames = {'1':'CRN','0':'FNC','-1':'CRM'};
+        let txHtml = (b.transactions||[]).map(tx => {
+            const tn = tx.typeName || txTypes[tx.type] || tx.type;
+            const cn = tx.currencyName || curNames[String(tx.currency)] || '';
+            return '<div style="padding:6px 8px;background:#F7F3ED;border-radius:6px;margin-bottom:4px;font-size:0.75rem">' +
+                '<span style="background:#E8E0D8;padding:1px 6px;border-radius:4px;font-size:0.65rem;font-weight:600">' + tn + '</span> ' +
+                (tx.amount ? tx.amount + ' ' + cn : '') +
+                '<div style="font-family:monospace;font-size:0.6rem;color:#7A5C47;margin-top:2px">' + (tx.from||'').slice(0,24) + '→' + (tx.to||'').slice(0,24) + '</div></div>';
+        }).join('');
+        el.innerHTML = '<div><button onclick="chainLoadBlocks()" style="padding:6px 12px;background:none;border:1px solid #E8E0D8;border-radius:6px;font-size:0.75rem;cursor:pointer;margin-bottom:8px">← Blocks</button></div>' +
+            '<div style="padding:8px 0"><span style="font-weight:700;color:#8B6914">Block #' + b.height + '</span> · ' + (b.txCount||0) + ' txs</div>' +
+            '<div style="font-family:monospace;font-size:0.6rem;color:#7A5C47;padding:4px 0;border-bottom:1px solid #F0E8DC;word-break:break-all">Hash: ' + b.hash + '</div>' +
+            '<div style="font-family:monospace;font-size:0.6rem;color:#7A5C47;padding:4px 0;border-bottom:1px solid #F0E8DC;word-break:break-all">Prev: ' + b.previousHash + '</div>' +
+            '<div style="padding:8px 0">' + txHtml + '</div>';
+    }
+
+    // ── Contract IDE ──
+
+    async function chainLoadContracts() {
+        chainSetTab('contracts');
+        const el = document.getElementById('chain-content');
+        el.innerHTML = '<p style="text-align:center;padding:1rem;color:#7A5C47">Loading...</p>';
+        const list = await chainApi('/api/chain/contract/list');
+        let html = '<div style="margin-bottom:1rem"><button onclick="chainShowContractEditor()" style="padding:8px 16px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer"><i data-lucide="plus" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i> New Contract</button></div>';
+        if (Array.isArray(list) && list.length > 0) {
+            html += list.map(c => '<div onclick="chainRunContract(\'' + c.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;border-bottom:1px solid #F0E8DC">' +
+                '<div style="flex:1"><div style="font-size:0.85rem;font-weight:600;color:#3D2B1F">' + (c.name||c.id) + '</div>' +
+                '<div style="font-size:0.7rem;color:#7A5C47">' + c.codeSize + 'B · ' + (c.calls||0) + ' calls</div></div>' +
+                '<div style="font-size:0.6rem;color:#7A5C47">' + c.id + '</div></div>').join('');
+        } else {
+            html += '<p style="text-align:center;color:#7A5C47;padding:1rem">No contracts deployed</p>';
+        }
+        el.innerHTML = html;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function chainShowContractEditor() {
+        const el = document.getElementById('chain-content');
+        el.innerHTML = '<div style="margin-bottom:8px"><button onclick="chainLoadContracts()" style="padding:6px 12px;background:none;border:1px solid #E8E0D8;border-radius:6px;font-size:0.75rem;cursor:pointer">← Back</button></div>' +
+            '<input id="contract-name" placeholder="Contract name" style="width:100%;padding:8px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.85rem;margin-bottom:6px;background:#FFF8F0">' +
+            '<textarea id="contract-code" placeholder="// 한선씨 코드 작성...\n출력(&quot;안녕 크라우니셀&quot;)" style="width:100%;min-height:150px;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-family:monospace;font-size:0.82rem;background:#FFF8F0;resize:vertical;line-height:1.5"></textarea>' +
+            '<div style="display:flex;gap:6px;margin-top:6px">' +
+            '<button onclick="chainDeployContract()" style="flex:1;padding:8px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer">Deploy</button>' +
+            '<button onclick="chainExecuteCode()" style="flex:1;padding:8px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer">Run</button></div>' +
+            '<div id="contract-output" style="margin-top:8px;padding:8px;background:#F7F3ED;border-radius:8px;font-family:monospace;font-size:0.75rem;min-height:40px;white-space:pre-wrap;display:none"></div>';
+    }
+
+    async function chainDeployContract() {
+        const name = document.getElementById('contract-name')?.value || '';
+        const code = document.getElementById('contract-code')?.value || '';
+        if (!code.trim()) { showToast('Code required','error'); return; }
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const r = await fetch('/api/chain/contract/deploy', {
+            method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+            body: JSON.stringify({ code, name })
+        });
+        const data = await r.json();
+        if (data.contractId) { showToast('Deployed: ' + data.contractId, 'success'); chainLoadContracts(); }
+        else showToast(data.error || 'Deploy failed', 'error');
+    }
+
+    async function chainExecuteCode() {
+        const code = document.getElementById('contract-code')?.value || '';
+        if (!code.trim()) return;
+        const out = document.getElementById('contract-output');
+        if (out) { out.style.display = 'block'; out.textContent = 'Executing...'; }
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const r = await fetch('/api/chain/contract/execute', {
+            method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+            body: JSON.stringify({ code })
+        });
+        const data = await r.json();
+        if (out) {
+            if (data.success) out.textContent = (data.output||[]).join('\n') || '(no output)';
+            else out.textContent = 'Error: ' + (data.error || 'unknown');
+        }
+    }
+
+    async function chainRunContract(contractId) {
+        const el = document.getElementById('chain-content');
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        el.innerHTML = '<p style="text-align:center;padding:1rem;color:#7A5C47">Executing...</p>';
+        const r = await fetch('/api/chain/contract/execute', {
+            method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+            body: JSON.stringify({ contractId })
+        });
+        const data = await r.json();
+        el.innerHTML = '<div><button onclick="chainLoadContracts()" style="padding:6px 12px;background:none;border:1px solid #E8E0D8;border-radius:6px;font-size:0.75rem;cursor:pointer;margin-bottom:8px">← Back</button></div>' +
+            '<div style="font-weight:600;margin-bottom:8px">' + contractId + '</div>' +
+            '<div style="padding:10px;background:#F7F3ED;border-radius:8px;font-family:monospace;font-size:0.75rem;white-space:pre-wrap">' +
+            (data.success ? (data.output||[]).join('\n') || '(no output)' : 'Error: ' + (data.error||'')) + '</div>';
+    }
+
+    window.chainLoadStatus = chainLoadStatus;
+    window.chainLoadBlocks = chainLoadBlocks;
+    window.chainShowBlock = chainShowBlock;
+    window.chainLoadContracts = chainLoadContracts;
+    window.chainShowContractEditor = chainShowContractEditor;
+    window.chainDeployContract = chainDeployContract;
+    window.chainExecuteCode = chainExecuteCode;
+    window.chainRunContract = chainRunContract;
 
     // ═══ Mail ═══
     let ctvmMailFolder = 'inbox';

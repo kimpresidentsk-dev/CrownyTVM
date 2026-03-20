@@ -9,8 +9,10 @@
 const { CrownyCellNode, crypto } = require('./index');
 const { Transaction } = require('./transaction');
 const { CrownyCell } = require('./cell');
+const { TxIndexer } = require('./indexer');
 
 let chainNode = null;
+let txIndexer = null;
 
 // C1 FIX: 키 캐시에 TTL 적용 (5분), 사용 후 주기적 정리
 const KEY_CACHE_TTL = 5 * 60 * 1000;
@@ -70,6 +72,20 @@ function initChain(options = {}) {
     }
     chainNode.chain.proposerKeypair = kp;
     chainNode.chain.start();
+
+    // 인덱서 초기화 + 기존 블록 인덱싱
+    txIndexer = new TxIndexer(options.dataDir);
+    const indexed = txIndexer.catchUp(chainNode.chain.storage);
+    if (indexed > 0) console.log('[CHAIN-ADAPTER] Indexed', indexed, 'transactions from existing blocks');
+
+    // 새 블록 생성 시 자동 인덱싱
+    chainNode.chain.on('block', (data) => {
+        if (txIndexer && data.height != null) {
+            const block = chainNode.chain.getBlock(data.height);
+            if (block) txIndexer.indexBlock(block);
+        }
+    });
+
     console.log('[CHAIN-ADAPTER] CrownyCell Chain initialized. Height:', chainNode.chain.getHeight());
     return chainNode;
 }
@@ -141,6 +157,9 @@ function chainGetWallet(username) {
         CRM: Math.round(baseRates.CRM * variation * 100) / 100,
     };
 
+    // 인덱서에서 거래 내역 조회
+    const transactions = txIndexer ? txIndexer.getWalletTransactions(addr, 30) : [];
+
     return {
         wallet: null,
         walletAddress: addr,
@@ -148,7 +167,7 @@ function chainGetWallet(username) {
         balances,
         prices,
         totalKRW: Math.round(balances.CRN * prices.CRN + balances.FNC * prices.FNC + balances.CRM * prices.CRM),
-        transactions: [],
+        transactions,
         chainHeight: chainNode.chain.getHeight(),
         nonce: acct.nonce,
     };

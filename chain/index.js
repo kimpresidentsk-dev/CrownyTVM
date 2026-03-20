@@ -15,6 +15,7 @@ const { TritWord, T, O, N } = require('./ternary');
 const crypto = require('./crypto');
 const compact = require('./compact');
 const contract = require('./contract');
+const { TxIndexer } = require('./indexer');
 
 class CrownyCellNode {
     constructor(options = {}) {
@@ -171,6 +172,6 @@ module.exports = {
     currencyToTrit, tritToCurrency,
     EPISTEMIC, epistemicForward, epistemicBackward, epistemicReversal,
     TritWord, T, O, N,
-    crypto, compact, contract,
+    crypto, compact, contract, TxIndexer,
     MSG,
 };
