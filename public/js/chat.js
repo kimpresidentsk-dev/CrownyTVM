@@ -171,14 +171,17 @@ async function chatOpen(chatId) {
     messagesEl.innerHTML = msgs.map(m => chatRenderMsg(m)).join('');
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
-    // 읽음 처리
+    // 읽음 처리 (REST로 확실하게 + 이후 리스트 갱신)
+    chatApi('/' + chatId + '/read', { method: 'POST', body: {} }).then(() => {
+        chatLoadList();
+        chatUpdateAppBadge();
+    });
     chatSendWs({ type: 'chat:read', chatId });
 
     // 모바일: 하단 탭바 숨기기 + 패널 열기
     const btb = document.getElementById('bottom-tab-bar');
     if (btb) btb.style.display = 'none';
     document.getElementById('chat-panel')?.classList.add('open');
-    chatLoadList();
 }
 
 // ── 메시지 렌더링 ──
@@ -205,33 +208,41 @@ function chatRenderMsg(m) {
 
 // ── 메시지 전송 (항상 REST — CRMM 팁 + 상태 확실) ──
 
+let _chatSending = false;
 async function chatSend() {
+    if (_chatSending) return;
     const input = document.getElementById('chat-input');
     if (!input || !chatCurrentId) return;
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
+    _chatSending = true;
 
-    const crmmInput = document.getElementById('chat-crmm');
-    const crmm = crmmInput ? parseInt(crmmInput.value) || 0 : 0;
-    if (crmmInput) crmmInput.value = '';
-    // CRM 패널 숨기기
-    const crmmWrap = document.getElementById('chat-crmm-wrap');
-    if (crmmWrap) crmmWrap.style.display = 'none';
+    try {
+        const crmmInput = document.getElementById('chat-crmm');
+        const crmm = crmmInput ? parseInt(crmmInput.value) || 0 : 0;
+        if (crmmInput) crmmInput.value = '';
+        const crmmWrap = document.getElementById('chat-crmm-wrap');
+        if (crmmWrap) crmmWrap.style.display = 'none';
 
-    const body = { text };
-    if (crmm > 0) body.crmm = crmm;
+        const body = { text };
+        if (crmm > 0) body.crmm = crmm;
 
-    const r = await chatApi('/' + chatCurrentId + '/send', { method: 'POST', body });
-    if (r.msg) {
-        chatOnMessage(r.msg);
-        if (crmm > 0 && r.msg.crmmTip) {
-            if (typeof showToast === 'function') showToast(crmm + ' ' + t('messenger.mam_sent','맘 전송 완료'), 'success');
-        } else if (crmm > 0 && !r.msg.crmmTip) {
-            if (typeof showToast === 'function') showToast(t('messenger.mam_fail','맘 전송 실패 (잔액 부족?)'), 'error');
+        const r = await chatApi('/' + chatCurrentId + '/send', { method: 'POST', body });
+        if (r.msg) {
+            chatOnMessage(r.msg);
+            if (crmm > 0 && r.msg.crmmTip) {
+                if (typeof showToast === 'function') showToast(crmm + ' ' + t('messenger.mam_sent','MAM sent'), 'success');
+            } else if (crmm > 0 && !r.msg.crmmTip) {
+                if (typeof showToast === 'function') showToast(t('messenger.mam_fail','MAM failed (insufficient balance?)'), 'error');
+            }
+        } else if (r.error) {
+            if (typeof showToast === 'function') showToast(r.error, 'error');
         }
-    } else if (r.error) {
-        if (typeof showToast === 'function') showToast(r.error, 'error');
+    } catch (e) {
+        console.error('[CHAT] send error:', e);
+    } finally {
+        _chatSending = false;
     }
 }
 
@@ -273,8 +284,16 @@ function chatOnMessage(msg) {
             }
         }
         if (msg.senderId !== chatMyUsername) {
+            // Mark read via REST (reliable) then refresh list to clear badge
+            chatApi('/' + msg.chatId + '/read', { method: 'POST', body: {} }).then(() => {
+                chatLoadList();
+                chatUpdateAppBadge();
+            });
             chatSendWs({ type: 'chat:read', chatId: msg.chatId });
         }
+    } else {
+        // Not viewing this chat — refresh list to show new unread badge
+        chatLoadList();
     }
 
     // ── Notification for messages from others ──
@@ -301,8 +320,6 @@ function chatOnMessage(msg) {
             chatUpdateAppBadge();
         }
     }
-
-    chatLoadList();
 }
 
 // ── Notification sound (KakaoTalk-style two-tone chime) ──
@@ -557,6 +574,9 @@ function chatBack() {
     // 모바일: 하단 탭바 복원
     const btb = document.getElementById('bottom-tab-bar');
     if (btb) btb.style.display = '';
+    // 목록 새로고침 + 배지 업데이트 (읽음 반영)
+    chatLoadList();
+    chatUpdateAppBadge();
 }
 
 // ── 유틸 ──

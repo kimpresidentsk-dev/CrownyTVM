@@ -933,7 +933,7 @@
                     </div>
                     <div id="chat-input-area" class="crny-chat-input" style="display:none">
                         <button onclick="chatToggleCrmm()" class="crny-btn-tip" title="CRM 팁 보내기">C</button>
-                        <input type="text" id="chat-input" placeholder="메시지 입력..." oninput="chatOnInputTyping()" onkeydown="if(event.key==='Enter'){event.preventDefault();chatSend();}">
+                        <input type="text" id="chat-input" placeholder="메시지 입력..." oninput="chatOnInputTyping()" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();chatSend();}">
                         <button onclick="chatSend()" class="crny-btn-send">전송</button>
                     </div>
                 </div>

@@ -1861,7 +1861,7 @@ const server = http.createServer(async (req, res) => {
         // ── 독립 메신저 (채팅) ──
         if (path === '/api/chat/list' && req.method === 'GET') {
             const user = getAuth(req);
-            console.log('[CHAT API] /api/chat/list called, user:', user ? user.username : 'NO AUTH');
+
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             const chatList = chatServer ? chatServer.apiListChats(user.username) : [];
             // 상대방 프로필 사진 첨부
@@ -1915,6 +1915,17 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        if (path.match(/^\/api\/chat\/[^/]+\/read$/) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const chatId = path.split('/')[3];
+            if (!chatServer) { res.end('{"error":"메신저 없음"}'); return; }
+            const chatStore = require('./chat-server/chat-store');
+            const count = chatStore.markRead(chatId, user.username);
+            res.end(JSON.stringify({ success: true, marked: count }));
+            return;
+        }
+
         if (path.match(/^\/api\/chat\/[^/]+\/send$/) && req.method === 'POST') {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
@@ -1940,10 +1951,10 @@ const server = http.createServer(async (req, res) => {
             }
             // WebSocket으로 실시간 전달
             try {
-                const { broadcastToChat, sendTo } = require('./chat-server/ws-server');
+                const { broadcastToChat, sendTo, connections } = require('./chat-server/ws-server');
                 sendTo(user.username, { type: 'chat:sent', msg });
                 broadcastToChat(chatId, { type: 'chat:message', msg }, user.username);
-            } catch (e) { /* WS 없어도 REST는 동작 */ }
+            } catch (e) { console.error('[CHAT WS] broadcast error:', e); }
             res.end(JSON.stringify({ success: true, msg }));
             return;
         }
