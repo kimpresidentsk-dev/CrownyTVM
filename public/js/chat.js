@@ -146,8 +146,15 @@ async function chatOpen(chatId) {
     const inputArea = document.getElementById('chat-input-area');
 
     if (!messagesEl) return;
-    messagesEl.innerHTML = `<div class="chat-loading">${t('messenger.loading','불러오는 중...')}</div>`;
+    messagesEl.innerHTML = `<div class="chat-loading">${t('messenger.loading','Loading...')}</div>`;
     if (inputArea) inputArea.style.display = 'flex';
+
+    // Request notification permission on first chat open
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+    // Clear app badge when opening a chat
+    chatUpdateAppBadge();
 
     // 채팅방 정보
     const info = await chatApi('/' + chatId + '/info');
@@ -269,7 +276,96 @@ function chatOnMessage(msg) {
             chatSendWs({ type: 'chat:read', chatId: msg.chatId });
         }
     }
+
+    // ── Notification for messages from others ──
+    if (msg.senderId && msg.senderId !== chatMyUsername) {
+        const isViewingThisChat = msg.chatId === chatCurrentId && document.hasFocus() &&
+            document.querySelector('.page.active')?.id === 'messenger';
+
+        if (!isViewingThisChat && !chatIsMuted(msg.chatId)) {
+            // Sound
+            chatPlayNotifSound();
+            // Vibration (mobile)
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            // Browser notification (background tab / minimized)
+            const senderName = msg.senderNick || msg.senderId;
+            const preview = (msg.text || '').substring(0, 80);
+            if (typeof showBrowserNotification === 'function') {
+                showBrowserNotification(senderName, preview, { chatId: msg.chatId, otherId: msg.senderId });
+            }
+            // In-app notification
+            if (typeof addNotification === 'function') {
+                addNotification('messenger', `💬 ${senderName}: ${preview}`, { chatId: msg.chatId, otherId: msg.senderId });
+            }
+            // App badge (unread count on home screen icon)
+            chatUpdateAppBadge();
+        }
+    }
+
     chatLoadList();
+}
+
+// ── Notification sound (KakaoTalk-style two-tone chime) ──
+function chatPlayNotifSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        // First tone
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.connect(gain1); gain1.connect(ctx.destination);
+        osc1.type = 'sine';
+        osc1.frequency.value = 830;
+        gain1.gain.setValueAtTime(0.2, now);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+        osc1.start(now); osc1.stop(now + 0.12);
+        // Second tone (higher)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2); gain2.connect(ctx.destination);
+        osc2.type = 'sine';
+        osc2.frequency.value = 1050;
+        gain2.gain.setValueAtTime(0, now + 0.1);
+        gain2.gain.linearRampToValueAtTime(0.18, now + 0.12);
+        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc2.start(now + 0.1); osc2.stop(now + 0.3);
+        // Auto-close context
+        setTimeout(() => ctx.close(), 500);
+    } catch(e) {}
+}
+
+// ── Per-chat mute ──
+function chatIsMuted(chatId) {
+    try {
+        const muted = JSON.parse(localStorage.getItem('crowny_muted_chats') || '{}');
+        return !!muted[chatId];
+    } catch { return false; }
+}
+function chatToggleMute(chatId) {
+    try {
+        const muted = JSON.parse(localStorage.getItem('crowny_muted_chats') || '{}');
+        if (muted[chatId]) delete muted[chatId];
+        else muted[chatId] = Date.now();
+        localStorage.setItem('crowny_muted_chats', JSON.stringify(muted));
+        if (typeof showToast === 'function') {
+            showToast(muted[chatId] ? t('messenger.muted','Notifications muted') : t('messenger.unmuted','Notifications on'), 'info');
+        }
+    } catch(e) {}
+}
+
+// ── App badge (unread count on PWA icon) ──
+function chatUpdateAppBadge() {
+    try {
+        // Count total unread from chat list
+        const badges = document.querySelectorAll('.chat-badge');
+        let total = 0;
+        badges.forEach(b => { total += parseInt(b.textContent) || 0; });
+        if (total > 0 && navigator.setAppBadge) {
+            navigator.setAppBadge(total);
+        } else if (navigator.clearAppBadge) {
+            navigator.clearAppBadge();
+        }
+    } catch(e) {}
 }
 
 // ── 읽음 수신 ──

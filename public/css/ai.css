@@ -106,14 +106,14 @@
 .tutor-section { text-align:left; margin-bottom:1.5rem; }
 .tutor-section h4 { margin-bottom:0.6rem; font-size:0.95rem; color:var(--text,#3D2B1F); }
 .tutor-goal-grid { display:flex; flex-wrap:wrap; gap:0.4rem; }
-.tutor-goal-btn { padding:0.5rem 0.8rem; border:1px solid var(--border,#333); border-radius:20px; background:var(--card-bg,#3D2B1F); color:var(--text,#3D2B1F); font-size:0.85rem; cursor:pointer; transition:all 0.2s; }
+.tutor-goal-btn { padding:0.5rem 0.8rem; border:1px solid var(--border,#333); border-radius:20px; background:var(--card-bg,#FFF8F0); color:var(--text,#3D2B1F); font-size:0.85rem; cursor:pointer; transition:all 0.2s; }
 .tutor-goal-btn:hover { border-color:#8B6914; }
 .tutor-goal-btn.tutor-goal-selected { background:#8B6914; color:#FFF8F0; border-color:#8B6914; }
 .tutor-opt-row { display:flex; gap:0.4rem; flex-wrap:wrap; }
-.tutor-opt-btn { padding:0.5rem 1rem; border:1px solid var(--border,#333); border-radius:20px; background:var(--card-bg,#3D2B1F); color:var(--text,#3D2B1F); font-size:0.85rem; cursor:pointer; transition:all 0.2s; }
+.tutor-opt-btn { padding:0.5rem 1rem; border:1px solid var(--border,#333); border-radius:20px; background:var(--card-bg,#FFF8F0); color:var(--text,#3D2B1F); font-size:0.85rem; cursor:pointer; transition:all 0.2s; }
 .tutor-opt-btn:hover { border-color:#8B6914; }
 .tutor-opt-btn.tutor-opt-selected { background:#8B6914; color:#FFF8F0; border-color:#8B6914; }
-.tutor-custom-input { width:100%; margin-top:0.5rem; padding:0.6rem 0.8rem; border:1px solid var(--border,#333); border-radius:10px; background:var(--card-bg,#3D2B1F); color:var(--text,#3D2B1F); font-size:0.85rem; outline:none; box-sizing:border-box; }
+.tutor-custom-input { width:100%; margin-top:0.5rem; padding:0.6rem 0.8rem; border:1px solid var(--border,#333); border-radius:10px; background:var(--card-bg,#FFF8F0); color:var(--text,#3D2B1F); font-size:0.85rem; outline:none; box-sizing:border-box; }
 .tutor-custom-input:focus { border-color:#8B6914; }
 .tutor-save-btn { width:100%; padding:0.9rem; border:none; border-radius:12px; background:linear-gradient(135deg,#8B6914,#6B5744); color:#FFF8F0; font-size:1rem; font-weight:700; cursor:pointer; margin-top:1rem; transition:opacity 0.2s; }
 .tutor-save-btn:hover { opacity:0.9; }

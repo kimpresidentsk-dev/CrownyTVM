@@ -136,6 +136,13 @@ function setLanguage(lang) {
         if (selector) selector.value = lang;
         // 커스텀 이벤트 발생 — JS에서 동적 생성하는 텍스트도 갱신 가능
         document.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang } }));
+        // Re-render the active page to update all dynamic content
+        try {
+            const activePage = document.querySelector('.page.active');
+            if (activePage && typeof showPage === 'function') {
+                showPage(activePage.id);
+            }
+        } catch(e) {}
     });
 }
 

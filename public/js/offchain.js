@@ -42,8 +42,30 @@ async function showOffchainSendModal() {
 async function sendOffchainPoints() { /* no-op */ }
 function updateBridgePreview() { /* no-op */ }
 async function executeBridge() { /* no-op */ }
-async function earnOffchainPoints() { return false; }
-async function spendOffchainPoints() { return false; }
+async function earnOffchainPoints(tokenKey, amount, reason) {
+    try {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        if (!token) return false;
+        const res = await fetch('/api/wallet/earn', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ token: tokenKey, amount, reason })
+        });
+        return res.ok;
+    } catch(e) { console.warn('earnOffchainPoints error:', e); return false; }
+}
+async function spendOffchainPoints(tokenKey, amount, reason) {
+    try {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        if (!token) return false;
+        const res = await fetch('/api/wallet/spend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ token: tokenKey, amount, reason })
+        });
+        return res.ok;
+    } catch(e) { console.warn('spendOffchainPoints error:', e); return false; }
+}
 async function autoGivingPoolContribution() { /* no-op */ }
 async function redeemCoupon() { /* no-op */ }
 

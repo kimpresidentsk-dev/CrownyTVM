@@ -1596,9 +1596,9 @@ async function _fetchNQPrice() {
     } catch(e) {}
 }
 
-// 서버 시작 시 즉시 1회 + 5초 간격 갱신
+// 서버 시작 시 즉시 1회 + 2초 간격 갱신 (Yahoo rate limit 안전 범위)
 _fetchNQPrice();
-setInterval(_fetchNQPrice, 5000);
+setInterval(_fetchNQPrice, 2000);
 
 const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -2134,6 +2134,36 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        if (path === '/api/wallet/earn' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const { token: tokenKey, amount, reason } = body;
+            if (!tokenKey || !amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"잘못된 요청"}'); return; }
+            const profile = users[user.username] || {};
+            if (!profile.offchainBalances) profile.offchainBalances = {};
+            profile.offchainBalances[tokenKey] = (profile.offchainBalances[tokenKey] || 0) + amount;
+            users[user.username] = profile;
+            saveUsers();
+            res.end(JSON.stringify({ ok: true, balance: profile.offchainBalances[tokenKey] }));
+            return;
+        }
+
+        if (path === '/api/wallet/spend' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            const { token: tokenKey, amount, reason } = body;
+            if (!tokenKey || !amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"잘못된 요청"}'); return; }
+            const profile = users[user.username] || {};
+            if (!profile.offchainBalances) profile.offchainBalances = {};
+            const current = profile.offchainBalances[tokenKey] || 0;
+            if (current < amount) { res.statusCode = 400; res.end('{"error":"잔액 부족"}'); return; }
+            profile.offchainBalances[tokenKey] = current - amount;
+            users[user.username] = profile;
+            saveUsers();
+            res.end(JSON.stringify({ ok: true, balance: profile.offchainBalances[tokenKey] }));
+            return;
+        }
+
         if (path === '/api/wallet/swap' && req.method === 'POST') {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
@@ -2186,7 +2216,7 @@ const server = http.createServer(async (req, res) => {
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             const existing = getTradingData(user.username);
             if (!existing) { res.statusCode = 404; res.end('{"error":"참가 데이터 없음"}'); return; }
-            const allowed = ['currentBalance', 'trades', 'dailyPnL', 'dailyLocked', 'status', 'tradingTier', 'dailyLossLimit'];
+            const allowed = ['currentBalance', 'trades', 'dailyPnL', 'dailyLocked', 'status', 'tradingTier', 'dailyLossLimit', 'crtdWithdrawn', 'lastDailyReset', 'maxDrawdown', 'defaultSL', 'defaultTP', 'adminSuspended', 'liquidatedAt', 'finalPnL'];
             for (const key of allowed) {
                 if (body[key] !== undefined) existing[key] = body[key];
             }
@@ -2405,34 +2435,99 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
-        // ── NQ 캔들/틱 프록시 (Railway 경유) ──
+        // ── NQ 캔들/틱 프록시 (Railway + Yahoo Finance 보완) ──
         if (path === '/api/market/candles' && req.method === 'GET') {
             try {
                 const qs = req.url.includes('?') ? req.url.split('?')[1] : '';
-                const r = await fetch(`https://web-production-26db6.up.railway.app/api/market/candles?${qs}`);
-                const d = await r.json();
-                // Railway 캔들이 오래된 경우 Yahoo 1분 차트로 보완
-                if (d && d.candles && d.candles.length > 0) {
-                    const lastTime = d.candles[d.candles.length - 1].time;
-                    const age = Math.floor(Date.now() / 1000) - lastTime;
-                    if (age > 600 && _nqCache.price) {
-                        // 최근 가격으로 현재 캔들 추가
-                        const now = Math.floor(Date.now() / 1000);
-                        const nowMin = now - (now % 60);
-                        d.candles.push({ time: nowMin, open: _nqCache.price, high: _nqCache.price, low: _nqCache.price, close: _nqCache.price, volume: 1, tick_count: 1 });
-                        d.count = d.candles.length;
+                let candles = [];
+
+                // 1. Try Railway first
+                try {
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 5000);
+                    const r = await fetch(`https://web-production-26db6.up.railway.app/api/market/candles?${qs}`, { signal: controller.signal });
+                    clearTimeout(timeout);
+                    const d = await r.json();
+                    if (d && d.candles && d.candles.length > 0) {
+                        candles = d.candles;
                     }
-                    res.end(JSON.stringify(d));
-                } else {
-                    // Railway 데이터 없으면 현재가로 단일 캔들
-                    if (_nqCache.price) {
-                        const now = Math.floor(Date.now() / 1000);
-                        const nowMin = now - (now % 60);
-                        res.end(JSON.stringify({ candles: [{ time: nowMin, open: _nqCache.price, high: _nqCache.price, low: _nqCache.price, close: _nqCache.price, volume: 1 }], count: 1, symbol: 'NQ' }));
-                    } else {
-                        res.end(JSON.stringify(d || { candles: [], count: 0 }));
-                    }
+                } catch(e) {}
+
+                // 2. Check if Railway data is stale or insufficient
+                const now = Math.floor(Date.now() / 1000);
+                const lastCandleTime = candles.length > 0 ? candles[candles.length - 1].time : 0;
+                const isStale = (now - lastCandleTime) > 600; // >10 min old
+
+                if (isStale || candles.length < 30) {
+                    // Fetch Yahoo Finance 1m chart data
+                    try {
+                        const controller = new AbortController();
+                        const timeout = setTimeout(() => controller.abort(), 5000);
+                        const yr = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/NQ=F?interval=1m&range=5d', {
+                            signal: controller.signal,
+                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+                        });
+                        clearTimeout(timeout);
+                        const yd = await yr.json();
+                        const result = yd?.chart?.result?.[0];
+                        if (result && result.timestamp && result.indicators?.quote?.[0]) {
+                            const ts = result.timestamp;
+                            const q = result.indicators.quote[0];
+                            const yahooCandles = [];
+                            for (let i = 0; i < ts.length; i++) {
+                                if (q.open[i] != null && q.close[i] != null && q.high[i] != null && q.low[i] != null) {
+                                    yahooCandles.push({
+                                        time: ts[i],
+                                        open: q.open[i],
+                                        high: q.high[i],
+                                        low: q.low[i],
+                                        close: q.close[i],
+                                        volume: q.volume[i] || 1,
+                                        tick_count: 1
+                                    });
+                                }
+                            }
+                            if (yahooCandles.length > 0) {
+                                // Merge: prefer Yahoo candles (more complete), then add any Railway candles not covered
+                                const yahooTimeSet = new Set(yahooCandles.map(c => c.time));
+                                const extraRailway = candles.filter(c => !yahooTimeSet.has(c.time) && c.time > yahooCandles[0].time);
+                                candles = [...yahooCandles, ...extraRailway].sort((a, b) => a.time - b.time);
+                            }
+                        }
+                    } catch(e) {}
                 }
+
+                // 3. Add current price candle if latest candle is old
+                if (candles.length > 0 && _nqCache.price) {
+                    const lastTime = candles[candles.length - 1].time;
+                    const nowMin = now - (now % 60);
+                    if (nowMin > lastTime) {
+                        candles.push({
+                            time: nowMin,
+                            open: _nqCache.price,
+                            high: _nqCache.price,
+                            low: _nqCache.price,
+                            close: _nqCache.price,
+                            volume: 1,
+                            tick_count: 1
+                        });
+                    }
+                } else if (candles.length === 0 && _nqCache.price) {
+                    const nowMin = now - (now % 60);
+                    candles.push({
+                        time: nowMin,
+                        open: _nqCache.price,
+                        high: _nqCache.price,
+                        low: _nqCache.price,
+                        close: _nqCache.price,
+                        volume: 1,
+                        tick_count: 1
+                    });
+                }
+
+                // Limit to most recent 1440 candles (24 hours of 1m data)
+                if (candles.length > 1440) candles = candles.slice(-1440);
+                res.end(JSON.stringify({ candles, count: candles.length, interval: '1m', symbol: 'NQ' }));
             } catch(e) {
                 if (_nqCache.price) {
                     const now = Math.floor(Date.now() / 1000);

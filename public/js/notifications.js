@@ -21,19 +21,19 @@ const NOTIF_TYPES = {
 };
 
 const NOTIF_STYLES = {
-    [NOTIF_TYPES.MESSENGER]: { icon: 'message-circle', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.messenger','메신저') },
-    [NOTIF_TYPES.SOCIAL_COMMENT]: { icon: 'message-circle', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.comment','댓글') },
-    [NOTIF_TYPES.SOCIAL_LIKE]: { icon: 'heart', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.like','좋아요') },
-    [NOTIF_TYPES.SOCIAL_FOLLOW]: { icon: 'user', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.follow','팔로우') },
-    [NOTIF_TYPES.SOCIAL_MENTION]: { icon: 'at-sign', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.mention','멘션') },
-    [NOTIF_TYPES.TRADING_SIGNAL]: { icon: 'bar-chart-3', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #F0C060)', label: t('notif.signal','시그널') },
-    [NOTIF_TYPES.TRADING_ORDER]: { icon: 'trending-up', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.order','주문') },
-    [NOTIF_TYPES.ORDER_STATUS]: { icon: 'package', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.order_status','주문상태') },
-    [NOTIF_TYPES.ART_SOLD]: { icon: 'palette', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.art_sold','작품판매') },
-    [NOTIF_TYPES.BOOK_SOLD]: { icon: 'book', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.book_sold','책판매') },
-    [NOTIF_TYPES.DONATION]: { icon: 'heart', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.donation','기부') },
-    [NOTIF_TYPES.FRIEND_REQUEST]: { icon: 'handshake', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.friend_request','친구요청') },
-    [NOTIF_TYPES.SYSTEM]: { icon: 'bell', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.system','시스템') },
+    [NOTIF_TYPES.MESSENGER]: { icon: 'message-circle', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.messenger','Messenger') },
+    [NOTIF_TYPES.SOCIAL_COMMENT]: { icon: 'message-circle', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.comment','Comment') },
+    [NOTIF_TYPES.SOCIAL_LIKE]: { icon: 'heart', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.like','Like') },
+    [NOTIF_TYPES.SOCIAL_FOLLOW]: { icon: 'user', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.follow','Follow') },
+    [NOTIF_TYPES.SOCIAL_MENTION]: { icon: 'at-sign', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.mention','Mention') },
+    [NOTIF_TYPES.TRADING_SIGNAL]: { icon: 'bar-chart-3', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #F0C060)', label: t('notif.signal','Signal') },
+    [NOTIF_TYPES.TRADING_ORDER]: { icon: 'trending-up', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.order','Order') },
+    [NOTIF_TYPES.ORDER_STATUS]: { icon: 'package', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.order_status','Order Status') },
+    [NOTIF_TYPES.ART_SOLD]: { icon: 'palette', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.art_sold','Art Sold') },
+    [NOTIF_TYPES.BOOK_SOLD]: { icon: 'book', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.book_sold','Book Sold') },
+    [NOTIF_TYPES.DONATION]: { icon: 'heart', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.donation','Donation') },
+    [NOTIF_TYPES.FRIEND_REQUEST]: { icon: 'handshake', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.friend_request','Friend Request') },
+    [NOTIF_TYPES.SYSTEM]: { icon: 'bell', color: '#8B6914', bg: 'linear-gradient(135deg, #8B6914, #6B5744)', label: t('notif.system','System') },
 };
 
 // Client-side notification store (session only)
@@ -168,14 +168,14 @@ function initNotifBell() {
     bellContainer.style.cssText = 'padding:0.5rem 1rem; position:relative;';
     bellContainer.innerHTML = `
         <button id="notif-bell-btn" onclick="toggleNotifPanel()" style="background:#3D2B1F; border:1px solid #6B5744; border-radius:10px; padding:0.5rem 0.8rem; cursor:pointer; font-size:1rem; width:100%; display:flex; align-items:center; gap:0.5rem; position:relative; color:#E8D5C4;">
-            <i data-lucide="bell" style="width:16px;height:16px;"></i> <span style="font-size:0.85rem; flex:1; text-align:left;">알림</span>
+            <i data-lucide="bell" style="width:16px;height:16px;"></i> <span style="font-size:0.85rem; flex:1; text-align:left;">${t('notif.title','Notifications')}</span>
             <span id="notif-badge" style="display:none; background:#B54534; color:#FFF8F0; font-size:0.65rem; font-weight:700; padding:0.1rem 0.4rem; border-radius:10px; min-width:16px; text-align:center;">0</span>
         </button>
         <div id="notif-panel" style="display:none; position:fixed; left:60px; top:auto; z-index:99999; margin-top:0.3rem; background:var(--bg-card, white); border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,0.3); border:1px solid var(--border); max-height:70vh; overflow-y:auto; width:320px;">
             <div id="notif-panel-header" style="padding:0.8rem 1rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:#FFF8F0; border-radius:12px 12px 0 0;">
-                <strong style="font-size:0.9rem;"><i data-lucide="bell" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 알림</strong>
+                <strong style="font-size:0.9rem;"><i data-lucide="bell" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('notif.title','Notifications')}</strong>
                 <div style="display:flex; gap:0.5rem;">
-                    <button onclick="markAllRead()" style="background:none; border:none; color:#3D2B1F; font-size:0.75rem; cursor:pointer; font-weight:600;">모두 읽음</button>
+                    <button onclick="markAllRead()" style="background:none; border:none; color:#3D2B1F; font-size:0.75rem; cursor:pointer; font-weight:600;">${t('notif.mark_all_read','Mark all read')}</button>
                     <button onclick="openNotifSettings()" style="background:none; border:none; color:#6B5744; font-size:0.85rem; cursor:pointer;"><i data-lucide="settings" style="width:14px;height:14px;"></i></button>
                 </div>
             </div>
@@ -219,7 +219,7 @@ function renderNotifPanel() {
     if (!list) return;
 
     if (notifications.length === 0) {
-        list.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--accent); font-size:0.85rem;">알림이 없습니다</div>';
+        list.innerHTML = `<div style="padding:2rem; text-align:center; color:var(--accent); font-size:0.85rem;">${t('notif.empty','No notifications')}</div>`;
         return;
     }
 
@@ -258,10 +258,10 @@ function markAllRead() {
 
 function getNotifTimeAgo(date) {
     const seconds = Math.floor((new Date() - date) / 1000);
-    if (seconds < 60) return '방금 전';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}분 전`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}시간 전`;
-    return `${Math.floor(seconds / 86400)}일 전`;
+    if (seconds < 60) return t('notif.just_now','Just now');
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}${t('notif.min_ago','m ago')}`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}${t('notif.hr_ago','h ago')}`;
+    return `${Math.floor(seconds / 86400)}${t('notif.day_ago','d ago')}`;
 }
 
 // Close panel when clicking outside
@@ -293,9 +293,9 @@ async function saveNotificationSettings() {
     if (!currentUser) return;
     try {
         await db.collection('users').doc(currentUser.uid).update({ notificationSettings });
-        showToast('✅ 알림 설정 저장됨', 'success');
+        showToast(t('notif.settings_saved','✅ Notification settings saved'), 'success');
     } catch (e) {
-        showToast('알림 설정 저장 실패', 'error');
+        showToast(t('notif.settings_fail','Notification settings save failed'), 'error');
     }
 }
 
@@ -308,24 +308,24 @@ function openNotifSettings() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     const items = [
-        { key: 'messenger', icon: '💬', label: t('notif.set.messenger','메신저 메시지') },
-        { key: 'social_comment', icon: '💬', label: t('notif.set.comment','소셜 댓글') },
-        { key: 'social_like', icon: '❤️', label: t('notif.set.like','소셜 좋아요') },
-        { key: 'social_follow', icon: '👤', label: t('notif.set.follow','팔로우') },
-        { key: 'social_mention', icon: '📢', label: t('notif.set.mention','멘션') },
-        { key: 'trading_signal', icon: '📊', label: t('notif.set.signal','트레이딩 시그널') },
-        { key: 'trading_order', icon: '📈', label: t('notif.set.order','주문 체결/청산') },
-        { key: 'order_status', icon: '📦', label: t('notif.set.order_status','주문 상태 변경') },
-        { key: 'art_sold', icon: '🎨', label: t('notif.set.art_sold','작품 판매') },
-        { key: 'book_sold', icon: '📚', label: t('notif.set.book_sold','책 판매') },
-        { key: 'donation', icon: '💝', label: t('notif.set.donation','기부 알림') },
-        { key: 'friend_request', icon: '🤝', label: t('notif.set.friend','친구 요청') },
-        { key: 'system', icon: '🔔', label: t('notif.set.system','시스템 알림') },
+        { key: 'messenger', icon: '💬', label: t('notif.set.messenger','Messenger Messages') },
+        { key: 'social_comment', icon: '💬', label: t('notif.set.comment','Social Comments') },
+        { key: 'social_like', icon: '❤️', label: t('notif.set.like','Social Likes') },
+        { key: 'social_follow', icon: '👤', label: t('notif.set.follow','Follow') },
+        { key: 'social_mention', icon: '📢', label: t('notif.set.mention','Mention') },
+        { key: 'trading_signal', icon: '📊', label: t('notif.set.signal','Trading Signal') },
+        { key: 'trading_order', icon: '📈', label: t('notif.set.order','Order Fill/Close') },
+        { key: 'order_status', icon: '📦', label: t('notif.set.order_status','Order Status Change') },
+        { key: 'art_sold', icon: '🎨', label: t('notif.set.art_sold','Art Sale') },
+        { key: 'book_sold', icon: '📚', label: t('notif.set.book_sold','Book Sale') },
+        { key: 'donation', icon: '💝', label: t('notif.set.donation','Donation Alert') },
+        { key: 'friend_request', icon: '🤝', label: t('notif.set.friend','Friend Request') },
+        { key: 'system', icon: '🔔', label: t('notif.set.system','System Alert') },
     ];
 
     overlay.innerHTML = `
     <div style="background:#FFF8F0;padding:1.5rem;border-radius:16px;max-width:400px;width:100%;">
-        <h3 style="margin-bottom:1rem;">📢 알림 설정</h3>
+        <h3 style="margin-bottom:1rem;">📢 ${t('notif.settings_title','Notification Settings')}</h3>
         <div style="display:grid; gap:0.6rem;">
             ${items.map(i => `
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0.8rem; background:var(--bg); border-radius:10px;">
@@ -338,8 +338,8 @@ function openNotifSettings() {
             `).join('')}
         </div>
         <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-            <button onclick="document.getElementById('notif-settings-modal').remove()" style="flex:1;padding:0.7rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;">취소</button>
-            <button onclick="saveNotificationSettings();document.getElementById('notif-settings-modal').remove()" style="flex:1;padding:0.7rem;border:none;border-radius:8px;cursor:pointer;background:#3D2B1F;color:#FFF8F0;font-weight:700;">저장</button>
+            <button onclick="document.getElementById('notif-settings-modal').remove()" style="flex:1;padding:0.7rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;">${t('common.cancel','Cancel')}</button>
+            <button onclick="saveNotificationSettings();document.getElementById('notif-settings-modal').remove()" style="flex:1;padding:0.7rem;border:none;border-radius:8px;cursor:pointer;background:#3D2B1F;color:#FFF8F0;font-weight:700;">${t('common.save','Save')}</button>
         </div>
     </div>`;
     document.body.appendChild(overlay);
@@ -370,10 +370,10 @@ function setupMessengerNotifications() {
                             const otherId = chatData.participants.find(id => id !== currentUser.uid);
                             const info = await getUserDisplayInfo(otherId);
                             const preview = lastMsg && lastMsg.length > 30 ? lastMsg.substring(0, 30) + '...' : lastMsg;
-                            addNotification(NOTIF_TYPES.MESSENGER, `💬 ${info.nickname}: ${preview || '새 메시지'}`, { chatId: change.doc.id, otherId });
+                            addNotification(NOTIF_TYPES.MESSENGER, `💬 ${info.nickname}: ${preview || 'New message'}`, { chatId: change.doc.id, otherId });
                             // Browser notification when tab not focused
                             if (typeof showBrowserNotification === 'function') {
-                              showBrowserNotification(info.nickname, preview || '새 메시지', { chatId: change.doc.id, otherId });
+                              showBrowserNotification(info.nickname, preview || 'New message', { chatId: change.doc.id, otherId });
                             }
                         }
                     }
@@ -437,7 +437,7 @@ if (_origShowToast) {
 
 // Called from mentors.js when signal changes
 function notifyTradingSignal(mentorName, oldSignal, newSignal) {
-    const signalKo = { buy: '매수', sell: '매도', hold: '유지', wait: '관망' };
+    const signalKo = { buy: t('mentor.buy','Buy'), sell: t('mentor.sell','Sell'), hold: t('mentor.hold','Hold'), wait: t('mentor.wait','Wait') };
     addNotification(NOTIF_TYPES.TRADING_SIGNAL, `📊 ${mentorName}: ${signalKo[oldSignal] || oldSignal} → ${signalKo[newSignal] || newSignal}`, {});
 }
 

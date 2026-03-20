@@ -48,16 +48,8 @@ function checkDailyReset() {
         myParticipation.dailyLocked = false;
         myParticipation.lastDailyReset = todayUTC;
         
-        // Firestore 업데이트
-        if (myParticipation.challengeId && myParticipation.participantId) {
-            db.collection('prop_challenges').doc(myParticipation.challengeId)
-                .collection('participants').doc(myParticipation.participantId)
-                .update({
-                    dailyPnL: 0,
-                    dailyLocked: false,
-                    lastDailyReset: todayUTC
-                }).catch(err => console.error('Daily reset error:', err));
-        }
+        // 서버 API 업데이트
+        saveTradingState({ dailyPnL: 0, dailyLocked: false, lastDailyReset: todayUTC });
         
         console.log('<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 일일 손실 리셋 (새로운 날)');
     }
@@ -156,57 +148,26 @@ function updateTradeButtonState() {
 async function checkDailyLossLimit() {
     if (!myParticipation) return false;
     
-    // Firestore에서 최신 한도/상태 동기화 (관리자 변경 반영)
+    // 서버에서 최신 한도/상태 동기화 (관리자 변경 반영)
     try {
-        const freshDoc = await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId).get();
-        if (freshDoc.exists) {
-            const fresh = freshDoc.data();
-            // 관리자가 변경 가능한 필드만 동기화
-            if (fresh.dailyLossLimit !== undefined) {
-                myParticipation.dailyLossLimit = Math.abs(fresh.dailyLossLimit);
-                // 음수로 저장된 경우 자동 수정
-                if (fresh.dailyLossLimit < 0) {
-                    db.collection('prop_challenges').doc(myParticipation.challengeId)
-                        .collection('participants').doc(myParticipation.participantId)
-                        .update({ dailyLossLimit: Math.abs(fresh.dailyLossLimit) }).catch(() => {});
-                    console.log(`⚠️ dailyLossLimit 음수 자동 수정: ${fresh.dailyLossLimit} → ${Math.abs(fresh.dailyLossLimit)}`);
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        if (token) {
+            const res = await fetch('/api/trading/participation', { headers: { 'Authorization': 'Bearer ' + token } });
+            const data = await res.json();
+            const fresh = data?.participation;
+            if (fresh) {
+                if (fresh.dailyLossLimit !== undefined) myParticipation.dailyLossLimit = Math.abs(fresh.dailyLossLimit);
+                if (fresh.maxDrawdown !== undefined) myParticipation.maxDrawdown = Math.abs(fresh.maxDrawdown);
+                if (fresh.defaultSL !== undefined) myParticipation.defaultSL = fresh.defaultSL;
+                if (fresh.defaultTP !== undefined) myParticipation.defaultTP = fresh.defaultTP;
+                if (fresh.dailyLocked === false && myParticipation.dailyLocked === true) {
+                    myParticipation.dailyLocked = false;
+                    myParticipation.adminSuspended = false;
+                    if (fresh.dailyPnL !== undefined) myParticipation.dailyPnL = fresh.dailyPnL;
                 }
-            }
-            if (fresh.maxDrawdown !== undefined) {
-                myParticipation.maxDrawdown = Math.abs(fresh.maxDrawdown);
-                if (fresh.maxDrawdown < 0) {
-                    db.collection('prop_challenges').doc(myParticipation.challengeId)
-                        .collection('participants').doc(myParticipation.participantId)
-                        .update({ maxDrawdown: Math.abs(fresh.maxDrawdown) }).catch(() => {});
-                    console.log(`⚠️ maxDrawdown 음수 자동 수정: ${fresh.maxDrawdown} → ${Math.abs(fresh.maxDrawdown)}`);
-                }
-            }
-            if (fresh.defaultSL !== undefined) myParticipation.defaultSL = fresh.defaultSL;
-            if (fresh.defaultTP !== undefined) myParticipation.defaultTP = fresh.defaultTP;
-            
-            // 관리자가 잠금 해제 + PnL 초기화한 경우 동기화
-            if (fresh.dailyLocked === false && myParticipation.dailyLocked === true) {
-                myParticipation.dailyLocked = false;
-                myParticipation.adminSuspended = false;
-                // PnL도 서버 값으로 동기화 (관리자가 0으로 리셋했을 수 있음)
-                if (fresh.dailyPnL !== undefined) {
-                    myParticipation.dailyPnL = fresh.dailyPnL;
-                }
-                console.log('🔓 관리자 잠금 해제 감지 → 동기화 완료');
-            }
-            
-            if (fresh.dailyLocked === true && !myParticipation.dailyLocked) {
-                myParticipation.dailyLocked = true; // 관리자가 잠금
-            }
-            if (fresh.adminSuspended === true) {
-                myParticipation.dailyLocked = true;
-                myParticipation.adminSuspended = true;
-            }
-            // 관리자가 잠금 해제한 경우
-            if (fresh.dailyLocked === false && fresh.adminSuspended === false) {
-                myParticipation.dailyLocked = false;
-                myParticipation.adminSuspended = false;
+                if (fresh.dailyLocked === true) myParticipation.dailyLocked = true;
+                if (fresh.adminSuspended === true) { myParticipation.dailyLocked = true; myParticipation.adminSuspended = true; }
+                if (fresh.dailyLocked === false && fresh.adminSuspended === false) { myParticipation.dailyLocked = false; myParticipation.adminSuspended = false; }
             }
         }
     } catch (e) { console.warn('동기화 실패:', e); }
@@ -219,23 +180,16 @@ async function checkDailyLossLimit() {
     if (myParticipation.dailyPnL <= dailyLimit) {
         myParticipation.dailyLocked = true;
         
-        // Firestore 업데이트
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({
-                dailyPnL: myParticipation.dailyPnL,
-                dailyLocked: true
-            });
+        // 서버 API 업데이트
+        await saveTradingState({ dailyPnL: myParticipation.dailyPnL, dailyLocked: true });
         
         updateRiskGaugeUI();
         showToast(`<i data-lucide="alert-octagon"></i> ${t('config.daily_limit_reached','일일 손실 한도 도달!')} (-$${limitValue})`, 'warning');
         return true; // locked
     }
     
-    // Firestore에 dailyPnL만 업데이트
-    await db.collection('prop_challenges').doc(myParticipation.challengeId)
-        .collection('participants').doc(myParticipation.participantId)
-        .update({ dailyPnL: myParticipation.dailyPnL });
+    // 서버 API에 dailyPnL 업데이트
+    await saveTradingState({ dailyPnL: myParticipation.dailyPnL });
     
     updateRiskGaugeUI();
     return false;
@@ -255,12 +209,7 @@ async function checkCumulativeLiquidation() {
         myParticipation.currentBalance = initial;
         myParticipation.dailyPnL = 0;
         
-        await db.collection('prop_challenges').doc(myParticipation.challengeId)
-            .collection('participants').doc(myParticipation.participantId)
-            .update({
-                currentBalance: initial,
-                dailyPnL: 0
-            });
+        await saveTradingState({ currentBalance: initial, dailyPnL: 0 });
         
         updateRiskGaugeUI();
         updateTradingUI();

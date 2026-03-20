@@ -3,9 +3,23 @@
 // ========== SERVICE WORKER ==========
 
 async function registerServiceWorker() {
-  // SW 임시 비활성화 — 캐시 문제 해결 후 재활성화
-  console.log('[PWA] SW registration disabled temporarily');
-  return;
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    console.log('[PWA] SW registered:', reg.scope);
+    // Listen for messages from SW (e.g., notification click → open chat)
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'open-chat' && typeof showPage === 'function') {
+        showPage('messenger');
+        if (e.data.chatId && typeof chatOpen === 'function') {
+          setTimeout(() => chatOpen(e.data.chatId), 300);
+        }
+      }
+    });
+    return reg;
+  } catch (e) {
+    console.warn('[PWA] SW registration failed:', e);
+  }
 }
 
 // ========== OFFLINE BANNER ==========
