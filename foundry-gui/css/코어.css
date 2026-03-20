@@ -1,0 +1,223 @@
+/* CrownyCore — F-Pattern 3-Column Layout
+   Left: Nav+Filter | Center: Canvas | Right: Detail+Action */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --확정:   #2D7D5F;
+  --미확인: #8C7440;
+  --오류:   #8C3D3D;
+  --미인지: #6B6B68;
+  --확정-bg:   #EDF5F1;
+  --미확인-bg: #F5F0E6;
+  --오류-bg:   #F5EDED;
+  --미인지-bg: #F0EFED;
+  --bg:       #F7F7F6;
+  --surface:  #FFFFFF;
+  --panel:    #FBFBFA;
+  --border:   rgba(0,0,0,0.07);
+  --text-1:   #1C1C1A;
+  --text-2:   #6B6B68;
+  --text-3:   #A8A8A4;
+  --nav-w:    110px;
+  --detail-w: 340px;
+  --header-h: 42px;
+  --r:        5px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-size: 12px;
+  font-feature-settings: 'cv02','cv03','cv04','cv11';
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text-1);
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: var(--header-h) 1fr;
+  grid-template-columns: var(--nav-w) 1fr var(--detail-w);
+  grid-template-areas: "header header header" "nav canvas detail";
+  letter-spacing: -0.01em;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.hdr {
+  grid-area: header; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 16px; gap: 12px;
+}
+.logo { font-weight: 700; font-size: 13px; letter-spacing: -0.04em; }
+.logo em { color: var(--확정); font-style: normal; }
+.hdr-r { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.badge { font-size: 9px; padding: 2px 7px; border-radius: 3px; font-weight: 600; letter-spacing: .02em; }
+.badge.확정   { background: var(--확정-bg); color: var(--확정); }
+.badge.미확인 { background: var(--미확인-bg); color: var(--미확인); }
+.badge.오류   { background: var(--오류-bg); color: var(--오류); }
+.badge.미인지 { background: var(--미인지-bg); color: var(--미인지); }
+
+/* ── Left Nav (Icon Rail) ── */
+.nav {
+  grid-area: nav; background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 8px 0; gap: 2px; overflow-y: auto;
+}
+.nav-btn {
+  width: 100%; height: auto; border-radius: var(--r);
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer; border: none; background: none;
+  color: var(--text-3); font-size: 12px; transition: all .1s;
+  text-align: left;
+}
+.nav-btn:hover { background: var(--bg); color: var(--text-1); }
+.nav-btn.active { background: var(--확정-bg); color: var(--확정); font-weight: 600; }
+.nav-btn .ic { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+.nav-btn .label { font-size: 10px; font-weight: 500; white-space: nowrap; }
+.nav-sep { width: 24px; height: 1px; background: var(--border); margin: 6px 0; }
+
+/* ── Center Canvas ── */
+.canvas {
+  grid-area: canvas; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.canvas-bar {
+  display: flex; align-items: center; padding: 8px 14px; gap: 8px;
+  border-bottom: 1px solid var(--border); background: var(--panel);
+  min-height: 36px;
+}
+.canvas-title { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); }
+.canvas-body { flex: 1; overflow: auto; position: relative; }
+.canvas-body > .view { display: none; height: 100%; }
+.canvas-body > .view.active { display: flex; flex-direction: column; }
+
+/* ── Right Detail ── */
+.detail {
+  grid-area: detail; background: var(--panel);
+  border-left: 1px solid var(--border);
+  overflow-y: auto; padding: 14px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.detail-section { }
+.detail-title {
+  font-size: 9px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-3); margin-bottom: 8px;
+}
+
+/* ── Card ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px; }
+.card-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.card-t { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+
+/* ── 27-Radial Slots ── */
+.slot-grid { display: grid; grid-template-columns: repeat(3,42px); gap: 4px; }
+.slot {
+  width: 42px; height: 42px; border-radius: 3px; border: 1px solid var(--border);
+  background: var(--bg); display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  cursor: pointer; transition: transform .06s, border-color .08s;
+  font-size: 9px; color: var(--text-3); gap: 1px;
+}
+.slot:hover { transform: scale(1.04); border-color: var(--확정); }
+.slot.확정   { border-color: var(--확정); background: var(--확정-bg); }
+.slot.미확인 { border-color: var(--미확인); background: var(--미확인-bg); }
+.slot.오류   { border-color: var(--오류); background: var(--오류-bg); }
+.slot-n { font-size: 7px; font-family: monospace; }
+.slot-v { font-size: 9px; font-weight: 600; max-width: 38px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Ring indicator ── */
+.ring-label { font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 0; color: var(--text-3); }
+.ring-torah  { border-left: 2px solid var(--확정); padding-left: 6px; }
+.ring-gospel { border-left: 2px solid var(--미확인); padding-left: 6px; }
+.ring-spirit { border-left: 2px solid #6B5B8A; padding-left: 6px; }
+
+/* ── Graph ── */
+.graph-wrap { flex: 1; min-height: 300px; }
+.graph-wrap svg { width: 100%; height: 100%; }
+.node circle, g.node circle { stroke-width: 1.5; cursor: pointer; }
+.node.확정   circle { fill: var(--확정-bg); stroke: var(--확정); }
+.node.미확인 circle { fill: var(--미확인-bg); stroke: var(--미확인); }
+.node.오류   circle { fill: var(--오류-bg); stroke: var(--오류); }
+.node.미인지 circle { fill: var(--미인지-bg); stroke: var(--미인지); }
+.node text { font-size: 9px; fill: var(--text-1); pointer-events: none; font-weight: 500; }
+.link { stroke: var(--border); stroke-width: 1; }
+.link.신뢰 { stroke: var(--확정); stroke-width: 1.5; }
+.link.반박 { stroke: var(--오류); stroke-width: 1.5; stroke-dasharray: 4 3; }
+
+/* ── Pipe row ── */
+.pipe { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--r); border: 1px solid var(--border); font-size: 11px; background: var(--bg); }
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dot.확정   { background: var(--확정); }
+.dot.미확인 { background: var(--미확인); }
+.dot.오류   { background: var(--오류); }
+.dot.미인지 { background: var(--미인지); }
+
+/* ── Stat grid ── */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(80px,1fr)); gap: 6px; }
+.stat { padding: 8px; border-radius: var(--r); border: 1px solid var(--border); text-align: center; background: var(--surface); }
+.stat-v { font-size: 18px; font-weight: 700; font-feature-settings: 'tnum'; }
+.stat-l { font-size: 8px; color: var(--text-3); font-weight: 600; letter-spacing: .04em; margin-top: 2px; }
+
+/* ── Template grid ── */
+.tmpl-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap: 8px; }
+.tmpl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px; transition: border-color .1s; }
+.tmpl-card:hover { border-color: var(--확정); }
+
+/* ── Button ── */
+.btn { padding: 4px 10px; border-radius: 3px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 10px; font-weight: 500; font-family: 'Inter',sans-serif; transition: all .08s; }
+.btn:hover { background: var(--bg); }
+.btn-p { background: var(--확정); color: #fff; border-color: var(--확정); }
+.btn-p:hover { background: #256B50; }
+
+/* ── Toast ── */
+.toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); padding: 6px 16px; border-radius: 4px; font-size: 11px; font-weight: 500; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 999; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.toast.show { opacity: 1; }
+.toast.확정 { border-color: var(--확정); color: var(--확정); }
+.toast.미확인 { border-color: var(--미확인); color: var(--미확인); }
+.toast.오류 { border-color: var(--오류); color: var(--오류); }
+
+/* ── Input ── */
+input, select, textarea { font-family: 'Inter',sans-serif; font-size: 11px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 3px; outline: none; }
+input:focus, select:focus, textarea:focus { border-color: var(--확정); }
+
+/* ── Covenant layers ── */
+.cov-layer { padding: 8px; border-radius: var(--r); border: 1px solid var(--border); margin-bottom: 6px; }
+.cov-layer h4 { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px; }
+.cov-torah  h4 { color: var(--확정); }
+.cov-gospel h4 { color: var(--미확인); }
+.cov-spirit h4 { color: #6B5B8A; }
+
+/* ── Welcome overlay ── */
+.welcome { position: absolute; inset: 0; background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; z-index: 5; }
+.welcome.hidden { display: none; }
+.welcome h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.03em; }
+.welcome p { font-size: 12px; color: var(--text-2); max-width: 400px; text-align: center; line-height: 1.6; }
+.welcome-grid { display: flex; gap: 12px; }
+.welcome-card { width: 140px; padding: 16px; border: 1px solid var(--border); border-radius: var(--r); text-align: center; cursor: pointer; transition: all .1s; }
+.welcome-card:hover { border-color: var(--확정); background: var(--확정-bg); }
+.welcome-card .ic { font-size: 20px; margin-bottom: 6px; display: block; }
+.welcome-card .label { font-size: 11px; font-weight: 600; }
+.welcome-card .sub { font-size: 9px; color: var(--text-3); margin-top: 3px; }
+
+/* ── Child-friendly: larger targets, clear hover, tooltips ── */
+.btn { min-height: 28px; }
+.nav-btn { min-height: 34px; }
+[title] { cursor: help; }
+[title]:hover::after {
+  /* Native title works; no custom needed */
+}
+.welcome-card { min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.welcome-card:active { transform: scale(.96); }
+.btn:active { transform: scale(.96); }
+.node circle:hover { r: 26; }
+
+/* ── Breadcrumb in canvas bar ── */
+.canvas-bar { font-size: 11px; }
+
+@media (max-width: 900px) {
+  body { grid-template-columns: var(--nav-w) 1fr; grid-template-areas: "header header" "nav canvas"; }
+  .detail { display: none; }
+}

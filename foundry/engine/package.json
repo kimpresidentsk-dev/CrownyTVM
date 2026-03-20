@@ -1,0 +1,12 @@
+{
+  "name": "crowny-foundry-engine",
+  "version": "0.1.0",
+  "description": "CrownyFoundry Phase 1 — 온톨로직 데이터 엔진 (CrownyCellCore 27-방사형 DB REST API)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "keywords": ["crowny", "foundry", "ontologic", "balanced-ternary", "cell-db"],
+  "private": true
+}

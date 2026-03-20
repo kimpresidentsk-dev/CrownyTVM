@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CrownyCore</title>
+  <link rel="stylesheet" href="css/코어.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+</head>
+<body>
+
+<!-- Header -->
+<header class="hdr">
+  <div class="logo">Crowny<em>Core</em></div>
+  <div class="hdr-r">
+    <span id="badge" class="badge 미인지">—</span>
+    <span id="sel" style="font-size:10px;color:var(--text-3)"></span>
+  </div>
+</header>
+
+<!-- Left Nav Rail -->
+<nav class="nav">
+  <button class="nav-btn active" data-v="graph"><span class="ic">◉</span><span class="label">셀 그래프</span></button>
+  <button class="nav-btn" data-v="decide"><span class="ic">◎</span><span class="label">의사결정</span></button>
+  <div class="nav-sep"></div>
+  <button class="nav-btn" data-v="tmpl"><span class="ic">◧</span><span class="label">프로젝트</span></button>
+  <button class="nav-btn" data-v="causal"><span class="ic">⇥</span><span class="label">인과추론</span></button>
+  <button class="nav-btn" data-v="kps"><span class="ic">∿</span><span class="label">차트분석</span></button>
+  <div class="nav-sep"></div>
+  <button class="nav-btn" data-v="create"><span class="ic">+</span><span class="label">만들기</span></button>
+  <button class="nav-btn" data-v="search"><span class="ic">⌕</span><span class="label">찾기</span></button>
+  <button class="nav-btn" data-v="stats"><span class="ic">≡</span><span class="label">통계</span></button>
+</nav>
+
+<!-- Center Canvas -->
+<main class="canvas">
+  <div class="canvas-bar">
+    <span class="canvas-title" id="viewTitle">셀 그래프</span>
+    <div style="margin-left:auto;display:flex;gap:4px">
+      <button class="btn" id="sampleBtn">예제 넣기</button>
+      <button class="btn" id="refreshBtn">새로고침</button>
+    </div>
+  </div>
+  <div class="canvas-body">
+
+    <!-- Graph View -->
+    <div class="view active" id="v_graph">
+      <div class="welcome" id="welcome">
+        <h2>CrownyCore</h2>
+        <p>무엇을 하고 싶나요?</p>
+        <div class="welcome-grid">
+          <div class="welcome-card" id="w_sample"><span class="ic">◉</span><span class="label">예제 데이터</span><span class="sub">바로 시작해보기</span></div>
+          <div class="welcome-card" id="w_tmpl"><span class="ic">◧</span><span class="label">프로젝트 고르기</span><span class="sub">67가지 중에 선택</span></div>
+          <div class="welcome-card" id="w_decide"><span class="ic">◎</span><span class="label">결정 도와줘</span><span class="sub">AI가 같이 판단</span></div>
+        </div>
+      </div>
+      <div class="graph-wrap" id="graphC"></div>
+    </div>
+
+    <!-- Decide View -->
+    <div class="view" id="v_decide" style="padding:14px;gap:12px"></div>
+
+    <!-- Templates View -->
+    <div class="view" id="v_tmpl" style="padding:14px;gap:12px;overflow:auto"></div>
+
+    <!-- Causal View -->
+    <div class="view" id="v_causal" style="padding:14px;gap:12px;overflow:auto"></div>
+
+    <!-- KPS View -->
+    <div class="view" id="v_kps" style="padding:14px">
+      <div class="card" style="flex:1;display:flex;flex-direction:column">
+        <div class="card-h"><span class="card-t">KPS EMA 9/21/50</span></div>
+        <div id="chartC" style="flex:1;min-height:300px"></div>
+      </div>
+    </div>
+
+    <!-- Create View -->
+    <div class="view" id="v_create" style="padding:14px;gap:12px">
+      <div class="card">
+        <div class="card-h"><span class="card-t">새 셀 만들기</span></div>
+        <form id="cellForm" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-width:400px">
+          <input name="name" placeholder="이름 (예: BTC)" required>
+          <select name="type"><option value="0">종류 선택</option><option value="1">숫자</option><option value="3">글자</option><option value="8">기능</option></select>
+          <input name="content" placeholder="값 (예: 67000)">
+          <select name="layer"><option value="0">기본</option><option value="1">도메인</option><option value="2">결정</option><option value="3">인식</option></select>
+          <label style="font-size:10px;display:flex;align-items:center;gap:3px"><input type="checkbox" name="confirmed"> 확실한 정보</label>
+          <button type="submit" class="btn btn-p">만들기</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">새 주장 만들기</span><span style="font-size:9px;color:var(--text-3);margin-left:8px">"누가 무엇을 어떻게" 형식</span></div>
+        <form id="claimForm" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;max-width:400px">
+          <input name="subject" placeholder="누가 (BTC)" required>
+          <input name="predicate" placeholder="무엇을 (추세)" required>
+          <input name="object" placeholder="어떻게 (상승)" required>
+          <select name="layer"><option value="0">기본</option><option value="1">도메인</option><option value="2">결정</option></select>
+          <div></div>
+          <button type="submit" class="btn btn-p">추가</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Search View -->
+    <div class="view" id="v_search" style="padding:14px;gap:12px">
+      <form id="searchForm" style="display:flex;gap:6px;max-width:360px">
+        <input id="searchQ" placeholder="셀이나 주장을 검색..." style="flex:1">
+        <button type="submit" class="btn btn-p">찾기</button>
+      </form>
+      <div id="searchR" style="display:flex;flex-direction:column;gap:4px"></div>
+    </div>
+
+    <!-- Stats View -->
+    <div class="view" id="v_stats" style="padding:14px;gap:12px"></div>
+  </div>
+</main>
+
+<!-- Right Detail Panel -->
+<aside class="detail" id="detailPanel">
+  <div class="detail-section" id="detailContent">
+    <div class="detail-title">상세 정보</div>
+    <p style="color:var(--text-3);font-size:11px">그래프에서 동그라미를 클릭하면<br>여기에 자세한 정보가 나타나요</p>
+  </div>
+</aside>
+
+<div id="toast" class="toast"></div>
+
+<script type="module" src="js/앱.js"></script>
+</body>
+</html>
