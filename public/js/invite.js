@@ -86,10 +86,10 @@
     // 1. 링크 복사
     async function copyLink() {
         const link = getInviteLink();
-        if (!link) { showToast(t('invite.no_code', '초대 코드가 없습니다'), 'warning'); return; }
+        if (!link) { showToast(t('invite.no_code', 'No invite code available'), 'warning'); return; }
         try {
             await navigator.clipboard.writeText(link);
-            showToast(t('invite.link_copied', '✅ 초대 링크가 복사되었습니다!'), 'success');
+            showToast(t('invite.link_copied', 'Invite link copied!'), 'success');
         } catch (e) {
             // fallback
             const ta = document.createElement('textarea');
@@ -98,7 +98,7 @@
             ta.select();
             document.execCommand('copy');
             document.body.removeChild(ta);
-            showToast(t('invite.link_copied', '✅ 초대 링크가 복사되었습니다!'), 'success');
+            showToast(t('invite.link_copied', 'Invite link copied!'), 'success');
         }
     }
 
@@ -106,7 +106,7 @@
     async function shareSMS() {
         const link = getInviteLink();
         if (!link) return;
-        const text = t('invite.share_text', '크라우니에 가입하세요! 초대 링크:') + ' ' + link;
+        const text = t('invite.share_text', 'Join CROWNY! Invite link:') + ' ' + link;
         if (navigator.share) {
             try {
                 await navigator.share({ title: 'CROWNY', text: text, url: link });
@@ -122,12 +122,12 @@
         if (!link) return;
         const appKey = inviteSettings?.kakaoAppKey;
         if (!appKey) {
-            showToast(t('invite.kakao_no_key', '카카오 앱 키가 설정되지 않았습니다. 관리자에게 문의하세요.'), 'warning');
+            showToast(t('invite.kakao_no_key', 'Kakao app key is not configured. Please contact an administrator.'), 'warning');
             return;
         }
         try {
             if (!window.Kakao) {
-                showToast(t('invite.kakao_sdk_fail', '카카오 SDK 로드 실패'), 'error');
+                showToast(t('invite.kakao_sdk_fail', 'Kakao SDK failed to load'), 'error');
                 return;
             }
             if (!Kakao.isInitialized()) {
@@ -136,19 +136,19 @@
             Kakao.Share.sendDefault({
                 objectType: 'feed',
                 content: {
-                    title: t('invite.kakao_title', '크라우니 — Protecting Beauty, Empowering Safety'),
-                    description: t('invite.kakao_desc', '지갑 · 트레이딩 · 마켓 · 소셜 · 아트 · 에너지 — 올인원 플랫폼'),
+                    title: t('invite.kakao_title', 'CROWNY — Protecting Beauty, Empowering Safety'),
+                    description: t('invite.kakao_desc', 'Wallet · Trading · Market · Social · Art · Energy — All-in-One Platform'),
                     imageUrl: 'https://crowny-org.vercel.app/img/og-image.png',
                     link: { mobileWebUrl: link, webUrl: link }
                 },
                 buttons: [{
-                    title: t('invite.kakao_btn', '가입하기'),
+                    title: t('invite.kakao_btn', 'Sign Up'),
                     link: { mobileWebUrl: link, webUrl: link }
                 }]
             });
         } catch (e) {
             console.error('Kakao share error:', e);
-            showToast(t('invite.kakao_fail', '카카오톡 공유 실패'), 'error');
+            showToast(t('invite.kakao_fail', 'KakaoTalk share failed'), 'error');
         }
     }
 
@@ -158,7 +158,7 @@
         if (!link) return;
         const appId = inviteSettings?.facebookAppId;
         if (!appId) {
-            showToast(t('invite.fb_no_id', '페이스북 앱 ID가 설정되지 않았습니다. 관리자에게 문의하세요.'), 'warning');
+            showToast(t('invite.fb_no_id', 'Facebook App ID is not configured. Please contact an administrator.'), 'warning');
             return;
         }
         if (window.FB) {
@@ -171,7 +171,7 @@
 
     // ========== 초대 모달 ==========
     async function showInviteModal() {
-        if (!currentUser) { showToast(t('common.login_required', '로그인이 필요합니다'), 'warning'); return; }
+        if (!currentUser) { showToast(t('common.login_required', 'Login required'), 'warning'); return; }
 
         // 초대 코드 없으면 생성
         if (!userReferralCode) {
@@ -201,51 +201,51 @@
         modal.innerHTML = `
         <div style="background:#FFF8F0;border-radius:16px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                <h3 style="margin:0;"><i data-lucide="gift"></i> ${t('invite.title', '친구 초대')}</h3>
+                <h3 style="margin:0;"><i data-lucide="gift"></i> ${t('invite.title', 'Invite Friends')}</h3>
                 <button onclick="document.getElementById('invite-modal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;">✕</button>
             </div>
 
             <div style="background:#f8f8f8;border-radius:10px;padding:1rem;margin-bottom:1rem;text-align:center;">
-                <p style="font-size:0.8rem;color:#6B5744;margin-bottom:0.3rem;">${t('invite.my_code', '내 초대 코드')}</p>
+                <p style="font-size:0.8rem;color:#6B5744;margin-bottom:0.3rem;">${t('invite.my_code', 'My Invite Code')}</p>
                 <p style="font-size:1.4rem;font-weight:800;color:#3D2B1F;letter-spacing:2px;">${userReferralCode || '—'}</p>
                 <p style="font-size:0.7rem;color:#6B5744;margin-top:0.3rem;word-break:break-all;">${link}</p>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:1.2rem;">
                 <button onclick="INVITE.copyLink()" style="padding:0.8rem;border:none;border-radius:10px;background:#3D2B1F;color:#FFF8F0;font-weight:700;cursor:pointer;font-size:0.85rem;">
-                    <i data-lucide="copy"></i> ${t('invite.copy_link', '링크 복사')}
+                    <i data-lucide="copy"></i> ${t('invite.copy_link', 'Copy Link')}
                 </button>
                 <button onclick="INVITE.shareSMS()" style="padding:0.8rem;border:none;border-radius:10px;background:#25D366;color:#FFF8F0;font-weight:700;cursor:pointer;font-size:0.85rem;">
-                    <i data-lucide="message-circle" style="width:16px;height:16px;margin-right:6px;"></i>${t('invite.sms_share', 'SMS/공유')}
+                    <i data-lucide="message-circle" style="width:16px;height:16px;margin-right:6px;"></i>${t('invite.sms_share', 'SMS/Share')}
                 </button>
                 <button onclick="INVITE.shareKakao()" style="padding:0.8rem;border:none;border-radius:10px;background:#FEE500;color:#3C1E1E;font-weight:700;cursor:pointer;font-size:0.85rem;">
-                    <i data-lucide="heart" style="color:#FFB800;"></i> ${t('invite.kakao', '카카오톡')}
+                    <i data-lucide="heart" style="color:#FFB800;"></i> ${t('invite.kakao', 'KakaoTalk')}
                 </button>
                 <button onclick="INVITE.shareFacebook()" style="padding:0.8rem;border:none;border-radius:10px;background:#1877F2;color:#FFF8F0;font-weight:700;cursor:pointer;font-size:0.85rem;">
-                    <i data-lucide="facebook"></i> ${t('invite.facebook', '페이스북')}
+                    <i data-lucide="facebook"></i> ${t('invite.facebook', 'Facebook')}
                 </button>
             </div>
 
             <div style="background:#f0f7ff;border-radius:10px;padding:1rem;">
-                <h4 style="margin:0 0 0.5rem 0;font-size:0.9rem;"><i data-lucide="bar-chart-3"></i> ${t('invite.stats', '초대 현황')}</h4>
+                <h4 style="margin:0 0 0.5rem 0;font-size:0.9rem;"><i data-lucide="bar-chart-3"></i> ${t('invite.stats', 'Invite Stats')}</h4>
                 <div style="display:flex;justify-content:space-around;text-align:center;">
                     <div>
                         <p style="font-size:1.5rem;font-weight:800;color:#3D2B1F;">${completedCount}</p>
-                        <p style="font-size:0.75rem;color:#6B5744;">${t('invite.successful', '초대 성공')}</p>
+                        <p style="font-size:0.75rem;color:#6B5744;">${t('invite.successful', 'Successful Invites')}</p>
                     </div>
                     <div>
                         <p style="font-size:1.5rem;font-weight:800;color:#8B6914;">${earnedCRTD.toFixed(1)}</p>
-                        <p style="font-size:0.75rem;color:#6B5744;">${t('invite.earned_crtd', '획득 CRTD')}</p>
+                        <p style="font-size:0.75rem;color:#6B5744;">${t('invite.earned_crtd', 'Earned CRTD')}</p>
                     </div>
                 </div>
                 <p style="font-size:0.7rem;color:#6B5744;margin-top:0.5rem;text-align:center;">
-                    ${t('invite.reward_info', '친구가 가입하면 0.5 CRTD를 받아요! (최대 100 CRTD)')}
+                    ${t('invite.reward_info', 'Earn 0.5 CRTD when a friend signs up! (max 100 CRTD)')}
                 </p>
             </div>
 
             <button onclick="document.getElementById('invite-modal').remove(); showPage('dashboard');" 
                 style="width:100%;margin-top:1rem;padding:0.8rem;border:none;border-radius:10px;background:linear-gradient(135deg,#8B6914,#F0C060);color:#3D2B1F;font-weight:700;cursor:pointer;font-size:0.85rem;">
-                ⭐ ${t('invite.manage_referral', '소개자 프로그램 관리')}
+                ⭐ ${t('invite.manage_referral', 'Manage Referral Program')}
             </button>
         </div>`;
         document.body.appendChild(modal);
@@ -262,7 +262,7 @@
 
         if (currentUser) {
             // 이미 로그인
-            showToast(t('invite.already_member', '이미 회원입니다!'), 'info');
+            showToast(t('invite.already_member', 'You are already a member!'), 'info');
             // clean hash
             history.replaceState(null, '', location.pathname);
             return;
@@ -292,14 +292,14 @@
         landing.innerHTML = `
         <div style="background:#FFF8F0;border-radius:16px;max-width:400px;width:100%;padding:2rem;text-align:center;">
             <div style="font-size:3rem;margin-bottom:0.5rem;"><i data-lucide="gift" style="width:80px;height:80px;"></i></div>
-            <h2 style="margin:0 0 0.5rem 0;">${t('invite.landing_title', '크라우니에 초대되었습니다!')}</h2>
-            ${inviterName ? `<p style="color:#6B5744;margin-bottom:1rem;">${t('invite.invited_by', '소개자')}: <strong>${inviterName}</strong></p>` : ''}
-            <p style="font-size:0.85rem;color:#6B5744;margin-bottom:1.5rem;">${t('invite.landing_desc', '가입하고 CRTD 리워드를 받으세요!')}</p>
+            <h2 style="margin:0 0 0.5rem 0;">${t('invite.landing_title', 'You have been invited to CROWNY!')}</h2>
+            ${inviterName ? `<p style="color:#6B5744;margin-bottom:1rem;">${t('invite.invited_by', 'Referred by')}: <strong>${inviterName}</strong></p>` : ''}
+            <p style="font-size:0.85rem;color:#6B5744;margin-bottom:1.5rem;">${t('invite.landing_desc', 'Sign up and earn CRTD rewards!')}</p>
             <button onclick="document.getElementById('invite-landing').remove();document.getElementById('show-signup-form')?.click();" style="width:100%;padding:1rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;">
-                <i data-lucide="rocket"></i> ${t('invite.signup_btn', '가입하기')}
+                <i data-lucide="rocket"></i> ${t('invite.signup_btn', 'Sign Up')}
             </button>
             <button onclick="document.getElementById('invite-landing').remove()" style="width:100%;padding:0.7rem;background:transparent;border:none;color:#6B5744;cursor:pointer;margin-top:0.5rem;font-size:0.85rem;">
-                ${t('common.close', '닫기')}
+                ${t('common.close', 'Close')}
             </button>
         </div>`;
         document.body.appendChild(landing);

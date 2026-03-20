@@ -11,8 +11,8 @@ let groupInfoPanelOpen = false;
 
 async function showNewGroupModal() {
     const groupName = await showPromptModal(
-        t('group.new_group', '새 그룹 만들기'),
-        t('group.enter_name', '그룹 이름을 입력하세요'),
+        t('group.new_group', 'Create New Group'),
+        t('group.enter_name', 'Enter a group name'),
         ''
     );
     if (!groupName || !groupName.trim()) return;
@@ -20,7 +20,7 @@ async function showNewGroupModal() {
     // Load contacts for member selection
     const contacts = await db.collection('users').doc(currentUser.uid).collection('contacts').get();
     if (contacts.empty) {
-        showToast(t('group.no_contacts', '연락처에 추가된 사용자가 없습니다. 먼저 연락처를 추가하세요.'), 'warning');
+        showToast(t('group.no_contacts', 'No contacts found. Please add contacts first.'), 'warning');
         return;
     }
 
@@ -35,8 +35,8 @@ async function showNewGroupModal() {
     overlay.className = 'group-member-select-overlay';
     overlay.innerHTML = `
         <div class="group-member-select-modal">
-            <h3 style="margin:0 0 0.5rem;">${t('group.select_members', '멤버 선택')}</h3>
-            <p style="font-size:0.8rem;color:var(--accent);margin-bottom:1rem;">${t('group.group_name', '그룹명')}: <strong>${groupName.trim()}</strong></p>
+            <h3 style="margin:0 0 0.5rem;">${t('group.select_members', 'Select Members')}</h3>
+            <p style="font-size:0.8rem;color:var(--accent);margin-bottom:1rem;">${t('group.group_name', 'Group Name')}: <strong>${groupName.trim()}</strong></p>
             <div class="group-member-list" id="group-member-select-list">
                 ${memberInfos.map(m => `
                     <label class="group-member-option" data-uid="${m.uid}">
@@ -47,8 +47,8 @@ async function showNewGroupModal() {
                 `).join('')}
             </div>
             <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-                <button class="btn-primary" id="group-create-confirm" style="flex:1;padding:0.6rem;border-radius:8px;">${t('group.create', '그룹 만들기')}</button>
-                <button class="btn-secondary" id="group-create-cancel" style="flex:1;padding:0.6rem;border-radius:8px;">${t('common.cancel', '취소')}</button>
+                <button class="btn-primary" id="group-create-confirm" style="flex:1;padding:0.6rem;border-radius:8px;">${t('group.create', 'Create Group')}</button>
+                <button class="btn-secondary" id="group-create-cancel" style="flex:1;padding:0.6rem;border-radius:8px;">${t('common.cancel', 'Cancel')}</button>
             </div>
         </div>
     `;
@@ -59,7 +59,7 @@ async function showNewGroupModal() {
         const checked = overlay.querySelectorAll('input[type="checkbox"]:checked');
         const selectedUids = Array.from(checked).map(c => c.value);
         if (selectedUids.length === 0) {
-            showToast(t('group.select_one', '최소 1명을 선택하세요'), 'warning');
+            showToast(t('group.select_one', 'Please select at least 1 member'), 'warning');
             return;
         }
         overlay.remove();
@@ -78,7 +78,7 @@ async function createGroupChat(groupName, memberUids) {
             createdBy: currentUser.uid,
             admins: [currentUser.uid],
             participants: participants,
-            lastMessage: t('group.created', '그룹이 생성되었습니다'),
+            lastMessage: t('group.created', 'Group has been created'),
             lastMessageTime: new Date(),
             createdAt: new Date(),
             deleted: false
@@ -87,7 +87,7 @@ async function createGroupChat(groupName, memberUids) {
         // Add system message
         await db.collection('chats').doc(newChat.id).collection('messages').add({
             type: 'system',
-            text: t('group.created', '그룹이 생성되었습니다'),
+            text: t('group.created', 'Group has been created'),
             timestamp: new Date()
         });
 
@@ -97,19 +97,19 @@ async function createGroupChat(groupName, memberUids) {
             const info = await getUserDisplayInfo(uid);
             await db.collection('chats').doc(newChat.id).collection('messages').add({
                 type: 'system',
-                text: `${info.nickname}${t('group.joined', '님이 입장했습니다')}`,
+                text: `${info.nickname}${t('group.joined', ' has joined')}`,
                 timestamp: new Date()
             });
         }
 
         hideLoading();
-        showToast(`<i data-lucide="check-circle"></i> ${t('group.created_success', '그룹이 생성되었습니다')}`, 'success');
+        showToast(`<i data-lucide="check-circle"></i> ${t('group.created_success', 'Group created successfully')}`, 'success');
         await loadMessages();
         await openGroupChat(newChat.id);
     } catch (e) {
         hideLoading();
         console.error('Group create error:', e);
-        showToast(t('group.create_fail', '그룹 생성 실패') + ': ' + e.message, 'error');
+        showToast(t('group.create_fail', 'Failed to create group') + ': ' + e.message, 'error');
     }
 }
 
@@ -133,7 +133,7 @@ async function openGroupChat(chatId) {
             <div class="group-avatar-icon"><i data-lucide="users"></i></div>
             <div>
                 <strong>${chatData.groupName}</strong>
-                <div style="font-size:0.7rem;color:var(--accent);">${t('group.members', '멤버')} ${memberCount}${t('group.people', '명')}</div>
+                <div style="font-size:0.7rem;color:var(--accent);">${t('group.members', 'Members')} ${memberCount}${t('group.people', '')}</div>
             </div>
         </div>`;
 
@@ -154,7 +154,7 @@ async function openGroupChat(chatId) {
             const messagesDiv = document.getElementById('chat-messages');
             messagesDiv.innerHTML = '';
             if (snapshot.empty) {
-                messagesDiv.innerHTML = `<p style="text-align:center;color:var(--accent);padding:2rem;">${t('group.send_first', '메시지를 보내보세요!')}</p>`;
+                messagesDiv.innerHTML = `<p style="text-align:center;color:var(--accent);padding:2rem;">${t('group.send_first', 'Send a message!')}</p>`;
             }
             const senderCache = {};
             for (const doc of snapshot.docs) {
@@ -251,19 +251,19 @@ async function showGroupInfoPanel() {
         const isSelf = uid === currentUser.uid;
 
         let roleBadge = '';
-        if (isOwnerBadge) roleBadge = '<span class="role-badge owner"><i data-lucide="crown"></i> ' + t('group.owner', '방장') + '</span>';
-        else if (isAdminBadge) roleBadge = '<span class="role-badge admin"><i data-lucide="star"></i> ' + t('group.admin', '관리자') + '</span>';
+        if (isOwnerBadge) roleBadge = '<span class="role-badge owner"><i data-lucide="crown"></i> ' + t('group.owner', 'Owner') + '</span>';
+        else if (isAdminBadge) roleBadge = '<span class="role-badge admin"><i data-lucide="star"></i> ' + t('group.admin', 'Admin') + '</span>';
 
         let actions = '';
         if (isOwner && !isSelf) {
             if (isAdminBadge && !isOwnerBadge) {
-                actions += `<button class="group-action-btn" onclick="removeAdmin('${uid}')" title="${t('group.remove_admin', '관리자 해제')}">⭐❌</button>`;
+                actions += `<button class="group-action-btn" onclick="removeAdmin('${uid}')" title="${t('group.remove_admin', 'Remove Admin')}">⭐❌</button>`;
             } else if (!isAdminBadge) {
-                actions += `<button class="group-action-btn" onclick="makeAdmin('${uid}')" title="${t('group.make_admin', '관리자 임명')}">⭐</button>`;
+                actions += `<button class="group-action-btn" onclick="makeAdmin('${uid}')" title="${t('group.make_admin', 'Make Admin')}">⭐</button>`;
             }
         }
         if (isAdmin && !isSelf && uid !== chat.createdBy) {
-            actions += `<button class="group-action-btn kick" onclick="kickMember('${uid}')" title="${t('group.kick', '강퇴')}">🚫</button>`;
+            actions += `<button class="group-action-btn kick" onclick="kickMember('${uid}')" title="${t('group.kick', 'Kick')}">🚫</button>`;
         }
 
         membersHTML += `
@@ -283,30 +283,30 @@ async function showGroupInfoPanel() {
     panel.innerHTML = `
         <div class="group-info-header">
             <button onclick="toggleGroupInfoPanel()" class="group-info-close">✕</button>
-            <h3>${t('group.info', '그룹 정보')}</h3>
+            <h3>${t('group.info', 'Group Info')}</h3>
         </div>
         <div class="group-info-body">
             <div class="group-info-top">
                 <div class="group-avatar-large">👥</div>
                 <h3 id="group-info-name">${chat.groupName}</h3>
-                <p style="color:var(--accent);font-size:0.85rem;">${t('group.members', '멤버')} ${chat.participants.length}${t('group.people', '명')}</p>
+                <p style="color:var(--accent);font-size:0.85rem;">${t('group.members', 'Members')} ${chat.participants.length}${t('group.people', '')}</p>
             </div>
 
             ${isAdmin ? `
             <div class="group-info-actions">
-                <button class="btn-secondary" onclick="editGroupName()" style="font-size:0.8rem;padding:0.5rem 0.8rem;border-radius:8px;"><i data-lucide="edit"></i> ${t('group.edit_name', '그룹명 변경')}</button>
-                <button class="btn-secondary" onclick="inviteMembers()" style="font-size:0.8rem;padding:0.5rem 0.8rem;border-radius:8px;"><i data-lucide="plus"></i> ${t('group.invite', '멤버 초대')}</button>
+                <button class="btn-secondary" onclick="editGroupName()" style="font-size:0.8rem;padding:0.5rem 0.8rem;border-radius:8px;"><i data-lucide="edit"></i> ${t('group.edit_name', 'Change Group Name')}</button>
+                <button class="btn-secondary" onclick="inviteMembers()" style="font-size:0.8rem;padding:0.5rem 0.8rem;border-radius:8px;"><i data-lucide="plus"></i> ${t('group.invite', 'Invite Members')}</button>
             </div>
             ` : ''}
 
             <div class="group-members-section">
-                <h4 style="margin:0 0 0.5rem;font-size:0.9rem;">${t('group.member_list', '멤버 목록')}</h4>
+                <h4 style="margin:0 0 0.5rem;font-size:0.9rem;">${t('group.member_list', 'Member List')}</h4>
                 ${membersHTML}
             </div>
 
             <div class="group-info-bottom">
-                ${isOwner ? `<button class="btn-danger" onclick="deleteGroupChat()" style="width:100%;padding:0.6rem;border-radius:8px;font-size:0.85rem;"><i data-lucide="trash"></i> ${t('group.delete', '그룹 삭제')}</button>` : ''}
-                <button class="btn-secondary" onclick="leaveGroup()" style="width:100%;padding:0.6rem;border-radius:8px;font-size:0.85rem;margin-top:0.5rem;"><i data-lucide="log-out"></i> ${t('group.leave', '나가기')}</button>
+                ${isOwner ? `<button class="btn-danger" onclick="deleteGroupChat()" style="width:100%;padding:0.6rem;border-radius:8px;font-size:0.85rem;"><i data-lucide="trash"></i> ${t('group.delete', 'Delete Group')}</button>` : ''}
+                <button class="btn-secondary" onclick="leaveGroup()" style="width:100%;padding:0.6rem;border-radius:8px;font-size:0.85rem;margin-top:0.5rem;"><i data-lucide="log-out"></i> ${t('group.leave', 'Leave')}</button>
             </div>
         </div>
     `;
@@ -319,8 +319,8 @@ async function showGroupInfoPanel() {
 
 async function editGroupName() {
     const newName = await showPromptModal(
-        t('group.edit_name', '그룹명 변경'),
-        t('group.enter_new_name', '새 그룹명을 입력하세요'),
+        t('group.edit_name', 'Change Group Name'),
+        t('group.enter_new_name', 'Enter a new group name'),
         currentGroupChat.groupName
     );
     if (!newName || !newName.trim()) return;
@@ -328,21 +328,21 @@ async function editGroupName() {
     await db.collection('chats').doc(currentChat).update({ groupName: newName.trim() });
     await db.collection('chats').doc(currentChat).collection('messages').add({
         type: 'system',
-        text: t('group.name_changed', '그룹명이 변경되었습니다') + `: ${newName.trim()}`,
+        text: t('group.name_changed', 'Group name has been changed') + `: ${newName.trim()}`,
         timestamp: new Date()
     });
     currentGroupChat.groupName = newName.trim();
 
     // Refresh header and panel
     document.getElementById('group-info-name').textContent = newName.trim();
-    showToast(t('group.name_updated', '✅ 그룹명이 변경되었습니다'), 'success');
+    showToast(t('group.name_updated', 'Group name updated'), 'success');
     await loadMessages();
 }
 
 async function inviteMembers() {
     const email = await showPromptModal(
-        t('group.invite', '멤버 초대'),
-        t('group.invite_email', '초대할 사용자 이메일 또는 닉네임'),
+        t('group.invite', 'Invite Members'),
+        t('group.invite_email', 'Email or nickname of user to invite'),
         ''
     );
     if (!email || !email.trim()) return;
@@ -355,13 +355,13 @@ async function inviteMembers() {
             users = await db.collection('users').where('nickname', '==', email.trim()).get();
         }
         if (users.empty) {
-            showToast(t('social.user_not_found', '사용자를 찾을 수 없습니다'), 'error');
+            showToast(t('social.user_not_found', 'User not found'), 'error');
             return;
         }
 
         const userId = users.docs[0].id;
         if (currentGroupChat.participants.includes(userId)) {
-            showToast(t('group.already_member', '이미 그룹 멤버입니다'), 'warning');
+            showToast(t('group.already_member', 'Already a group member'), 'warning');
             return;
         }
 
@@ -372,11 +372,11 @@ async function inviteMembers() {
         const info = await getUserDisplayInfo(userId);
         await db.collection('chats').doc(currentChat).collection('messages').add({
             type: 'system',
-            text: `${info.nickname}${t('group.joined', '님이 입장했습니다')}`,
+            text: `${info.nickname}${t('group.joined', ' has joined')}`,
             timestamp: new Date()
         });
 
-        showToast(`✅ ${info.nickname}${t('group.invited', '님을 초대했습니다')}`, 'success');
+        showToast(`✅ ${info.nickname}${t('group.invited', ' has been invited')}`, 'success');
 
         // Refresh panel
         toggleGroupInfoPanel();
@@ -384,15 +384,15 @@ async function inviteMembers() {
         await loadMessages();
     } catch (e) {
         console.error('Invite error:', e);
-        showToast(t('group.invite_fail', '초대 실패') + ': ' + e.message, 'error');
+        showToast(t('group.invite_fail', 'Invite failed') + ': ' + e.message, 'error');
     }
 }
 
 async function kickMember(uid) {
     const info = await getUserDisplayInfo(uid);
     const confirmed = await showConfirmModal(
-        t('group.kick_confirm', '멤버 강퇴'),
-        `${info.nickname}${t('group.kick_msg', '님을 강퇴하시겠습니까?')}`
+        t('group.kick_confirm', 'Kick Member'),
+        `${info.nickname}${t('group.kick_msg', ' — kick from group?')}`
     );
     if (!confirmed) return;
 
@@ -404,17 +404,17 @@ async function kickMember(uid) {
 
         await db.collection('chats').doc(currentChat).collection('messages').add({
             type: 'system',
-            text: `${info.nickname}${t('group.kicked', '님이 강퇴되었습니다')}`,
+            text: `${info.nickname}${t('group.kicked', ' has been kicked')}`,
             timestamp: new Date()
         });
 
-        showToast(`${info.nickname}${t('group.kicked_success', '님을 강퇴했습니다')}`, 'success');
+        showToast(`${info.nickname}${t('group.kicked_success', ' has been kicked')}`, 'success');
         toggleGroupInfoPanel();
         await showGroupInfoPanel();
         await loadMessages();
     } catch (e) {
         console.error('Kick error:', e);
-        showToast(t('group.kick_fail', '강퇴 실패'), 'error');
+        showToast(t('group.kick_fail', 'Kick failed'), 'error');
     }
 }
 
@@ -425,10 +425,10 @@ async function makeAdmin(uid) {
     });
     await db.collection('chats').doc(currentChat).collection('messages').add({
         type: 'system',
-        text: `${info.nickname}${t('group.made_admin', '님이 관리자로 임명되었습니다')}`,
+        text: `${info.nickname}${t('group.made_admin', ' has been made an admin')}`,
         timestamp: new Date()
     });
-    showToast(`✅ ${info.nickname}${t('group.made_admin', '님이 관리자로 임명되었습니다')}`, 'success');
+    showToast(`✅ ${info.nickname}${t('group.made_admin', ' has been made an admin')}`, 'success');
     toggleGroupInfoPanel();
     await showGroupInfoPanel();
 }
@@ -440,18 +440,18 @@ async function removeAdmin(uid) {
     });
     await db.collection('chats').doc(currentChat).collection('messages').add({
         type: 'system',
-        text: `${info.nickname}${t('group.removed_admin', '님의 관리자 권한이 해제되었습니다')}`,
+        text: `${info.nickname}${t('group.removed_admin', ' has been removed as admin')}`,
         timestamp: new Date()
     });
-    showToast(`${info.nickname}${t('group.admin_removed', '님의 관리자 권한을 해제했습니다')}`, 'success');
+    showToast(`${info.nickname}${t('group.admin_removed', ' has been removed as admin')}`, 'success');
     toggleGroupInfoPanel();
     await showGroupInfoPanel();
 }
 
 async function leaveGroup() {
     const confirmed = await showConfirmModal(
-        t('group.leave', '그룹 나가기'),
-        t('group.leave_confirm', '정말로 이 그룹을 나가시겠습니까?')
+        t('group.leave', 'Leave Group'),
+        t('group.leave_confirm', 'Are you sure you want to leave this group?')
     );
     if (!confirmed) return;
 
@@ -484,7 +484,7 @@ async function leaveGroup() {
                 const newOwnerInfo = await getUserDisplayInfo(newOwner);
                 await db.collection('chats').doc(currentChat).collection('messages').add({
                     type: 'system',
-                    text: `${newOwnerInfo.nickname}${t('group.new_owner', '님이 새 방장이 되었습니다')}`,
+                    text: `${newOwnerInfo.nickname}${t('group.new_owner', ' is now the new owner')}`,
                     timestamp: new Date()
                 });
             }
@@ -492,11 +492,11 @@ async function leaveGroup() {
 
         await db.collection('chats').doc(currentChat).collection('messages').add({
             type: 'system',
-            text: `${myInfo.nickname}${t('group.left', '님이 퇴장했습니다')}`,
+            text: `${myInfo.nickname}${t('group.left', ' has left')}`,
             timestamp: new Date()
         });
 
-        showToast(t('group.left_success', '그룹을 나갔습니다'), 'success');
+        showToast(t('group.left_success', 'You have left the group'), 'success');
 
         // Close panel and reset
         const panel = document.getElementById('group-info-panel');
@@ -511,27 +511,27 @@ async function leaveGroup() {
         document.getElementById('chat-username').innerHTML = `
             <div class="chat-empty-state">
                 <div style="font-size:3rem;margin-bottom:1rem;">💬</div>
-                <p style="font-size:1rem;color:var(--accent);">${t('social.select_chat', '채팅을 선택하세요')}</p>
+                <p style="font-size:1rem;color:var(--accent);">${t('social.select_chat', 'Select a chat')}</p>
             </div>`;
         document.getElementById('chat-messages').innerHTML = '';
         document.getElementById('chat-input-area').style.display = 'none';
         document.getElementById('chat-header-actions').style.display = 'none';
     } catch (e) {
         console.error('Leave error:', e);
-        showToast(t('group.leave_fail', '나가기 실패'), 'error');
+        showToast(t('group.leave_fail', 'Failed to leave'), 'error');
     }
 }
 
 async function deleteGroupChat() {
     const confirmed = await showConfirmModal(
-        t('group.delete', '그룹 삭제'),
-        t('group.delete_confirm', '정말로 이 그룹을 삭제하시겠습니까? 모든 멤버가 이 채팅에 접근할 수 없게 됩니다.')
+        t('group.delete', 'Delete Group'),
+        t('group.delete_confirm', 'Are you sure you want to delete this group? All members will lose access to this chat.')
     );
     if (!confirmed) return;
 
     try {
         await db.collection('chats').doc(currentChat).update({ deleted: true });
-        showToast(t('group.deleted', '✅ 그룹이 삭제되었습니다'), 'success');
+        showToast(t('group.deleted', 'Group has been deleted'), 'success');
 
         const panel = document.getElementById('group-info-panel');
         if (panel) panel.remove();
@@ -544,14 +544,14 @@ async function deleteGroupChat() {
         document.getElementById('chat-username').innerHTML = `
             <div class="chat-empty-state">
                 <div style="font-size:3rem;margin-bottom:1rem;">💬</div>
-                <p style="font-size:1rem;color:var(--accent);">${t('social.select_chat', '채팅을 선택하세요')}</p>
+                <p style="font-size:1rem;color:var(--accent);">${t('social.select_chat', 'Select a chat')}</p>
             </div>`;
         document.getElementById('chat-messages').innerHTML = '';
         document.getElementById('chat-input-area').style.display = 'none';
         document.getElementById('chat-header-actions').style.display = 'none';
     } catch (e) {
         console.error('Delete error:', e);
-        showToast(t('group.delete_fail', '삭제 실패'), 'error');
+        showToast(t('group.delete_fail', 'Delete failed'), 'error');
     }
 }
 
@@ -568,7 +568,7 @@ async function loadMessagesWithGroups() {
 
     const chats = await db.collection('chats').where('participants', 'array-contains', currentUser.uid).get();
     if (chats.empty) {
-        chatList.innerHTML = `<p style="padding:1rem; color:var(--accent); text-align:center;">${t('social.start_chat', '채팅을 시작하세요')}</p>`;
+        chatList.innerHTML = `<p style="padding:1rem; color:var(--accent); text-align:center;">${t('social.start_chat', 'Start a chat')}</p>`;
         return;
     }
 
@@ -581,7 +581,7 @@ async function loadMessagesWithGroups() {
         });
 
     if (chatDocs.length === 0) {
-        chatList.innerHTML = `<p style="padding:1rem; color:var(--accent); text-align:center;">${t('social.start_chat', '채팅을 시작하세요')}</p>`;
+        chatList.innerHTML = `<p style="padding:1rem; color:var(--accent); text-align:center;">${t('social.start_chat', 'Start a chat')}</p>`;
         return;
     }
 
@@ -600,7 +600,7 @@ async function loadMessagesWithGroups() {
                 <div class="group-avatar-icon chat-list-group-icon"><i data-lucide="users"></i></div>
                 <div class="chat-preview">
                     <strong>👥 ${chat.groupName} <span class="group-member-count">(${memberCount})</span>${gSecIcons.length ? ' <span style="font-size:0.7rem;opacity:0.5;">' + gSecIcons.join('') + '</span>' : ''}</strong>
-                    <p>${chat.lastMessage || t('social.no_messages', '메시지 없음')}</p>
+                    <p>${chat.lastMessage || t('social.no_messages', 'No messages')}</p>
                 </div>`;
         } else {
             // Direct chat (original logic)
@@ -612,7 +612,7 @@ async function loadMessagesWithGroups() {
                 ${avatarHTML(info.photoURL, info.nickname, 44)}
                 <div class="chat-preview">
                     <strong>${info.nickname}</strong>
-                    <p>${chat.lastMessage || t('social.no_messages', '메시지 없음')}</p>
+                    <p>${chat.lastMessage || t('social.no_messages', 'No messages')}</p>
                 </div>`;
         }
         chatList.appendChild(chatItem);

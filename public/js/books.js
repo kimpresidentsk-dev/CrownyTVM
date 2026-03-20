@@ -271,7 +271,7 @@ async function buyBookV2(id) {
         return;
     }
 
-    if (!await showConfirmModal(t('books.purchase', '책 구매'), `"${b.title}"\n${price} CRGC로 구매하시겠습니까?${b.edition === 'limited' ? `\n에디션 #${sold + 1} of ${b.totalSupply}` : ''}`)) return;
+    if (!await showConfirmModal(t('books.purchase', 'Purchase Book'), `"${b.title}"\nPurchase for ${price} CRGC?${b.edition === 'limited' ? `\nEdition #${sold + 1} of ${b.totalSupply}` : ''}`)) return;
 
     try {
         const success = await spendOffchainPoints('crgc', price, `책 구매: ${b.title}`);

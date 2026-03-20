@@ -37,13 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const el = document.getElementById('password-strength');
             if (!el) return;
             if (pw.length === 0) { el.textContent = ''; return; }
-            if (pw.length < 6) { el.textContent = t('auth.min_6chars', '⚠️ 최소 6자 이상'); el.style.color = '#B54534'; return; }
+            if (pw.length < 6) { el.textContent = t('auth.min_6chars', '⚠️ Minimum 6 characters'); el.style.color = '#B54534'; return; }
             let score = 0;
             if (pw.length >= 8) score++;
             if (/[A-Z]/.test(pw)) score++;
             if (/[0-9]/.test(pw)) score++;
             if (/[^A-Za-z0-9]/.test(pw)) score++;
-            const labels = [t('auth.pw_weak','약함 🔴'), t('auth.pw_normal','보통 🟡'), t('auth.pw_good','좋음 🟢'), t('auth.pw_strong','강함 💪')];
+            const labels = [t('auth.pw_weak','Weak 🔴'), t('auth.pw_normal','Fair 🟡'), t('auth.pw_good','Good 🟢'), t('auth.pw_strong','Strong 💪')];
             const colors = ['#B54534', '#C4841D', '#6B8F3C', '#3D2B1F'];
             el.textContent = labels[Math.min(score, 3)];
             el.style.color = colors[Math.min(score, 3)];
@@ -58,7 +58,7 @@ async function signup() {
     const password = document.getElementById('signup-password').value;
 
     if (!username || !password) {
-        showToast(t('auth.enter_id_pw','아이디와 비밀번호를 입력하세요'), 'warning');
+        showToast(t('auth.enter_id_pw','Please enter your ID and password'), 'warning');
         return;
     }
 
@@ -68,7 +68,7 @@ async function signup() {
     }
 
     if (password.length < 6) {
-        showToast(t('auth.pw_min_6','비밀번호는 최소 6자 이상이어야 합니다'), 'warning');
+        showToast(t('auth.pw_min_6','Password must be at least 6 characters'), 'warning');
         return;
     }
 
@@ -115,7 +115,7 @@ async function login() {
     const password = document.getElementById('login-password').value;
 
     if (!emailOrUsername || !password) {
-        showToast(t('auth.enter_email_pw','이메일/아이디와 비밀번호를 입력하세요'), 'warning');
+        showToast(t('auth.enter_email_pw','Please enter your email/ID and password'), 'warning');
         return;
     }
 
@@ -145,10 +145,10 @@ async function login() {
 
         // 로그인 실패
         const errorMsg = data.error || '아이디 또는 비밀번호가 올바르지 않습니다';
-        showToast(t('auth.login_failed','로그인 실패: ') + errorMsg, 'error');
+        showToast(t('auth.login_failed','Login failed: ') + errorMsg, 'error');
     } catch (error) {
         console.error('[AUTH] login error:', error);
-        showToast(t('auth.login_failed','로그인 실패: ') + error.message, 'error');
+        showToast(t('auth.login_failed','Login failed: ') + error.message, 'error');
     }
 }
 
@@ -182,13 +182,13 @@ async function setupPasswordFromProfile() {
     const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
     if (!token) { showToast('로그인이 필요합니다', 'warning'); return; }
 
-    if (typeof showPromptModal !== 'function') { showToast(t('auth.ui_fail','UI 모듈 로드 실패'), 'error'); return; }
+    if (typeof showPromptModal !== 'function') { showToast(t('auth.ui_fail','UI module failed to load'), 'error'); return; }
 
-    const newPw = await showPromptModal(t('auth.setup_pw','<i data-lucide="key"></i> 비밀번호 설정'), t('auth.new_pw_hint','새 비밀번호 (6자 이상)'), '', true);
-    if (!newPw || newPw.length < 6) { if (newPw !== null) showToast(t('auth.pw_min_6','비밀번호는 6자 이상이어야 합니다'), 'error'); return; }
+    const newPw = await showPromptModal(t('auth.setup_pw','<i data-lucide="key"></i> Set Password'), t('auth.new_pw_hint','New password (6+ characters)'), '', true);
+    if (!newPw || newPw.length < 6) { if (newPw !== null) showToast(t('auth.pw_min_6','Password must be at least 6 characters'), 'error'); return; }
 
-    const newPw2 = await showPromptModal(t('auth.confirm_pw','<i data-lucide="key"></i> 비밀번호 확인'), t('auth.reenter_pw','비밀번호를 다시 입력하세요'), '', true);
-    if (newPw !== newPw2) { showToast(t('auth.pw_mismatch','비밀번호가 일치하지 않습니다'), 'error'); return; }
+    const newPw2 = await showPromptModal(t('auth.confirm_pw','<i data-lucide="key"></i> Confirm Password'), t('auth.reenter_pw','Please re-enter your password'), '', true);
+    if (newPw !== newPw2) { showToast(t('auth.pw_mismatch','Passwords do not match'), 'error'); return; }
 
     try {
         const res = await fetch('/api/change-password', {
@@ -202,13 +202,13 @@ async function setupPasswordFromProfile() {
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
-        showToast(`<i data-lucide="check-circle"></i> ${t('auth.pw_set_done','비밀번호 설정 완료!')}`, 'success');
+        showToast(`<i data-lucide="check-circle"></i> ${t('auth.pw_set_done','Password has been set!')}`, 'success');
         // 프로필 모달 새로고침
         const modal = document.getElementById('profile-edit-modal');
         if (modal) { modal.remove(); if (typeof showProfileEdit === 'function') showProfileEdit(); }
     } catch (e) {
         console.error('비밀번호 설정 실패:', e);
-        showToast(t('auth.pw_set_fail','비밀번호 설정 실패: ') + e.message, 'error');
+        showToast(t('auth.pw_set_fail','Password setup failed: ') + e.message, 'error');
     }
 }
 
@@ -217,16 +217,16 @@ async function changePasswordFromProfile() {
     const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
     if (!token) { showToast('로그인이 필요합니다', 'warning'); return; }
 
-    if (typeof showPromptModal !== 'function') { showToast(t('auth.ui_fail','UI 모듈 로드 실패'), 'error'); return; }
+    if (typeof showPromptModal !== 'function') { showToast(t('auth.ui_fail','UI module failed to load'), 'error'); return; }
 
     const oldPw = await showPromptModal('현재 비밀번호', '현재 비밀번호를 입력하세요', '', true);
     if (!oldPw) return;
 
-    const newPw = await showPromptModal(t('auth.change_pw','<i data-lucide="key"></i> 비밀번호 변경'), t('auth.new_pw_hint','새 비밀번호 (6자 이상)'), '', true);
-    if (!newPw || newPw.length < 6) { if (newPw !== null) showToast(t('auth.pw_min_6','비밀번호는 6자 이상이어야 합니다'), 'error'); return; }
+    const newPw = await showPromptModal(t('auth.change_pw','<i data-lucide="key"></i> Change Password'), t('auth.new_pw_hint','New password (6+ characters)'), '', true);
+    if (!newPw || newPw.length < 6) { if (newPw !== null) showToast(t('auth.pw_min_6','Password must be at least 6 characters'), 'error'); return; }
 
-    const newPw2 = await showPromptModal(t('auth.confirm_pw','<i data-lucide="key"></i> 비밀번호 확인'), t('auth.reenter_new_pw','새 비밀번호를 다시 입력하세요'), '', true);
-    if (newPw !== newPw2) { showToast(t('auth.pw_mismatch','비밀번호가 일치하지 않습니다'), 'error'); return; }
+    const newPw2 = await showPromptModal(t('auth.confirm_pw','<i data-lucide="key"></i> Confirm Password'), t('auth.reenter_new_pw','Please re-enter your new password'), '', true);
+    if (newPw !== newPw2) { showToast(t('auth.pw_mismatch','Passwords do not match'), 'error'); return; }
 
     try {
         const res = await fetch('/api/change-password', {
@@ -240,10 +240,10 @@ async function changePasswordFromProfile() {
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
-        showToast(`<i data-lucide="check-circle"></i> ${t('auth.pw_changed','비밀번호 변경 완료!')}`, 'success');
+        showToast(`<i data-lucide="check-circle"></i> ${t('auth.pw_changed','Password changed successfully!')}`, 'success');
     } catch (e) {
         console.error('비밀번호 변경 실패:', e);
-        showToast(t('auth.pw_change_fail','비밀번호 변경 실패: ') + e.message, 'error');
+        showToast(t('auth.pw_change_fail','Password change failed: ') + e.message, 'error');
     }
 }
 

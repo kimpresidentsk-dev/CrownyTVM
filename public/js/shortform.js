@@ -25,7 +25,7 @@
 
     // ====== UPLOAD MODAL ======
     function openUploadModal() {
-        if (!window.currentUser) { showToast(t('common.login_required','로그인이 필요합니다'), 'warning'); return; }
+        if (!window.currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
         let existing = document.getElementById('shortform-upload-modal');
         if (existing) existing.remove();
 
@@ -35,7 +35,7 @@
         modal.onclick = e => { if (e.target === modal) modal.remove(); };
         modal.innerHTML = `
         <div style="background:var(--card,#F7F3ED);padding:1.5rem;border-radius:16px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;color:var(--text,#3D2B1F);">
-            <h3 style="margin:0 0 1rem;"><i data-lucide="video" style="width:20px;height:20px;margin-right:8px;display:inline-block;vertical-align:middle;"></i>${t('shortform.upload_title','숏폼 영상 업로드')}</h3>
+            <h3 style="margin:0 0 1rem;"><i data-lucide="video" style="width:20px;height:20px;margin-right:8px;display:inline-block;vertical-align:middle;"></i>${t('shortform.upload_title','Upload Short Video')}</h3>
 
             <!-- YouTube URL 입력 -->
             <div style="margin-bottom:1rem;">
@@ -44,12 +44,12 @@
                 <div id="sf-yt-preview" style="display:none;margin-top:0.5rem;border-radius:8px;overflow:hidden;"></div>
             </div>
 
-            <div style="text-align:center;color:var(--text-muted,#6B5744);font-size:0.8rem;margin-bottom:1rem;">── ${t('shortform.or_upload','또는 파일 업로드')} ──</div>
+            <div style="text-align:center;color:var(--text-muted,#6B5744);font-size:0.8rem;margin-bottom:1rem;">── ${t('shortform.or_upload','or upload a file')} ──</div>
 
             <!-- file select -->
             <label style="display:block;border:2px dashed var(--border,#E8E0D8);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;margin-bottom:1rem;" id="sf-drop-zone">
                 <input type="file" id="sf-file" accept="video/mp4,video/quicktime,video/webm" style="display:none;">
-                <div id="sf-file-label"><i data-lucide="upload" style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('shortform.select_video','동영상 선택')} (60s, 50MB)</div>
+                <div id="sf-file-label"><i data-lucide="upload" style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('shortform.select_video','Select Video')} (60s, 50MB)</div>
             </label>
             <div id="sf-preview" style="display:none;margin-bottom:1rem;text-align:center;">
                 <video id="sf-preview-video" style="max-width:100%;max-height:300px;border-radius:12px;" muted playsinline></video>
@@ -58,7 +58,7 @@
             <!-- editor -->
             <div id="sf-editor" style="display:none;margin-bottom:1rem;">
                 <details style="margin-bottom:0.5rem;">
-                    <summary style="cursor:pointer;font-weight:600;">✂️ ${t('shortform.trim','트림')}</summary>
+                    <summary style="cursor:pointer;font-weight:600;">✂️ ${t('shortform.trim','Trim')}</summary>
                     <div style="display:flex;gap:0.5rem;margin-top:0.5rem;align-items:center;">
                         <label style="font-size:0.8rem;">시작</label>
                         <input type="range" id="sf-trim-start" min="0" max="60" value="0" step="0.1" style="flex:1;">
@@ -69,7 +69,7 @@
                     </div>
                 </details>
                 <details style="margin-bottom:0.5rem;">
-                    <summary style="cursor:pointer;font-weight:600;">🎨 ${t('shortform.filters','필터')}</summary>
+                    <summary style="cursor:pointer;font-weight:600;">🎨 ${t('shortform.filters','Filters')}</summary>
                     <div style="margin-top:0.5rem;">
                         <label style="font-size:0.8rem;">밝기</label><input type="range" id="sf-brightness" min="50" max="150" value="100" style="width:100%;"><br>
                         <label style="font-size:0.8rem;">대비</label><input type="range" id="sf-contrast" min="50" max="150" value="100" style="width:100%;"><br>
@@ -79,9 +79,9 @@
                     </div>
                 </details>
                 <details style="margin-bottom:0.5rem;">
-                    <summary style="cursor:pointer;font-weight:600;">📝 ${t('shortform.text_overlay','텍스트 오버레이')}</summary>
+                    <summary style="cursor:pointer;font-weight:600;">📝 ${t('shortform.text_overlay','Text Overlay')}</summary>
                     <div style="margin-top:0.5rem;">
-                        <input type="text" id="sf-text" placeholder="${t('shortform.enter_text','캡션 텍스트')}" style="width:100%;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;margin-bottom:0.5rem;">
+                        <input type="text" id="sf-text" placeholder="${t('shortform.enter_text','Caption text')}" style="width:100%;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;margin-bottom:0.5rem;">
                         <div style="display:flex;gap:0.5rem;">
                             <select id="sf-text-pos" style="padding:0.4rem;border:1px solid var(--border);border-radius:6px;">
                                 <option value="top">상단</option><option value="center">중앙</option><option value="bottom" selected>하단</option>
@@ -94,17 +94,17 @@
             </div>
 
             <!-- caption & hashtags -->
-            <textarea id="sf-caption" placeholder="${t('shortform.caption_placeholder','캡션을 입력하세요 #해시태그')}" rows="2" style="width:100%;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;resize:none;margin-bottom:0.5rem;font-size:0.9rem;"></textarea>
+            <textarea id="sf-caption" placeholder="${t('shortform.caption_placeholder','Enter a caption #hashtag')}" rows="2" style="width:100%;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;resize:none;margin-bottom:0.5rem;font-size:0.9rem;"></textarea>
 
             <!-- service link -->
             <div style="margin-bottom:0.8rem;">
-                <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;"><i data-lucide="link" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('shortform.service_link','서비스 링크 태그')}</label>
+                <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;"><i data-lucide="link" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('shortform.service_link','Service Link Tag')}</label>
                 <div style="display:flex;gap:0.4rem;flex-wrap:wrap;" id="sf-service-btns">
                     ${Object.entries(CTA_MAP).map(([k,v]) => `<button type="button" class="sf-svc-btn" data-type="${k}" onclick="SHORTFORM._selectService('${k}')" style="padding:0.3rem 0.6rem;border:1px solid ${v.color};border-radius:16px;background:transparent;color:${v.color};font-size:0.75rem;cursor:pointer;">${v.label}</button>`).join('')}
                 </div>
                 <div id="sf-service-search" style="display:none;margin-top:0.5rem;">
                     <div style="display:flex;gap:0.4rem;">
-                        <input type="text" id="sf-svc-query" placeholder="${t('shortform.search_item','항목 검색...')}" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:8px;font-size:0.85rem;">
+                        <input type="text" id="sf-svc-query" placeholder="${t('shortform.search_item','Search items...')}" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:8px;font-size:0.85rem;">
                         <button onclick="SHORTFORM._searchService()" style="padding:0.4rem 0.8rem;border:none;border-radius:8px;background:var(--accent,#8B6914);color:#FFF8F0;cursor:pointer;font-size:0.85rem;">검색</button>
                     </div>
                     <div id="sf-svc-results" style="max-height:150px;overflow-y:auto;margin-top:0.3rem;"></div>
@@ -122,8 +122,8 @@
 
             <!-- actions -->
             <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-                <button onclick="document.getElementById('shortform-upload-modal').remove()" style="padding:0.6rem 1rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:transparent;color:var(--text);">${t('common.cancel','취소')}</button>
-                <button id="sf-submit-btn" onclick="SHORTFORM._doUpload()" style="padding:0.6rem 1.2rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;" disabled>${t('shortform.upload','업로드')}</button>
+                <button onclick="document.getElementById('shortform-upload-modal').remove()" style="padding:0.6rem 1rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:transparent;color:var(--text);">${t('common.cancel','Cancel')}</button>
+                <button id="sf-submit-btn" onclick="SHORTFORM._doUpload()" style="padding:0.6rem 1.2rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;" disabled>${t('shortform.upload','Upload')}</button>
             </div>
         </div>`;
         document.body.appendChild(modal);
@@ -166,9 +166,9 @@
     function handleFileSelect(e) {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > MAX_SIZE) { showToast(t('shortform.size_limit','50MB 이하만 가능합니다'), 'warning'); return; }
+        if (file.size > MAX_SIZE) { showToast(t('shortform.size_limit','File must be 50MB or less'), 'warning'); return; }
         if (!['video/mp4','video/quicktime','video/webm'].includes(file.type)) {
-            showToast(t('shortform.format_error','MP4/MOV/WebM만 지원'), 'warning'); return;
+            showToast(t('shortform.format_error','Only MP4/MOV/WebM supported'), 'warning'); return;
         }
         _selectedFile = file;
         const url = URL.createObjectURL(file);
@@ -181,7 +181,7 @@
 
         vid.onloadedmetadata = () => {
             if (vid.duration > MAX_DURATION) {
-                showToast(t('shortform.duration_limit','60초 이하만 가능합니다'), 'warning');
+                showToast(t('shortform.duration_limit','Must be 60 seconds or less'), 'warning');
                 _selectedFile = null;
                 document.getElementById('sf-preview').style.display = 'none';
                 document.getElementById('sf-editor').style.display = 'none';
@@ -327,11 +327,11 @@
                 });
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);
-                showToast(t('shortform.uploaded', '업로드 완료!'), 'success');
+                showToast(t('shortform.uploaded', 'Upload complete!'), 'success');
                 document.getElementById('shortform-upload-modal')?.remove();
                 loadReelsFeed(true);
             } catch (e) {
-                showToast(t('shortform.upload_fail', '업로드 실패') + ': ' + e.message, 'error');
+                showToast(t('shortform.upload_fail', 'Upload failed') + ': ' + e.message, 'error');
                 document.getElementById('sf-submit-btn').disabled = false;
             }
             return;
@@ -403,7 +403,7 @@
             };
 
             await db.collection(COLLECTION).add(videoDoc);
-            showToast(t('shortform.upload_success','<i data-lucide="video" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> 숏폼 영상 업로드 완료!'), 'success');
+            showToast(t('shortform.upload_success','<i data-lucide="video" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> Short video uploaded!'), 'success');
             document.getElementById('shortform-upload-modal').remove();
             _selectedFile = null;
             _serviceLink = null;
@@ -413,10 +413,10 @@
         } catch (e) {
             console.error('Shortform upload error:', e);
             let errMsg = e.message;
-            if (e.code === 'storage/unauthorized') errMsg = t('shortform.err_auth','로그인이 필요합니다');
-            else if (e.code === 'storage/canceled') errMsg = t('shortform.err_canceled','업로드가 취소되었습니다');
-            else if (e.code === 'storage/unknown') errMsg = t('shortform.err_network','네트워크 오류. 다시 시도해주세요');
-            showToast(t('shortform.upload_fail','업로드 실패: ') + errMsg, 'error');
+            if (e.code === 'storage/unauthorized') errMsg = t('shortform.err_auth','Login is required');
+            else if (e.code === 'storage/canceled') errMsg = t('shortform.err_canceled','Upload was cancelled');
+            else if (e.code === 'storage/unknown') errMsg = t('shortform.err_network','Network error. Please try again');
+            showToast(t('shortform.upload_fail','Upload failed: ') + errMsg, 'error');
             document.getElementById('sf-submit-btn').disabled = false;
             document.getElementById('sf-progress').style.display = 'none';
         }
@@ -437,7 +437,7 @@
             if (lastDoc) q = q.startAfter(lastDoc);
             const snap = await q.get();
             if (snap.empty && reelsData.length === 0) {
-                document.getElementById('reels-container').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;color:var(--text-muted,#6B5744);"><div style="font-size:3rem;margin-bottom:1rem;"><i data-lucide="video" style="width:48px;height:48px;display:block;"></i></div><p>${t('shortform.no_videos','아직 영상이 없습니다')}</p><button onclick="SHORTFORM.openUpload()" style="margin-top:1rem;padding:0.6rem 1.2rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;">${t('shortform.first_upload','첫 영상 올리기')}</button></div>`;
+                document.getElementById('reels-container').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;color:var(--text-muted,#6B5744);"><div style="font-size:3rem;margin-bottom:1rem;"><i data-lucide="video" style="width:48px;height:48px;display:block;"></i></div><p>${t('shortform.no_videos','No videos yet')}</p><button onclick="SHORTFORM.openUpload()" style="margin-top:1rem;padding:0.6rem 1.2rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;">${t('shortform.first_upload','Upload your first video')}</button></div>`;
                 loading = false; return;
             }
             const newItems = [];
@@ -640,7 +640,7 @@
     }
 
     async function _toggleLike(id) {
-        if (!currentUser) { showToast(t('common.login_required','로그인이 필요합니다'), 'warning'); return; }
+        if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
         const ref = db.collection(COLLECTION).doc(id);
         const reel = reelsData.find(r => r.id === id);
         if (!reel) return;
@@ -659,7 +659,7 @@
     }
 
     function _openComments(id) {
-        if (!currentUser) { showToast(t('common.login_required','로그인이 필요합니다'), 'warning'); return; }
+        if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
         
         // Bottom sheet 댓글 패널
         let overlay = document.getElementById('reel-comments-overlay');
@@ -671,15 +671,15 @@
         overlay.innerHTML = `
             <div id="reel-comments-sheet" style="width:100%;max-width:500px;max-height:70vh;background:var(--dark-card,#F7F3ED);border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;">
                 <div style="padding:12px 16px;border-bottom:1px solid var(--dark-border,#2a2a4a);display:flex;align-items:center;justify-content:space-between;">
-                    <h4 style="margin:0;font-size:1rem;"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('shortform.comments','댓글')}</h4>
+                    <h4 style="margin:0;font-size:1rem;"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('shortform.comments','Comments')}</h4>
                     <button onclick="document.getElementById('reel-comments-overlay').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text);">✕</button>
                 </div>
                 <div id="reel-comment-list" style="flex:1;overflow-y:auto;padding:12px 16px;min-height:100px;">
                     <p style="text-align:center;color:var(--accent);font-size:0.85rem;">로딩 중...</p>
                 </div>
                 <div style="padding:8px 12px;border-top:1px solid var(--dark-border,#2a2a4a);display:flex;gap:8px;">
-                    <input type="text" id="reel-comment-input" placeholder="${t('social.add_comment','댓글 달기...')}" style="flex:1;padding:8px 12px;border:1px solid var(--dark-border,#2a2a4a);border-radius:20px;font-size:0.9rem;outline:none;background:var(--dark-bg,#12122a);color:var(--text);">
-                    <button onclick="SHORTFORM._submitComment('${id}')" style="background:#0095f6;color:#FFF8F0;border:none;border-radius:20px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:0.85rem;">${t('social.post','게시')}</button>
+                    <input type="text" id="reel-comment-input" placeholder="${t('social.add_comment','Add a comment...')}" style="flex:1;padding:8px 12px;border:1px solid var(--dark-border,#2a2a4a);border-radius:20px;font-size:0.9rem;outline:none;background:var(--dark-bg,#12122a);color:var(--text);">
+                    <button onclick="SHORTFORM._submitComment('${id}')" style="background:#0095f6;color:#FFF8F0;border:none;border-radius:20px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:0.85rem;">${t('social.post','Post')}</button>
                 </div>
             </div>`;
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
@@ -702,7 +702,7 @@
                 .collection('comments').orderBy('createdAt', 'asc').get();
             
             if (snap.empty) {
-                list.innerHTML = `<p style="text-align:center;color:var(--accent);font-size:0.85rem;padding:2rem 0;">${t('social.first_comment','첫 댓글을 남겨보세요!')}</p>`;
+                list.innerHTML = `<p style="text-align:center;color:var(--accent);font-size:0.85rem;padding:2rem 0;">${t('social.first_comment','Be the first to comment!')}</p>`;
                 return;
             }
             
@@ -760,7 +760,7 @@
             
         } catch(e) {
             console.error('Comment submit error:', e);
-            showToast(t('shortform.comment_fail','댓글 등록 실패'), 'error');
+            showToast(t('shortform.comment_fail','Failed to post comment'), 'error');
         }
         input.disabled = false;
     }
@@ -784,13 +784,13 @@
         const url = `${location.origin}${location.pathname}#page=reels&id=${id}`;
         try {
             if (navigator.share) {
-                await navigator.share({ title: 'Crowny Reels', text: t('shortform.share_text','크라우니에서 공유된 숏폼 영상'), url });
+                await navigator.share({ title: 'Crowny Reels', text: t('shortform.share_text','A short video shared on Crowny'), url });
             } else {
                 await navigator.clipboard.writeText(url);
-                showToast('<i data-lucide="clipboard" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ' + t('shortform.link_copied','링크가 복사되었습니다'), 'success');
+                showToast('<i data-lucide="clipboard" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ' + t('shortform.link_copied','Link copied'), 'success');
             }
         } catch(e) {
-            try { await navigator.clipboard.writeText(url); showToast('<i data-lucide="clipboard" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ' + t('shortform.link_copied','링크가 복사되었습니다'), 'success'); } catch(_){}
+            try { await navigator.clipboard.writeText(url); showToast('<i data-lucide="clipboard" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ' + t('shortform.link_copied','Link copied'), 'success'); } catch(_){}
         }
     }
 
@@ -845,7 +845,7 @@
             if (ytPosts.length === 0) {
                 c.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;color:#6B5744;">
                     <p style="margin-bottom:1rem;"><i data-lucide="clapperboard" style="width:48px;height:48px;"></i></p>
-                    <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;">${t('shortform.no_videos','아직 영상이 없습니다')}</p>
+                    <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;">${t('shortform.no_videos','No videos yet')}</p>
                     <p style="font-size:0.85rem;color:#7A5C47;margin-top:8px;">YouTube/Shorts 링크가 포함된 게시물을 작성하면<br>릴스에 자동으로 표시됩니다.</p>
                     <button onclick="navigateTo('social')" style="margin-top:1rem;padding:0.6rem 1.2rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;">소셜에서 게시하기</button>
                 </div>`;

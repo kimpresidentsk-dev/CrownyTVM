@@ -318,7 +318,7 @@ function renderPushNotifToggle() {
   const isGranted = perm === 'granted';
   return `
     <div class="settings-card">
-      <h4><i data-lucide="smartphone" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${typeof t === 'function' ? t('settings.push_notif', '푸시 알림') : '푸시 알림'}</h4>
+      <h4><i data-lucide="smartphone" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${typeof t === 'function' ? t('settings.push_notif', 'Push Notifications') : 'Push Notifications'}</h4>
       <label class="settings-toggle">
         <span>브라우저 알림</span>
         <input type="checkbox" id="push-notif-toggle" ${isGranted ? 'checked' : ''} onchange="togglePushPermission(this.checked)">

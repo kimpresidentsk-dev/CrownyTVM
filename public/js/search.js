@@ -9,7 +9,7 @@ function openGlobalSearch() {
         overlay.classList.add('active');
         const input = document.getElementById('global-search-input');
         if (input) { input.value = ''; input.focus(); }
-        document.getElementById('search-results').innerHTML = `<p class="search-hint">${t('search.hint', '검색어를 입력하세요...')}</p>`;
+        document.getElementById('search-results').innerHTML = `<p class="search-hint">${t('search.hint', 'Enter your search...')}</p>`;
     }
 }
 
@@ -51,7 +51,7 @@ async function loadSearchCache() {
 
 function performSearch(query) {
     if (!query || query.length < 2) {
-        document.getElementById('search-results').innerHTML = `<p class="search-hint">${t('search.hint', '검색어를 입력하세요...')}</p>`;
+        document.getElementById('search-results').innerHTML = `<p class="search-hint">${t('search.hint', 'Enter your search...')}</p>`;
         return;
     }
     
@@ -86,7 +86,7 @@ function performSearch(query) {
     }
     
     if (totalResults === 0) {
-        html = `<p class="search-empty">${t('search.no_results', '검색 결과가 없습니다')}</p>`;
+        html = `<p class="search-empty">${t('search.no_results', 'No results found')}</p>`;
     }
     
     document.getElementById('search-results').innerHTML = html;

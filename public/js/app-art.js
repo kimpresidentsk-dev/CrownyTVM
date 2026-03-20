@@ -40,19 +40,19 @@ const ART_CONFIG = {
 
 // ─── CATEGORIES ───
 const ART_CATEGORIES = {
-    painting:     t('art.cat.painting','<i data-lucide="paintbrush" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 회화'),
-    digital:      t('art.cat.digital','<i data-lucide="monitor" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 디지털 아트'),
-    photo:        t('art.cat.photo','📷 사진'),
-    sculpture:    t('art.cat.sculpture','🗿 조각/설치'),
-    illustration: t('art.cat.illustration','✏️ 일러스트'),
-    calligraphy:  t('art.cat.calligraphy','🖋️ 서예/캘리'),
-    mixed:        t('art.cat.mixed','<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 혼합 매체'),
-    ai:           t('art.cat.ai','<i data-lucide="bot" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> AI 아트'),
-    music:        t('art.cat.music','<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 뮤직/사운드'),
-    video:        t('art.cat.video','🎬 비디오 아트'),
-    generative:   t('art.cat.generative','🌀 제너러티브'),
-    kpop:         t('art.cat.kpop','💜 K-팝 굿즈'),
-    other:        t('art.cat.other','🎨 기타')
+    painting:     t('art.cat.painting','<i data-lucide="paintbrush" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Painting'),
+    digital:      t('art.cat.digital','<i data-lucide="monitor" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Digital Art'),
+    photo:        t('art.cat.photo','📷 Photography'),
+    sculpture:    t('art.cat.sculpture','🗿 Sculpture/Installation'),
+    illustration: t('art.cat.illustration','✏️ Illustration'),
+    calligraphy:  t('art.cat.calligraphy','🖋️ Calligraphy'),
+    mixed:        t('art.cat.mixed','<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Mixed Media'),
+    ai:           t('art.cat.ai','<i data-lucide="bot" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> AI Art'),
+    music:        t('art.cat.music','<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Music/Sound'),
+    video:        t('art.cat.video','🎬 Video Art'),
+    generative:   t('art.cat.generative','🌀 Generative'),
+    kpop:         t('art.cat.kpop','💜 K-Pop Goods'),
+    other:        t('art.cat.other','🎨 Other')
 };
 
 // ─── MODULE STATE ───
@@ -304,8 +304,8 @@ function updateBasePricePreview() {
 }
 
 async function uploadArtwork() {
-    if (!currentUser) { showToast(t('common.login_required','로그인이 필요합니다'), 'warning'); return; }
-    
+    if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
+
     // Ensure Lucide icons are created
     if (window.lucide) setTimeout(() => lucide.createIcons(), 100);
 
@@ -318,8 +318,8 @@ async function uploadArtwork() {
     const basePrice   = parseFloat(document.getElementById('art-base-price')?.value) || 0;
     const totalSupply = parseInt(document.getElementById('art-total-supply')?.value) || 0;
 
-    if (!title)     { showToast(t('art.enter_title','작품 제목을 입력하세요'), 'warning'); return; }
-    if (!imageFile) { showToast(t('art.select_image','작품 이미지를 선택하세요'), 'warning'); return; }
+    if (!title)     { showToast(t('art.enter_title','Please enter a title'), 'warning'); return; }
+    if (!imageFile) { showToast(t('art.select_image','Please select an image'), 'warning'); return; }
 
     const nftType       = document.getElementById('art-nft-type')?.value || 'erc721';
     const editionCount  = parseInt(document.getElementById('art-edition-count')?.value) || 1;
@@ -329,11 +329,11 @@ async function uploadArtwork() {
     const setStatus = (msg) => { if (statusEl) statusEl.textContent = msg; };
 
     try {
-        setStatus(t('art.uploading','⏳ 이미지 업로드 중...'));
+        setStatus(t('art.uploading','⏳ Uploading image...'));
         const tempId = `art_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
         const { firebaseUrl, thumbnailUrl, isBase64 } = await uploadToFirebaseStorage(imageFile, tempId);
-        setStatus(t('art.upload_done','✅ 이미지 업로드 완료'));
+        setStatus(t('art.upload_done','✅ Image upload complete'));
 
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const artistNickname = userDoc.exists ? (userDoc.data().nickname || '') : '';
@@ -379,13 +379,13 @@ async function uploadArtwork() {
             artwork.auctionEnd = new Date(Date.now() + hours * 3600000);
         }
 
-        setStatus(t('art.saving','💾 작품 정보 저장 중...'));
+        setStatus(t('art.saving','💾 Saving artwork info...'));
         const artDocRef = await db.collection('artworks').add(artwork);
         const artworkId = artDocRef.id;
 
         // NFT 민팅
         if (mintNFT) {
-            setStatus(t('art.minting','🔗 NFT 민팅 준비 중...'));
+            setStatus(t('art.minting','🔗 Preparing NFT minting...'));
             try {
                 const nftResult = await mintArtworkNFT(artworkId, artwork, imageFile, nftType, editionCount, royaltyPercent);
                 await artDocRef.update({
@@ -398,7 +398,7 @@ async function uploadArtwork() {
                     editionCount: nftType === 'erc1155' ? editionCount : 1,
                     mintTxHash: nftResult.txHash || null
                 });
-                setStatus(t('art.mint_done','🎉 NFT 민팅 완료!'));
+                setStatus(t('art.mint_done','🎉 NFT minting complete!'));
             } catch (nftErr) {
                 console.error('🎨 [NFT] Mint failed:', nftErr);
                 setStatus('⚠️ 작품 등록됨 (NFT 민팅 실패: ' + nftErr.message + ')');
@@ -473,16 +473,16 @@ async function mintExistingArtwork(artworkId) {
     if (!currentUser) { showToast('로그인 필요', 'warning'); return; }
     try {
         const artDoc = await db.collection('artworks').doc(artworkId).get();
-        if (!artDoc.exists) { showToast(t('art.not_found','작품을 찾을 수 없습니다'), 'warning'); return; }
+        if (!artDoc.exists) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
         const art = artDoc.data();
-        if (art.artistId !== currentUser.uid) { showToast(t('art.own_only','본인 작품만 NFT로 민팅 가능'), 'warning'); return; }
-        if (art.isNFT) { showToast(t('art.already_nft','이미 NFT로 민팅된 작품'), 'info'); return; }
+        if (art.artistId !== currentUser.uid) { showToast(t('art.own_only','Only your own artwork can be minted as NFT'), 'warning'); return; }
+        if (art.isNFT) { showToast(t('art.already_nft','Already minted as NFT'), 'info'); return; }
 
-        const choice = await showPromptModal(t('art.nft_type','NFT 타입'), 'NFT:\n1) ERC-721 (1/1)\n2) ERC-1155 (Edition)', '1');
+        const choice = await showPromptModal(t('art.nft_type','NFT Type'), 'NFT:\n1) ERC-721 (1/1)\n2) ERC-1155 (Edition)', '1');
         const type = choice === '2' ? 'erc1155' : 'erc721';
         let editionCount = 1;
         if (type === 'erc1155') {
-            const edInput = await showPromptModal(t('art.edition_count','에디션 수량'), t('art.enter_edition','에디션 수량을 입력하세요:'), '10');
+            const edInput = await showPromptModal(t('art.edition_count','Edition Count'), t('art.enter_edition','Enter the edition count:'), '10');
             editionCount = parseInt(edInput) || 10;
         }
 
@@ -492,11 +492,11 @@ async function mintExistingArtwork(artworkId) {
         } else if (art.imageData) {
             imageBlob = await (await fetch(art.imageData)).blob();
         } else {
-            showToast(t('art.no_image','이미지를 찾을 수 없습니다'), 'error'); return;
+            showToast(t('art.no_image','Image not found'), 'error'); return;
         }
 
         const imageFile = new File([imageBlob], `${artworkId}.jpg`, { type: 'image/jpeg' });
-        showToast(t('art.approve_metamask','MetaMask에서 트랜잭션을 승인해주세요.'), 'info');
+        showToast(t('art.approve_metamask','Please approve the transaction in MetaMask.'), 'info');
 
         const result = await mintArtworkNFT(artworkId, art, imageFile, type, editionCount, art.royaltyPercent || ART_CONFIG.defaultRoyaltyPercent);
         await db.collection('artworks').doc(artworkId).update({
@@ -610,7 +610,7 @@ function _renderArtCard(art) {
             </div>
             <div style="padding:.6rem">
                 <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${art.title}</div>
-                <div style="font-size:.7rem;color:var(--accent);margin:.2rem 0">${catLabel} · ${art.artistNickname || t('art.anonymous','익명')}</div>
+                <div style="font-size:.7rem;color:var(--accent);margin:.2rem 0">${catLabel} · ${art.artistNickname || t('art.anonymous','Anonymous')}</div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.3rem">
                     ${priceLabel}
                     <span style="font-size:.7rem;color:var(--accent)"><i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${art.likes || 0}</span>
@@ -627,7 +627,7 @@ function _renderArtCard(art) {
 async function viewArtwork(artId) {
     try {
         const doc = await db.collection('artworks').doc(artId).get();
-        if (!doc.exists) { showToast(t('art.not_found','작품을 찾을 수 없습니다'), 'warning'); return; }
+        if (!doc.exists) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
         const art = doc.data();
 
         db.collection('artworks').doc(artId).update({ views: (art.views || 0) + 1 }).catch(() => {});
@@ -662,14 +662,14 @@ async function viewArtwork(artId) {
             if (artistWeight > 1) {
                 priceInfoHtml = `
                     <div style="background:#f0f7ff;padding:.6rem;border-radius:8px;margin-bottom:.8rem;font-size:.82rem">
-                        <div><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.base_price','기본가')}: <strong>${art.basePrice} ${art.priceToken || 'CRAC'}</strong></div>
-                        <div>⭐ ${t('art.weight','가중치')}: <strong>${artistWeight}x</strong></div>
+                        <div><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.base_price','Base Price')}: <strong>${art.basePrice} ${art.priceToken || 'CRAC'}</strong></div>
+                        <div>⭐ ${t('art.weight','Weight')}: <strong>${artistWeight}x</strong></div>
                         <div style="font-size:.95rem;font-weight:700;margin-top:.3rem;color:#3D2B1F">= ${effectivePrice} ${art.priceToken || 'CRAC'}</div>
                     </div>`;
             } else {
                 priceInfoHtml = `
                     <div style="background:#f0f7ff;padding:.6rem;border-radius:8px;margin-bottom:.8rem;font-size:.85rem">
-                        <i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.price','가격')}: <strong>${effectivePrice} ${art.priceToken || 'CRAC'}</strong>
+                        <i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.price','Price')}: <strong>${effectivePrice} ${art.priceToken || 'CRAC'}</strong>
                     </div>`;
             }
         }
@@ -742,7 +742,7 @@ async function viewArtwork(artId) {
                 <div style="padding:1.2rem">
                     <h3 style="margin-bottom:.5rem">${art.title}</h3>
                     <div style="font-size:.85rem;color:var(--accent);margin-bottom:.8rem">
-                        ${catLabel} · 🎨 <span onclick="viewArtistProfile('${art.artistId}')" style="cursor:pointer;text-decoration:underline">${art.artistNickname || t('art.anonymous','익명')}</span> · 👁️ ${(art.views||0)+1} · <i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${art.likes||0}
+                        ${catLabel} · 🎨 <span onclick="viewArtistProfile('${art.artistId}')" style="cursor:pointer;text-decoration:underline">${art.artistNickname || t('art.anonymous','Anonymous')}</span> · 👁️ ${(art.views||0)+1} · <i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${art.likes||0}
                     </div>
                     ${art.description ? `<p style="font-size:.9rem;line-height:1.6;margin-bottom:1rem;color:#3D2B1F">${art.description}</p>` : ''}
                     ${supplyHtml}
@@ -788,7 +788,7 @@ function shareArtwork(artId, title) {
 }
 
 async function deleteArtwork(artId) {
-    const confirmed = await showConfirmModal(t('art.delete_artwork','작품 삭제'), t('art.confirm_delete','작품을 삭제하시겠습니까?\n(NFT는 온체인에 남아있습니다)'));
+    const confirmed = await showConfirmModal(t('art.delete_artwork','Delete Artwork'), t('art.confirm_delete','Are you sure you want to delete this artwork?\n(NFTs remain on-chain)'));
     if (!confirmed) return;
     try {
         await db.collection('artworks').doc(artId).update({ status: 'deleted' });
@@ -845,7 +845,7 @@ async function buyArtwork(artId) {
             (art.isNFT ? '\n🔗 NFT 소유권이 이전됩니다' : '') +
             `\n\n구매하시겠습니까?`;
 
-        const confirmBuy = await showConfirmModal(t('art.buy_confirm','작품 구매 확인'), confirmMsg);
+        const confirmBuy = await showConfirmModal(t('art.buy_confirm','Confirm Purchase'), confirmMsg);
         if (!confirmBuy) return;
 
         // Execute payment

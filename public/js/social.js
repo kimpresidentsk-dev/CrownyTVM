@@ -68,10 +68,10 @@ async function getUserDisplayInfo(uid) {
         if (!doc.exists && uid.startsWith('bot_')) {
             doc = await db.collection('bot_profiles').doc(uid).get();
         }
-        if (!doc.exists) return { nickname: t('social.unknown','알 수 없음'), photoURL: '', email: '', isOnline: false, lastSeen: null };
+        if (!doc.exists) return { nickname: t('social.unknown','Unknown'), photoURL: '', email: '', isOnline: false, lastSeen: null };
         const data = doc.data();
         return {
-            nickname: data.nickname || data.displayName || data.email?.split('@')[0] || t('social.user','사용자'),
+            nickname: data.nickname || data.displayName || data.email?.split('@')[0] || t('social.user','User'),
             photoURL: data.photoURL || '',
             email: data.email || '',
             statusMessage: data.statusMessage || '',
@@ -79,7 +79,7 @@ async function getUserDisplayInfo(uid) {
             lastSeen: data.lastSeen?.toDate?.() || null
         };
     } catch (e) {
-        return { nickname: t('social.unknown','알 수 없음'), photoURL: '', email: '', isOnline: false, lastSeen: null };
+        return { nickname: t('social.unknown','Unknown'), photoURL: '', email: '', isOnline: false, lastSeen: null };
     }
 }
 
@@ -119,43 +119,43 @@ async function showProfileEdit() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
     <div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:420px;width:100%;">
-        <h3 style="margin-bottom:1rem;"><i data-lucide="pencil" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('social.edit_profile','✏️ 프로필 편집')}</h3>
+        <h3 style="margin-bottom:1rem;"><i data-lucide="pencil" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('social.edit_profile','✏️ Edit Profile')}</h3>
         <div style="text-align:center; margin-bottom:1rem;">
             <div id="profile-preview-avatar" style="display:inline-block;">${avatarHTML(data.photoURL, data.nickname, 80)}</div>
             <div style="margin-top:0.5rem;">
-                <label for="profile-photo-input" style="color:#3D2B1F; cursor:pointer; font-size:0.85rem; font-weight:600;"><i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.change_photo','📷 사진 변경')}</label>
+                <label for="profile-photo-input" style="color:#3D2B1F; cursor:pointer; font-size:0.85rem; font-weight:600;"><i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.change_photo','📷 Change Photo')}</label>
                 <input type="file" id="profile-photo-input" accept="image/*" style="display:none;" onchange="previewProfilePhoto(this)">
             </div>
         </div>
         <div style="display:grid; gap:0.8rem;">
             <div>
-                <label style="font-size:0.8rem; color:var(--text-muted,#6B5744);">${t('auth.nickname_title','닉네임')}</label>
-                <input type="text" id="profile-edit-nickname" value="${data.nickname || ''}" placeholder="${t('auth.nickname_title','닉네임')}" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.95rem;box-sizing:border-box;">
+                <label style="font-size:0.8rem; color:var(--text-muted,#6B5744);">${t('auth.nickname_title','Nickname')}</label>
+                <input type="text" id="profile-edit-nickname" value="${data.nickname || ''}" placeholder="${t('auth.nickname_title','Nickname')}" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.95rem;box-sizing:border-box;">
             </div>
             <div>
-                <label style="font-size:0.8rem; color:var(--text-muted,#6B5744);">${t('social.status_msg','상태 메시지')}</label>
-                <input type="text" id="profile-edit-status" value="${data.statusMessage || ''}" placeholder="${t('social.status_msg','상태 메시지')}" maxlength="50" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.95rem;box-sizing:border-box;">
+                <label style="font-size:0.8rem; color:var(--text-muted,#6B5744);">${t('social.status_msg','Status Message')}</label>
+                <input type="text" id="profile-edit-status" value="${data.statusMessage || ''}" placeholder="${t('social.status_msg','Status Message')}" maxlength="50" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.95rem;box-sizing:border-box;">
             </div>
-            <p style="font-size:0.75rem; color:var(--text-muted,#6B5744);">${t('auth.email','이메일')}: ${data.email}</p>
+            <p style="font-size:0.75rem; color:var(--text-muted,#6B5744);">${t('auth.email','Email')}: ${data.email}</p>
             <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid #E8E0D8; display:grid; gap:0.5rem;">
-                <p style="font-size:0.8rem; font-weight:600; color:var(--text,#3D2B1F); margin-bottom:0.2rem;"><i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.login_method','🔐 로그인 방법')}</p>
+                <p style="font-size:0.8rem; font-weight:600; color:var(--text,#3D2B1F); margin-bottom:0.2rem;"><i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.login_method','🔐 Login Method')}</p>
                 ${typeof useIndependentDB !== 'undefined' && useIndependentDB ? `
-                <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.pw_login_set','✅ CrownyTVM 계정')}</p>
-                <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','🔑 비밀번호 변경')}</button>` : `
+                <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.pw_login_set','✅ CrownyTVM Account')}</p>
+                <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','🔑 Change Password')}</button>` : `
                 ${currentUser && currentUser.providerData && currentUser.providerData.some(p => p.providerId === 'google.com') ? `
-                <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.google_linked','✅ Google 계정 연동됨')}</p>` : `
+                <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.google_linked','✅ Google Account Linked')}</p>` : `
                 <button onclick="linkGoogleAccount(); document.getElementById('profile-edit-modal').remove();" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:16px;height:16px;"> ${t('social.link_google','Google 계정 연동')}
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:16px;height:16px;"> ${t('social.link_google','Link Google Account')}
                 </button>`}
                 ${currentUser && currentUser.providerData && currentUser.providerData.some(p => p.providerId === 'password') ? `
-                <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.pw_login_set','✅ 이메일/비밀번호 로그인 설정됨')}</p>
-                <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','🔑 비밀번호 변경')}</button>` : `
-                <button onclick="setupPasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.setup_pw','🔑 비밀번호 설정 (이메일 로그인 추가)')}</button>`}`}
+                <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.pw_login_set','✅ Email/Password Login Set')}</p>
+                <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','🔑 Change Password')}</button>` : `
+                <button onclick="setupPasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.setup_pw','🔑 Set Password (Add Email Login)')}</button>`}`}
             </div>
         </div>
         <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-            <button onclick="document.getElementById('profile-edit-modal').remove()" style="flex:1;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('common.cancel','취소')}</button>
-            <button onclick="saveProfile()" style="flex:1;padding:0.7rem;border:none;border-radius:8px;cursor:pointer;background:var(--gold,#8B6914);color:#3D2B1F;font-weight:700;">${t('common.save','저장')}</button>
+            <button onclick="document.getElementById('profile-edit-modal').remove()" style="flex:1;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('common.cancel','Cancel')}</button>
+            <button onclick="saveProfile()" style="flex:1;padding:0.7rem;border:none;border-radius:8px;cursor:pointer;background:var(--gold,#8B6914);color:#3D2B1F;font-weight:700;">${t('common.save','Save')}</button>
         </div>
     </div>`;
     document.body.appendChild(overlay);
@@ -176,10 +176,10 @@ async function saveProfile() {
     const statusMessage = document.getElementById('profile-edit-status').value.trim();
     const photoInput = document.getElementById('profile-photo-input');
 
-    if (!nickname) { showToast(t('social.enter_nickname','닉네임을 입력하세요'), 'warning'); return; }
+    if (!nickname) { showToast(t('social.enter_nickname','Please enter a nickname'), 'warning'); return; }
 
     try {
-        showLoading(t('social.saving_profile','프로필 저장 중...'));
+        showLoading(t('social.saving_profile','Saving profile...'));
 
         if (typeof useIndependentDB !== 'undefined' && useIndependentDB) {
             // Independent mode: PATCH /api/profile
@@ -222,14 +222,14 @@ async function saveProfile() {
         }
 
         hideLoading();
-        showToast(t('social.profile_saved','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> 프로필 저장 완료!'), 'success');
+        showToast(t('social.profile_saved','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> Profile saved!'), 'success');
         document.getElementById('profile-edit-modal')?.remove();
 
         const userInfoEl = document.getElementById('user-email');
         if (userInfoEl) userInfoEl.textContent = nickname;
     } catch (e) {
         hideLoading();
-        showToast(t('social.save_fail','저장 실패: ') + e.message, 'error');
+        showToast(t('social.save_fail','Save failed: ') + e.message, 'error');
     }
 }
 
@@ -269,7 +269,7 @@ async function loadReferralInfo() {
                 const nick = data.referralNickname || data.nickname || '';
                 codeEl.textContent = nick ? `${nick} (${data.referralCode})` : data.referralCode;
             } else {
-                codeEl.textContent = t('social.not_generated','미생성');
+                codeEl.textContent = t('social.not_generated','Not generated');
             }
         }
         
@@ -317,29 +317,29 @@ async function editReferralNickname() {
     const userDoc = await db.collection('users').doc(currentUser.uid).get();
     const data = userDoc.data() || {};
     const newNick = await showPromptModal(
-        t('social.edit_referral_nick', '소개 닉네임 변경'),
-        t('social.enter_referral_nick', '표시될 소개 닉네임을 입력하세요:'),
+        t('social.edit_referral_nick', 'Change Referral Nickname'),
+        t('social.enter_referral_nick', 'Enter the referral nickname to display:'),
         data.referralNickname || data.nickname || ''
     );
     if (!newNick || !newNick.trim()) return;
     try {
         await db.collection('users').doc(currentUser.uid).update({ referralNickname: newNick.trim() });
-        showToast(t('social.nick_changed', '<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> 소개 닉네임 변경 완료'), 'success');
+        showToast(t('social.nick_changed', '<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> Referral nickname changed'), 'success');
         loadReferralInfo();
     } catch (e) {
-        showToast(t('social.nick_change_fail', '변경 실패: ') + e.message, 'error');
+        showToast(t('social.nick_change_fail', 'Change failed: ') + e.message, 'error');
     }
 }
 
 async function copyReferralCode() {
     const codeEl = document.getElementById('my-referral-code');
     const code = codeEl?.textContent;
-    if (!code || code === t('social.not_generated','미생성')) { showToast(t('social.generate_first','먼저 소개 코드를 생성하세요'), 'warning'); return; }
+    if (!code || code === t('social.not_generated','Not generated')) { showToast(t('social.generate_first','Please generate a referral code first'), 'warning'); return; }
     try {
         await navigator.clipboard.writeText(code);
-        showToast(`<i data-lucide="clipboard" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ${t('social.code_copied','소개 코드 복사됨')}: ${code}`, 'success');
+        showToast(`<i data-lucide="clipboard" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ${t('social.code_copied','Referral code copied')}: ${code}`, 'success');
     } catch (e) {
-        await showPromptModal(t('auth.referral_title','소개 코드'), t('social.copy_code','소개 코드를 복사하세요'), code);
+        await showPromptModal(t('auth.referral_title','Referral Code'), t('social.copy_code','Copy the referral code'), code);
     }
 }
 
@@ -385,14 +385,14 @@ async function showAddContactModal() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
     <div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:420px;width:100%;">
-        <h3 style="margin-bottom:1rem;"><i data-lucide="plus" style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('social.add_contact','연락처 추가')}</h3>
+        <h3 style="margin-bottom:1rem;"><i data-lucide="plus" style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('social.add_contact','Add Contact')}</h3>
         <div style="display:flex;gap:0.5rem;margin-bottom:0.8rem;">
-            <input type="text" id="contact-search-input" placeholder="${t('social.search_email_nick','이메일 또는 닉네임 검색')}" style="flex:1;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.9rem;">
-            <button onclick="searchContactUsers()" style="padding:0.7rem 1rem;border:none;border-radius:8px;background:var(--gold,#8B6914);color:#3D2B1F;font-weight:600;cursor:pointer;">${t('social.search','검색')}</button>
+            <input type="text" id="contact-search-input" placeholder="${t('social.search_email_nick','Search by email or nickname')}" style="flex:1;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.9rem;">
+            <button onclick="searchContactUsers()" style="padding:0.7rem 1rem;border:none;border-radius:8px;background:var(--gold,#8B6914);color:#3D2B1F;font-weight:600;cursor:pointer;">${t('social.search','Search')}</button>
         </div>
         <div id="contact-search-results" style="max-height:300px;overflow-y:auto;"></div>
         <div style="margin-top:1rem;text-align:right;">
-            <button onclick="document.getElementById('add-contact-modal').remove()" style="padding:0.5rem 1rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('common.cancel','취소')}</button>
+            <button onclick="document.getElementById('add-contact-modal').remove()" style="padding:0.5rem 1rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('common.cancel','Cancel')}</button>
         </div>
     </div>`;
     document.body.appendChild(overlay);
@@ -405,7 +405,7 @@ async function showAddContactModal() {
 async function searchContactUsers() {
     const query = document.getElementById('contact-search-input').value.trim();
     const resultsDiv = document.getElementById('contact-search-results');
-    if (!query) { resultsDiv.innerHTML = `<p style="text-align:center;color:var(--text-muted,#6B5744);font-size:0.85rem;">${t('social.enter_search','검색어를 입력하세요')}</p>`; return; }
+    if (!query) { resultsDiv.innerHTML = `<p style="text-align:center;color:var(--text-muted,#6B5744);font-size:0.85rem;">${t('social.enter_search','Please enter a search term')}</p>`; return; }
 
     resultsDiv.innerHTML = '<p style="text-align:center;color:var(--accent);"><i data-lucide="search"></i> 검색 중...</p>';
 
@@ -425,7 +425,7 @@ async function searchContactUsers() {
 
         resultsDiv.innerHTML = '';
         if (results.size === 0) {
-            resultsDiv.innerHTML = `<p style="text-align:center;color:var(--text-muted,#6B5744);font-size:0.85rem;">${t('social.no_results','검색 결과가 없습니다')}</p>`;
+            resultsDiv.innerHTML = `<p style="text-align:center;color:var(--text-muted,#6B5744);font-size:0.85rem;">${t('social.no_results','No results found')}</p>`;
             return;
         }
 
@@ -454,18 +454,18 @@ async function addContactFromSearch(uid, email, name) {
     try {
         await db.collection('users').doc(currentUser.uid)
             .collection('contacts').doc(uid).set({ email, name, addedAt: new Date() });
-        showToast(t('social.contact_added','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> 연락처에 추가되었습니다'), 'success');
+        showToast(t('social.contact_added','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> Added to contacts'), 'success');
         document.getElementById('add-contact-modal')?.remove();
         loadContacts();
     } catch (e) {
-        showToast(t('social.add_fail','추가 실패: ') + e.message, 'error');
+        showToast(t('social.add_fail','Add failed: ') + e.message, 'error');
     }
 }
 
 async function loadContacts() {
     const contactList = document.getElementById('contact-list');
     if (!contactList) return;
-    contactList.innerHTML = '<p style="padding:1rem; text-align:center; color:var(--accent);">' + t('messenger.loading','로딩 중...') + '</p>';
+    contactList.innerHTML = '<p style="padding:1rem; text-align:center; color:var(--accent);">' + t('messenger.loading','Loading...') + '</p>';
 
     let contacts = [];
     if (typeof useIndependentDB !== 'undefined' && useIndependentDB) {
@@ -488,8 +488,8 @@ async function loadContacts() {
         contactList.innerHTML = `
             <div style="text-align:center; padding:2rem; color:var(--accent);">
                 <div style="margin-bottom:0.8rem;"><i data-lucide="users" style="width:40px;height:40px;display:block;margin:0 auto;"></i></div>
-                <p style="font-size:0.95rem; margin-bottom:0.5rem;">${t('social.no_contacts','연락처가 없습니다')}</p>
-                <button onclick="showAddContactModal()" class="btn-primary" style="padding:0.5rem 1rem; font-size:0.85rem;"><i data-lucide="plus" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.add_contact_btn','연락처 추가')}</button>
+                <p style="font-size:0.95rem; margin-bottom:0.5rem;">${t('social.no_contacts','No contacts')}</p>
+                <button onclick="showAddContactModal()" class="btn-primary" style="padding:0.5rem 1rem; font-size:0.85rem;"><i data-lucide="plus" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.add_contact_btn','Add Contact')}</button>
             </div>`;
         if(window.lucide) lucide.createIcons();
         return;
@@ -498,7 +498,7 @@ async function loadContacts() {
     // 그룹별 분류 (isUser로 내부/외부 구분)
     const groups = {};
     contacts.forEach(c => {
-        const g = c.group || (c.isUser ? t('social.contact_internal','회원') : t('social.contact_external','외부'));
+        const g = c.group || (c.isUser ? t('social.contact_internal','Member') : t('social.contact_external','External'));
         if (!groups[g]) groups[g] = [];
         groups[g].push(c);
     });
@@ -541,14 +541,14 @@ function showContactDetail(contact) {
     modal.onclick = e => { if (e.target === modal) modal.remove(); };
 
     const fields = [
-        { icon: 'phone', label: t('social.phone','전화'), value: contact.phone },
-        { icon: 'mail', label: t('social.email','이메일'), value: contact.email },
-        { icon: 'building-2', label: t('social.company','회사'), value: contact.company },
-        { icon: 'briefcase', label: t('social.position','직책'), value: contact.position },
-        { icon: 'map-pin', label: t('social.address','주소'), value: contact.address },
-        { icon: 'cake', label: t('social.birthday','생일'), value: contact.birthday },
-        { icon: 'tag', label: t('social.group','그룹'), value: contact.group },
-        { icon: 'sticky-note', label: t('social.notes','메모'), value: contact.notes },
+        { icon: 'phone', label: t('social.phone','Phone'), value: contact.phone },
+        { icon: 'mail', label: t('social.email','Email'), value: contact.email },
+        { icon: 'building-2', label: t('social.company','Company'), value: contact.company },
+        { icon: 'briefcase', label: t('social.position','Position'), value: contact.position },
+        { icon: 'map-pin', label: t('social.address','Address'), value: contact.address },
+        { icon: 'cake', label: t('social.birthday','Birthday'), value: contact.birthday },
+        { icon: 'tag', label: t('social.group','Group'), value: contact.group },
+        { icon: 'sticky-note', label: t('social.notes','Notes'), value: contact.notes },
     ].filter(f => f.value);
 
     modal.innerHTML = `
@@ -556,7 +556,7 @@ function showContactDetail(contact) {
         <div style="text-align:center;margin-bottom:1rem;">
             <div style="width:64px;height:64px;border-radius:50%;background:#3D2B1F;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;margin:0 auto 8px;">${(name[0] || '?').toUpperCase()}</div>
             <h3 style="margin:0;font-size:1.1rem;">${name}</h3>
-            ${contact.isUser ? '<span style="font-size:0.75rem;color:#6B8F3C;">Crowny ' + t('social.contact_internal','회원') + '</span>' : '<span style="font-size:0.75rem;color:#7A5C47;">' + t('social.contact_external','외부') + '</span>'}
+            ${contact.isUser ? '<span style="font-size:0.75rem;color:#6B8F3C;">Crowny ' + t('social.contact_internal','Member') + '</span>' : '<span style="font-size:0.75rem;color:#7A5C47;">' + t('social.contact_external','External') + '</span>'}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:1rem;">
             ${fields.map(f => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F0E8DC;">
@@ -565,9 +565,9 @@ function showContactDetail(contact) {
             </div>`).join('')}
         </div>
         <div style="display:flex;gap:8px;">
-            ${contact.crownyUsername ? `<button onclick="chatNewDmWith('${contact.crownyUsername}');document.getElementById('contact-detail-modal').remove();" style="flex:1;padding:0.5rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;"><i data-lucide="message-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.chat','채팅')}</button>` : ''}
-            <button onclick="deleteContactIndependent(${contact.id})" style="flex:1;padding:0.5rem;border:1px solid #c0392b;border-radius:8px;background:none;color:#c0392b;cursor:pointer;font-weight:600;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.delete','삭제')}</button>
-            <button onclick="document.getElementById('contact-detail-modal').remove()" style="flex:1;padding:0.5rem;border:1px solid #E8E0D8;border-radius:8px;background:none;cursor:pointer;">${t('common.close','닫기')}</button>
+            ${contact.crownyUsername ? `<button onclick="chatNewDmWith('${contact.crownyUsername}');document.getElementById('contact-detail-modal').remove();" style="flex:1;padding:0.5rem;border:none;border-radius:8px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;"><i data-lucide="message-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.chat','Chat')}</button>` : ''}
+            <button onclick="deleteContactIndependent(${contact.id})" style="flex:1;padding:0.5rem;border:1px solid #c0392b;border-radius:8px;background:none;color:#c0392b;cursor:pointer;font-weight:600;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.delete','Delete')}</button>
+            <button onclick="document.getElementById('contact-detail-modal').remove()" style="flex:1;padding:0.5rem;border:1px solid #E8E0D8;border-radius:8px;background:none;cursor:pointer;">${t('common.close','Close')}</button>
         </div>
     </div>`;
     document.body.appendChild(modal);
@@ -579,7 +579,7 @@ async function deleteContactIndependent(contactId) {
     const detailModal = document.getElementById('contact-detail-modal');
     if (detailModal) detailModal.remove();
 
-    if (!await showConfirmModal(t('social.delete_contact','연락처 삭제'), t('social.confirm_delete_contact','이 연락처를 삭제하시겠습니까?'))) return;
+    if (!await showConfirmModal(t('social.delete_contact','Delete Contact'), t('social.confirm_delete_contact','Are you sure you want to delete this contact?'))) return;
     try {
         const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token') || '';
         const r = await fetch('/api/contacts/' + contactId, {
@@ -588,10 +588,10 @@ async function deleteContactIndependent(contactId) {
         });
         const data = await r.json();
         if (data.error) throw new Error(data.error);
-        showToast(t('social.contact_deleted','연락처 삭제됨'), 'success');
+        showToast(t('social.contact_deleted','Contact deleted'), 'success');
         loadContacts();
     } catch(e) {
-        showToast(t('social.delete_fail','삭제 실패') + ': ' + e.message, 'error');
+        showToast(t('social.delete_fail','Delete failed') + ': ' + e.message, 'error');
     }
 }
 
@@ -605,21 +605,21 @@ async function startChatWithContact(email) {
         showPage('messenger');
     } catch (error) {
         console.error('Chat start error:', error);
-        showToast(t('social.chat_fail','채팅 시작 실패'), 'error');
+        showToast(t('social.chat_fail','Failed to start chat'), 'error');
     }
 }
 
 async function showNewChatModal() {
-    const email = await showPromptModal(t('social.new_chat','새 채팅'), t('social.chat_email','채팅할 사용자 이메일'), '');
+    const email = await showPromptModal(t('social.new_chat','New Chat'), t('social.chat_email','Enter user email to chat with'), '');
     if (!email) return;
     startNewChat(email);
 }
 
 async function startNewChat(otherEmail) {
     try {
-        if (otherEmail === currentUser.email) { showToast(t('social.no_self_chat','자기 자신과는 채팅할 수 없습니다'), 'warning'); return; }
+        if (otherEmail === currentUser.email) { showToast(t('social.no_self_chat','You cannot chat with yourself'), 'warning'); return; }
         const users = await db.collection('users').where('email', '==', otherEmail).get();
-        if (users.empty) { showToast(t('social.user_not_found','사용자를 찾을 수 없습니다'), 'error'); return; }
+        if (users.empty) { showToast(t('social.user_not_found','User not found'), 'error'); return; }
         const otherUser = users.docs[0];
         const otherId = otherUser.id;
         const existingChat = await db.collection('chats').where('participants', 'array-contains', currentUser.uid).get();
@@ -639,7 +639,7 @@ async function startNewChat(otherEmail) {
         await openChat(chatId, otherId);
     } catch (error) {
         console.error('Start chat error:', error);
-        showToast(t('social.chat_fail','채팅 시작 실패') + ': ' + error.message, 'error');
+        showToast(t('social.chat_fail','Failed to start chat') + ': ' + error.message, 'error');
     }
 }
 
@@ -692,7 +692,7 @@ async function loadMessages() {
         chatList.innerHTML = `<p style="padding:1rem;color:#e53935;text-align:center;">채팅 로드 실패: ${e.message}</p>`;
         return;
     }
-    if (chats.empty) { chatList.innerHTML = `<p style="padding:1rem; color:var(--accent); text-align:center;">${t('social.start_chat','채팅을 시작하세요')}</p>`; return; }
+    if (chats.empty) { chatList.innerHTML = `<p style="padding:1rem; color:var(--accent); text-align:center;">${t('social.start_chat','Start a chat')}</p>`; return; }
 
     cachedChatDocs = chats.docs.sort((a, b) => {
         const aTime = a.data().lastMessageTime?.toMillis?.() || 0;
@@ -728,7 +728,7 @@ async function loadMessages() {
                     ${lastTime ? `<span class="chat-time">${getTimeAgo(lastTime)}</span>` : ''}
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <p style="flex:1;min-width:0;">${chat.lastMessage || t('social.no_messages','메시지 없음')}</p>
+                    <p style="flex:1;min-width:0;">${chat.lastMessage || t('social.no_messages','No messages')}</p>
                     ${unread > 0 ? `<span class="unread-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
                 </div>
             </div>`;
@@ -837,7 +837,7 @@ async function openChat(chatId, otherId) {
             const messagesDiv = document.getElementById('chat-messages');
             messagesDiv.innerHTML = '';
             if (snapshot.empty) {
-                messagesDiv.innerHTML = `<p style="text-align:center; color:var(--accent); padding:2rem;">${t('social.send_first','메시지를 보내보세요!')}</p>`;
+                messagesDiv.innerHTML = `<p style="text-align:center; color:var(--accent); padding:2rem;">${t('social.send_first','Send your first message!')}</p>`;
             }
             const senderCache = {};
             let lastDateStr = '';
@@ -898,7 +898,7 @@ async function openChat(chatId, otherId) {
                 // Build content
                 let content = '';
                 if (msg.deleted) {
-                    content = `<span class="msg-deleted"><i data-lucide="ban" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.msg_deleted','이 메시지는 삭제되었습니다')}</span>`;
+                    content = `<span class="msg-deleted"><i data-lucide="ban" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.msg_deleted','This message has been deleted')}</span>`;
                 } else {
                     // Reply quote
                     if (msg.replyTo) {
@@ -1123,7 +1123,7 @@ async function sendMessage() {
         input.value = ''; input.style.height = 'auto';
         return;
     }
-    if (!currentChat) { showToast(t('social.select_chat','채팅을 선택하세요'), 'warning'); return; }
+    if (!currentChat) { showToast(t('social.select_chat','Please select a chat'), 'warning'); return; }
     const input = document.getElementById('message-input');
     const text = input.value.trim();
     if (!text) return;
@@ -1239,7 +1239,7 @@ function showAttachMenu() {
 
 // ===== Send media file =====
 async function sendMediaFile(mediaType) {
-    if (!currentChat) { showToast(t('social.select_chat','채팅을 선택하세요'), 'warning'); return; }
+    if (!currentChat) { showToast(t('social.select_chat','Please select a chat'), 'warning'); return; }
     const input = document.createElement('input');
     input.type = 'file';
     if (mediaType === 'image') input.accept = 'image/*';
@@ -1581,10 +1581,10 @@ async function sendChatImage() {
 
 // ===== Token send =====
 async function sendTokenWithMessage() {
-    if (!currentChat || !currentChatOtherId) { showToast(t('social.select_chat','채팅을 선택하세요'), 'warning'); return; }
-    if (!userWallet || !currentWalletId) { showToast(t('social.connect_wallet','지갑을 먼저 연결하세요'), 'warning'); return; }
+    if (!currentChat || !currentChatOtherId) { showToast(t('social.select_chat','Please select a chat'), 'warning'); return; }
+    if (!userWallet || !currentWalletId) { showToast(t('social.connect_wallet','Please connect your wallet first'), 'warning'); return; }
 
-    const tokenChoice = await showPromptModal(t('social.select_token','토큰 선택'),
+    const tokenChoice = await showPromptModal(t('social.select_token','Select Token'),
         '온체인:\n1. CRNY (' + (userWallet.balances?.crny || 0).toFixed(2) + ')\n' +
         '2. FNC (' + (userWallet.balances?.fnc || 0).toFixed(2) + ')\n' +
         '3. CRFN (' + (userWallet.balances?.crfn || 0).toFixed(2) + ')\n\n' +
@@ -1596,19 +1596,19 @@ async function sendTokenWithMessage() {
 
     const tokenMap = { '1':'crny', '2':'fnc', '3':'crfn', '4':'crtd', '5':'crac', '6':'crgc', '7':'creb' };
     const tokenKey = tokenMap[tokenChoice];
-    if (!tokenKey) { showToast(t('social.invalid_choice','잘못된 선택'), 'error'); return; }
+    if (!tokenKey) { showToast(t('social.invalid_choice','Invalid choice'), 'error'); return; }
 
     const isOffchain = isOffchainToken(tokenKey);
     const tokenName = tokenKey.toUpperCase();
     const balance = isOffchain ? (userWallet.offchainBalances?.[tokenKey] || 0) : (userWallet.balances?.[tokenKey] || 0);
 
-    const amount = await showPromptModal(t('social.send_amount','전송 수량'), `${t('social.amount_to_send','전송할')} ${tokenName} (${t('social.balance','잔액')}: ${balance})`, '');
+    const amount = await showPromptModal(t('social.send_amount','Send Amount'), `${t('social.amount_to_send','Amount to send')} ${tokenName} (${t('social.balance','Balance')}: ${balance})`, '');
     if (!amount) return;
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0 || amountNum > balance) {
-        showToast(t('social.insufficient','잔액이 부족하거나 잘못된 수량입니다'), 'error'); return;
+        showToast(t('social.insufficient','Insufficient balance or invalid amount'), 'error'); return;
     }
-    const message = await showPromptModal(t('social.message','메시지'), t('social.msg_optional','메시지 (선택)'), '') || '';
+    const message = await showPromptModal(t('social.message','Message'), t('social.msg_optional','Message (optional)'), '') || '';
 
     try {
         if (isOffchain) {
@@ -1637,22 +1637,22 @@ async function sendTokenWithMessage() {
         });
         await db.collection('transactions').add({ from: currentUser.uid, to: currentChatOtherId, amount: amountNum, token: tokenName, type: isOffchain ? 'messenger_offchain' : 'messenger_onchain', message, timestamp: new Date() });
         updateBalances();
-        showToast(`✅ ${amountNum} ${tokenName} ${t('social.sent','전송 완료!')}`, 'success');
+        showToast(`✅ ${amountNum} ${tokenName} ${t('social.sent','Transfer complete!')}`, 'success');
     } catch (error) {
         console.error('메신저 토큰 전송 실패:', error);
-        showToast(t('social.send_fail','전송 실패: ') + error.message, 'error');
+        showToast(t('social.send_fail','Transfer failed: ') + error.message, 'error');
     }
 }
 
 // ===== Message delete (soft) =====
 async function deleteMessage(msgId) {
     if (!currentChat) return;
-    if (!await showConfirmModal(t('social.delete_msg','메시지 삭제'), t('social.confirm_delete_msg','이 메시지를 삭제하시겠습니까?'))) return;
+    if (!await showConfirmModal(t('social.delete_msg','Delete Message'), t('social.confirm_delete_msg','Are you sure you want to delete this message?'))) return;
     try {
         await db.collection('chats').doc(currentChat).collection('messages').doc(msgId).update({ deleted: true, text: '', imageUrl: null, tokenAmount: null, reactions: {} });
-        showToast(t('social.msg_deleted_toast','메시지가 삭제되었습니다'), 'info');
+        showToast(t('social.msg_deleted_toast','Message deleted'), 'info');
     } catch (e) {
-        showToast(t('social.delete_fail','삭제 실패'), 'error');
+        showToast(t('social.delete_fail','Delete failed'), 'error');
     }
 }
 
@@ -1803,7 +1803,7 @@ function showChatMenu() {
     menu.style.right = '8px';
     menu.innerHTML = `
         ${currentChat ? `<button class="chat-menu-item" onclick="E2ECrypto.showChatSecuritySettings('${currentChat}');this.closest('.chat-menu-dropdown').remove();"><i data-lucide="shield" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;"></i> 보안 설정</button>` : ''}
-        <button class="chat-menu-item danger" onclick="leaveChat()"><i data-lucide="log-out" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;"></i> ${t('social.leave_chat','채팅방 나가기')}</button>`;
+        <button class="chat-menu-item danger" onclick="leaveChat()"><i data-lucide="log-out" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;"></i> ${t('social.leave_chat','Leave Chat')}</button>`;
     if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);
     header.style.position = 'relative';
     header.appendChild(menu);
@@ -1815,7 +1815,7 @@ function showChatMenu() {
 
 async function leaveChat() {
     if (!currentChat) return;
-    if (!await showConfirmModal(t('social.leave_chat','채팅방 나가기'), t('social.confirm_leave','이 채팅방을 나가시겠습니까? 대화 내역이 삭제됩니다.'))) return;
+    if (!await showConfirmModal(t('social.leave_chat','Leave Chat'), t('social.confirm_leave','Are you sure you want to leave this chat? Chat history will be deleted.'))) return;
     try {
         // Remove self from participants
         await db.collection('chats').doc(currentChat).update({
@@ -1830,10 +1830,10 @@ async function leaveChat() {
         document.getElementById('chat-header-actions').style.display = 'none';
         document.getElementById('chat-input-area').style.display = 'none';
         document.getElementById('chat-username').innerHTML = `<div class="chat-empty-state"><div style="font-size:3rem;margin-bottom:1rem;">💬</div><p>채팅을 선택하세요</p></div>`;
-        showToast(t('social.left_chat','채팅방을 나갔습니다'), 'info');
+        showToast(t('social.left_chat','You left the chat'), 'info');
         loadMessages();
     } catch (e) {
-        showToast(t('social.leave_fail','나가기 실패: ') + e.message, 'error');
+        showToast(t('social.leave_fail','Failed to leave: ') + e.message, 'error');
     }
 }
 
@@ -1858,8 +1858,8 @@ async function loadSocialFeed() {
         if (sortedPosts.length === 0) {
             feed.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--accent);">
                 <p style="font-size:3rem; margin-bottom:1rem;">📝</p>
-                <p style="font-size:1.1rem;">${t('social.no_posts','아직 게시물이 없습니다')}</p>
-                <p style="font-size:0.85rem;">${t('social.write_first','첫 게시물을 작성해보세요!')}</p></div>`;
+                <p style="font-size:1.1rem;">${t('social.no_posts','No posts yet')}</p>
+                <p style="font-size:0.85rem;">${t('social.write_first','Write your first post!')}</p></div>`;
             return;
         }
 
@@ -1935,7 +1935,7 @@ async function loadSocialFeed() {
                     <span style="flex:1;"></span>
                     <button onclick="toggleSavePost('${doc.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:0;">🔖</button>
                 </div>
-                ${likeCount > 0 ? `<div style="padding:0 14px;font-weight:700;font-size:0.85rem;margin-bottom:4px;cursor:pointer;" onclick="showLikedUsers('${doc.id}')">${t('social.likes','좋아요')} ${likeCount}${t('social.count','개')}</div>` : ''}
+                ${likeCount > 0 ? `<div style="padding:0 14px;font-weight:700;font-size:0.85rem;margin-bottom:4px;cursor:pointer;" onclick="showLikedUsers('${doc.id}')">${t('social.likes','Likes')} ${likeCount}${t('social.count','')}</div>` : ''}
                 ${captionText ? `<div style="padding:0 14px 4px;font-size:0.9rem;line-height:1.5;"><strong style="margin-right:4px;">${userInfo.nickname}</strong>${captionDisplay}${captionTruncated ? ' <span style="color:var(--dark-muted,#6B5744);cursor:pointer;" onclick="this.parentElement.textContent=\'\'" >더 보기</span>' : ''}</div>` : ''}
                 ${serviceLinkHTML}
                 ${commentCount > 0 ? `<div onclick="toggleComments('${doc.id}')" style="padding:0 14px;color:var(--dark-muted,#6B5744);font-size:0.85rem;cursor:pointer;margin-bottom:4px;">댓글 ${commentCount}개 모두 보기</div>` : ''}
@@ -1943,8 +1943,8 @@ async function loadSocialFeed() {
                 <div id="comments-${doc.id}" style="display:none;border-top:1px solid var(--dark-border,#2a2a4a);padding:8px 14px;">
                     <div id="comment-list-${doc.id}"></div>
                     <div style="display:flex;gap:0.5rem;margin-top:6px;align-items:center;">
-                        <input type="text" id="comment-input-${doc.id}" placeholder="${t('social.add_comment','댓글 달기...')}" style="flex:1;padding:8px;border:none;border-bottom:1px solid var(--dark-border,#2a2a4a);font-size:0.85rem;outline:none;background:transparent;" onkeypress="if(event.key==='Enter')addComment('${doc.id}')">
-                        <button onclick="addComment('${doc.id}')" style="background:none;border:none;color:#0095f6;font-weight:700;cursor:pointer;font-size:0.85rem;">${t('social.post','게시')}</button>
+                        <input type="text" id="comment-input-${doc.id}" placeholder="${t('social.add_comment','Add a comment...')}" style="flex:1;padding:8px;border:none;border-bottom:1px solid var(--dark-border,#2a2a4a);font-size:0.85rem;outline:none;background:transparent;" onkeypress="if(event.key==='Enter')addComment('${doc.id}')">
+                        <button onclick="addComment('${doc.id}')" style="background:none;border:none;color:#0095f6;font-weight:700;cursor:pointer;font-size:0.85rem;">${t('social.post','Post')}</button>
                     </div>
                 </div>`;
             feed.appendChild(postEl);
@@ -1962,7 +1962,7 @@ async function loadSocialFeed() {
             feed.innerHTML = `<div style="text-align:center; padding:3rem;">
                 <p style="font-size:2rem; margin-bottom:1rem;">⚠️</p>
                 <p style="color:#B54534;">${error.message}</p>
-                <button onclick="loadSocialFeed()" class="btn-primary" style="margin-top:1rem;">${t('common.refresh','새로고침')}</button></div>`;
+                <button onclick="loadSocialFeed()" class="btn-primary" style="margin-top:1rem;">${t('common.refresh','Refresh')}</button></div>`;
         }
     }
 }
@@ -1992,13 +1992,13 @@ async function toggleLike(postId, isLiked) {
 async function showLikedUsers(postId) {
     const post = await db.collection('posts').doc(postId).get();
     const likedBy = post.data().likedBy || [];
-    if (likedBy.length === 0) { showToast(t('social.no_likes','아직 좋아요가 없습니다'), 'info'); return; }
+    if (likedBy.length === 0) { showToast(t('social.no_likes','No likes yet'), 'info'); return; }
     let message = '';
     for (const uid of likedBy) {
         const info = await getUserDisplayInfo(uid);
         message += `${info.nickname}\n`;
     }
-    await showConfirmModal(t('social.likes','좋아요'), message);
+    await showConfirmModal(t('social.likes','Likes'), message);
 }
 
 async function toggleComments(postId) {
@@ -2011,7 +2011,7 @@ async function loadComments(postId) {
     const list = document.getElementById(`comment-list-${postId}`);
     list.innerHTML = '';
     const comments = await db.collection('posts').doc(postId).collection('comments').orderBy('timestamp', 'asc').get();
-    if (comments.empty) { list.innerHTML = `<p style="text-align:center; color:var(--accent); font-size:0.8rem;">${t('social.first_comment','첫 댓글을 남겨보세요!')}</p>`; return; }
+    if (comments.empty) { list.innerHTML = `<p style="text-align:center; color:var(--accent); font-size:0.8rem;">${t('social.first_comment','Be the first to comment!')}</p>`; return; }
     for (const doc of comments.docs) {
         const c = doc.data();
         const info = await getUserDisplayInfo(c.userId);
@@ -2086,21 +2086,21 @@ async function saveEditPost(postId) {
 }
 
 async function deletePost(postId) {
-    if (!await showConfirmModal(t('social.delete_post','게시물 삭제'), t('social.confirm_delete','이 게시물을 삭제하시겠습니까?'))) return;
+    if (!await showConfirmModal(t('social.delete_post','Delete Post'), t('social.confirm_delete','Are you sure you want to delete this post?'))) return;
     try {
         await db.collection('posts').doc(postId).delete();
-        showToast(t('social.post_deleted','게시물 삭제됨'), 'info');
+        showToast(t('social.post_deleted','Post deleted'), 'info');
         loadSocialFeed();
-    } catch (e) { showToast(t('social.delete_fail','삭제 실패'), 'error'); }
+    } catch (e) { showToast(t('social.delete_fail','Delete failed'), 'error'); }
 }
 
 function getTimeAgo(date) {
     const seconds = Math.floor((new Date() - date) / 1000);
-    if (seconds < 60) return t('social.just_now','방금 전');
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}${t('social.min_ago','분 전')}`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}${t('social.hour_ago','시간 전')}`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)}${t('social.day_ago','일 전')}`;
-    return `${Math.floor(seconds / 604800)}${t('social.week_ago','주 전')}`;
+    if (seconds < 60) return t('social.just_now','Just now');
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}${t('social.min_ago','m ago')}`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}${t('social.hour_ago','h ago')}`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}${t('social.day_ago','d ago')}`;
+    return `${Math.floor(seconds / 604800)}${t('social.week_ago','w ago')}`;
 }
 
 // ========== VIDEO EDITOR STATE ==========
@@ -2354,10 +2354,10 @@ async function createPost() {
     const location = locationInput ? locationInput.value.trim() : '';
     const hasImage = fileInput.files[0];
     const hasVideo = videoInput.files[0];
-    if (!text && !hasImage && !hasVideo) { showToast(t('social.enter_content','내용 또는 이미지/영상을 입력하세요'), 'warning'); return; }
+    if (!text && !hasImage && !hasVideo) { showToast(t('social.enter_content','Please enter text or add an image/video'), 'warning'); return; }
 
     try {
-        showLoading(t('social.posting','게시 중...'));
+        showLoading(t('social.posting','Posting...'));
         let imageUrl = null;
         let videoUrl = null;
         let thumbnailData = null;
@@ -2456,12 +2456,12 @@ async function createPost() {
 
         hideLoading();
         await loadSocialFeed();
-        showToast(t('social.post_done','✅ 게시 완료!'), 'success');
+        showToast(t('social.post_done','✅ Posted!'), 'success');
         if (window.lucide) lucide.createIcons();
     } catch (error) {
         hideLoading();
         console.error('Post error:', error);
-        showToast(t('social.post_fail','게시 실패') + ': ' + error.message, 'error');
+        showToast(t('social.post_fail','Post failed') + ': ' + error.message, 'error');
     }
 }
 
@@ -2603,7 +2603,7 @@ async function editContact(contactDocId, currentName) {
     if (!newName || newName.trim() === currentName) return;
     try {
         await db.collection('users').doc(currentUser.uid).collection('contacts').doc(contactDocId).update({ name: newName.trim() });
-        showToast(t('social.contact_renamed','연락처 이름이 변경되었습니다'), 'success');
+        showToast(t('social.contact_renamed','Contact name changed'), 'success');
         loadContacts();
     } catch (error) { showToast('변경 실패: ' + error.message, 'error'); }
 }
@@ -2813,7 +2813,7 @@ function showContactMenu(contactDocId, contactName) {
     menu.className = 'contact-menu-popup';
     menu.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#FFF8F0;border:1px solid #E8E0D8;border-radius:12px;padding:0.5rem;box-shadow:0 4px 20px rgba(61,43,31,0.15);z-index:9999;min-width:160px;';
     menu.innerHTML = `
-        <button onclick="deleteContact('${contactDocId}','${contactName.replace(/'/g,"\\'")}');this.closest('.contact-menu-popup').remove();" style="display:flex;align-items:center;gap:6px;width:100%;padding:0.6rem 0.8rem;background:none;border:none;cursor:pointer;border-radius:8px;font-size:0.85rem;color:#B54534;"><i data-lucide="trash-2" style="width:16px;height:16px;"></i> ${t('social.delete_contact','연락처 삭제')}</button>`;
+        <button onclick="deleteContact('${contactDocId}','${contactName.replace(/'/g,"\\'")}');this.closest('.contact-menu-popup').remove();" style="display:flex;align-items:center;gap:6px;width:100%;padding:0.6rem 0.8rem;background:none;border:none;cursor:pointer;border-radius:8px;font-size:0.85rem;color:#B54534;"><i data-lucide="trash-2" style="width:16px;height:16px;"></i> ${t('social.delete_contact','Delete Contact')}</button>`;
     document.body.appendChild(menu);
     if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);
     setTimeout(() => {
@@ -2823,12 +2823,12 @@ function showContactMenu(contactDocId, contactName) {
 }
 
 async function deleteContact(contactDocId, contactName) {
-    if (!await showConfirmModal(t('social.delete_contact','연락처 삭제'), `"${contactName}" ${t('social.confirm_delete_contact','연락처를 삭제하시겠습니까?')}`)) return;
+    if (!await showConfirmModal(t('social.delete_contact','Delete Contact'), `"${contactName}" ${t('social.confirm_delete_contact','Do you want to delete this contact?')}`)) return;
     try {
         await db.collection('users').doc(currentUser.uid).collection('contacts').doc(contactDocId).delete();
-        showToast(t('social.contact_deleted','연락처가 삭제되었습니다'), 'success');
+        showToast(t('social.contact_deleted','Contact has been deleted'), 'success');
         loadContacts();
-    } catch (error) { showToast(t('social.delete_fail','삭제 실패') + ': ' + error.message, 'error'); }
+    } catch (error) { showToast(t('social.delete_fail','Delete failed') + ': ' + error.message, 'error'); }
 }
 
 // ========== SOCIAL NOTIFICATIONS TAB ==========
@@ -3159,7 +3159,7 @@ async function loadCommentsWithReplies(postId) {
 
     const comments = await db.collection('posts').doc(postId).collection('comments')
         .orderBy('timestamp', 'asc').get();
-    if (comments.empty) { list.innerHTML = `<p style="text-align:center;color:var(--accent);font-size:0.8rem;">${t('social.first_comment','첫 댓글을 남겨보세요!')}</p>`; return; }
+    if (comments.empty) { list.innerHTML = `<p style="text-align:center;color:var(--accent);font-size:0.8rem;">${t('social.first_comment','Be the first to comment!')}</p>`; return; }
 
     const topLevel = [];
     const replies = {};
@@ -3340,8 +3340,8 @@ async function loadIndependentSocialFeed(feed) {
         if (!data.posts || data.posts.length === 0) {
             feed.innerHTML = `<div style="text-align:center;padding:3rem;">
                 <p style="font-size:2.5rem;margin-bottom:1rem;">📝</p>
-                <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;">${t('social.no_posts','아직 게시물이 없습니다')}</p>
-                <p style="font-size:0.85rem;color:#7A5C47;">${t('social.write_first','첫 게시물을 작성해보세요!')}</p></div>`;
+                <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;">${t('social.no_posts','No posts yet')}</p>
+                <p style="font-size:0.85rem;color:#7A5C47;">${t('social.write_first','Write your first post!')}</p></div>`;
             return;
         }
 
@@ -3349,7 +3349,7 @@ async function loadIndependentSocialFeed(feed) {
             feed.appendChild(renderIndependentPost(post));
         }
     } catch (e) {
-        feed.innerHTML = `<div style="text-align:center;padding:2rem;color:#c0392b;">${t('common.load_failed','로드 실패')}: ${e.message}</div>`;
+        feed.innerHTML = `<div style="text-align:center;padding:2rem;color:#c0392b;">${t('common.load_failed','Load failed')}: ${e.message}</div>`;
     }
 }
 
@@ -3390,7 +3390,7 @@ function renderIndependentPost(post) {
                 <div style="font-weight:600;font-size:0.9rem;color:#3D2B1F;">${escapeHtmlSocial(post.authorName || post.author)}</div>
                 <div style="font-size:0.72rem;color:#7A5C47;">@${escapeHtmlSocial(post.author)} · ${timeAgo}</div>
             </div>
-            ${post.author === myUser ? `<button onclick="deleteIndependentPost('${post.id}')" style="background:none;border:none;cursor:pointer;color:#7A5C47;font-size:1.2rem;" title="${t('common.delete','삭제')}">×</button>` : ''}
+            ${post.author === myUser ? `<button onclick="deleteIndependentPost('${post.id}')" style="background:none;border:none;cursor:pointer;color:#7A5C47;font-size:1.2rem;" title="${t('common.delete','Delete')}">×</button>` : ''}
         </div>
         ${textHTML ? `<div class="crny-post-text" style="padding:0 12px 8px;font-size:0.9rem;line-height:1.5;color:#3D2B1F;white-space:pre-wrap;">${textHTML}</div>` : ''}
         ${mediaHTML}
@@ -3402,7 +3402,7 @@ function renderIndependentPost(post) {
                 <i data-lucide="message-circle" style="width:16px;height:16px;"></i> <span>${post.commentCount || 0}</span>
             </button>
             <button onclick="shareIndependentPost('${post.id}','${escapeHtmlSocial(post.text || '')}')" style="display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-size:0.85rem;color:#7A5C47;">
-                <i data-lucide="share-2" style="width:16px;height:16px;"></i> ${t('common.share','공유')}
+                <i data-lucide="share-2" style="width:16px;height:16px;"></i> ${t('common.share','Share')}
             </button>
         </div>
         <div id="comments-${post.id}" style="display:none;"></div>`;
@@ -3418,11 +3418,11 @@ function escapeHtmlSocial(str) {
 
 function getTimeAgoMs(ts) {
     const diff = Date.now() - ts;
-    if (diff < 60000) return t('social.just_now', '방금 전');
-    if (diff < 3600000) return Math.floor(diff / 60000) + t('social.min_ago', '분 전');
-    if (diff < 86400000) return Math.floor(diff / 3600000) + t('social.hour_ago', '시간 전');
-    if (diff < 604800000) return Math.floor(diff / 86400000) + t('social.day_ago', '일 전');
-    return Math.floor(diff / 604800000) + t('social.week_ago', '주 전');
+    if (diff < 60000) return t('social.just_now', 'Just now');
+    if (diff < 3600000) return Math.floor(diff / 60000) + t('social.min_ago', 'm ago');
+    if (diff < 86400000) return Math.floor(diff / 3600000) + t('social.hour_ago', 'h ago');
+    if (diff < 604800000) return Math.floor(diff / 86400000) + t('social.day_ago', 'd ago');
+    return Math.floor(diff / 604800000) + t('social.week_ago', 'w ago');
 }
 
 // 독립 소셜 게시물 작성 (Firebase 없이)
@@ -3443,12 +3443,12 @@ async function createIndependentPost() {
     }
 
     if (!text && !youtubeUrl && !imageData) {
-        if (typeof showToast === 'function') showToast(t('social.enter_content', '내용을 입력하세요'), 'warning');
+        if (typeof showToast === 'function') showToast(t('social.enter_content', 'Please enter content'), 'warning');
         return;
     }
 
     try {
-        if (typeof showLoading === 'function') showLoading(t('social.posting', '게시 중...'));
+        if (typeof showLoading === 'function') showLoading(t('social.posting', 'Posting...'));
         const res = await fetch('/api/social/post', {
             method: 'POST', headers: ctvmHeaders(),
             body: JSON.stringify({ text, youtubeUrl, image: imageData })
@@ -3462,11 +3462,11 @@ async function createIndependentPost() {
         if (imgName) imgName.textContent = '';
 
         if (typeof hideLoading === 'function') hideLoading();
-        if (typeof showToast === 'function') showToast(t('social.post_done', '게시 완료!'), 'success');
+        if (typeof showToast === 'function') showToast(t('social.post_done', 'Posted!'), 'success');
         loadSocialFeed();
     } catch (e) {
         if (typeof hideLoading === 'function') hideLoading();
-        if (typeof showToast === 'function') showToast(t('social.post_fail', '게시 실패') + ': ' + e.message, 'error');
+        if (typeof showToast === 'function') showToast(t('social.post_fail', 'Post failed') + ': ' + e.message, 'error');
     }
 }
 
@@ -3512,9 +3512,9 @@ async function showIndependentComments(postId) {
             </div>`).join('');
 
         html += `<div style="display:flex;padding:8px 12px;gap:6px;">
-            <input id="cmnt-input-${postId}" type="text" placeholder="${t('social.add_comment','댓글 달기...')}"
+            <input id="cmnt-input-${postId}" type="text" placeholder="${t('social.add_comment','Add a comment...')}"
                 style="flex:1;padding:6px 10px;border:1px solid rgba(232,213,196,0.4);border-radius:8px;font-size:0.82rem;background:rgba(255,248,240,0.5);color:#3D2B1F;">
-            <button onclick="submitIndependentComment('${postId}')" style="background:var(--primary,#B8860B);color:#FFF8F0;border:none;border-radius:8px;padding:6px 12px;font-size:0.82rem;cursor:pointer;">${t('social.post','게시')}</button>
+            <button onclick="submitIndependentComment('${postId}')" style="background:var(--primary,#B8860B);color:#FFF8F0;border:none;border-radius:8px;padding:6px 12px;font-size:0.82rem;cursor:pointer;">${t('social.post','Post')}</button>
         </div>`;
         container.innerHTML = html;
     } catch (e) {
@@ -3548,14 +3548,14 @@ async function submitIndependentComment(postId) {
 }
 
 async function deleteIndependentPost(postId) {
-    if (!await showConfirmModal(t('social.delete_post','게시물 삭제'), t('social.confirm_delete', '이 게시물을 삭제하시겠습니까?'))) return;
+    if (!await showConfirmModal(t('social.delete_post','Delete Post'), t('social.confirm_delete', 'Are you sure you want to delete this post?'))) return;
     try {
         await fetch('/api/social/post', {
             method: 'DELETE', headers: ctvmHeaders(),
             body: JSON.stringify({ postId })
         });
         loadSocialFeed();
-        if (typeof showToast === 'function') showToast(t('social.post_deleted', '게시물 삭제됨'), 'info');
+        if (typeof showToast === 'function') showToast(t('social.post_deleted', 'Post deleted'), 'info');
     } catch (e) { console.error('Delete error:', e); }
 }
 
@@ -3565,7 +3565,7 @@ function shareIndependentPost(postId, text) {
         navigator.share({ title: 'Crowny', text: text?.substring(0, 100) || 'Crowny 게시물', url: shareUrl }).catch(() => {});
     } else {
         navigator.clipboard.writeText(shareUrl).then(() => {
-            if (typeof showToast === 'function') showToast(t('social.link_copied', '링크가 복사되었습니다'), 'success');
+            if (typeof showToast === 'function') showToast(t('social.link_copied', 'Link copied'), 'success');
         });
     }
 }

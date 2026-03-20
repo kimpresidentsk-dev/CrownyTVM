@@ -116,7 +116,7 @@ async function chatLoadList() {
     if (!container) { console.warn('[CHAT] chat-list-items container not found!'); return; }
 
     if (!Array.isArray(list) || list.length === 0) {
-        container.innerHTML = `<div class="chat-empty">${t('messenger.no_chats','대화가 없습니다')}<br><small>${t('messenger.start_hint','+ 버튼으로 시작하세요')}</small></div>`;
+        container.innerHTML = `<div class="chat-empty">${t('messenger.no_chats','No conversations')}<br><small>${t('messenger.start_hint','Tap + to start a chat')}</small></div>`;
         return;
     }
 
@@ -161,7 +161,7 @@ async function chatOpen(chatId) {
     if (headerEl && info && !info.error) {
         const name = info.groupName || info.participants.filter(p => p !== chatMyUsername)[0] || '';
         const isOnline = info.type === 'dm' && info.participantStatus?.some(p => p.username !== chatMyUsername && p.isOnline);
-        headerEl.innerHTML = `<strong>${chatEsc(name)}</strong><span class="chat-status">${isOnline ? ' ' + t('messenger.online','온라인') : ''}</span>`;
+        headerEl.innerHTML = `<strong>${chatEsc(name)}</strong><span class="chat-status">${isOnline ? ' ' + t('messenger.online','Online') : ''}</span>`;
     }
 
     // 메시지 로드
@@ -190,13 +190,13 @@ function chatRenderMsg(m) {
     const isMine = m.senderId === chatMyUsername;
     const time = chatFmtTime(m.timestamp);
     const replyHtml = m.replyTo ? `<div class="chat-reply-ref">↩ ${chatEsc(String(m.replyTo).slice(0, 40))}</div>` : '';
-    const tipHtml = m.crmmTip ? `<span class="chat-tip-badge">${m.crmmTip} ${t('messenger.mam_unit','맘')}</span>` : '';
+    const tipHtml = m.crmmTip ? `<span class="chat-tip-badge">${m.crmmTip} ${t('messenger.mam_unit','MAM')}</span>` : '';
     // 읽음/전송 상태 (내 메시지만)
     let statusHtml = '';
     if (isMine) {
         const readByOthers = (m.readBy || []).filter(u => u !== chatMyUsername);
-        if (readByOthers.length > 0) statusHtml = `<span class="chat-read">${t('messenger.read','읽음')}</span>`;
-        else statusHtml = `<span class="chat-sent">${t('messenger.sent_status','전송됨')}</span>`;
+        if (readByOthers.length > 0) statusHtml = `<span class="chat-read">${t('messenger.read','Read')}</span>`;
+        else statusHtml = `<span class="chat-sent">${t('messenger.sent_status','Sent')}</span>`;
     }
     return `<div class="chat-msg ${isMine ? 'mine' : 'theirs'}" data-id="${m.id}">
         ${!isMine ? `<div class="chat-msg-sender">${chatEsc(m.senderId)}</div>` : ''}
@@ -256,13 +256,13 @@ async function chatToggleCrmm() {
             // 잔액 표시
             const balEl = document.getElementById('chat-crmm-balance');
             if (balEl) {
-                balEl.textContent = t('messenger.checking_balance','잔액 확인 중...');
+                balEl.textContent = t('messenger.checking_balance','Checking balance...');
                 try {
                     const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
                     const r = await fetch('/api/wallet', { headers: { 'Authorization': 'Bearer ' + token } });
                     const w = await r.json();
                     const crm = (w.offchainBalances && w.offchainBalances.CRM) || 0;
-                    balEl.textContent = t('messenger.mam_balance','보유 맘: ') + crm.toLocaleString();
+                    balEl.textContent = t('messenger.mam_balance','MAM Balance: ') + crm.toLocaleString();
                 } catch { balEl.textContent = ''; }
             }
         }
@@ -391,7 +391,7 @@ function chatOnRead(chatId, username) {
     if (chatId !== chatCurrentId || username === chatMyUsername) return;
     // 내 메시지들의 '전송됨' → '읽음' 업데이트
     document.querySelectorAll('.chat-msg.mine .chat-sent').forEach(el => {
-        el.textContent = t('messenger.read','읽음');
+        el.textContent = t('messenger.read','Read');
         el.className = 'chat-read';
     });
 }
@@ -412,7 +412,7 @@ function chatOnTyping(chatId, username, isTyping) {
     const el = document.getElementById('chat-typing');
     if (!el) return;
     if (isTyping) {
-        el.textContent = username + ' ' + t('messenger.typing','입력 중...');
+        el.textContent = username + ' ' + t('messenger.typing','is typing...');
         el.style.display = 'block';
         clearTimeout(chatTypingTimers[username]);
         chatTypingTimers[username] = setTimeout(() => { el.style.display = 'none'; }, 3000);
@@ -444,18 +444,18 @@ function chatShowUserSearch(mode) {
     const isGroup = mode === 'group';
     modal.innerHTML = `<div style="background:#FFF8F0;border-radius:16px;width:100%;max-width:400px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.15)">
         <div style="padding:16px;border-bottom:1px solid #E8E0D8;display:flex;align-items:center;justify-content:space-between">
-            <h3 style="margin:0;font-size:1rem;color:#3D2B1F">${isGroup ? t('messenger.new_group','그룹 만들기') : t('messenger.find_user','회원 찾기')}</h3>
+            <h3 style="margin:0;font-size:1rem;color:#3D2B1F">${isGroup ? t('messenger.new_group','Create Group') : t('messenger.find_user','Find User')}</h3>
             <button onclick="this.closest('#chat-user-search-modal').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#7A5C47;padding:4px 8px">✕</button>
         </div>
-        ${isGroup ? `<div style="padding:8px 16px;border-bottom:1px solid #F0E8DC"><input id="chat-group-name-input" placeholder="${t('messenger.group_name','그룹 이름')}" style="width:100%;padding:8px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;background:#fff;outline:none"></div>` : ''}
+        ${isGroup ? `<div style="padding:8px 16px;border-bottom:1px solid #F0E8DC"><input id="chat-group-name-input" placeholder="${t('messenger.group_name','Group Name')}" style="width:100%;padding:8px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;background:#fff;outline:none"></div>` : ''}
         <div style="padding:8px 16px">
-            <input id="chat-user-search-input" placeholder="${t('messenger.search_placeholder','아이디 또는 이름 검색...')}" style="width:100%;padding:10px 14px;border:1px solid #E8E0D8;border-radius:20px;font-size:0.9rem;background:#fff;outline:none" oninput="chatSearchUsers()">
+            <input id="chat-user-search-input" placeholder="${t('messenger.search_placeholder','Search by ID or name...')}" style="width:100%;padding:10px 14px;border:1px solid #E8E0D8;border-radius:20px;font-size:0.9rem;background:#fff;outline:none" oninput="chatSearchUsers()">
         </div>
         ${isGroup ? `<div id="chat-selected-users" style="padding:0 16px;display:flex;flex-wrap:wrap;gap:6px"></div>` : ''}
         <div id="chat-user-search-results" style="flex:1;overflow-y:auto;padding:0 8px 8px">
-            <div style="text-align:center;padding:20px;color:#A08060;font-size:0.85rem">${t('messenger.enter_id','아이디를 입력하세요')}</div>
+            <div style="text-align:center;padding:20px;color:#A08060;font-size:0.85rem">${t('messenger.enter_id','Enter a username')}</div>
         </div>
-        ${isGroup ? `<div style="padding:12px 16px;border-top:1px solid #E8E0D8"><button id="chat-create-group-btn" onclick="chatCreateGroup()" style="width:100%;padding:10px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer">${t('messenger.new_group','그룹 만들기')}</button></div>` : ''}
+        ${isGroup ? `<div style="padding:12px 16px;border-top:1px solid #E8E0D8"><button id="chat-create-group-btn" onclick="chatCreateGroup()" style="width:100%;padding:10px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer">${t('messenger.new_group','Create Group')}</button></div>` : ''}
     </div>`;
     document.body.appendChild(modal);
     modal._mode = mode;
@@ -470,14 +470,14 @@ async function chatSearchUsers() {
         const container = document.getElementById('chat-user-search-results');
         if (!input || !container) return;
         const q = input.value.trim();
-        if (q.length < 1) { container.innerHTML = `<div style="text-align:center;padding:20px;color:#A08060;font-size:0.85rem">${t('messenger.enter_id','아이디를 입력하세요')}</div>`; return; }
+        if (q.length < 1) { container.innerHTML = `<div style="text-align:center;padding:20px;color:#A08060;font-size:0.85rem">${t('messenger.enter_id','Enter a username')}</div>`; return; }
 
         const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
         try {
             const r = await fetch('/api/users/search?q=' + encodeURIComponent(q), { headers: { 'Authorization': 'Bearer ' + token } });
             const users = await r.json();
             if (!Array.isArray(users) || users.length === 0) {
-                container.innerHTML = `<div style="text-align:center;padding:20px;color:#A08060;font-size:0.85rem">${t('messenger.no_results','검색 결과 없음')}</div>`;
+                container.innerHTML = `<div style="text-align:center;padding:20px;color:#A08060;font-size:0.85rem">${t('messenger.no_results','No results found')}</div>`;
                 return;
             }
             const modal = document.getElementById('chat-user-search-modal');
@@ -490,7 +490,7 @@ async function chatSearchUsers() {
                 </div>
             </div>`).join('');
         } catch {
-            container.innerHTML = `<div style="text-align:center;padding:20px;color:#B54534;font-size:0.85rem">${t('messenger.search_error','검색 오류')}</div>`;
+            container.innerHTML = `<div style="text-align:center;padding:20px;color:#B54534;font-size:0.85rem">${t('messenger.search_error','Search error')}</div>`;
         }
     }, 300);
 }
@@ -503,7 +503,7 @@ async function chatPickUser(username) {
         modal.remove();
         const chat = await chatApi('/create', { method: 'POST', body: { to: username, type: 'dm' } });
         if (chat && chat.id) { chatOpen(chat.id); chatLoadList(); }
-        else if (typeof showToast === 'function') showToast(chat?.error || t('messenger.create_fail','생성 실패'), 'error');
+        else if (typeof showToast === 'function') showToast(chat?.error || t('messenger.create_fail','Creation failed'), 'error');
     } else {
         // 그룹 — 선택 목록에 추가
         if (!modal._selected.includes(username)) {
@@ -530,20 +530,20 @@ function chatRenderSelectedUsers() {
 async function chatCreateGroup() {
     const modal = document.getElementById('chat-user-search-modal');
     if (!modal || modal._selected.length === 0) {
-        if (typeof showToast === 'function') showToast(t('messenger.select_members','멤버를 선택하세요'), 'error');
+        if (typeof showToast === 'function') showToast(t('messenger.select_members','Please select members'), 'error');
         return;
     }
     const nameInput = document.getElementById('chat-group-name-input');
     const groupName = nameInput ? nameInput.value.trim() : '';
     if (!groupName) {
-        if (typeof showToast === 'function') showToast(t('messenger.enter_group_name','그룹 이름을 입력하세요'), 'error');
+        if (typeof showToast === 'function') showToast(t('messenger.enter_group_name','Please enter a group name'), 'error');
         nameInput?.focus();
         return;
     }
     modal.remove();
     const chat = await chatApi('/create', { method: 'POST', body: { to: modal._selected, type: 'group', groupName } });
     if (chat && chat.id) { chatOpen(chat.id); chatLoadList(); }
-    else if (typeof showToast === 'function') showToast(chat?.error || t('messenger.create_fail','생성 실패'), 'error');
+    else if (typeof showToast === 'function') showToast(chat?.error || t('messenger.create_fail','Creation failed'), 'error');
 }
 
 // ── 검색 ──
@@ -556,7 +556,7 @@ async function chatSearch() {
     const results = await chatApi('/search?q=' + encodeURIComponent(q));
     const container = document.getElementById('chat-list-items');
     if (!container || !Array.isArray(results)) return;
-    if (results.length === 0) { container.innerHTML = `<div class="chat-empty">${t('messenger.no_results','검색 결과 없음')}</div>`; return; }
+    if (results.length === 0) { container.innerHTML = `<div class="chat-empty">${t('messenger.no_results','No results found')}</div>`; return; }
     container.innerHTML = results.map(m => `<div class="chat-item" onclick="chatOpen('${m.chatId}')">
         <div class="chat-avatar">${(m.senderId || '?')[0].toUpperCase()}</div>
         <div class="chat-item-body">
@@ -593,10 +593,10 @@ function chatFmtTime(ts) {
     const diff = now - d;
     const lang = (typeof currentLang !== 'undefined' ? currentLang : 'ko') || 'ko';
     const locale = lang === 'ko' ? 'ko-KR' : lang === 'ja' ? 'ja-JP' : lang === 'zh' ? 'zh-CN' : lang === 'es' ? 'es' : 'en';
-    if (diff < 60000) return t('messenger.time_just_now', '방금');
-    if (diff < 3600000) return Math.floor(diff / 60000) + t('messenger.time_min_ago', '분 전');
+    if (diff < 60000) return t('messenger.time_just_now', 'Just now');
+    if (diff < 3600000) return Math.floor(diff / 60000) + t('messenger.time_min_ago', 'm ago');
     if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
-    const days = [t('messenger.day_sun','일'),t('messenger.day_mon','월'),t('messenger.day_tue','화'),t('messenger.day_wed','수'),t('messenger.day_thu','목'),t('messenger.day_fri','금'),t('messenger.day_sat','토')];
+    const days = [t('messenger.day_sun','Sun'),t('messenger.day_mon','Mon'),t('messenger.day_tue','Tue'),t('messenger.day_wed','Wed'),t('messenger.day_thu','Thu'),t('messenger.day_fri','Fri'),t('messenger.day_sat','Sat')];
     if (diff < 86400000 * 7) return days[d.getDay()] + ' ' + d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     return (d.getMonth() + 1) + '/' + d.getDate();
 }

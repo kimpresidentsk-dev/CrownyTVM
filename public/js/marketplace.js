@@ -1,6 +1,6 @@
 // ===== marketplace.js - 쇼핑몰, 모금, 에너지, 비즈니스, 아티스트, 출판, P2P크레딧 =====
 
-const ORDER_STATUS_LABELS = { paid:t('mall.status_paid','<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 결제완료'), shipping:t('mall.status_shipping','<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 배송중'), delivered:t('mall.status_delivered','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 배송완료'), cancelled:t('mall.status_cancelled','<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 취소') };
+const ORDER_STATUS_LABELS = { paid:t('mall.status_paid','<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Paid'), shipping:t('mall.status_shipping','<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Shipping'), delivered:t('mall.status_delivered','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delivered'), cancelled:t('mall.status_cancelled','<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Cancelled') };
 const ORDER_STATUS_COLORS = { paid:'#C4841D', shipping:'#5B7B8C', delivered:'#6B8F3C', cancelled:'#B54534' };
 const BRAND_SLOGANS = {
     present: '아름다움을 선물하다', doctor: '건강한 삶의 시작', medical: '신뢰할 수 있는 의료',
@@ -103,7 +103,7 @@ async function loadMallProducts() {
                     <div style="height:140px; overflow:hidden; background:#F7F3ED;">${thumb ? `<img src="${thumb}" loading="lazy" style="width:100%; height:100%; object-fit:cover;">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#E8E0D8;"><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></div>`}</div>
                     <div style="padding:0.6rem;">
                         <div style="font-weight:600; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${displayTitle}</div>
-                        <div style="font-size:0.7rem; color:var(--accent);">${MALL_CATEGORIES[p.category] || p.category || ''} · <a onclick="event.stopPropagation(); viewStore('${p.sellerId}')" style="cursor:pointer; text-decoration:underline; color:var(--accent);">${p.sellerNickname || p.sellerEmail || t('mall.seller','판매자')}</a></div>
+                        <div style="font-size:0.7rem; color:var(--accent);">${MALL_CATEGORIES[p.category] || p.category || ''} · <a onclick="event.stopPropagation(); viewStore('${p.sellerId}')" style="cursor:pointer; text-decoration:underline; color:var(--accent);">${p.sellerNickname || p.sellerEmail || t('mall.seller','Seller')}</a></div>
                         <div style="font-weight:700; color:#3D2B1F; margin-top:0.3rem;">${p.price} CRGC</div>
                         <div style="font-size:0.7rem; color:var(--accent);">재고: ${p.stock - (p.sold||0)}개</div>
                         ${ratingHtml}
@@ -351,7 +351,7 @@ async function buyProduct(id, btn) {
     // 이중 클릭 방지
     if (btn) { btn.disabled = true; setTimeout(() => { if(btn) btn.disabled = false; }, 3000); }
     // 동시 주문 방지
-    if (_orderInProgress) { showToast(t('mall.order_in_progress','주문 처리 중입니다. 잠시 기다려주세요.'), 'warning'); return; }
+    if (_orderInProgress) { showToast(t('mall.order_in_progress','Order is being processed. Please wait.'), 'warning'); return; }
     _orderInProgress = true;
     try {
         const tk = 'crgc';
@@ -363,14 +363,14 @@ async function buyProduct(id, btn) {
         const price = p.price;
         if (!price || price <= 0 || !Number.isFinite(price)) { showToast('비정상 가격', 'error'); return; }
         // 주문 금액 상한 검증
-        if (price > MAX_ORDER_AMOUNT) { showToast(t('mall.max_order_exceeded',`1회 최대 주문 금액은 ${MAX_ORDER_AMOUNT} CRGC입니다`), 'warning'); return; }
+        if (price > MAX_ORDER_AMOUNT) { showToast(t('mall.max_order_exceeded',`Maximum order amount is ${MAX_ORDER_AMOUNT} CRGC`), 'warning'); return; }
         // 클라이언트 잔액 사전 검증
         const preCheck = await db.collection('users').doc(currentUser.uid).get();
         const preBal = preCheck.data()?.offchainBalances || {};
-        if ((preBal[tk] || 0) < price) { showToast(t('mall.insufficient_balance','CRGC 잔액이 부족합니다'), 'warning'); return; }
-        if ((p.stock - (p.sold||0)) <= 0) { showToast(t('mall.sold_out','품절'), 'warning'); return; }
+        if ((preBal[tk] || 0) < price) { showToast(t('mall.insufficient_balance','Insufficient CRGC balance'), 'warning'); return; }
+        if ((p.stock - (p.sold||0)) <= 0) { showToast(t('mall.sold_out','Sold Out'), 'warning'); return; }
         
-        if (!await showConfirmModal(t('mall.confirm_buy','구매 확인'), `"${p.title}"\n${price} CRGC로 구매하시겠습니까?`)) return;
+        if (!await showConfirmModal(t('mall.confirm_buy','Confirm Purchase'), `"${p.title}"\n${price} CRGC로 구매하시겠습니까?`)) return;
         
         // 배송지 입력
         const shippingInfo = await showShippingModal();
@@ -461,8 +461,8 @@ async function loadMyProducts() {
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.3rem;">
                     <div><strong>${x.title}</strong> — ${x.price} CRGC · 판매: ${x.sold||0}/${x.stock} ${statusBadge}</div>
                     <div style="display:flex; gap:0.3rem;">
-                        <button onclick="editProduct('${d.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.edit_btn','<i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 수정')}</button>
-                        <button onclick="toggleProduct('${d.id}','${x.status}')" style="background:${x.status==='active'?'#6B5744':'#6B8F3C'}; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${x.status==='active'?t('mall.deactivate','<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 비활성'):t('mall.activate','▶ 활성')}</button>
+                        <button onclick="editProduct('${d.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.edit_btn','<i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Edit')}</button>
+                        <button onclick="toggleProduct('${d.id}','${x.status}')" style="background:${x.status==='active'?'#6B5744':'#6B8F3C'}; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${x.status==='active'?t('mall.deactivate','<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Deactivate'):t('mall.activate','▶ Activate')}</button>
                         <button onclick="deleteProduct('${d.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
                     </div>
                 </div>
@@ -475,11 +475,11 @@ async function editProduct(id) {
     const doc = await db.collection('products').doc(id).get();
     if (!doc.exists) return;
     const p = doc.data();
-    const newPrice = await showPromptModal(t('mall.edit_price','가격 수정'), `현재 가격: ${p.price} ${p.priceToken}`, String(p.price));
+    const newPrice = await showPromptModal(t('mall.edit_price','Edit Price'), `현재 가격: ${p.price} ${p.priceToken}`, String(p.price));
     if (newPrice === null) return;
-    const newStock = await showPromptModal(t('mall.edit_stock','재고 수정'), `현재 재고: ${p.stock}`, String(p.stock));
+    const newStock = await showPromptModal(t('mall.edit_stock','Edit Stock'), `현재 재고: ${p.stock}`, String(p.stock));
     if (newStock === null) return;
-    const newDesc = await showPromptModal(t('mall.edit_desc','설명 수정'), t('mall.product_desc','상품 설명'), p.description || '');
+    const newDesc = await showPromptModal(t('mall.edit_desc','Edit Description'), t('mall.product_desc','Product Description'), p.description || '');
     if (newDesc === null) return;
     try {
         const parsedPrice = parseFloat(newPrice);
@@ -491,14 +491,14 @@ async function editProduct(id) {
             stock: parsedStock,
             description: newDesc
         });
-        showToast(t('mall.edit_done','<i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 상품 수정 완료'), 'success');
+        showToast(t('mall.edit_done','<i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Product updated'), 'success');
         loadMyProducts();
     } catch (e) { showToast('수정 실패: ' + e.message, 'error'); }
 }
 
 async function toggleProduct(id, currentStatus) {
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    const label = newStatus === 'active' ? t('mall.activate_label','활성화') : t('mall.deactivate_label','비활성화');
+    const label = newStatus === 'active' ? t('mall.activate_label','Activate') : t('mall.deactivate_label','Deactivate');
     if (!await showConfirmModal('상품 ' + label, `이 상품을 ${label}하시겠습니까?`)) return;
     try {
         await db.collection('products').doc(id).update({ status: newStatus });
@@ -508,10 +508,10 @@ async function toggleProduct(id, currentStatus) {
 }
 
 async function deleteProduct(id) {
-    if (!await showConfirmModal(t('mall.delete_product','상품 삭제'), t('mall.confirm_delete_product','이 상품을 삭제하시겠습니까? 복구할 수 없습니다.'))) return;
+    if (!await showConfirmModal(t('mall.delete_product','Delete Product'), t('mall.confirm_delete_product','Are you sure you want to delete this product? This cannot be undone.'))) return;
     try {
         await db.collection('products').doc(id).delete();
-        showToast(t('mall.deleted','<i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 상품 삭제 완료'), 'success');
+        showToast(t('mall.deleted','<i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Product deleted'), 'success');
         loadMyProducts();
     } catch (e) { showToast('삭제 실패: ' + e.message, 'error'); }
 }
@@ -529,8 +529,8 @@ async function loadSellerOrders() {
             const statusLabel = ORDER_STATUS_LABELS[x.status] || x.status;
             const statusColor = ORDER_STATUS_COLORS[x.status] || 'var(--accent)';
             const nextActions = [];
-            if (x.status === 'paid') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','shipping')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.process_shipping','<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 배송처리')}</button>`);
-            if (x.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','delivered')" style="background:#6B8F3C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.mark_delivered','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 배송완료')}</button>`);
+            if (x.status === 'paid') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','shipping')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.process_shipping','<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Ship')}</button>`);
+            if (x.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','delivered')" style="background:#6B8F3C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.mark_delivered','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delivered')}</button>`);
             const shipInfo = x.shippingInfo ? `<div style="font-size:0.7rem; color:#6B5744; margin-top:0.2rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${x.shippingInfo.name} · ${x.shippingInfo.phone} · ${x.shippingInfo.address}${x.shippingInfo.memo ? ' · '+x.shippingInfo.memo : ''}</div>` : '';
             c.innerHTML += `<div style="padding:0.6rem; background:var(--bg); border-radius:6px; margin-bottom:0.4rem; font-size:0.85rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.3rem;">
@@ -549,7 +549,7 @@ async function updateOrderStatus(orderId, newStatus) {
     const label = ORDER_STATUS_LABELS[newStatus] || newStatus;
     if (newStatus === 'shipping') {
         const trackingNo = await showPromptModal('배송 추적번호', '추적번호를 입력하세요 (선택)', '');
-        if (!await showConfirmModal(t('mall.change_status','주문 상태 변경'), `${label}(으)로 변경하시겠습니까?`)) return;
+        if (!await showConfirmModal(t('mall.change_status','Change Order Status'), `${label}(으)로 변경하시겠습니까?`)) return;
         try {
             const updateData = { status: newStatus, [`${newStatus}At`]: new Date(),
                 statusHistory: firebase.firestore.FieldValue.arrayUnion({ status: newStatus, at: new Date().toISOString() })
@@ -566,7 +566,7 @@ async function updateOrderStatus(orderId, newStatus) {
             loadSellerOrders();
         } catch (e) { showToast('실패: ' + e.message, 'error'); }
     } else {
-        if (!await showConfirmModal(t('mall.change_status','주문 상태 변경'), `${label}(으)로 변경하시겠습니까?`)) return;
+        if (!await showConfirmModal(t('mall.change_status','Change Order Status'), `${label}(으)로 변경하시겠습니까?`)) return;
         try {
             await db.collection('orders').doc(orderId).update({ status: newStatus, [`${newStatus}At`]: new Date(),
                 statusHistory: firebase.firestore.FieldValue.arrayUnion({ status: newStatus, at: new Date().toISOString() })
@@ -587,10 +587,10 @@ async function updateOrderStatus(orderId, newStatus) {
 // ========== FUNDRAISE - 모금/기부 ==========
 
 async function createCampaign() {
-    if (!currentUser) { showToast(t('common.login_required','로그인이 필요합니다'), 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
     const title = document.getElementById('fund-title').value.trim();
     const goal = parseFloat(document.getElementById('fund-goal').value);
-    if (!title || !goal) { showToast(t('fund.enter_title_goal','제목과 목표 금액을 입력하세요'), 'warning'); return; }
+    if (!title || !goal) { showToast(t('fund.enter_title_goal','Please enter a title and goal amount'), 'warning'); return; }
     const imageFile = document.getElementById('fund-image').files[0];
     
     try {
@@ -644,8 +644,8 @@ async function loadCampaigns() {
                             <span style="color:var(--accent);">${pct}%</span>
                         </div>
                         <div style="display:flex; gap:0.5rem; margin-top:0.8rem;">
-                            <button onclick="event.stopPropagation(); donateCampaign('${d.id}')" style="background:#6B8F3C; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; flex:1; font-weight:700;">${t('fundraise.donate_btn','<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 기부하기')}</button>
-                            ${isCreator ? `<button onclick="event.stopPropagation(); closeCampaign('${d.id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem;">${t('fund.close','🔒 종료')}</button>` : ''}
+                            <button onclick="event.stopPropagation(); donateCampaign('${d.id}')" style="background:#6B8F3C; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; flex:1; font-weight:700;">${t('fundraise.donate_btn','<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Donate')}</button>
+                            ${isCreator ? `<button onclick="event.stopPropagation(); closeCampaign('${d.id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem;">${t('fund.close','🔒 Close')}</button>` : ''}
                         </div>
                     </div>
                 </div>`;
@@ -654,7 +654,7 @@ async function loadCampaigns() {
 }
 
 async function donateCampaign(id) {
-    const amountStr = await showPromptModal(t('fund.donate_amount','기부 금액'), t('fund.enter_amount','기부할 금액을 입력하세요'), '');
+    const amountStr = await showPromptModal(t('fund.donate_amount','Donation Amount'), t('fund.enter_amount','Enter the amount to donate'), '');
     const amount = parseFloat(amountStr);
     if (!amount || amount <= 0) return;
     try {
@@ -674,7 +674,7 @@ async function donateCampaign(id) {
         } else {
             const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
             const bal = wallets.docs[0]?.data()?.balances || {};
-            if ((bal[tk]||0) < amount) { showToast(t('mall.insufficient','잔액 부족'), 'error'); return; }
+            if ((bal[tk]||0) < amount) { showToast(t('mall.insufficient','Insufficient balance'), 'error'); return; }
             await wallets.docs[0].ref.update({ [`balances.${tk}`]: bal[tk] - amount });
             const creatorW = await db.collection('users').doc(camp.creatorId).collection('wallets').limit(1).get();
             if (!creatorW.empty) { const cb = creatorW.docs[0].data().balances||{}; await creatorW.docs[0].ref.update({ [`balances.${tk}`]: (cb[tk]||0) + creatorReceive }); }
@@ -779,8 +779,8 @@ async function loadEnergyProjects() {
                 <div style="display:flex; justify-content:space-between; font-size:0.85rem;"><span>${xInvested}/${xGoal} CREB</span><span>${pct}%</span></div>
                 ${renderMilestones(x.milestones)}
                 <div style="display:flex; gap:0.5rem; margin-top:0.5rem;" onclick="event.stopPropagation();">
-                    <button onclick="investEnergy('${d.id}')" style="background:${catInfo.color}; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; flex:1;">${t('energy.invest_btn','☀️ 투자하기')}</button>
-                    ${isAdmin ? `<button onclick="distributeEnergyReturns('${d.id}')" style="background:#8B6914; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; flex:1; font-size:0.8rem;">${t('energy.distribute','<i data-lucide="bar-chart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 수익 배분')}</button>` : ''}
+                    <button onclick="investEnergy('${d.id}')" style="background:${catInfo.color}; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; flex:1;">${t('energy.invest_btn','☀️ Invest')}</button>
+                    ${isAdmin ? `<button onclick="distributeEnergyReturns('${d.id}')" style="background:#8B6914; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; flex:1; font-size:0.8rem;">${t('energy.distribute','<i data-lucide="bar-chart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Distribute Returns')}</button>` : ''}
                 </div>
             </div>`; });
         if (!c.innerHTML.trim()) c.innerHTML = '<p style="color:var(--accent);">이 카테고리에 프로젝트가 없습니다.</p>';
@@ -888,7 +888,7 @@ async function postCrebComment(projectId) {
 async function investEnergy(id) {
     const tk = 'creb';
     const tkName = 'CREB';
-    const amountStr = await showPromptModal(t('energy.invest_amount','투자 금액'), `${tkName} ${t('energy.enter_amount','금액을 입력하세요')}`, '');
+    const amountStr = await showPromptModal(t('energy.invest_amount','Investment Amount'), `${tkName} ${t('energy.enter_amount','Enter amount')}`, '');
     const amount = parseFloat(amountStr);
     if (!amount || amount <= 0) return;
     try {
@@ -914,7 +914,7 @@ async function investEnergy(id) {
 async function registerBusiness() {
     if (!currentUser) return;
     const name = document.getElementById('biz-name').value.trim();
-    if (!name) { showToast(t('biz.enter_name','사업체명을 입력하세요'), 'warning'); return; }
+    if (!name) { showToast(t('biz.enter_name','Please enter a business name'), 'warning'); return; }
     try {
         const imageFile = document.getElementById('biz-image').files[0];
         let imageData = '';
@@ -957,7 +957,7 @@ async function loadBusinessList() {
 async function registerArtist() {
     if (!currentUser) return;
     const name = document.getElementById('artist-name').value.trim();
-    if (!name) { showToast(t('artist.enter_name','아티스트명을 입력하세요'), 'warning'); return; }
+    if (!name) { showToast(t('artist.enter_name','Please enter an artist name'), 'warning'); return; }
     try {
         const imageFile = document.getElementById('artist-photo').files[0];
         let imageData = '';
@@ -988,7 +988,7 @@ async function loadArtistList() {
                 ${x.imageData ? `<img src="${x.imageData}" loading="lazy" style="width:100%; height:100%; object-fit:cover;">` : `<div style="height:100%; display:flex; align-items:center; justify-content:center; font-size:3rem; color:#FFF8F0;">${GENRES[x.genre]||'<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'}</div>`}</div>
                 <div style="padding:0.6rem;"><div style="font-weight:700;">${x.name}</div>
                 <div style="font-size:0.75rem; color:var(--accent);">${GENRES[x.genre]||''} · 팬 ${x.fans}명</div>
-                <button onclick="event.stopPropagation(); supportArtist('${d.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; margin-top:0.4rem; font-size:0.8rem;">${t('artist.support_btn','💖 후원')}</button>
+                <button onclick="event.stopPropagation(); supportArtist('${d.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; margin-top:0.4rem; font-size:0.8rem;">${t('artist.support_btn','💖 Support')}</button>
                 </div></div>`; });
     } catch (e) { c.innerHTML = e.message; }
 }
@@ -996,7 +996,7 @@ async function loadArtistList() {
 async function supportArtist(id) {
     const tk = 'crac';
     const tkName = 'CRAC';
-    const amountStr = await showPromptModal(t('artist.support_amount','후원 금액'), `${tkName} ${t('energy.enter_amount','금액을 입력하세요')}`, '');
+    const amountStr = await showPromptModal(t('artist.support_amount','Support Amount'), `${tkName} ${t('energy.enter_amount','Enter amount')}`, '');
     const amount = parseFloat(amountStr);
     if (!amount || amount <= 0) return;
     try {
@@ -1033,7 +1033,7 @@ async function registerBook() {
     if (!currentUser) return;
     const title = document.getElementById('book-title').value.trim();
     const price = parseFloat(document.getElementById('book-price').value);
-    if (!title) { showToast(t('books.enter_title','책 제목을 입력하세요'), 'warning'); return; }
+    if (!title) { showToast(t('books.enter_title','Please enter a book title'), 'warning'); return; }
     try {
         const coverFile = document.getElementById('book-cover').files[0];
         let imageData = '';
@@ -1103,11 +1103,11 @@ async function approveInsurance(id) {
     if (!currentUser) return;
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        if ((userDoc.data()?.adminLevel || 0) < 2) { showToast(t('admin.no_permission','관리자 권한이 필요합니다'), 'error'); return; }
+        if ((userDoc.data()?.adminLevel || 0) < 2) { showToast(t('admin.no_permission','Admin permission required'), 'error'); return; }
         const doc = await db.collection('insurance_requests').doc(id).get();
         if (!doc.exists) return;
         const req = doc.data();
-        if (req.status !== 'pending') { showToast(t('credit.already_processed','이미 처리된 요청입니다'), 'info'); return; }
+        if (req.status !== 'pending') { showToast(t('credit.already_processed','This request has already been processed'), 'info'); return; }
         if (!await showConfirmModal('보험 승인', `${req.requesterNickname || req.requesterEmail}\n${req.amount} CRTD — ${req.reason}\n\n승인하시겠습니까?`)) return;
         // 보험금 지급 (오프체인 CRTD 기반)
         const reqUser = await db.collection('users').doc(req.requesterId).get();
@@ -1127,7 +1127,7 @@ async function rejectInsurance(id) {
     if (!currentUser) return;
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        if ((userDoc.data()?.adminLevel || 0) < 2) { showToast(t('admin.no_permission','관리자 권한이 필요합니다'), 'error'); return; }
+        if ((userDoc.data()?.adminLevel || 0) < 2) { showToast(t('admin.no_permission','Admin permission required'), 'error'); return; }
         const reasonText = await showPromptModal('거절 사유', '거절 사유를 입력하세요', '');
         if (!reasonText) return;
         await db.collection('insurance_requests').doc(id).update({
@@ -1640,7 +1640,7 @@ async function requestInsurance() {
 
 // 기부
 async function quickDonate() {
-    if (!currentUser) { showToast(t('common.login_required','로그인이 필요합니다'), 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
     const amount = parseFloat(document.getElementById('donate-amount').value);
     const token = 'CRTD';
     const target = document.getElementById('donate-target').value;
@@ -1723,7 +1723,7 @@ async function loadCreditInfo() {
 // ========== ENERGY ADMIN ==========
 
 async function createEnergyProject() {
-    if (!currentUser) { showToast(t('common.login_required','로그인이 필요합니다'), 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
     const title = document.getElementById('energy-title')?.value.trim();
     const location = document.getElementById('energy-location')?.value.trim();
     const capacity = parseFloat(document.getElementById('energy-capacity')?.value) || 0;
@@ -1750,7 +1750,7 @@ async function createEnergyProject() {
 // ========== GYE (계모임) ==========
 
 async function createGye() {
-    if (!currentUser) { showToast(t('common.login_required','로그인이 필요합니다'), 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
     const name = document.getElementById('gye-name')?.value.trim();
     const monthlyAmount = parseFloat(document.getElementById('gye-amount')?.value);
     const maxMembers = parseInt(document.getElementById('gye-members')?.value) || 10;
@@ -1853,7 +1853,7 @@ function filterMallBrand(brand) {
 // ========== ENERGY - 내 투자 내역 + 수익 배분 ==========
 
 async function loadMyEnergyInvestments() {
-    if (!currentUser) { showToast(t('common.login_required','로그인이 필요합니다'), 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
     const c = document.getElementById('energy-my-investments');
     if (!c) return;
     c.innerHTML = '<p style="text-align:center; color:var(--accent);">로딩...</p>';
@@ -2203,7 +2203,7 @@ async function checkoutCart(btn) {
     // 이중 클릭 방지
     if (btn) { btn.disabled = true; setTimeout(() => { if(btn) btn.disabled = false; }, 3000); }
     // 동시 주문 방지
-    if (_orderInProgress) { showToast(t('mall.order_in_progress','주문 처리 중입니다. 잠시 기다려주세요.'), 'warning'); return; }
+    if (_orderInProgress) { showToast(t('mall.order_in_progress','Order is being processed. Please wait.'), 'warning'); return; }
     _orderInProgress = true;
     try {
         const snap = await db.collection('users').doc(currentUser.uid).collection('cart').get();
@@ -2213,7 +2213,7 @@ async function checkoutCart(btn) {
         snap.forEach(d => { const it = d.data(); total += it.price * (it.qty || 1); items.push({ ...it, cartDocId: d.id }); });
         
         if (total <= 0 || !Number.isFinite(total)) { showToast('비정상 금액', 'error'); return; }
-        if (total > MAX_ORDER_AMOUNT) { showToast(t('mall.max_order_exceeded',`1회 최대 주문 금액은 ${MAX_ORDER_AMOUNT} CRGC입니다`), 'warning'); return; }
+        if (total > MAX_ORDER_AMOUNT) { showToast(t('mall.max_order_exceeded',`Maximum order amount is ${MAX_ORDER_AMOUNT} CRGC`), 'warning'); return; }
         if (!await showConfirmModal('일괄 결제', `장바구니 ${items.length}개 상품\n총 ${total} CRGC 결제하시겠습니까?`)) return;
         
         const shippingInfo = await showShippingModal();
@@ -2404,7 +2404,7 @@ async function renderStorePage(sellerId) {
                         </div>
                     </div>
                 </div>
-                ${isOwner ? `<button onclick="showStoreSettingsModal()" style="margin-top:0.8rem; background:#C4841D; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600;">⚙️ 스토어 설정</button>` : (currentUser ? `<button onclick="reportSeller('${sellerId}')" style="margin-top:0.8rem; background:none; color:#B54534; border:1px solid #B54534; padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer; font-size:0.8rem;"><i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.report_seller','판매자 신고')}</button>` : '')}
+                ${isOwner ? `<button onclick="showStoreSettingsModal()" style="margin-top:0.8rem; background:#C4841D; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600;">⚙️ 스토어 설정</button>` : (currentUser ? `<button onclick="reportSeller('${sellerId}')" style="margin-top:0.8rem; background:none; color:#B54534; border:1px solid #B54534; padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer; font-size:0.8rem;"><i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.report_seller','Report Seller')}</button>` : '')}
             </div>
             <h3 style="margin-bottom:0.8rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 상품 목록</h3>
             <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:0.8rem;">
@@ -3149,18 +3149,18 @@ async function reportProduct(productId) {
 // ========== 범용 신고 시스템 (리뷰/판매자) ==========
 
 async function reportReview(reviewId) {
-    if (!currentUser) { showToast(t('mall.login_required','로그인이 필요합니다'), 'warning'); return; }
-    return _showReportModal('review', reviewId, t('mall.report_review','리뷰 신고'));
+    if (!currentUser) { showToast(t('mall.login_required','Login required'), 'warning'); return; }
+    return _showReportModal('review', reviewId, t('mall.report_review','Report Review'));
 }
 
 async function reportSeller(sellerId) {
-    if (!currentUser) { showToast(t('mall.login_required','로그인이 필요합니다'), 'warning'); return; }
-    return _showReportModal('seller', sellerId, t('mall.report_seller','판매자 신고'));
+    if (!currentUser) { showToast(t('mall.login_required','Login required'), 'warning'); return; }
+    return _showReportModal('seller', sellerId, t('mall.report_seller','Report Seller'));
 }
 
 function _showReportModal(targetType, targetId, title) {
     return new Promise((resolve) => {
-        const REASONS = { product: {fake:t('mall.report_fake','허위상품'),inappropriate:t('mall.report_inappropriate','부적절'),scam:t('mall.report_scam','사기의심'),other:t('mall.report_other','기타')}, review: {fake:t('mall.report_fake_review','허위 리뷰'),inappropriate:t('mall.report_inappropriate','부적절'),spam:t('mall.report_spam','스팸'),other:t('mall.report_other','기타')}, seller: {fraud:t('mall.report_fraud','사기'),inappropriate:t('mall.report_inappropriate','부적절'),nondelivery:t('mall.report_nondelivery','미배송'),other:t('mall.report_other','기타')} };
+        const REASONS = { product: {fake:t('mall.report_fake','Fake Product'),inappropriate:t('mall.report_inappropriate','Inappropriate'),scam:t('mall.report_scam','Suspected Scam'),other:t('mall.report_other','Other')}, review: {fake:t('mall.report_fake_review','Fake Review'),inappropriate:t('mall.report_inappropriate','Inappropriate'),spam:t('mall.report_spam','Spam'),other:t('mall.report_other','Other')}, seller: {fraud:t('mall.report_fraud','Fraud'),inappropriate:t('mall.report_inappropriate','Inappropriate'),nondelivery:t('mall.report_nondelivery','Non-delivery'),other:t('mall.report_other','Other')} };
         const reasons = REASONS[targetType] || REASONS.product;
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.6);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;';
@@ -3171,10 +3171,10 @@ function _showReportModal(targetType, targetId, title) {
                 <select id="report-reason-gen" style="padding:0.7rem;border:1px solid var(--border);border-radius:6px;">
                     ${Object.entries(reasons).map(([k,v]) => `<option value="${k}">${v}</option>`).join('')}
                 </select>
-                <textarea id="report-detail-gen" rows="3" placeholder="${t('mall.report_detail_placeholder','상세 내용 (선택)')}" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:6px;resize:vertical;box-sizing:border-box;"></textarea>
+                <textarea id="report-detail-gen" rows="3" placeholder="${t('mall.report_detail_placeholder','Details (optional)')}" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:6px;resize:vertical;box-sizing:border-box;"></textarea>
                 <div style="display:flex;gap:0.5rem;">
-                    <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:0.7rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;">${t('common.cancel','취소')}</button>
-                    <button id="report-submit-gen" style="flex:1;padding:0.7rem;border:none;border-radius:8px;cursor:pointer;background:#B54534;color:#FFF8F0;font-weight:700;">${t('mall.report_submit','신고')}</button>
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:0.7rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;">${t('common.cancel','Cancel')}</button>
+                    <button id="report-submit-gen" style="flex:1;padding:0.7rem;border:none;border-radius:8px;cursor:pointer;background:#B54534;color:#FFF8F0;font-weight:700;">${t('mall.report_submit','Report')}</button>
                 </div>
             </div>
         </div>`;
@@ -3188,9 +3188,9 @@ function _showReportModal(targetType, targetId, title) {
                     detail: overlay.querySelector('#report-detail-gen').value.trim(),
                     status: 'pending', createdAt: new Date()
                 });
-                showToast(t('mall.report_submitted','<i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 신고가 접수되었습니다'), 'success');
+                showToast(t('mall.report_submitted','<i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Report submitted'), 'success');
                 overlay.remove(); resolve();
-            } catch(e) { showToast(t('mall.report_failed','신고 실패') + ': ' + e.message, 'error'); }
+            } catch(e) { showToast(t('mall.report_failed','Report failed') + ': ' + e.message, 'error'); }
         };
     });
 }
@@ -3338,5 +3338,8 @@ function resetMallFilters() {
 async function fileToBase64Resized(file, maxSize) {
     const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
     return resizeImage(dataUrl, maxSize);
+}
+
+Image(dataUrl, maxSize);
 }
 

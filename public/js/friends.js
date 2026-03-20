@@ -10,11 +10,11 @@ async function sendFriendRequest(targetUid) {
     try {
         // Check if already friends
         const existing = await db.collection('users').doc(currentUser.uid).collection('friends').doc(targetUid).get();
-        if (existing.exists) { showToast(t('friends.already_friend', '이미 친구입니다'), 'info'); return; }
+        if (existing.exists) { showToast(t('friends.already_friend', 'Already friends'), 'info'); return; }
         // Check if request already sent
         const existingReq = await db.collection('friend_requests')
             .where('from', '==', currentUser.uid).where('to', '==', targetUid).where('status', '==', 'pending').get();
-        if (!existingReq.empty) { showToast(t('friends.request_already_sent', '이미 친구 요청을 보냈습니다'), 'info'); return; }
+        if (!existingReq.empty) { showToast(t('friends.request_already_sent', 'Friend request already sent'), 'info'); return; }
         // Check if reverse request exists (they sent to me)
         const reverseReq = await db.collection('friend_requests')
             .where('from', '==', targetUid).where('to', '==', currentUser.uid).where('status', '==', 'pending').get();
@@ -32,10 +32,10 @@ async function sendFriendRequest(targetUid) {
         });
         const myInfo = await getUserDisplayInfo(currentUser.uid);
         addNotification('social_like', `<i data-lucide="users"></i> ${myInfo.nickname}님에게 친구 요청을 보냈습니다`, {});
-        showToast(t('friends.request_sent', '✅ 친구 요청을 보냈습니다'), 'success');
+        showToast(t('friends.request_sent', 'Friend request sent'), 'success');
     } catch (e) {
         console.error('Friend request error:', e);
-        showToast(t('friends.request_fail', '친구 요청 실패'), 'error');
+        showToast(t('friends.request_fail', 'Friend request failed'), 'error');
     }
 }
 
@@ -56,11 +56,11 @@ async function acceptFriendRequest(requestId, fromUid) {
         await db.collection('notifications').add({
             userId: fromUid, type: 'friend_accepted', message: '', fromUid: currentUser.uid, read: false, createdAt: new Date()
         });
-        showToast(`<i data-lucide="check-circle"></i> ${t('friends.accepted', '친구가 되었습니다!')}`, 'success');
+        showToast(`<i data-lucide="check-circle"></i> ${t('friends.accepted', 'You are now friends!')}`, 'success');
         loadFriendsGrid();
         loadFriendRequests();
     } catch (e) {
-        showToast(t('friends.accept_fail', '수락 실패'), 'error');
+        showToast(t('friends.accept_fail', 'Accept failed'), 'error');
     }
 }
 
@@ -68,23 +68,23 @@ async function acceptFriendRequest(requestId, fromUid) {
 async function rejectFriendRequest(requestId) {
     try {
         await db.collection('friend_requests').doc(requestId).update({ status: 'rejected' });
-        showToast(t('friends.rejected', '친구 요청을 거절했습니다'), 'info');
+        showToast(t('friends.rejected', 'Friend request declined'), 'info');
         loadFriendRequests();
     } catch (e) {
-        showToast(t('friends.reject_fail', '거절 실패'), 'error');
+        showToast(t('friends.reject_fail', 'Decline failed'), 'error');
     }
 }
 
 // Remove friend
 async function removeFriend(friendUid, friendName) {
-    if (!await showConfirmModal(t('friends.remove_title', '친구 삭제'), `"${friendName}" ${t('friends.remove_confirm', '님을 친구에서 삭제하시겠습니까?')}`)) return;
+    if (!await showConfirmModal(t('friends.remove_title', 'Remove Friend'), `"${friendName}" ${t('friends.remove_confirm', ' will be removed from your friends. Continue?')}`)) return;
     try {
         await db.collection('users').doc(currentUser.uid).collection('friends').doc(friendUid).delete();
         await db.collection('users').doc(friendUid).collection('friends').doc(currentUser.uid).delete();
-        showToast(t('friends.removed', '친구가 삭제되었습니다'), 'info');
+        showToast(t('friends.removed', 'Friend removed'), 'info');
         loadFriendsGrid();
     } catch (e) {
-        showToast(t('friends.remove_fail', '삭제 실패'), 'error');
+        showToast(t('friends.remove_fail', 'Remove failed'), 'error');
     }
 }
 
@@ -100,7 +100,7 @@ async function loadFriendsGrid() {
         
         let html = `<div class="friend-icon-item" onclick="showFriendSearchModal()">
             <div class="friend-add-btn">＋</div>
-            <span class="friend-icon-name">${t('friends.add', '추가')}</span>
+            <span class="friend-icon-name">${t('friends.add', 'Add')}</span>
         </div>`;
         
         for (const f of friendsList) {
@@ -133,7 +133,7 @@ async function loadFriendRequests() {
             return;
         }
         container.style.display = 'block';
-        let html = `<div style="font-size:0.85rem;font-weight:700;margin-bottom:0.5rem;">📬 ${t('friends.pending_requests', '친구 요청')}</div>`;
+        let html = `<div style="font-size:0.85rem;font-weight:700;margin-bottom:0.5rem;">📬 ${t('friends.pending_requests', 'Friend Requests')}</div>`;
         for (const doc of reqs.docs) {
             const req = doc.data();
             const info = await getUserDisplayInfo(req.from);
@@ -158,9 +158,9 @@ async function showFriendSearchModal() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
     <div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;">
-        <h3 style="margin-bottom:1rem;"><i data-lucide="users"></i> ${t('friends.search', '친구 찾기')}</h3>
+        <h3 style="margin-bottom:1rem;"><i data-lucide="users"></i> ${t('friends.search', 'Find Friends')}</h3>
         <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
-            <input type="text" id="friend-search-input" placeholder="${t('friends.search_placeholder', '닉네임 또는 이메일로 검색')}" style="flex:1;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.9rem;">
+            <input type="text" id="friend-search-input" placeholder="${t('friends.search_placeholder', 'Search by nickname or email')}" style="flex:1;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.9rem;">
             <button onclick="searchFriends()" class="btn-primary" style="padding:0.7rem 1rem;border-radius:8px;font-size:0.85rem;">🔍</button>
         </div>
         <div id="friend-search-results"></div>
@@ -186,7 +186,7 @@ async function searchFriends() {
             users = await db.collection('users').orderBy('nickname').startAt(query).endAt(query + '\uf8ff').limit(10).get();
         }
         if (users.empty) {
-            results.innerHTML = `<p style="text-align:center;color:var(--text-muted,#6B5744);">${t('friends.no_results', '검색 결과가 없습니다')}</p>`;
+            results.innerHTML = `<p style="text-align:center;color:var(--text-muted,#6B5744);">${t('friends.no_results', 'No results found')}</p>`;
             return;
         }
         let html = '';
@@ -205,7 +205,7 @@ async function searchFriends() {
                 `<button onclick="sendFriendRequest('${doc.id}');this.textContent='요청됨';this.disabled=true;" class="btn-primary" style="padding:0.3rem 0.8rem;font-size:0.8rem;border-radius:6px;">친구 추가</button>`}
             </div>`;
         }
-        results.innerHTML = html || `<p style="text-align:center;color:var(--text-muted,#6B5744);">${t('friends.no_results', '검색 결과가 없습니다')}</p>`;
+        results.innerHTML = html || `<p style="text-align:center;color:var(--text-muted,#6B5744);">${t('friends.no_results', 'No results found')}</p>`;
     } catch (e) {
         results.innerHTML = `<p style="color:red;">검색 오류: ${e.message}</p>`;
     }
@@ -220,7 +220,7 @@ async function followUser(targetUid) {
             // Unfollow
             await db.collection('users').doc(currentUser.uid).collection('following').doc(targetUid).delete();
             await db.collection('users').doc(targetUid).collection('followers').doc(currentUser.uid).delete();
-            showToast(t('friends.unfollowed', '팔로우를 취소했습니다'), 'info');
+            showToast(t('friends.unfollowed', 'Unfollowed'), 'info');
         } else {
             // Follow
             await db.collection('users').doc(currentUser.uid).collection('following').doc(targetUid).set({ followedAt: new Date() });
@@ -233,10 +233,10 @@ async function followUser(targetUid) {
             if (typeof createSocialNotification === 'function') {
                 createSocialNotification(targetUid, 'follow', `${myInfo.nickname}님이 팔로우했습니다`, {});
             }
-            showToast(`<i data-lucide="check-circle"></i> ${t('friends.followed', '팔로우했습니다')}`, 'success');
+            showToast(`<i data-lucide="check-circle"></i> ${t('friends.followed', 'Followed')}`, 'success');
         }
     } catch (e) {
-        showToast(t('friends.follow_fail', '팔로우 실패'), 'error');
+        showToast(t('friends.follow_fail', 'Follow failed'), 'error');
     }
 }
 
@@ -304,7 +304,7 @@ async function showUserProfile(uid) {
                 <button onclick="startChatFromProfile('${uid}');document.getElementById('user-profile-modal')?.remove();" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;"><i data-lucide="message-circle"></i> 메시지</button>
             </div>
             ` : ''}
-            <button onclick="document.getElementById('user-profile-modal')?.remove()" style="width:100%;margin-top:0.8rem;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;background:var(--bg-card,#3D2B1F);cursor:pointer;">${t('common.close', '닫기')}</button>
+            <button onclick="document.getElementById('user-profile-modal')?.remove()" style="width:100%;margin-top:0.8rem;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;background:var(--bg-card,#3D2B1F);cursor:pointer;">${t('common.close', 'Close')}</button>
         </div>`;
         document.body.appendChild(overlay);
     } catch (e) {
@@ -434,7 +434,7 @@ async function searchAndShowProfile(nickname) {
         if (!users.empty) {
             showUserProfile(users.docs[0].id);
         } else {
-            showToast(t('friends.user_not_found', '사용자를 찾을 수 없습니다'), 'info');
+            showToast(t('friends.user_not_found', 'User not found'), 'info');
         }
     } catch (e) { console.error(e); }
 }
@@ -452,9 +452,9 @@ async function copyShareURL(type, id) {
     const url = generateShareURL(type, id);
     try {
         await navigator.clipboard.writeText(url);
-        showToast(t('social.link_copied', '🔗 링크가 복사되었습니다'), 'success');
+        showToast(t('social.link_copied', 'Link copied'), 'success');
     } catch (e) {
-        await showPromptModal(t('social.share', '공유'), t('social.copy_link', '링크를 복사하세요'), url);
+        await showPromptModal(t('social.share', 'Share'), t('social.copy_link', 'Copy the link'), url);
     }
 }
 
@@ -499,10 +499,10 @@ async function toggleSavePost(postId) {
         const doc = await ref.get();
         if (doc.exists) {
             await ref.delete();
-            showToast(t('social.unsaved', '북마크 해제'), 'info');
+            showToast(t('social.unsaved', 'Bookmark removed'), 'info');
         } else {
             await ref.set({ savedAt: new Date() });
-            showToast(t('social.saved', '🔖 저장됨'), 'success');
+            showToast(t('social.saved', 'Saved'), 'success');
         }
         loadSocialFeed();
     } catch (e) {
@@ -538,7 +538,7 @@ async function repostPost(postId) {
             mentions: data.mentions || [],
             timestamp: new Date()
         });
-        showToast(t('social.reposted', '<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 리포스트 완료!'), 'success');
+        showToast(t('social.reposted', '<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Reposted!'), 'success');
         loadSocialFeed();
     } catch (e) {
         showToast('리포스트 실패', 'error');

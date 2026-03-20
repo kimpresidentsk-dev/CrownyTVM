@@ -62,27 +62,27 @@ async function loadSettings() {
         <div class="settings-grid">
             <!-- Profile -->
             <div class="settings-card">
-                <h4><i data-lucide="user" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.profile', '프로필 설정')}</h4>
-                <p>${getText('settings.nickname', '닉네임')}: <strong>${userData.nickname || '—'}</strong></p>
-                <p>${getText('settings.status', '상태 메시지')}: ${userData.statusMessage || '—'}</p>
-                <button onclick="showProfileEdit()" class="settings-btn">${getText('settings.edit_profile', '<i data-lucide="pencil" style="width:14px;height:14px;display:inline;vertical-align:text-bottom;"></i> 프로필 편집')}</button>
+                <h4><i data-lucide="user" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.profile', 'Profile Settings')}</h4>
+                <p>${getText('settings.nickname', 'Nickname')}: <strong>${userData.nickname || '—'}</strong></p>
+                <p>${getText('settings.status', 'Status message')}: ${userData.statusMessage || '—'}</p>
+                <button onclick="showProfileEdit()" class="settings-btn">${getText('settings.edit_profile', '<i data-lucide="pencil" style="width:14px;height:14px;display:inline;vertical-align:text-bottom;"></i> Edit Profile')}</button>
             </div>
             
             <!-- Notifications -->
             <div class="settings-card">
-                <h4><i data-lucide="bell" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.notifications', '알림 설정')}</h4>
+                <h4><i data-lucide="bell" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.notifications', 'Notification Settings')}</h4>
                 <label class="settings-toggle">
-                    <span>${getText('settings.msg_notif', '새 메시지 알림')}</span>
+                    <span>${getText('settings.msg_notif', 'New message notifications')}</span>
                     <input type="checkbox" id="notif-messages" ${notifSettings.messages !== false ? 'checked' : ''} onchange="saveNotifSettings()">
                     
                 </label>
                 <label class="settings-toggle">
-                    <span>${getText('settings.social_notif', '소셜 알림')}</span>
+                    <span>${getText('settings.social_notif', 'Social notifications')}</span>
                     <input type="checkbox" id="notif-social" ${notifSettings.social !== false ? 'checked' : ''} onchange="saveNotifSettings()">
                     
                 </label>
                 <label class="settings-toggle">
-                    <span>${getText('settings.trading_notif', '거래 알림')}</span>
+                    <span>${getText('settings.trading_notif', 'Trading notifications')}</span>
                     <input type="checkbox" id="notif-trading" ${notifSettings.trading !== false ? 'checked' : ''} onchange="saveNotifSettings()">
                     
                 </label>
@@ -93,7 +93,7 @@ async function loadSettings() {
             
             <!-- Language -->
             <div class="settings-card">
-                <h4><i data-lucide="globe" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.language', '언어 설정')}</h4>
+                <h4><i data-lucide="globe" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.language', 'Language Settings')}</h4>
                 <button onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'flex' : 'none'; this.textContent = this.nextElementSibling.style.display === 'none' ? '언어 선택 ▼' : '언어 선택 ▲'" class="settings-btn" style="margin-bottom:0.5rem;">언어 선택 ▼</button>
                 <div class="settings-lang-list" style="display:none">
                     ${Object.entries(typeof SUPPORTED_LANGS !== 'undefined' ? SUPPORTED_LANGS : {
@@ -138,9 +138,9 @@ async function loadSettings() {
             
             <!-- Theme -->
             <div class="settings-card">
-                <h4><i data-lucide="palette" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.theme', '테마 설정')}</h4>
+                <h4><i data-lucide="palette" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.theme', 'Theme Settings')}</h4>
                 <label class="settings-toggle">
-                    <span>${getText('settings.dark_mode', '다크 모드')}</span>
+                    <span>${getText('settings.dark_mode', 'Dark mode')}</span>
                     <input type="checkbox" id="theme-toggle" ${currentTheme === 'dark' ? 'checked' : ''} onchange="toggleTheme()">
                     
                 </label>
@@ -148,17 +148,17 @@ async function loadSettings() {
             
             <!-- Privacy -->
             <div class="settings-card">
-                <h4><i data-lucide="lock" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.privacy', '개인정보')}</h4>
-                <button onclick="exportMyData()" class="settings-btn">${getText('settings.export_data', '📥 내 데이터 다운로드')}</button>
-                <button onclick="requestDeactivation()" class="settings-btn settings-btn-danger">${getText('settings.deactivate', '⚠️ 계정 비활성화 요청')}</button>
+                <h4><i data-lucide="lock" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.privacy', 'Privacy')}</h4>
+                <button onclick="exportMyData()" class="settings-btn">${getText('settings.export_data', '📥 Download my data')}</button>
+                <button onclick="requestDeactivation()" class="settings-btn settings-btn-danger">${getText('settings.deactivate', '⚠️ Request account deactivation')}</button>
             </div>
             
             <!-- Security -->
             <div class="settings-card">
-                <h4><i data-lucide="shield" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.security', '보안')}</h4>
-                <button onclick="resetPassword()" class="settings-btn">${getText('settings.change_password', '🔑 비밀번호 변경')}</button>
+                <h4><i data-lucide="shield" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.security', 'Security')}</h4>
+                <button onclick="resetPassword()" class="settings-btn">${getText('settings.change_password', '🔑 Change password')}</button>
                 <p style="font-size:0.8rem; color:var(--accent); margin-top:0.5rem;">
-                    ${getText('settings.wallet_encryption', '지갑 암호화')}: 
+                    ${getText('settings.wallet_encryption', 'Wallet encryption')}: 
                     <strong style="color:#6B8F3C;">AES-GCM ✅</strong>
                 </p>
             </div>
@@ -176,11 +176,11 @@ async function saveNotifSettings() {
     };
     try {
         await db.collection('users').doc(currentUser.uid).update({ notificationSettings: settings });
-        const message = typeof t === 'function' ? t('settings.saved', '저장됨') : '저장됨';
+        const message = typeof t === 'function' ? t('settings.saved', 'Saved') : 'Saved';
         if (typeof showToast === 'function') showToast(message, 'success');
     } catch(e) {
         console.error('Failed to save notification settings:', e);
-        const errorMessage = typeof t === 'function' ? t('settings.save_failed', '저장 실패') : '저장 실패';
+        const errorMessage = typeof t === 'function' ? t('settings.save_failed', 'Save failed') : 'Save failed';
         if (typeof showToast === 'function') showToast(errorMessage, 'error');
     }
 }
@@ -188,7 +188,7 @@ async function saveNotifSettings() {
 function changeLanguageSetting(lang) {
     localStorage.setItem('crowny-lang', lang);
     if (typeof setLanguage === 'function') setLanguage(lang);
-    const message = typeof t === 'function' ? t('settings.lang_changed', '언어가 변경되었습니다') : '언어가 변경되었습니다';
+    const message = typeof t === 'function' ? t('settings.lang_changed', 'Language has been changed') : 'Language has been changed';
     if (typeof showToast === 'function') showToast(message, 'success');
     
     // Reload settings with new language
@@ -212,7 +212,7 @@ function initTheme() {
 
 async function exportMyData() {
     if (!currentUser) return;
-    if (typeof showLoading === 'function') showLoading(t('settings.exporting', '데이터 내보내는 중...'));
+    if (typeof showLoading === 'function') showLoading(t('settings.exporting', 'Exporting data...'));
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const data = { profile: userDoc.exists ? userDoc.data() : {}, exportedAt: new Date().toISOString() };
@@ -235,8 +235,8 @@ async function exportMyData() {
 async function requestDeactivation() {
     if (!currentUser) return;
     const confirmed = typeof showConfirmModal === 'function' 
-        ? await showConfirmModal(t('settings.deactivate', '계정 비활성화'), t('settings.deactivate_confirm', '정말 계정을 비활성화 하시겠습니까?'))
-        : confirm(t('settings.deactivate_confirm', '정말 계정을 비활성화 하시겠습니까?'));
+        ? await showConfirmModal(t('settings.deactivate', 'Account Deactivation'), t('settings.deactivate_confirm', 'Are you sure you want to deactivate your account?'))
+        : confirm(t('settings.deactivate_confirm', 'Are you sure you want to deactivate your account?'));
     if (!confirmed) return;
     try {
         await db.collection('deactivation_requests').add({
@@ -244,7 +244,7 @@ async function requestDeactivation() {
             email: currentUser.email,
             requestedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        if (typeof showToast === 'function') showToast(t('settings.deactivate_requested', '비활성화 요청이 접수되었습니다'), 'info');
+        if (typeof showToast === 'function') showToast(t('settings.deactivate_requested', 'Deactivation request has been submitted'), 'info');
     } catch(e) {
         console.error('Deactivation request failed:', e);
     }

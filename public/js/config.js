@@ -124,8 +124,8 @@ function updateTradeButtonState() {
     });
     
     if (locked && btnBuy) {
-        btnBuy.innerHTML = '<i data-lucide="alert-triangle"></i> ' + t('config.trading_stopped','거래 정지');
-        btnSell.innerHTML = '<i data-lucide="alert-triangle"></i> ' + t('config.trading_stopped','거래 정지');
+        btnBuy.innerHTML = '<i data-lucide="alert-triangle"></i> ' + t('config.trading_stopped','Trading suspended');
+        btnSell.innerHTML = '<i data-lucide="alert-triangle"></i> ' + t('config.trading_stopped','Trading suspended');
     } else if (btnBuy) {
         btnBuy.innerHTML = '<i data-lucide="trending-up"></i> BUY';
         btnSell.innerHTML = '<i data-lucide="trending-down"></i> SELL';
@@ -184,7 +184,7 @@ async function checkDailyLossLimit() {
         await saveTradingState({ dailyPnL: myParticipation.dailyPnL, dailyLocked: true });
         
         updateRiskGaugeUI();
-        showToast(`<i data-lucide="alert-octagon"></i> ${t('config.daily_limit_reached','일일 손실 한도 도달!')} (-$${limitValue})`, 'warning');
+        showToast(`<i data-lucide="alert-octagon"></i> ${t('config.daily_limit_reached','Daily loss limit reached!')} (-$${limitValue})`, 'warning');
         return true; // locked
     }
     
@@ -214,7 +214,7 @@ async function checkCumulativeLiquidation() {
         updateRiskGaugeUI();
         updateTradingUI();
         
-        showToast(`<i data-lucide="skull" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('config.cumulative_loss','누적 손실')} -$${Math.abs(RISK_CONFIG.cumulativeLossLimit).toLocaleString()} ${t('config.reached','도달')}!`, 'error');
+        showToast(`<i data-lucide="skull" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('config.cumulative_loss','Cumulative loss')} -$${Math.abs(RISK_CONFIG.cumulativeLossLimit).toLocaleString()} ${t('config.reached','reached')}!`, 'error');
         
         return true;
     }
@@ -371,7 +371,7 @@ async function onLoginSuccess(data) {
     // 관리자 메뉴 표시
     await ctvmCheckAdmin();
 
-    if (typeof showToast === 'function') showToast(t('auth.login_success', '로그인 성공'), 'success');
+    if (typeof showToast === 'function') showToast(t('auth.login_success', 'Login successful'), 'success');
     if (typeof loadUserData === 'function') await loadUserData();
     if (typeof showPage === 'function') showPage('today');
 }

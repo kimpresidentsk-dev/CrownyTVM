@@ -35,7 +35,7 @@ const AI_ASSISTANT = (() => {
         hansun: {
             id: 'hansun',
             emoji: 'heart',
-            name: t('panel.name_hansun', '한선'),
+            name: t('panel.name_hansun', 'Hansun'),
             nameKo: '한선 (Hansun)',
             role: '감성 상담사 · 커뮤니티 매니저',
             roleI18n: 'panel.role_hansun',
@@ -53,7 +53,7 @@ const AI_ASSISTANT = (() => {
         michael: {
             id: 'michael',
             emoji: 'target',
-            name: t('panel.name_michael', '마이클'),
+            name: t('panel.name_michael', 'Michael'),
             nameKo: '마이클 (Michael)',
             role: '실전 비즈니스 전문가',
             roleI18n: 'panel.role_michael',
@@ -71,7 +71,7 @@ const AI_ASSISTANT = (() => {
         matthew: {
             id: 'matthew',
             emoji: 'bar-chart-3',
-            name: t('panel.name_matthew', '매튜'),
+            name: t('panel.name_matthew', 'Matthew'),
             nameKo: '매튜 (Matthew)',
             role: '분석 · 기술 전문가',
             roleI18n: 'panel.role_matthew',
@@ -90,7 +90,7 @@ const AI_ASSISTANT = (() => {
             id: 'crownygirl',
             emoji: 'star',
             avatarImg: 'img/crowny-girl.jpg',
-            name: t('panel.name_crownygirl', '크라우니걸'),
+            name: t('panel.name_crownygirl', 'Crowny Girl'),
             nameKo: '크라우니걸 (Crowny Girl)',
             role: 'AI 도우미 · 브랜드 마스코트',
             roleI18n: 'panel.role_crownygirl',
@@ -551,15 +551,15 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         loungeMode = false;
         const header = document.querySelector('#ai-assistant .section-header');
         if (header) {
-            header.innerHTML = `<h2>👑 <span data-i18n="nav.crowny_panel">${t('nav.crowny_panel','크라우니 패널')}</span></h2><div></div>`;
+            header.innerHTML = `<h2>👑 <span data-i18n="nav.crowny_panel">${t('nav.crowny_panel','Crowny Panel')}</span></h2><div></div>`;
         }
 
         // Lounge button + character cards
         const loungeBtn = `<button class="lounge-enter-btn" onclick="AI_ASSISTANT.enterLounge()">
             <span class="lounge-enter-icon">🏠</span>
             <div class="lounge-enter-text">
-                <strong>${t('panel.lounge_title','크라우니 라운지')}</strong>
-                <span>${t('panel.lounge_sub','5인 AI 그룹 채팅')}</span>
+                <strong>${t('panel.lounge_title','Crowny Lounge')}</strong>
+                <span>${t('panel.lounge_sub','5-Member AI Group Chat')}</span>
             </div>
             <div class="lounge-enter-avatars">${CHAR_ORDER.map(id => {
                 const c = CHARACTERS[id];
@@ -581,8 +581,8 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         container.innerHTML = `<div class="panel-select-screen">
             <div class="panel-select-title">
                 <div class="panel-select-icon">👑</div>
-                <h3>${t('panel.select_title','누구와 대화하시겠어요?')}</h3>
-                <p>${t('panel.select_sub','크라우니 패널 멤버를 선택해주세요')}</p>
+                <h3>${t('panel.select_title','Who would you like to talk to?')}</h3>
+                <p>${t('panel.select_sub','Please select a Crowny Panel member')}</p>
             </div>
             ${loungeBtn}
             <div class="panel-char-grid">${cards}</div>
@@ -605,14 +605,14 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         if (header) {
             header.innerHTML = `
                 <div class="panel-chat-header-left">
-                    <button class="panel-back-btn" onclick="AI_ASSISTANT.backToSelect()" title="${t('panel.back','다른 패널 선택')}">←</button>
+                    <button class="panel-back-btn" onclick="AI_ASSISTANT.backToSelect()" title="${t('panel.back','Select another panel')}">←</button>
                     <div class="panel-chat-avatar" style="background:${char.bgGradient};">${renderCharAvatar(char)}</div>
                     <div>
                         <div class="panel-chat-name">${char.name}</div>
                         <div class="panel-chat-role">${t(char.roleI18n, char.role)}</div>
                     </div>
                 </div>
-                <button onclick="AI_ASSISTANT.reset()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;" title="${t('ai.clear_confirm','대화 초기화')}">🗑️</button>`;
+                <button onclick="AI_ASSISTANT.reset()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;" title="${t('ai.clear_confirm','Clear chat')}">🗑️</button>`;
         }
 
         const history = chatHistories[currentCharId] || [];
@@ -699,7 +699,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         if (header) {
             header.innerHTML = `
                 <div class="panel-chat-header-left">
-                    <button class="panel-back-btn" onclick="AI_ASSISTANT.backToSelect()" title="${t('panel.back','돌아가기')}">←</button>
+                    <button class="panel-back-btn" onclick="AI_ASSISTANT.backToSelect()" title="${t('panel.back','Go back')}">←</button>
                     <div class="lounge-header-avatars">${CHAR_ORDER.map(id => {
                         const c = CHARACTERS[id];
                         return c.avatarImg
@@ -707,13 +707,13 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
                             : `<span class="lounge-header-avatar-emoji" style="background:${c.bgGradient};">${c.emoji}</span>`;
                     }).join('')}</div>
                     <div>
-                        <div class="panel-chat-name">🏠 ${t('panel.lounge_title','크라우니 라운지')}</div>
-                        <div class="panel-chat-role">${t('panel.lounge_members','KPS, 한선, 마이클, 매튜, 크라우니걸')}</div>
+                        <div class="panel-chat-name">🏠 ${t('panel.lounge_title','Crowny Lounge')}</div>
+                        <div class="panel-chat-role">${t('panel.lounge_members','KPS, Hansun, Michael, Matthew, Crowny Girl')}</div>
                     </div>
                 </div>
                 <div style="display:flex;gap:0.3rem;">
-                    <button onclick="AI_ASSISTANT.loungeInvite()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;" title="${t('panel.invite','친구 초대')}">👤+</button>
-                    <button onclick="AI_ASSISTANT.resetLounge()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;" title="${t('ai.clear_confirm','대화 초기화')}">🗑️</button>
+                    <button onclick="AI_ASSISTANT.loungeInvite()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;" title="${t('panel.invite','Invite friend')}">👤+</button>
+                    <button onclick="AI_ASSISTANT.resetLounge()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;" title="${t('ai.clear_confirm','Clear chat')}">🗑️</button>
                 </div>`;
         }
 
@@ -730,8 +730,8 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
                     const c = CHARACTERS[id];
                     return `<div class="lounge-welcome-avatar" style="background:${c.bgGradient};">${renderCharAvatar(c)}</div>`;
                 }).join('')}</div>
-                <h3>🏠 ${t('panel.lounge_title','크라우니 라운지')}</h3>
-                <p>${t('panel.lounge_welcome','5인의 크라우니 멤버와 함께 대화해보세요!')}</p>
+                <h3>🏠 ${t('panel.lounge_title','Crowny Lounge')}</h3>
+                <p>${t('panel.lounge_welcome','Chat with the 5 Crowny Panel members!')}</p>
                 <div class="ai-quick-cards">
                     <button class="ai-quick-card" onclick="AI_ASSISTANT.askLounge('안녕하세요~ 다들 오늘 어때요?')">👋 인사하기</button>
                     <button class="ai-quick-card" onclick="AI_ASSISTANT.askLounge('크라우니에 대해 알려주세요')">sparkles 크라우니 소개</button>
@@ -769,7 +769,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
     // ── Lounge: Send Message ──
     async function askLounge(text) {
         if (!text || isLoading) return;
-        if (!enabled) { showToast(t('panel.disabled', 'AI 도우미가 비활성화되어 있습니다'), 'warning'); return; }
+        if (!enabled) { showToast(t('panel.disabled', 'AI assistant is disabled'), 'warning'); return; }
 
         const input = document.getElementById('ai-input');
         if (input) input.value = '';
@@ -840,16 +840,16 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
     }
 
     function loungeInvite() {
-        showToast(t('panel.invite_soon', '친구 초대 기능은 곧 업데이트됩니다!'), 'info');
+        showToast(t('panel.invite_soon', 'Friend invite feature coming soon!'), 'info');
     }
 
     async function resetLounge() {
-        const answer = await showPromptModal(t('ai.clear_title','🗑️ 대화 초기화'), t('ai.clear_confirm','대화 기록을 모두 삭제할까요?\n"확인"을 입력하세요'), '');
+        const answer = await showPromptModal(t('ai.clear_title','🗑️ Clear Chat'), t('ai.clear_confirm','Delete all chat history?\nType "ok" to confirm'), '');
         if (answer === '확인' || answer === 'ok' || answer === 'yes') {
             loungeHistory = [];
             localStorage.removeItem('crowny_lounge_history');
             renderLoungeMessages();
-            showToast(t('ai.cleared','대화 기록이 초기화되었습니다'), 'success');
+            showToast(t('ai.cleared','Chat history has been cleared'), 'success');
         }
     }
 
@@ -884,7 +884,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         if (loungeMode) { askLounge(text); return; }
 
         if (!currentCharId) return;
-        if (!enabled) { showToast(t('panel.disabled', 'AI 도우미가 비활성화되어 있습니다'), 'warning'); return; }
+        if (!enabled) { showToast(t('panel.disabled', 'AI assistant is disabled'), 'warning'); return; }
 
         const char = CHARACTERS[currentCharId];
         const input = document.getElementById('ai-input');
@@ -921,11 +921,11 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
     async function reset() {
         if (loungeMode) { resetLounge(); return; }
         if (!currentCharId) return;
-        const answer = await showPromptModal(t('ai.clear_title','🗑️ 대화 초기화'), t('ai.clear_confirm','대화 기록을 모두 삭제할까요?\n"확인"을 입력하세요'), '');
+        const answer = await showPromptModal(t('ai.clear_title','🗑️ Clear Chat'), t('ai.clear_confirm','Delete all chat history?\nType "ok" to confirm'), '');
         if (answer === '확인' || answer === 'ok' || answer === 'yes') {
             clearHistory(currentCharId);
             renderChat();
-            showToast(t('ai.cleared','대화 기록이 초기화되었습니다'), 'success');
+            showToast(t('ai.cleared','Chat history has been cleared'), 'success');
         }
     }
 
