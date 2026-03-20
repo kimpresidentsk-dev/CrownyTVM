@@ -127,27 +127,41 @@ async function showDetail(cell) {
   const st = 사상.EP변환(c.status);
   document.getElementById('sel').textContent = `#${c.id} ${c.name||''}`;
 
+  // 4상 캐릭터
+  const charMap = {'2':['▲','확정','ti','알고 있어요!'],'0':['●','미확인','om','공부하고 올게요!'],'-2':['▼','오해','ta','다른 친구에게 물어볼게요'],'-1':['◆','미인지','eum','대장님 도움이 필요해요!']};
+  const ch = charMap[String(c.status)] || charMap['-1'];
+
   dp.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <span style="font-weight:600;font-size:13px">#${c.id} ${c.name||''}</span>
-      <span class="badge ${사상.이름(st)}">${c.statusName||사상.이름(st)}</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-weight:700;font-size:14px">#${c.id} ${c.name||''}</span>
+      <span class="phase-char ${ch[2]}">${ch[0]} ${ch[1]}</span>
+    </div>
+    <div style="font-size:10px;color:var(--text-3);margin-bottom:12px">${ch[3]}</div>
+
+    <div class="detail-title">27방사형 궤도</div>
+    <div class="orbit-wrap" id="_orbitWrap">
+      <div class="orbit-ring r-spirit"></div>
+      <div class="orbit-ring r-gospel"></div>
+      <div class="orbit-ring r-torah"></div>
+      <div class="orbit-center">
+        <div class="orbit-center-name">${(c.name||c.id).toString().slice(0,5)}</div>
+        <div class="orbit-center-badge badge ${사상.이름(st)}" style="font-size:8px">${ch[1]}</div>
+      </div>
     </div>
 
-    <div class="detail-title">27방사형 슬롯</div>
-    <div class="ring-label ring-torah">토라 / 경계 (0-8)</div>
-    <div class="slot-grid" style="margin-bottom:6px" id="_slotT"></div>
-    <div class="ring-label ring-gospel">복음 / 관계 (9-17)</div>
-    <div class="slot-grid" style="margin-bottom:6px" id="_slotG"></div>
-    <div class="ring-label ring-spirit">성령 / 초월 (18-26)</div>
-    <div class="slot-grid" style="margin-bottom:10px" id="_slotS"></div>
+    <div style="display:flex;gap:6px;margin:10px 0;flex-wrap:wrap">
+      <span class="ring-label ring-torah" style="font-size:8px;padding:2px 4px">토라 0-8</span>
+      <span class="ring-label ring-gospel" style="font-size:8px;padding:2px 4px">복음 9-17</span>
+      <span class="ring-label ring-spirit" style="font-size:8px;padding:2px 4px">성령 18-26</span>
+    </div>
 
     <div class="detail-title">속성</div>
     <table style="font-size:10px;width:100%">
-      ${[['유형',c.type],['내용',c.content],['신뢰도',`${c.trust}/13`],['근거',c.evidence],['계층',c.layer],['버전',c.version]].map(([k,v])=>`<tr><td style="color:var(--text-3);padding:1px 6px 1px 0">${k}</td><td>${v??'—'}</td></tr>`).join('')}
+      ${[['유형',({0:'—',1:'숫자',2:'실수',3:'글자',7:'주장',8:'기능'})[c.type]||c.type],['내용',c.content],['신뢰',`${c.trust}/13`],['근거',c.evidence],['계층',(['코어','도메인','결정','인식','메타'])[c.layer]||c.layer],['버전',c.version]].map(([k,v])=>`<tr><td style="color:var(--text-3);padding:1px 6px 1px 0">${k}</td><td>${v??'—'}</td></tr>`).join('')}
       ${c.claim?`<tr><td style="color:var(--text-3);padding:1px 6px 1px 0">주장</td><td>${c.claim.subject} ${c.claim.predicate} ${c.claim.object}</td></tr>`:''}
     </table>
 
-    <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+    <div style="display:flex;gap:4px;margin-top:10px;flex-wrap:wrap">
       <button class="btn" data-act="evidence" data-id="${c.id}" title="근거를 하나 추가해요. 3개 모이면 자동 확정!">근거+1</button>
       <button class="btn" data-act="advance" data-id="${c.id}" title="상태를 한 단계 올려요">전진 ▲</button>
       <button class="btn" data-act="retreat" data-id="${c.id}" title="상태를 한 단계 내려요">후퇴 ▼</button>
@@ -156,28 +170,66 @@ async function showDetail(cell) {
   `;
 
   // Fill slot grids
-  const fields = ['status','forward','backward','content','type','name','source','boundary','createdAt',
-    'selfImpact','familyImpact','neighborImpact','worldImpact','loveWeight','ethicsScore','evidence','trust','modifiedAt',
-    'sophistication','mergeHistory','segmentation','consensus','transcendTrust','unknownCount','transferLog','designerIssue','direction'];
-  const slotNames = ['상태','앞','뒤','내용','유형','이름','출처','경계','생성',
-    '나','가족','이웃','세계','사랑','윤리','근거','신뢰','변경',
-    '고도화','병합','세분화','합의','초월','미인지#','이관','설계자','방향'];
+  // 궤도 위에 구슬 배치
+  const orbitWrap = document.getElementById('_orbitWrap');
+  if (orbitWrap) {
+    const slotDefs = [
+    // 토라/경계 (0-8)
+    { key:'status',    label:'상태', fmt: v => ({'2':'▲확정','0':'●미확인','-2':'▼오해','-1':'◆미인지'})[String(v)]||v },
+    { key:'forward',   label:'앞',   fmt: v => v > 0 ? '#'+v : '—' },
+    { key:'backward',  label:'뒤',   fmt: v => v > 0 ? '#'+v : '—' },
+    { key:'content',   label:'내용' },
+    { key:'type',      label:'유형', fmt: v => ({0:'—',1:'숫자',2:'실수',3:'글자',7:'주장',8:'기능'})[v]||v },
+    { key:'name',      label:'이름' },
+    { key:'source',    label:'출처' },
+    { key:'tag',       label:'태그' },
+    { key:'createdAt', label:'생성', fmt: v => v>1e10 ? new Date(v).toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'}) : v },
+    // 복음/관계 (9-17)
+    { key:'depth',     label:'계층', fmt: v => ['코어','도메인','결정','인식','메타'][v]||v },
+    { key:'target',    label:'대상', fmt: v => v > 0 ? '#'+v : '—' },
+    { key:'strength',  label:'강도' },
+    { key:'owner',     label:'소유' },
+    { key:'ttl',       label:'수명' },
+    { key:'trustNorm', label:'정규신뢰' },
+    { key:'evidence',  label:'근거' },
+    { key:'trust',     label:'신뢰' },
+    { key:'modifiedAt',label:'변경', fmt: v => v>1e10 ? new Date(v).toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'}) : v },
+    // 성령/초월 (18-26)
+    { key:'version',   label:'버전' },
+    { key:'layer',     label:'레이어' },
+    { key:'claim_s',   label:'주체', fmt: () => c.claim?.subject || '—' },
+    { key:'claim_p',   label:'술어', fmt: () => c.claim?.predicate || '—' },
+    { key:'claim_o',   label:'대상', fmt: () => c.claim?.object || '—' },
+    { key:'_eum',      label:'미인지#', fmt: () => 0 },
+    { key:'_transfer', label:'이관', fmt: () => '—' },
+    { key:'_designer', label:'설계자', fmt: () => '—' },
+    { key:'_direction',label:'방향', fmt: () => '—' },
+  ];
 
-  [['_slotT',0,9],['_slotG',9,18],['_slotS',18,27]].forEach(([id,start,end])=>{
-    const grid = document.getElementById(id);
-    if(!grid) return;
-    for(let i=start;i<end;i++){
-      const key = fields[i];
-      const val = c[key] ?? 0;
-      const filled = val !== 0 && val !== -1 && val !== null;
-      const div = document.createElement('div');
-      div.className = `slot ${filled?'확정':''}`;
-      div.title = `[${i}] ${slotNames[i]}`;
-      const display = typeof val==='number'&&val>1e10? new Date(val).toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'}):val;
-      div.innerHTML = `<span class="slot-n">${slotNames[i]}</span><span class="slot-v">${display}</span>`;
-      grid.appendChild(div);
-    }
-  });
+    // 궤도별 반지름: torah=55, gospel=90, spirit=120
+    const radii = [55,55,55,55,55,55,55,55,55, 90,90,90,90,90,90,90,90,90, 120,120,120,120,120,120,120,120,120];
+    const cx = 130, cy = 130;
+
+    slotDefs.forEach((def, i) => {
+      const raw = c[def.key];
+      const val = def.fmt ? def.fmt(raw) : (raw ?? 0);
+      const filled = val !== 0 && val !== '—' && val !== -1 && val !== null && val !== undefined;
+      const ring = i < 9 ? 0 : i < 18 ? 1 : 2;
+      const posInRing = i - ring * 9;
+      const angle = (posInRing / 9) * Math.PI * 2 - Math.PI / 2;
+      const r = radii[i];
+      const x = cx + Math.cos(angle) * r - 14;
+      const y = cy + Math.sin(angle) * r - 14;
+
+      const orb = document.createElement('div');
+      orb.className = `orb ${filled ? 'filled' : ''}`;
+      orb.style.left = x + 'px';
+      orb.style.top = y + 'px';
+      orb.title = `[${i}] ${def.label}: ${val}`;
+      orb.innerHTML = `<span class="orb-label">${def.label}</span><span class="orb-val">${val}</span>`;
+      orbitWrap.appendChild(orb);
+    });
+  }
 
   // Action buttons
   dp.querySelectorAll('[data-act]').forEach(btn=>{
@@ -273,4 +325,9 @@ function init() {
   go('graph');
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// module script는 defer이므로 DOM이 이미 ready일 수 있음
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}

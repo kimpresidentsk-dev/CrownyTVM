@@ -112,7 +112,33 @@ body {
 .card-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .card-t { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
 
-/* ── 27-Radial Slots ── */
+/* ── 27-Radial Orbit Slots ── */
+.orbit-wrap { position: relative; width: 260px; height: 260px; margin: 0 auto; }
+.orbit-ring {
+  position: absolute; border-radius: 50%; border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+}
+.orbit-ring.r-torah  { inset: 70px;  border-color: var(--확정); border-style: solid; opacity: .3; }
+.orbit-ring.r-gospel { inset: 35px;  border-color: var(--미확인); border-style: dashed; opacity: .25; }
+.orbit-ring.r-spirit { inset: 0;     border-color: #6B5B8A; border-style: dotted; opacity: .2; }
+.orbit-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; z-index: 2; }
+.orbit-center-name { font-size: 13px; font-weight: 700; }
+.orbit-center-badge { font-size: 9px; margin-top: 2px; }
+.orb {
+  position: absolute; width: 28px; height: 28px; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 7px; font-weight: 600; cursor: pointer;
+  transition: transform .1s, box-shadow .1s;
+  border: 1.5px solid var(--border); background: var(--bg);
+  z-index: 3;
+}
+.orb:hover { transform: scale(1.2); z-index: 5; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.orb.filled { background: var(--확정-bg); border-color: var(--확정); }
+.orb.filled-warn { background: var(--미확인-bg); border-color: var(--미확인); }
+.orb .orb-label { font-size: 6px; color: var(--text-3); line-height: 1; }
+.orb .orb-val { font-size: 8px; font-weight: 700; color: var(--text-1); max-width: 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Slot grid fallback (list mode) ── */
 .slot-grid { display: grid; grid-template-columns: repeat(3,42px); gap: 4px; }
 .slot {
   width: 42px; height: 42px; border-radius: 3px; border: 1px solid var(--border);
@@ -128,6 +154,17 @@ body {
 .slot-n { font-size: 7px; font-family: monospace; }
 .slot-v { font-size: 9px; font-weight: 600; max-width: 38px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ── 4상 캐릭터 ── */
+.phase-char { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
+.phase-char.ti  { color: var(--확정); }
+.phase-char.om  { color: var(--미확인); }
+.phase-char.ta  { color: var(--오류); }
+.phase-char.eum { color: #6B5B8A; }
+
+/* ── 뱃지/성취 ── */
+.achievement { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 3px; font-size: 8px; font-weight: 600; background: var(--bg); border: 1px solid var(--border); }
+.achievement.gold { border-color: #C4A76E; background: #FBF7EF; color: #8C7440; }
+
 /* ── Ring indicator ── */
 .ring-label { font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 0; color: var(--text-3); }
 .ring-torah  { border-left: 2px solid var(--확정); padding-left: 6px; }
@@ -142,7 +179,7 @@ body {
 .node.미확인 circle { fill: var(--미확인-bg); stroke: var(--미확인); }
 .node.오류   circle { fill: var(--오류-bg); stroke: var(--오류); }
 .node.미인지 circle { fill: var(--미인지-bg); stroke: var(--미인지); }
-.node text { font-size: 9px; fill: var(--text-1); pointer-events: none; font-weight: 500; }
+.node text { font-size: 11px; fill: var(--text-1); pointer-events: none; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
 .link { stroke: var(--border); stroke-width: 1; }
 .link.신뢰 { stroke: var(--확정); stroke-width: 1.5; }
 .link.반박 { stroke: var(--오류); stroke-width: 1.5; stroke-dasharray: 4 3; }

@@ -98,9 +98,53 @@ class 셀그래프 {
         enter => {
           const g = enter.append('g').attr('class', d => `node ${사상.이름(d.상태값)}`)
             .call(d3.drag()
-              .on('start', (e, d) => { if (!e.active) this.sim.alphaTarget(.3).restart(); d.fx = d.x; d.fy = d.y; })
-              .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
-              .on('end', (e, d) => { if (!e.active) this.sim.alphaTarget(0); d.fx = null; d.fy = null; })
+              .on('start', (e, d) => {
+                // 시뮬레이션 완전 정지 — 다른 노드가 도망가지 않게
+                this.sim.stop();
+                d.fx = d.x; d.fy = d.y;
+                this._dragSource = d;
+                this._dragLine = this.gLink.append('line')
+                  .attr('class', 'link 신뢰')
+                  .attr('stroke-dasharray', '4 4')
+                  .attr('x1', d.x).attr('y1', d.y)
+                  .attr('x2', d.x).attr('y2', d.y);
+              })
+              .on('drag', (e, d) => {
+                d.fx = e.x; d.fy = e.y;
+                // 드래그 선 업데이트
+                if (this._dragLine) {
+                  this._dragLine.attr('x2', e.x).attr('y2', e.y);
+                }
+                // 가까운 노드 하이라이트
+                this.gNode.selectAll('g.node circle').attr('r', n => {
+                  if (n.id === d.id) return 22;
+                  return Math.hypot(n.x - e.x, n.y - e.y) < 40 ? 28 : 22;
+                });
+              })
+              .on('end', (e, d) => {
+                d.fx = null; d.fy = null;
+                // 드래그 선 제거
+                if (this._dragLine) { this._dragLine.remove(); this._dragLine = null; }
+                // 노드 크기 복원
+                this.gNode.selectAll('g.node circle').attr('r', 22);
+                // 시뮬레이션 재개
+                this.sim.alpha(.1).restart();
+                // 드래그 연결: 다른 노드 위에 드롭하면 시냅스 생성
+                if (this._dragSource) {
+                  const target = this.nodes.find(n => n.id !== d.id && Math.hypot(n.x - e.x, n.y - e.y) < 40);
+                  if (target) {
+                    fetch('/api/foundry/synapse', {
+                      method: 'POST',
+                      headers: {'Content-Type':'application/json'},
+                      body: JSON.stringify({ cellA: d.id, cellB: target.id })
+                    }).then(() => {
+                      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${d.name||d.id} ↔ ${target.name||target.id} 연결!`, type: '확정' }}));
+                      this.로드();
+                    });
+                  }
+                  this._dragSource = null;
+                }
+              })
             )
             .on('click', (e, d) => {
               e.stopPropagation();
