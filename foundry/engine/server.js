@@ -46,10 +46,14 @@ const { EP, TYPE, LAYER, LAYER_NAME, DIR } = require('./cell');
 const { DOMAINS, TEMPLATES, deployTemplate } = require('./templates');
 const { REL, REL_NAME, REL_SYMBOL, CausalEngine } = require('./causal');
 const { SLOT, SLOT_META, RING, PROTOCOL, CovenantEngine } = require('./covenant');
+const { LifeEngine } = require('./life');
+const { CityEngine } = require('./city');
 
 const memory = new Memory();
 const causal = new CausalEngine(memory);
 const covenant = new CovenantEngine();
+const life = new LifeEngine(memory);
+const city = new CityEngine(memory);
 
 // ═══ 요청 파싱 헬퍼 ═══
 
@@ -374,6 +378,68 @@ route('GET', '/api/foundry/covenant/stats', async (req, res) => {
 // GET /api/foundry/covenant/slots — 27슬롯 언약 구조
 route('GET', '/api/foundry/covenant/slots', async (req, res) => {
     json(res, 200, { slots: SLOT_META, rings: RING, protocol: PROTOCOL });
+});
+
+// ═══ 라이프스타일 API ═══
+
+route('POST', '/api/foundry/life/create', async (req, res) => {
+    const { name } = await parseBody(req);
+    if (!name) return err(res, 400, 'name 필수');
+    json(res, 201, life.createProfile(name));
+});
+
+route('POST', '/api/foundry/life/check', async (req, res) => {
+    const { cellId } = await parseBody(req);
+    const result = life.checkHabit(cellId);
+    if (!result) return err(res, 404, '셀 없음');
+    json(res, 200, result);
+});
+
+route('POST', '/api/foundry/life/day', async (req, res) => {
+    const { habitIds } = await parseBody(req);
+    json(res, 200, life.checkDay(habitIds || []));
+});
+
+route('POST', '/api/foundry/life/achievement', async (req, res) => {
+    const { habitIds } = await parseBody(req);
+    json(res, 200, life.calcAchievement(habitIds || []));
+});
+
+// ═══ 도시관리 API ═══
+
+route('POST', '/api/foundry/city/building', async (req, res) => {
+    const { name, address, floors, usage } = await parseBody(req);
+    if (!name) return err(res, 400, 'name 필수');
+    json(res, 201, city.createBuilding(name, address || '', floors || 5, usage || '복합'));
+});
+
+route('POST', '/api/foundry/city/sensor', async (req, res) => {
+    const { buildingId, system, value, severity } = await parseBody(req);
+    const result = city.sensorEvent(buildingId, system, value, severity || 'normal');
+    if (!result) return err(res, 404, '빌딩 없음');
+    json(res, 200, result);
+});
+
+route('POST', '/api/foundry/city/scenario', async (req, res) => {
+    const scenario = await parseBody(req);
+    json(res, 200, city.runScenario(scenario));
+});
+
+route('GET', '/api/foundry/city/alerts', async (req, res) => {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const all = url.searchParams.get('all') === 'true';
+    json(res, 200, city.getAlerts(!all));
+});
+
+route('POST', '/api/foundry/city/resolve', async (req, res) => {
+    const { alertId } = await parseBody(req);
+    const alert = city.resolveAlert(alertId);
+    if (!alert) return err(res, 404, '경보 없음');
+    json(res, 200, alert);
+});
+
+route('GET', '/api/foundry/city/stats', async (req, res) => {
+    json(res, 200, city.stats());
 });
 
 // ═══ 인과추론 API ═══

@@ -28,6 +28,10 @@
   <button class="nav-btn" data-v="causal"><span class="ic">⇥</span><span class="label">인과추론</span></button>
   <button class="nav-btn" data-v="kps"><span class="ic">∿</span><span class="label">차트분석</span></button>
   <div class="nav-sep"></div>
+  <button class="nav-btn" data-v="life"><span class="ic">☀</span><span class="label">라이프</span></button>
+  <button class="nav-btn" data-v="church"><span class="ic">◌</span><span class="label">교회</span></button>
+  <button class="nav-btn" data-v="city"><span class="ic">▣</span><span class="label">도시관리</span></button>
+  <div class="nav-sep"></div>
   <button class="nav-btn" data-v="create"><span class="ic">+</span><span class="label">만들기</span></button>
   <button class="nav-btn" data-v="search"><span class="ic">⌕</span><span class="label">찾기</span></button>
   <button class="nav-btn" data-v="stats"><span class="ic">≡</span><span class="label">통계</span></button>
@@ -106,6 +110,21 @@
         <div class="card-h"><span class="card-t">KPS EMA 9/21/50</span></div>
         <div id="chartC" style="flex:1;min-height:300px"></div>
       </div>
+    </div>
+
+    <!-- Life View -->
+    <div class="view" id="v_life" style="padding:14px;gap:12px;overflow:auto">
+      <div id="lifeApp"></div>
+    </div>
+
+    <!-- Church View -->
+    <div class="view" id="v_church" style="padding:14px;gap:12px;overflow:auto">
+      <div id="churchApp"></div>
+    </div>
+
+    <!-- City View -->
+    <div class="view" id="v_city" style="padding:14px;gap:12px;overflow:auto">
+      <div id="cityApp"></div>
     </div>
 
     <!-- Create View -->

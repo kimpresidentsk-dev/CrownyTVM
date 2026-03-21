@@ -6,9 +6,12 @@ import { KPS차트 } from './KPS차트.js';
 import { 템플릿브라우저 } from './템플릿.js';
 import { 인과추론패널 } from './인과추론.js';
 import { 언약패널 } from './언약.js';
+import { 교회앱 } from './교회.js';
+import { 라이프앱 } from './라이프.js';
+import { 도시앱 } from './도시.js';
 
 const API = '/api/foundry';
-let graph, slots, chart, tmpl, causal, cov;
+let graph, slots, chart, tmpl, causal, cov, church, lifeApp, cityApp;
 
 // ── View switching ──
 function go(name) {
@@ -19,13 +22,16 @@ function go(name) {
   if (view) view.classList.add('active');
   if (btn) btn.classList.add('active');
 
-  const titles = { home:'CrownyCore', graph:'셀 그래프', decide:'의사결정', tmpl:'프로젝트 템플릿', causal:'인과추론', kps:'차트 분석', create:'만들기', search:'찾기', stats:'통계' };
+  const titles = { home:'CrownyCore', graph:'작업 공간', decide:'의사결정', tmpl:'프로젝트 템플릿', causal:'인과추론', kps:'차트 분석', life:'라이프스타일', church:'교회', city:'도시관리', create:'만들기', search:'찾기', stats:'통계' };
   document.getElementById('viewTitle').textContent = titles[name] || name;
 
   // Lazy load
   if (name === 'decide') cov?.로드();
   if (name === 'tmpl') tmpl?.로드();
   if (name === 'causal') causal?.로드();
+  if (name === 'church') church?.초기화();
+  if (name === 'life') lifeApp?.초기화();
+  if (name === 'city') cityApp?.초기화();
   if (name === 'stats') loadStats();
 }
 
@@ -399,6 +405,9 @@ function init() {
   tmpl = new 템플릿브라우저('v_tmpl');
   causal = new 인과추론패널('v_causal');
   cov = new 언약패널('v_decide');
+  church = new 교회앱('churchApp');
+  lifeApp = new 라이프앱('lifeApp');
+  cityApp = new 도시앱('cityApp');
 
   // Events
   document.addEventListener('셀선택', e => showDetail(e.detail));
@@ -420,7 +429,7 @@ function init() {
   // 3 카테고리 — 해당 도메인으로 템플릿 필터
   document.getElementById('w_biz')?.addEventListener('click', ()=>{ go('tmpl'); tmpl.selectedDomain='business'; tmpl.렌더(); });
   document.getElementById('w_ent')?.addEventListener('click', ()=>{ go('tmpl'); tmpl.selectedDomain='entertainment'; tmpl.렌더(); });
-  document.getElementById('w_church')?.addEventListener('click', ()=>{ go('tmpl'); tmpl.selectedDomain='church'; tmpl.렌더(); });
+  document.getElementById('w_church')?.addEventListener('click', ()=>go('church'));
 
   // KPS sample
   const kpsSample = Array.from({length:80},(_,i)=>{
