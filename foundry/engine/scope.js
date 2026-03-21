@@ -48,27 +48,31 @@ class PropagationEngine {
   }
 
   _initDefaultRules() {
-    // 기본 전파 규칙
+    // 전파 규칙: sourceScope가 null이면 어느 scope에서든 발동
     this.rules = [
-      // 개인 헌금 → 비영리(교회) 재정 집계
-      { name: '헌금전파', sourcePredicate: '헌금', sourceScope: SCOPES.PERSONAL, targetScope: SCOPES.NONPROFIT,
-        transform: (claim) => ({ subject: '교회재정', predicate: '수입', object: claim.claim?.object || '', layer: 1 }) },
+      // 헌금 → 교회 재정 집계 (어느 앱에서든)
+      { name: '헌금집계', sourcePredicate: '헌금', sourceScope: null, targetScope: SCOPES.NONPROFIT,
+        transform: (claim) => ({ subject: '교회재정', predicate: '수입', object: `${claim.claim?.subject||''}: ${claim.claim?.object||''}`, layer: 1 }) },
 
-      // 개인 지출 → 가정 가계부 집계
-      { name: '가계부전파', sourcePredicate: '지출', sourceScope: SCOPES.PERSONAL, targetScope: SCOPES.FAMILY,
-        transform: (claim) => ({ subject: '가계부', predicate: '지출', object: claim.claim?.object || '', layer: 1 }) },
+      // 지출 → 가정 가계부 (어느 앱에서든)
+      { name: '가계부집계', sourcePredicate: '지출', sourceScope: null, targetScope: SCOPES.FAMILY,
+        transform: (claim) => ({ subject: '가계부', predicate: '지출', object: `${claim.claim?.subject||''}: ${claim.claim?.object||''}`, layer: 1 }) },
 
-      // 스타트업 장애 → 도시 관제 경보
-      { name: '장애전파', sourcePredicate: '장애', sourceScope: SCOPES.STARTUP, targetScope: SCOPES.NATION,
-        transform: (claim) => ({ subject: claim.claim?.subject || '', predicate: '서비스이상', object: claim.claim?.object || '', layer: 2 }) },
+      // 공지 → 개인 일정 (비영리에서)
+      { name: '공지전파', sourcePredicate: '공지', sourceScope: SCOPES.NONPROFIT, targetScope: SCOPES.PERSONAL,
+        transform: (claim) => ({ subject: '일정', predicate: claim.claim?.predicate || '공지', object: claim.claim?.object || '', layer: 1 }) },
 
-      // 교회 행사 → 개인 일정
-      { name: '행사전파', sourcePredicate: '공지', sourceScope: SCOPES.NONPROFIT, targetScope: SCOPES.PERSONAL,
-        transform: (claim) => ({ subject: '일정', predicate: claim.claim?.predicate || '행사', object: claim.claim?.object || '', layer: 1 }) },
-
-      // 도시 긴급경보 → 전 scope 전파
-      { name: '긴급전파', sourcePredicate: '긴급경보', sourceScope: SCOPES.NATION, targetScope: SCOPES.PERSONAL,
+      // 긴급경보 → 전체 (관제에서)
+      { name: '긴급전파', sourcePredicate: '긴급경보', sourceScope: null, targetScope: SCOPES.PERSONAL,
         transform: (claim) => ({ subject: '긴급', predicate: '경보', object: claim.claim?.object || '', layer: 0 }) },
+
+      // 장애 → 관제 (스타트업/기업에서)
+      { name: '장애전파', sourcePredicate: '장애', sourceScope: null, targetScope: SCOPES.NATION,
+        transform: (claim) => ({ subject: claim.claim?.subject||'', predicate: '서비스이상', object: claim.claim?.object||'', layer: 2 }) },
+
+      // 매출 → 기업 집계 (스타트업에서)
+      { name: '매출집계', sourcePredicate: '매출', sourceScope: SCOPES.STARTUP, targetScope: SCOPES.ENTERPRISE,
+        transform: (claim) => ({ subject: '기업재무', predicate: '매출집계', object: `${claim.claim?.subject||''}: ${claim.claim?.object||''}`, layer: 1 }) },
     ];
   }
 
@@ -79,7 +83,7 @@ class PropagationEngine {
   propagate(claim, sourceScope) {
     const results = [];
     for (const rule of this.rules) {
-      if (rule.sourcePredicate === claim.claim?.predicate && rule.sourceScope === sourceScope) {
+      if (rule.sourcePredicate === claim.claim?.predicate && (rule.sourceScope === null || rule.sourceScope === sourceScope)) {
         const newClaim = rule.transform(claim);
         const created = this.memory.createClaim(newClaim.subject, newClaim.predicate, newClaim.object, 0, newClaim.layer);
         results.push({ rule: rule.name, from: sourceScope, to: rule.targetScope, claim: created });

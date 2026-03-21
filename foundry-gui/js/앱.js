@@ -18,7 +18,9 @@ const API = '/api/foundry';
 let graph, slots, chart, tmpl, causal, cov, church, lifeApp, cityApp, dash, familyApp, startupApp, enterpriseApp;
 
 // ── View switching ──
-function go(name) {
+function go(name, params) {
+  // params: { tab, highlight } 등 딥링크 파라미터
+  window._deepLink = params || null;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const view = document.getElementById(`v_${name}`);
@@ -446,15 +448,16 @@ function init() {
   document.getElementById('refreshBtn')?.addEventListener('click', refresh);
   initWorkspaceActions();
   document.getElementById('notifBadge')?.addEventListener('click', () => go('dashboard'));
+  applyNavScope();
 
   // Welcome shortcuts
   document.getElementById('w_sample')?.addEventListener('click', loadSample);
   document.getElementById('w_nation')?.addEventListener('click', ()=>go('tmpl'));
   document.getElementById('w_decide')?.addEventListener('click', ()=>go('decide'));
   // 3 카테고리 — 해당 도메인으로 템플릿 필터
-  document.getElementById('w_biz')?.addEventListener('click', ()=>{ go('tmpl'); tmpl.selectedDomain='business'; tmpl.렌더(); });
+  document.getElementById('w_biz')?.addEventListener('click', ()=>{ localStorage.setItem('crownyScope','2'); applyNavScope(); go('startup'); });
   document.getElementById('w_ent')?.addEventListener('click', ()=>{ go('tmpl'); tmpl.selectedDomain='entertainment'; tmpl.렌더(); });
-  document.getElementById('w_church')?.addEventListener('click', ()=>go('church'));
+  document.getElementById('w_church')?.addEventListener('click', ()=>{ localStorage.setItem('crownyScope','3'); applyNavScope(); go('church'); });
 
   // KPS sample
   const kpsSample = Array.from({length:80},(_,i)=>{
@@ -470,6 +473,43 @@ function init() {
   graph.로드();
 
   go('home');
+}
+
+// ── 역할 기반 네비 필터 ──
+function applyNavScope() {
+  const scope = localStorage.getItem('crownyScope');
+  if (!scope) return; // 전체 보기
+  const scopeNavMap = {
+    '0': ['home','dashboard','life','graph','search','stats'],           // 개인
+    '1': ['home','dashboard','life','family','graph','search','stats'],  // 가정
+    '2': ['home','dashboard','startup','graph','decide','search','stats'], // 스타트업
+    '3': ['home','dashboard','church','graph','decide','search','stats'],  // 비영리
+    '4': ['home','dashboard','enterprise','startup','graph','decide','causal','search','stats'], // 기업
+    '5': ['home','dashboard','city','enterprise','graph','decide','causal','tmpl','search','stats'], // 관제
+  };
+  const allowed = scopeNavMap[scope] || null;
+  if (!allowed) return;
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    const v = btn.dataset.v;
+    btn.style.display = allowed.includes(v) ? '' : 'none';
+  });
+  // 구분선도 숨기기
+  document.querySelectorAll('.nav-sep').forEach(sep => {
+    const next = sep.nextElementSibling;
+    const prev = sep.previousElementSibling;
+    if (next && next.style.display === 'none') sep.style.display = 'none';
+  });
+}
+
+// 전체 보기 토글 (더블클릭으로)
+if (typeof document !== 'undefined') {
+  document.querySelector('.logo')?.addEventListener('dblclick', () => {
+    if (localStorage.getItem('crownyScope')) {
+      localStorage.removeItem('crownyScope');
+      document.querySelectorAll('.nav-btn,.nav-sep').forEach(el => el.style.display = '');
+      toast('전체 보기 모드', '확정');
+    }
+  });
 }
 
 // module script는 defer이므로 DOM이 이미 ready일 수 있음

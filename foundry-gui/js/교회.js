@@ -132,7 +132,7 @@ class 교회앱 {
       const val = prompt(`${type} 내용:`);
       if (!val) return;
       fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: b.dataset.name, predicate: type, object: val, layer: 1 }) })
+        body: JSON.stringify({ subject: b.dataset.name, predicate: type, object: val, layer: 1 ,scope:3}) })
         .then(() => document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${b.dataset.name} ${type} 기록`, type: '확정' } })));
     }));
   }
@@ -163,7 +163,7 @@ class 교회앱 {
       const group = document.getElementById('_grpName')?.value?.trim();
       if (!member || !group) return;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: member, predicate: '소그룹', object: group, layer: 1 }) });
+        body: JSON.stringify({ subject: member, predicate: '소그룹', object: group, layer: 1 ,scope:3}) });
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${member} → ${group} 배정`, type: '확정' } }));
       this.렌더();
     });
@@ -205,7 +205,7 @@ class 교회앱 {
       const f = e.target;
       const obj = `${f.type.value} ${Number(f.amount.value).toLocaleString()}원${f.note.value ? ' ('+f.note.value+')' : ''}`;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: f.name.value, predicate: '헌금', object: obj, layer: 1 }) });
+        body: JSON.stringify({ subject: f.name.value, predicate: '헌금', object: obj, layer: 1 ,scope:3}) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '헌금 기록 완료', type: '확정' } }));
       fetch(`${API}/notify`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type:'church',title:'헌금',message:`${f.name.value}: ${obj}`,severity:'normal'}) });
@@ -243,7 +243,7 @@ class 교회앱 {
       e.preventDefault();
       const f = e.target;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: f.who.value, predicate: '기도제목', object: f.content.value, layer: 1 }) });
+        body: JSON.stringify({ subject: f.who.value, predicate: '기도제목', object: f.content.value, layer: 1 ,scope:3}) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '기도제목 등록', type: '확정' } }));
       this.렌더();
@@ -253,7 +253,7 @@ class 교회앱 {
       const note = prompt('응답 내용:');
       if (!note) return;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: b.dataset.s, predicate: '기도', object: '응답: ' + note, layer: 3 }) });
+        body: JSON.stringify({ subject: b.dataset.s, predicate: '기도', object: '응답: ' + note, layer: 3 ,scope:3}) });
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '기도 응답 기록!', type: '확정' } }));
       this.렌더();
     }));
@@ -276,7 +276,7 @@ class 교회앱 {
       e.preventDefault();
       const f = e.target;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: '공지', predicate: f.title.value, object: f.content.value, layer: 0 }) });
+        body: JSON.stringify({ subject: '공지', predicate: f.title.value, object: f.content.value, layer: 0 ,scope:3}) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '공지 게시', type: '확정' } }));
       this._loadNotices();

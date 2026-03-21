@@ -73,7 +73,7 @@ class 가정앱 {
       e.preventDefault(); const f = e.target;
       const obj = `${f.item.value} ${Number(f.amount.value).toLocaleString()}원${f.note.value?' ('+f.note.value+')':''}`;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: '가계부', predicate: f.type.value, object: obj, layer: 1 }) });
+        body: JSON.stringify({ subject: '가계부', predicate: f.type.value, object: obj, layer: 1 ,scope:1}) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '기록 완료', type: '확정' } }));
       this.렌더();
@@ -103,7 +103,7 @@ class 가정앱 {
     el.querySelector('#_calForm')?.addEventListener('submit', async (e) => {
       e.preventDefault(); const f = e.target;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: f.who.value||'가족', predicate: '일정', object: `${f.date.value} ${f.title.value}`, layer: 1 }) });
+        body: JSON.stringify({ subject: f.who.value||'가족', predicate: '일정', object: `${f.date.value} ${f.title.value}`, layer: 1 ,scope:1}) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '일정 추가', type: '확정' } }));
       this.렌더();
@@ -133,7 +133,7 @@ class 가정앱 {
     el.querySelector('#_childForm')?.addEventListener('submit', async (e) => {
       e.preventDefault(); const f = e.target;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: f.child.value, predicate: '성장기록', object: `[${f.category.value}] ${f.content.value}`, layer: 1 }) });
+        body: JSON.stringify({ subject: f.child.value, predicate: '성장기록', object: `[${f.category.value}] ${f.content.value}`, layer: 1 ,scope:1}) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '성장 기록 완료', type: '확정' } }));
       this.렌더();
@@ -163,7 +163,7 @@ class 가정앱 {
       e.preventDefault(); const f = e.target;
       const obj = f.deadline.value ? `${f.goal.value} (${f.deadline.value}까지)` : f.goal.value;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: '가족', predicate: '가족목표', object: obj, layer: 2 }) });
+        body: JSON.stringify({ subject: '가족', predicate: '가족목표', object: obj, layer: 2 ,scope:1}) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '목표 등록!', type: '확정' } }));
       this.렌더();
@@ -171,7 +171,7 @@ class 가정앱 {
 
     el.querySelectorAll('._done').forEach(b => b.addEventListener('click', async () => {
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: '가족', predicate: '목표달성', object: b.dataset.o, layer: 3 }) });
+        body: JSON.stringify({ subject: '가족', predicate: '목표달성', object: b.dataset.o, layer: 3 ,scope:1}) });
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '목표 달성!', type: '확정' } }));
       this.렌더();
     }));

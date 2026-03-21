@@ -74,7 +74,7 @@ class 스타트업앱 {
     el.querySelector('#_taskForm')?.addEventListener('submit', async (e) => {
       e.preventDefault(); const f = e.target;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: f.assignee.value||'미배정', predicate: '할일', object: f.task.value, layer: 2 }) });
+        body: JSON.stringify({ subject: f.assignee.value||'미배정', predicate: '할일', object: f.task.value, layer: 2 ,scope:2}) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '태스크 추가', type: '확정' } }));
       this.렌더();
@@ -82,7 +82,7 @@ class 스타트업앱 {
 
     el.querySelectorAll('._mv').forEach(b => b.addEventListener('click', async () => {
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: b.dataset.s, predicate: b.dataset.to, object: b.dataset.o, layer: 2 }) });
+        body: JSON.stringify({ subject: b.dataset.s, predicate: b.dataset.to, object: b.dataset.o, layer: 2 ,scope:2}) });
       this.렌더();
     }));
   }
@@ -120,7 +120,7 @@ class 스타트업앱 {
     el.querySelector('#_finForm')?.addEventListener('submit', async (e) => {
       e.preventDefault(); const f = e.target;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: f.item.value, predicate: f.type.value, object: `${Number(f.amount.value).toLocaleString()}원`, layer: 1 }) });
+        body: JSON.stringify({ subject: f.item.value, predicate: f.type.value, object: `${Number(f.amount.value).toLocaleString()}원`, layer: 1 ,scope:2}) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '재무 기록', type: '확정' } }));
       this.렌더();
@@ -159,7 +159,7 @@ class 스타트업앱 {
       e.preventDefault(); const f = e.target;
       const obj = f.value.value ? `${f.contact.value||''} ${Number(f.value.value).toLocaleString()}원` : (f.contact.value||'');
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: f.company.value, predicate: '리드', object: obj, layer: 1 }) });
+        body: JSON.stringify({ subject: f.company.value, predicate: '리드', object: obj, layer: 1 ,scope:2}) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '리드 추가', type: '확정' } }));
       this.렌더();
@@ -188,7 +188,7 @@ class 스타트업앱 {
     el.querySelector('#_teamForm')?.addEventListener('submit', async (e) => {
       e.preventDefault(); const f = e.target;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: f.name.value, predicate: '팀원', object: `${f.role.value} (${f.skill.value||''})`, layer: 1 }) });
+        body: JSON.stringify({ subject: f.name.value, predicate: '팀원', object: `${f.role.value} (${f.skill.value||''})`, layer: 1 ,scope:2}) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '팀원 추가', type: '확정' } }));
       this.렌더();

@@ -110,9 +110,15 @@ class 통합대시보드 {
           ${claims.slice(-20).reverse().map(c => {
             const time = c.createdAt ? new Date(c.createdAt).toLocaleString('ko', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
             const pred = c.claim?.predicate || '';
-            const isAlert = pred.includes('소방') || pred.includes('전력') || pred.includes('가스');
+            const isAlert = pred.includes('소방') || pred.includes('전력') || pred.includes('가스') || pred.includes('긴급');
             const cls = isAlert ? '오류' : pred === '헌금' ? '미확인' : '확정';
-            return `<div class="pipe">
+            // 딥링크 대상 앱 결정
+            const appMap = {'헌금':'church','기도':'church','기도제목':'church','소그룹':'church','공지':'church',
+              '지출':'family','수입':'family','일정':'family','성장기록':'family','가족목표':'family',
+              '할일':'startup','진행중':'startup','완료':'startup','매출':'startup','비용':'startup','리드':'startup','팀원':'startup',
+              '직원':'enterprise','소방':'city','전력':'city','가스':'city','긴급경보':'city','긴급':'city'};
+            const targetApp = appMap[pred] || 'graph';
+            return `<div class="pipe _timeline" data-app="${targetApp}" style="cursor:pointer">
               <div class="dot ${cls}"></div>
               <span style="font-weight:500;min-width:50px">${c.claim?.subject||c.name||''}</span>
               <span style="color:var(--text-2)">${pred}</span>
@@ -128,6 +134,13 @@ class 통합대시보드 {
     this.el.querySelectorAll('._goto').forEach(btn => {
       btn.addEventListener('click', () => {
         document.dispatchEvent(new CustomEvent('화면이동', { detail: btn.dataset.v }));
+      });
+    });
+
+    // 타임라인 딥링크
+    this.el.querySelectorAll('._timeline').forEach(item => {
+      item.addEventListener('click', () => {
+        document.dispatchEvent(new CustomEvent('화면이동', { detail: item.dataset.app }));
       });
     });
 
