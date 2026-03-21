@@ -1352,7 +1352,7 @@ const CANVAS = (function() {
     function injectStyles() {
         const style = document.createElement('style');
         style.textContent = `
-        #canvas-frame { position:fixed; top:0; left:0; right:0; bottom:0; z-index:10000; display:flex; flex-direction:column; background:var(--bg, #FFF8F0); color:var(--text, #3D2B1F); font-family:-apple-system,system-ui,sans-serif; }
+        #canvas-frame { position:fixed; top:0; left:0; right:0; bottom:0; z-index:9000; display:flex; flex-direction:column; background:var(--bg, #FFF8F0); color:var(--text, #3D2B1F); font-family:-apple-system,system-ui,sans-serif; }
         .cv-topbar { display:flex; align-items:center; gap:8px; padding:0 12px; height:40px; background:var(--primary, #3D2B1F); color:var(--bg, #FFF8F0); flex-shrink:0; }
         .cv-brand { font-weight:800; font-size:0.9rem; cursor:pointer; }
         .cv-brand-sub { font-size:0.65rem; opacity:0.5; }
@@ -1441,12 +1441,21 @@ const CANVAS = (function() {
 
 // 자동 초기화 — 로그인 완료 대기
 (function _tryInit(attempt) {
-    if (attempt > 10) return; // 5초 후 포기
+    if (attempt > 20) return; // 10초 후 포기
     setTimeout(() => {
         if (CANVAS.isCrownyBus() && localStorage.getItem('crowny_token')) {
             CANVAS.init();
         } else if (CANVAS.isCrownyBus()) {
-            _tryInit(attempt + 1); // 로그인 대기
+            _tryInit(attempt + 1);
         }
     }, 500);
 })(0);
+
+// 로그인 성공 시 Canvas 활성화 (auth.js의 onLoginSuccess hook)
+const _origOnLoginSuccess = window.onLoginSuccess;
+window.onLoginSuccess = function(data) {
+    if (_origOnLoginSuccess) _origOnLoginSuccess(data);
+    if (CANVAS.isCrownyBus()) {
+        setTimeout(() => CANVAS.init(), 300);
+    }
+};
