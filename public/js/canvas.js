@@ -35,7 +35,9 @@ const CANVAS = (function() {
 
     // ── 도메인 감지 ──
     function isCrownyBus() {
-        return location.hostname === 'crownybus.com' || location.hostname === 'localhost';
+        // crownybus.com 또는 URL 파라미터 ?canvas=1 으로 강제 활성화
+        return location.hostname === 'crownybus.com' ||
+               new URLSearchParams(location.search).has('canvas');
     }
 
     // ── 초기화: crowny.org 레이아웃을 Canvas로 전환 ──
@@ -246,36 +248,126 @@ const CANVAS = (function() {
     }
 
     // ── 워크스페이스: Messenger ──
+    let _chatPollTimer = null;
+    let _currentChatId = null;
+
     async function loadMsgWorkspace(left, center, right) {
         const token = localStorage.getItem('crowny_token');
         if (!token) { center.innerHTML = '<div class="cv-mono">Login required</div>'; return; }
+
+        // 연락처 + 채팅방 목록
         try {
-            const r = await fetch('/v2/chat/list', { headers: { 'Authorization': 'Bearer ' + token } });
-            const data = await r.json();
-            const chats = data.chats || data || [];
-            left.innerHTML = chats.map(c => `<div class="cv-list-item" onclick="CANVAS.openChat('${c.id}','${(c.name||c.displayName||'').replace(/'/g,'')}')">${c.name || c.displayName || c.id}</div>`).join('') || '<div class="cv-mono">No chats</div>';
+            const [chatR, contactR] = await Promise.all([
+                fetch('/v2/chat/list', { headers: { 'Authorization': 'Bearer ' + token } }),
+                fetch('/v2/contacts', { headers: { 'Authorization': 'Bearer ' + token } }),
+            ]);
+            const chatData = await chatR.json();
+            const contactData = await contactR.json();
+            const chats = chatData.chats || chatData || [];
+            const contacts = contactData.contacts || contactData || [];
+
+            let html = `<button class="cv-btn" onclick="CANVAS.newChat()" style="width:100%;margin-bottom:6px">+ New Chat</button>`;
+            // 채팅방 목록
+            html += chats.map(c => {
+                const name = c.name || c.displayName || c.id;
+                const unread = c.unread > 0 ? `<span style="background:var(--error);color:var(--bg);font-size:0.55rem;padding:1px 4px;border-radius:6px;margin-left:4px">${c.unread}</span>` : '';
+                const preview = c.lastMessageText ? `<div style="font-size:0.6rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.lastMessageText.slice(0, 30))}</div>` : '';
+                return `<div class="cv-list-item" onclick="CANVAS.openChat('${c.id}','${name.replace(/'/g, '')}')"><strong>${escHtml(name)}</strong>${unread}${preview}</div>`;
+            }).join('');
+
+            // 연락처 (채팅방 없는 사람들)
+            if (contacts.length > 0) {
+                html += `<div style="font-size:0.6rem;font-weight:700;color:var(--text-secondary);padding:8px 0 4px;margin-top:4px;border-top:1px solid var(--border)">CONTACTS</div>`;
+                html += contacts.map(c => `<div class="cv-list-item" style="font-size:0.75rem" onclick="CANVAS.startDM('${escHtml(c.username || c.crownyUsername || '')}')">${escHtml(c.display_name || c.name || c.username || '?')}</div>`).join('');
+            }
+            left.innerHTML = html;
         } catch { left.innerHTML = '<div class="cv-mono">Load failed</div>'; }
-        center.innerHTML = '<div class="cv-mono" style="padding:2rem;text-align:center">Select a chat</div>';
+
+        center.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-secondary)"><div style="font-size:2rem;opacity:0.2;margin-bottom:0.5rem">&#9993;</div>Select a conversation</div>';
+        right.innerHTML = '';
+    }
+
+    async function newChat() {
+        const username = prompt('Username to chat with:');
+        if (!username) return;
+        await startDM(username);
+    }
+
+    async function startDM(username) {
+        if (!username) return;
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch('/api/chat/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ to: username, type: 'dm' }) });
+        const data = await r.json();
+        if (data.id) openChat(data.id, username);
+        else if (typeof showToast === 'function') showToast(data.error || 'Failed', 'error');
     }
 
     async function openChat(chatId, name) {
+        _currentChatId = chatId;
+        if (_chatPollTimer) clearInterval(_chatPollTimer);
+
         const center = document.getElementById('cv-center-content');
         const centerTitle = document.getElementById('cv-center-title');
+        const right = document.getElementById('cv-right-content');
         if (centerTitle) centerTitle.textContent = name || chatId;
+
+        await _renderChat(chatId);
+
+        // 5초 폴링
+        _chatPollTimer = setInterval(() => {
+            if (currentWs === 'msg' && _currentChatId === chatId) _renderChat(chatId);
+        }, 5000);
+
+        // 우측: 채팅 정보
+        if (right) {
+            const token = localStorage.getItem('crowny_token');
+            try {
+                const r = await fetch(`/api/chat/${chatId}/info`, { headers: { 'Authorization': 'Bearer ' + token } });
+                const info = await r.json();
+                right.innerHTML = `<div style="padding:8px">
+                    <div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">INFO</div>
+                    <div style="font-size:0.8rem;margin-bottom:4px"><strong>${escHtml(info.groupName || name || chatId)}</strong></div>
+                    <div style="font-size:0.7rem;color:var(--text-secondary)">Type: ${info.type || 'dm'}</div>
+                    <div style="font-size:0.7rem;color:var(--text-secondary)">Members: ${(info.participants || []).length}</div>
+                    <div style="margin-top:8px;font-size:0.65rem;font-weight:700;color:var(--text-secondary)">PARTICIPANTS</div>
+                    ${(info.participantStatus || info.participants || []).map(p => {
+                        const username = p.username || p;
+                        const online = p.isOnline;
+                        return `<div style="padding:4px 0;font-size:0.75rem;border-bottom:1px solid var(--border)"><span style="color:${online ? 'var(--info)' : 'var(--text-secondary)'}">${online ? '●' : '○'}</span> ${escHtml(username)}</div>`;
+                    }).join('')}
+                </div>`;
+            } catch {}
+        }
+    }
+
+    async function _renderChat(chatId) {
+        const center = document.getElementById('cv-center-content');
+        if (!center) return;
         const token = localStorage.getItem('crowny_token');
         try {
-            const r = await fetch(`/v2/chat/${chatId}/messages?limit=30`, { headers: { 'Authorization': 'Bearer ' + token } });
+            const r = await fetch(`/v2/chat/${chatId}/messages?limit=40`, { headers: { 'Authorization': 'Bearer ' + token } });
             const data = await r.json();
             const msgs = data.messages || data || [];
             const username = localStorage.getItem('crowny_username') || '';
+
+            // 기존 스크롤 위치 보존
+            const existing = document.getElementById('cv-chat-msgs');
+            const wasAtBottom = existing ? (existing.scrollHeight - existing.scrollTop - existing.clientHeight < 50) : true;
+
             center.innerHTML = `<div class="cv-scroll" id="cv-chat-msgs">${msgs.map(m => {
                 const mine = m.senderId === username || m.from === username;
-                return `<div class="cv-chat-msg ${mine ? 'mine' : 'theirs'}"><div class="cv-chat-bubble">${escHtml(m.content || m.text || '')}</div></div>`;
+                const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+                return `<div class="cv-chat-msg ${mine ? 'mine' : 'theirs'}">
+                    ${!mine ? `<div style="font-size:0.6rem;color:var(--text-secondary);margin-bottom:1px">${escHtml(m.senderId || m.from || '')}</div>` : ''}
+                    <div class="cv-chat-bubble">${escHtml(m.content || m.text || '')}</div>
+                    <div style="font-size:0.55rem;color:var(--text-muted-light);margin-top:1px">${time}</div>
+                </div>`;
             }).join('')}</div>
-            <div class="cv-input-row"><input id="cv-chat-input" class="cv-input" placeholder="Message..." onkeydown="if(event.key==='Enter')CANVAS.sendChat('${chatId}')"><button class="cv-btn" onclick="CANVAS.sendChat('${chatId}')">Send</button></div>`;
+            <div class="cv-input-row"><input id="cv-chat-input" class="cv-input" placeholder="Message..." onkeydown="if(event.key==='Enter'&&!event.isComposing)CANVAS.sendChat('${chatId}')"><button class="cv-btn" onclick="CANVAS.sendChat('${chatId}')">Send</button></div>`;
+
             const scroll = document.getElementById('cv-chat-msgs');
-            if (scroll) scroll.scrollTop = scroll.scrollHeight;
-        } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+            if (scroll && wasAtBottom) scroll.scrollTop = scroll.scrollHeight;
+        } catch {}
     }
 
     async function sendChat(chatId) {
@@ -284,12 +376,15 @@ const CANVAS = (function() {
         const text = input.value.trim();
         input.value = '';
         const token = localStorage.getItem('crowny_token');
-        await fetch('/v2/chat/send', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chatId, content: text })
-        });
-        openChat(chatId, document.getElementById('cv-center-title')?.textContent);
+        try {
+            await fetch('/v2/chat/send', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: chatId, content: text })
+            });
+            await _renderChat(chatId);
+        } catch {}
+        input.focus();
     }
 
     // ── 워크스페이스: DEX ──
@@ -1155,7 +1250,7 @@ const CANVAS = (function() {
     return {
         init, openWs, isCrownyBus, WORKSPACES,
         // Chat
-        openChat, sendChat,
+        openChat, sendChat, newChat, startDM,
         // Note
         createNote, openNote, saveNote,
         // Project
@@ -1186,12 +1281,14 @@ const CANVAS = (function() {
     };
 })();
 
-// 자동 초기화
-document.addEventListener('DOMContentLoaded', () => {
-    // 로그인 후 Canvas 모드 활성화
+// 자동 초기화 — 로그인 완료 대기
+(function _tryInit(attempt) {
+    if (attempt > 10) return; // 5초 후 포기
     setTimeout(() => {
         if (CANVAS.isCrownyBus() && localStorage.getItem('crowny_token')) {
             CANVAS.init();
+        } else if (CANVAS.isCrownyBus()) {
+            _tryInit(attempt + 1); // 로그인 대기
         }
     }, 500);
-});
+})(0);
