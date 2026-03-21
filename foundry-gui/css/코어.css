@@ -278,7 +278,93 @@ input:focus, select:focus, textarea:focus { border-color: var(--확정); }
 /* ── Breadcrumb in canvas bar ── */
 .canvas-bar { font-size: 11px; }
 
+/* ── 태블릿 (≤900px) ── */
 @media (max-width: 900px) {
   body { grid-template-columns: var(--nav-w) 1fr; grid-template-areas: "header header" "nav canvas"; }
   .detail { display: none; }
+}
+
+/* ── 모바일 (≤640px) ── */
+@media (max-width: 640px) {
+  :root { --nav-w: 0px; --header-h: 44px; }
+
+  body {
+    grid-template-rows: var(--header-h) 1fr 48px;
+    grid-template-columns: 1fr;
+    grid-template-areas: "header" "canvas" "nav";
+  }
+
+  /* 헤더 축소 */
+  .hdr { padding: 0 10px; gap: 8px; }
+  .logo { font-size: 12px; }
+
+  /* 네비 → 하단 바 */
+  .nav {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 8px;
+    gap: 0;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .nav-btn {
+    flex-direction: column;
+    padding: 3px 8px;
+    min-width: 48px;
+    gap: 1px;
+  }
+  .nav-btn .ic { font-size: 16px; }
+  .nav-btn .label { font-size: 7px; white-space: nowrap; }
+  .nav-sep { display: none; }
+
+  /* 디테일 패널 숨김 */
+  .detail { display: none; }
+
+  /* 캔버스 */
+  .canvas-bar { padding: 6px 10px; min-height: 32px; }
+  .canvas-body { padding: 0; }
+  .canvas-body > .view { padding: 10px !important; }
+
+  /* 카드/통계 */
+  .card { padding: 10px; }
+  .stat { padding: 8px 4px; }
+  .stat-v { font-size: 16px; }
+  .stat-l { font-size: 7px; }
+  .stat-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 4px; }
+
+  /* 출석 체크 카드 확대 */
+  ._ac, ._aCard {
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+    min-height: 44px;
+  }
+  ._ac span, ._aCard span { font-size: 14px !important; }
+
+  /* 탭 버튼 확대 */
+  ._tab { padding: 6px 10px !important; font-size: 12px !important; min-height: 36px; }
+
+  /* 입력 필드 확대 */
+  input, select, textarea { font-size: 14px !important; padding: 8px !important; min-height: 36px; }
+  .btn { min-height: 36px; font-size: 12px !important; padding: 6px 12px !important; }
+  .btn-p { min-height: 36px; }
+
+  /* 테이블 */
+  table { font-size: 12px !important; }
+
+  /* 파이프/리스트 */
+  .pipe, .ws-item { padding: 8px !important; font-size: 12px !important; }
+
+  /* 템플릿 그리드 1열 */
+  .tmpl-grid { grid-template-columns: 1fr; }
+
+  /* 웰컴 카드 */
+  .welcome-grid { flex-direction: column; width: 100%; padding: 0 16px; }
+  .welcome-card { width: 100%; }
+  .welcome h2 { font-size: 18px; }
+  .welcome p { font-size: 14px; }
+
+  /* 토스트 */
+  .toast { bottom: 56px; font-size: 12px; }
 }
