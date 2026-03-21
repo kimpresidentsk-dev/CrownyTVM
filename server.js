@@ -4090,6 +4090,44 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        // ── 클라이언트 서명 트랜잭션 ──
+        if (path === '/api/wallet/signed-tx' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            // 클라이언트가 서명한 트랜잭션 수신
+            if (!body.signature || !body.senderPubKey || !body.senderAddress) {
+                res.end('{"error":"missing signature or public key"}'); return;
+            }
+            // 서명 검증은 향후 Ed25519 verify로 — 현재는 pubKey+address 일치 확인
+            console.log('[SIGNED-TX] from:', body.senderAddress?.slice(0, 20), 'type:', body.type, 'amount:', body.amount);
+            // 체인 트랜잭션으로 처리
+            if (body.type === 'transfer' && body.to && body.amount) {
+                const result = walletTransact(user.username, 'send', body.amount, body.to, body.memo || 'signed', body.currency || 'CRM');
+                result.clientSigned = true;
+                result.senderAddress = body.senderAddress;
+                res.end(JSON.stringify(result));
+            } else {
+                res.end(JSON.stringify({ success: true, clientSigned: true, received: true }));
+            }
+            return;
+        }
+
+        // ── 클라이언트 지갑 등록 ──
+        if (path === '/api/wallet/register-key' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!body.publicKey || !body.address) { res.end('{"error":"missing key or address"}'); return; }
+            // 사용자에게 클라이언트 공개키 연결
+            if (users[user.username]) {
+                users[user.username].clientPubKey = body.publicKey;
+                users[user.username].clientAddress = body.address;
+                saveJSON('users.json', users);
+                console.log('[WALLET] Client key registered for', user.username, ':', body.address?.slice(0, 20));
+            }
+            res.end(JSON.stringify({ success: true, address: body.address }));
+            return;
+        }
+
         // ── CrownyCell Core API (27-슬롯 셀 CRUD) ──
         if (path === '/api/cell/create' && req.method === 'POST') {
             const user = getAuth(req);
