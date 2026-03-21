@@ -10,7 +10,7 @@ async function loadSettings() {
     }
     
     // Show loading while checking auth
-    container.innerHTML = '<div style="text-align:center;padding:2rem;"><p>설정을 불러오는 중...</p></div>';
+    container.innerHTML = `<div style="text-align:center;padding:2rem;"><p>${typeof t === 'function' ? t('settings.loading', 'Loading settings...') : 'Loading settings...'}</p></div>`;
     
     // Wait for auth to be ready if needed
     if (!currentUser && typeof auth !== 'undefined') {
@@ -30,22 +30,21 @@ async function loadSettings() {
     if (!currentUser) {
         container.innerHTML = `
             <div style="text-align:center;padding:2rem;">
-                <p>설정을 보려면 로그인이 필요합니다.</p>
-                <button onclick="showPage('auth')" style="margin-top:1rem;padding:0.5rem 1rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:6px;">로그인</button>
+                <p>${getText('settings.login_required', 'Please log in to view settings.')}</p>
+                <button onclick="showPage('auth')" style="margin-top:1rem;padding:0.5rem 1rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:6px;">${getText('settings.login_btn', 'Log In')}</button>
             </div>
         `;
         return;
     }
 
     let userData = {};
-    
-    // Load user data with fallback
+
+    // Load user data from server
     try {
-        if (typeof db !== 'undefined') {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            userData = userDoc.exists ? userDoc.data() : {};
-        } else {
-            console.warn('Firestore db not available');
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        if (token) {
+            const resp = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (resp.ok) userData = await resp.json();
         }
     } catch(e) {
         console.warn('Failed to load user data:', e);
@@ -94,7 +93,7 @@ async function loadSettings() {
             <!-- Language -->
             <div class="settings-card">
                 <h4><i data-lucide="globe" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.language', 'Language Settings')}</h4>
-                <button onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'flex' : 'none'; this.textContent = this.nextElementSibling.style.display === 'none' ? '언어 선택 ▼' : '언어 선택 ▲'" class="settings-btn" style="margin-bottom:0.5rem;">언어 선택 ▼</button>
+                <button onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'flex' : 'none'; this.textContent = this.nextElementSibling.style.display === 'none' ? (typeof t==='function'?t('settings.select_lang','Select Language'):' Select Language')+' ▼' : (typeof t==='function'?t('settings.select_lang','Select Language'):'Select Language')+' ▲'" class="settings-btn" style="margin-bottom:0.5rem;">${getText('settings.select_lang', 'Select Language')} ▼</button>
                 <div class="settings-lang-list" style="display:none">
                     ${Object.entries(typeof SUPPORTED_LANGS !== 'undefined' ? SUPPORTED_LANGS : {
                         ko: { name: '한국어', flag: '🇰🇷' },
@@ -168,14 +167,20 @@ async function loadSettings() {
 }
 
 async function saveNotifSettings() {
-    if (!currentUser || typeof db === 'undefined') return;
+    if (!currentUser) return;
     const settings = {
         messages: document.getElementById('notif-messages')?.checked !== false,
         social: document.getElementById('notif-social')?.checked !== false,
         trading: document.getElementById('notif-trading')?.checked !== false,
     };
     try {
-        await db.collection('users').doc(currentUser.uid).update({ notificationSettings: settings });
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/profile/settings', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notificationSettings: settings })
+        });
+        if (!resp.ok) throw new Error('Save failed');
         const message = typeof t === 'function' ? t('settings.saved', 'Saved') : 'Saved';
         if (typeof showToast === 'function') showToast(message, 'success');
     } catch(e) {
@@ -214,13 +219,11 @@ async function exportMyData() {
     if (!currentUser) return;
     if (typeof showLoading === 'function') showLoading(t('settings.exporting', 'Exporting data...'));
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const data = { profile: userDoc.exists ? userDoc.data() : {}, exportedAt: new Date().toISOString() };
-        
-        // Remove sensitive fields
-        delete data.profile.encryptedPrivateKey;
-        delete data.profile.wallets;
-        
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + token } });
+        const profile = resp.ok ? await resp.json() : {};
+        const data = { profile, exportedAt: new Date().toISOString() };
+
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -234,16 +237,18 @@ async function exportMyData() {
 
 async function requestDeactivation() {
     if (!currentUser) return;
-    const confirmed = typeof showConfirmModal === 'function' 
+    const confirmed = typeof showConfirmModal === 'function'
         ? await showConfirmModal(t('settings.deactivate', 'Account Deactivation'), t('settings.deactivate_confirm', 'Are you sure you want to deactivate your account?'))
         : confirm(t('settings.deactivate_confirm', 'Are you sure you want to deactivate your account?'));
     if (!confirmed) return;
     try {
-        await db.collection('deactivation_requests').add({
-            uid: currentUser.uid,
-            email: currentUser.email,
-            requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/profile/deactivate', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: '{}'
         });
+        if (!resp.ok) throw new Error('Failed');
         if (typeof showToast === 'function') showToast(t('settings.deactivate_requested', 'Deactivation request has been submitted'), 'info');
     } catch(e) {
         console.error('Deactivation request failed:', e);

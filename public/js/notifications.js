@@ -137,22 +137,21 @@ function handleNotifClick(type, data) {
 async function createNotification(userId, type, data = {}) {
     if (!userId) return;
     try {
-        const notifData = {
-            userId,
-            type,
-            message: data.message || '',
-            data: data,
-            read: false,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        await db.collection('notifications').add(notifData);
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        if (token) {
+            fetch('/api/notifications', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, type, message: data.message || '', data })
+            }).catch(() => {});
+        }
 
         // 현재 사용자에게 해당하면 로컬에도 표시
         if (currentUser && userId === currentUser.uid) {
             addNotification(type, data.message || '', data);
         }
     } catch (e) {
-        console.warn('createNotification 실패:', e);
+        console.warn(t('notif.create_fail','createNotification failed') + ':', e);
     }
 }
 
@@ -280,20 +279,32 @@ document.addEventListener('click', (e) => {
 async function loadNotificationSettings() {
     if (!currentUser) return;
     try {
-        const doc = await db.collection('users').doc(currentUser.uid).get();
-        if (doc.exists && doc.data().notificationSettings) {
-            notificationSettings = { ...notificationSettings, ...doc.data().notificationSettings };
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        if (token) {
+            const resp = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (resp.ok) {
+                const data = await resp.json();
+                if (data.notificationSettings) {
+                    notificationSettings = { ...notificationSettings, ...data.notificationSettings };
+                }
+            }
         }
     } catch (e) {
-        console.warn('알림 설정 로드 실패:', e);
+        console.warn(t('notif.settings_load_fail','Notification settings load failed') + ':', e);
     }
 }
 
 async function saveNotificationSettings() {
     if (!currentUser) return;
     try {
-        await db.collection('users').doc(currentUser.uid).update({ notificationSettings });
-        showToast(t('notif.settings_saved','✅ Notification settings saved'), 'success');
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/profile/settings', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notificationSettings })
+        });
+        if (!resp.ok) throw new Error('Failed');
+        showToast(t('notif.settings_saved','Notification settings saved'), 'success');
     } catch (e) {
         showToast(t('notif.settings_fail','Notification settings save failed'), 'error');
     }
@@ -350,37 +361,8 @@ function openNotifSettings() {
 let _messengerNotifListeners = [];
 
 function setupMessengerNotifications() {
-    if (!currentUser) return;
-    // Listen to all chats for new messages
-    const unsub = db.collection('chats')
-        .where('participants', 'array-contains', currentUser.uid)
-        .onSnapshot(snapshot => {
-            snapshot.docChanges().forEach(async change => {
-                if (change.type === 'modified') {
-                    const chatData = change.doc.data();
-                    const lastMsg = chatData.lastMessage;
-                    const lastTime = chatData.lastMessageTime?.toMillis?.() || 0;
-                    const now = Date.now();
-
-                    // Only notify if message is recent (<10s) and not on messenger page
-                    if (now - lastTime < 10000) {
-                        const activePage = document.querySelector('.page.active');
-                        const onMessenger = activePage && activePage.id === 'messenger' && currentChat === change.doc.id;
-                        if (!onMessenger) {
-                            const otherId = chatData.participants.find(id => id !== currentUser.uid);
-                            const info = await getUserDisplayInfo(otherId);
-                            const preview = lastMsg && lastMsg.length > 30 ? lastMsg.substring(0, 30) + '...' : lastMsg;
-                            addNotification(NOTIF_TYPES.MESSENGER, `💬 ${info.nickname}: ${preview || 'New message'}`, { chatId: change.doc.id, otherId });
-                            // Browser notification when tab not focused
-                            if (typeof showBrowserNotification === 'function') {
-                              showBrowserNotification(info.nickname, preview || 'New message', { chatId: change.doc.id, otherId });
-                            }
-                        }
-                    }
-                }
-            });
-        });
-    _messengerNotifListeners.push(unsub);
+    // Messenger notifications are handled via WebSocket (ws/chat) — no Firestore needed
+    // The chat system already pushes real-time messages through WebSocket
 }
 
 // ========== SOCIAL NOTIFICATION HOOKS ==========
@@ -390,39 +372,9 @@ let _myPostIds = new Set();
 let _myPostsLoaded = false;
 
 async function setupSocialNotifications() {
-    if (!currentUser) return;
-
-    // First, get my post IDs
-    try {
-        const myPosts = await db.collection('posts').where('userId', '==', currentUser.uid).get();
-        _myPostIds = new Set(myPosts.docs.map(d => d.id));
-        _myPostsLoaded = true;
-    } catch (e) {
-        console.warn('내 게시물 로드 실패:', e);
-        return;
-    }
-
-    if (_myPostIds.size === 0) return;
-
-    // Listen for changes on my posts (likes)
-    const unsub = db.collection('posts')
-        .where('userId', '==', currentUser.uid)
-        .onSnapshot(snapshot => {
-            if (!_myPostsLoaded) return;
-            snapshot.docChanges().forEach(async change => {
-                if (change.type === 'modified') {
-                    const post = change.doc.data();
-                    const likedBy = post.likedBy || [];
-                    // Check if someone new liked (simple: last person in array)
-                    const lastLiker = likedBy[likedBy.length - 1];
-                    if (lastLiker && lastLiker !== currentUser.uid) {
-                        const info = await getUserDisplayInfo(lastLiker);
-                        addNotification(NOTIF_TYPES.SOCIAL_LIKE, `❤️ ${info.nickname}님이 좋아요를 눌렀습니다`, { postId: change.doc.id });
-                    }
-                }
-            });
-        });
-    _socialNotifListeners.push(unsub);
+    // Social notifications (likes, comments) are delivered via server notifications API
+    // Polling is handled in setupServerNotificationPolling()
+    _myPostsLoaded = true;
 }
 
 // ========== TRADING NOTIFICATION HOOK ==========
@@ -447,106 +399,64 @@ function notifyTradingOrder(message) {
 
 // ========== COMMENT NOTIFICATION (hook into addComment) ==========
 
-const _origAddComment = window.addComment;
-if (_origAddComment) {
-    window.addComment = async function(postId) {
-        await _origAddComment(postId);
-        // After adding comment, check if it's someone else's post
-        try {
-            const postDoc = await db.collection('posts').doc(postId).get();
-            if (postDoc.exists) {
-                const postOwnerId = postDoc.data().userId;
-                if (postOwnerId !== currentUser.uid) {
-                    // The post owner will get notified via their own listener
-                    // We don't need to do anything here for the commenter
-                }
-            }
-        } catch (e) {}
-    };
-}
-
-// Listen for new comments on my posts  
+// Comment notifications are handled server-side when comments are posted
 async function setupCommentNotifications() {
-    if (!currentUser || _myPostIds.size === 0) return;
-
-    // For each of my posts, listen for new comments
-    // To minimize listeners, we use a polling approach instead
-    // or listen to a limited set
-    const myPostsArr = Array.from(_myPostIds).slice(0, 10); // max 10 posts
-    for (const postId of myPostsArr) {
-        const unsub = db.collection('posts').doc(postId).collection('comments')
-            .orderBy('timestamp', 'desc')
-            .limit(1)
-            .onSnapshot(snapshot => {
-                snapshot.docChanges().forEach(async change => {
-                    if (change.type === 'added') {
-                        const comment = change.doc.data();
-                        if (comment.userId && comment.userId !== currentUser.uid) {
-                            const timeDiff = Date.now() - (comment.timestamp?.toMillis?.() || 0);
-                            if (timeDiff < 15000) { // recent comment
-                                const info = await getUserDisplayInfo(comment.userId);
-                                addNotification(NOTIF_TYPES.SOCIAL_COMMENT, `💬 ${info.nickname}님이 댓글을 달았습니다`, { postId });
-                            }
-                        }
-                    }
-                });
-            });
-        _socialNotifListeners.push(unsub);
-    }
+    // No-op: notifications delivered via polling from /api/notifications
 }
 
 // ========== FIRESTORE REALTIME NOTIFICATION LISTENER ==========
 
-let _firestoreNotifListener = null;
+let _notifPollInterval = null;
 
-function setupFirestoreNotifications() {
+function setupServerNotificationPolling() {
     if (!currentUser) return;
-
-    _firestoreNotifListener = db.collection('notifications')
-        .where('userId', '==', currentUser.uid)
-        .where('read', '==', false)
-        .orderBy('createdAt', 'desc')
-        .limit(10)
-        .onSnapshot(snapshot => {
-            snapshot.docChanges().forEach(change => {
-                if (change.type === 'added') {
-                    const d = change.doc.data();
-                    const ts = d.createdAt?.toMillis?.() || 0;
-                    const now = Date.now();
-                    // Only show toast for recent notifications (<30s)
-                    if (now - ts < 30000) {
-                        addNotification(d.type, d.message || d.data?.message || '', { ...d.data, _docId: change.doc.id });
-                    } else {
-                        // Older unread — just add to list silently
-                        const style = NOTIF_STYLES[d.type] || NOTIF_STYLES.system;
-                        const notif = {
-                            id: change.doc.id,
-                            type: d.type,
-                            message: d.message || d.data?.message || '',
-                            data: d.data || {},
-                            read: false,
-                            createdAt: d.createdAt?.toDate?.() || new Date()
-                        };
-                        // Avoid duplicates
-                        if (!notifications.find(n => n.id === notif.id)) {
-                            notifications.push(notif);
-                            if (notifications.length > MAX_NOTIFICATIONS) notifications.shift();
-                            unreadCount = notifications.filter(n => !n.read).length;
-                            updateBellBadge();
-                        }
-                    }
-                }
-            });
-        });
+    // Load existing notifications once
+    fetchServerNotifications();
+    // Poll every 30 seconds
+    _notifPollInterval = setInterval(fetchServerNotifications, 30000);
 }
 
-// Mark notification as read in Firestore
-async function markNotifReadInFirestore(docId) {
-    if (!docId || typeof docId !== 'string') return;
+async function fetchServerNotifications() {
     try {
-        await db.collection('notifications').doc(docId).update({ read: true });
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        if (!token) return;
+        const resp = await fetch('/api/notifications', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!resp.ok) return;
+        const { items } = await resp.json();
+        // Add new unread notifications
+        items.filter(n => !n.read).forEach(n => {
+            if (!notifications.find(x => x.id === n.id)) {
+                const notif = { id: n.id, type: n.type, message: n.message, data: n.data || {}, read: false, createdAt: new Date(n.createdAt) };
+                notifications.unshift(notif);
+                // Toast only for recent (<30s)
+                if (Date.now() - n.createdAt < 30000) {
+                    showNotifToast(n.type, n.message, n.data || {});
+                }
+            }
+        });
+        if (notifications.length > MAX_NOTIFICATIONS) notifications.splice(MAX_NOTIFICATIONS);
+        unreadCount = notifications.filter(n => !n.read).length;
+        updateBellBadge();
+        if (notifPanelOpen) renderNotifPanel();
     } catch (e) { /* ignore */ }
 }
+
+// Mark notification as read on server
+async function markNotifReadOnServer(notifId) {
+    if (!notifId) return;
+    try {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        fetch('/api/notifications/read', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notifId })
+        }).catch(() => {});
+    } catch (e) { /* ignore */ }
+}
+
+// Legacy alias
+function setupFirestoreNotifications() { setupServerNotificationPolling(); }
+function markNotifReadInFirestore(docId) { markNotifReadOnServer(docId); }
 
 // ========== INIT ==========
 
@@ -562,16 +472,14 @@ async function initNotifications() {
         await setupCommentNotifications();
     }, 3000);
 
-    console.log('🔔 알림 시스템 v1.2 초기화 완료');
+    console.log('🔔 ' + t('notif.init_complete','Notification system v1.2 initialized'));
 }
 
 // Cleanup on logout
 function cleanupNotifications() {
-    _messengerNotifListeners.forEach(fn => fn());
+    if (_notifPollInterval) { clearInterval(_notifPollInterval); _notifPollInterval = null; }
     _messengerNotifListeners = [];
-    _socialNotifListeners.forEach(fn => fn());
     _socialNotifListeners = [];
-    if (_firestoreNotifListener) { _firestoreNotifListener(); _firestoreNotifListener = null; }
     notifications = [];
     unreadCount = 0;
     _myPostIds.clear();

@@ -2052,6 +2052,8 @@ const server = http.createServer(async (req, res) => {
                 walletAddress: user.walletAddress,
                 photoURL: user.photoURL || '',
                 statusMessage: user.statusMessage || '',
+                nickname: user.displayName || user.username,
+                notificationSettings: user.notificationSettings || {},
                 isAdmin: ADMIN_USERS.includes(user.username),
                 busLinked: !!user.busLinked,
                 busLinkedAt: user.busLinkedAt || null,
@@ -3885,6 +3887,76 @@ const server = http.createServer(async (req, res) => {
             if (!users[targetUser]) { res.end('{"error":"사용자 없음"}'); return; }
             const r = await busLogin(targetUser, body.password || '', users[targetUser].email);
             res.end(JSON.stringify(r));
+            return;
+        }
+
+        // ═══ 설정 / 알림 ═══
+
+        // POST /api/profile/settings — 알림 설정 저장
+        if (path === '/api/profile/settings' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            if (body.notificationSettings) user.notificationSettings = body.notificationSettings;
+            saveJSON('users.json', users);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // POST /api/profile/deactivate — 계정 비활성화 요청
+        if (path === '/api/profile/deactivate' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const deactFile = pathModule.join(DATA_DIR, 'deactivation_requests.json');
+            const reqs = fs.existsSync(deactFile) ? JSON.parse(fs.readFileSync(deactFile, 'utf8')) : [];
+            reqs.push({ username: user.username, email: user.email, requestedAt: Date.now() });
+            fs.writeFileSync(deactFile, JSON.stringify(reqs, null, 2));
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // GET /api/notifications — 알림 목록
+        if (path === '/api/notifications' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const notifFile = pathModule.join(DATA_DIR, 'notifications.json');
+            const all = fs.existsSync(notifFile) ? JSON.parse(fs.readFileSync(notifFile, 'utf8')) : [];
+            const mine = all.filter(n => n.userId === user.username).slice(-50);
+            res.end(JSON.stringify({ items: mine }));
+            return;
+        }
+
+        // POST /api/notifications — 알림 생성
+        if (path === '/api/notifications' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { userId, type, message, data } = body;
+            if (!userId || !type) { res.statusCode = 400; res.end('{"error":"userId and type required"}'); return; }
+            const notifFile = pathModule.join(DATA_DIR, 'notifications.json');
+            const all = fs.existsSync(notifFile) ? JSON.parse(fs.readFileSync(notifFile, 'utf8')) : [];
+            const notif = { id: crypto.randomBytes(8).toString('hex'), userId, type, message: message || '', data: data || {}, read: false, createdAt: Date.now() };
+            all.push(notif);
+            // keep max 1000
+            if (all.length > 1000) all.splice(0, all.length - 1000);
+            fs.writeFileSync(notifFile, JSON.stringify(all, null, 2));
+            res.end(JSON.stringify({ ok: true, notif }));
+            return;
+        }
+
+        // POST /api/notifications/read — 알림 읽음 처리
+        if (path === '/api/notifications/read' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { notifId, all: markAll } = body;
+            const notifFile = pathModule.join(DATA_DIR, 'notifications.json');
+            const list = fs.existsSync(notifFile) ? JSON.parse(fs.readFileSync(notifFile, 'utf8')) : [];
+            if (markAll) {
+                list.forEach(n => { if (n.userId === user.username) n.read = true; });
+            } else if (notifId) {
+                const n = list.find(n => n.id === notifId && n.userId === user.username);
+                if (n) n.read = true;
+            }
+            fs.writeFileSync(notifFile, JSON.stringify(list, null, 2));
+            res.end(JSON.stringify({ ok: true }));
             return;
         }
 
