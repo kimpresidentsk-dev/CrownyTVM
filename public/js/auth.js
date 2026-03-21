@@ -247,6 +247,82 @@ async function changePasswordFromProfile() {
     }
 }
 
+// ========== E1: OTP / Phone Login ==========
+var _otpPhone = '';
+
+function showOtpLogin() {
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('signup-form').style.display = 'none';
+    var otpForm = document.getElementById('otp-form');
+    if (otpForm) { otpForm.style.display = ''; return; }
+    // Create OTP form dynamically
+    var modal = document.querySelector('#auth-modal .modal-content');
+    if (!modal) return;
+    var div = document.createElement('div');
+    div.id = 'otp-form';
+    div.className = 'auth-form';
+    div.innerHTML = '<h3><i data-lucide="smartphone" style="width:18px;height:18px;display:inline-block;vertical-align:middle;"></i> ' + t('auth.phone_login','Phone Login') + '</h3>' +
+        '<input type="tel" id="otp-phone" placeholder="+1234567890" class="input" autocomplete="tel">' +
+        '<button type="button" onclick="sendOtp()" class="btn-primary">' + t('auth.send_otp','Send OTP') + '</button>' +
+        '<div id="otp-code-area" style="display:none;margin-top:1rem;">' +
+        '<input type="text" id="otp-code" placeholder="6-digit code" class="input" maxlength="6" inputmode="numeric" autocomplete="one-time-code">' +
+        '<button type="button" onclick="verifyOtp()" class="btn-primary" style="margin-top:0.5rem;">' + t('auth.verify','Verify') + '</button>' +
+        '</div>' +
+        '<p style="margin-top:1rem;"><a href="#" onclick="event.preventDefault();showLogin();">' + t('auth.back_to_login','Back to login') + '</a></p>';
+    modal.appendChild(div);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function sendOtp() {
+    var phone = (document.getElementById('otp-phone') || {}).value || '';
+    phone = phone.trim();
+    if (!phone || phone.length < 8) { showToast(t('auth.invalid_phone','Enter a valid phone number'), 'warning'); return; }
+    _otpPhone = phone;
+    try {
+        var res = await fetch('/api/otp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: phone }) });
+        var data = await res.json();
+        if (data.success) {
+            showToast(t('auth.otp_sent','OTP sent! Check your phone.'), 'success');
+            var area = document.getElementById('otp-code-area');
+            if (area) area.style.display = '';
+            var codeInput = document.getElementById('otp-code');
+            if (codeInput) codeInput.focus();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function verifyOtp() {
+    var code = (document.getElementById('otp-code') || {}).value || '';
+    if (!code || code.length !== 6) { showToast(t('auth.enter_6digit','Enter 6-digit code'), 'warning'); return; }
+    try {
+        var res = await fetch('/api/otp/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: _otpPhone, code: code }) });
+        var data = await res.json();
+        if (data.token) {
+            localStorage.setItem('crowny_token', data.token);
+            localStorage.setItem('ctvm_token', data.token);
+            localStorage.setItem('crowny_username', data.username);
+            document.getElementById('auth-modal').style.display = 'none';
+            if (typeof onLoginSuccess === 'function') onLoginSuccess(data);
+            showToast(t('auth.login_success','Login successful'), 'success');
+        } else {
+            showToast(data.error || 'Verification failed', 'error');
+        }
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+function showLogin() {
+    document.getElementById('login-form').style.display = '';
+    var sf = document.getElementById('signup-form'); if (sf) sf.style.display = 'none';
+    var of = document.getElementById('otp-form'); if (of) of.style.display = 'none';
+}
+function showSignup() {
+    document.getElementById('login-form').style.display = 'none';
+    var sf = document.getElementById('signup-form'); if (sf) sf.style.display = '';
+    var of = document.getElementById('otp-form'); if (of) of.style.display = 'none';
+}
+
 // Logout — CrownyTVM 전용
 function logout() {
     if (typeof cleanupNotifications === 'function') cleanupNotifications();

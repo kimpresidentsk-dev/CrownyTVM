@@ -546,6 +546,7 @@
                 <button type="submit" class="btn-primary" data-i18n="auth.login">로그인</button>
                 <p style="margin-top:1rem;" data-i18n-html="auth.no_account_link">계정이 없으신가요? <a href="#" onclick="showSignup()">회원가입</a></p>
                 <p><a href="#" onclick="resetPassword()" style="font-size:0.85rem; color:var(--primary-light);" data-i18n="auth.forgot_password">비밀번호를 잊으셨나요?</a></p>
+                <p style="margin-top:0.5rem;"><a href="#" onclick="event.preventDefault();showOtpLogin();" style="font-size:0.85rem;color:var(--gold);"><i data-lucide="smartphone" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Login with Phone Number</a></p>
             </form>
             
             <div id="signup-form" class="auth-form" style="display:none;">

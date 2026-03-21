@@ -690,6 +690,36 @@ function generateWalletAddress(username) {
     return addr;
 }
 
+// ═══ E1: OTP / SMS Authentication ═══
+const otpStore = {}; // { phone: { code, expires, attempts } }
+
+function generateOTP() {
+    return String(Math.floor(100000 + Math.random() * 900000)); // 6-digit
+}
+
+async function sendOTP(phone, code) {
+    // Pluggable SMS provider via env vars
+    const provider = process.env.SMS_PROVIDER || 'console';
+    if (provider === 'twilio' && process.env.TWILIO_SID && process.env.TWILIO_TOKEN && process.env.TWILIO_FROM) {
+        const auth = Buffer.from(process.env.TWILIO_SID + ':' + process.env.TWILIO_TOKEN).toString('base64');
+        const body = new URLSearchParams({ To: phone, From: process.env.TWILIO_FROM, Body: `CROWNY verification: ${code}` });
+        await fetch(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_SID}/Messages.json`, {
+            method: 'POST', headers: { 'Authorization': 'Basic ' + auth, 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString()
+        });
+        return true;
+    }
+    if (provider === 'africastalking' && process.env.AT_API_KEY && process.env.AT_USERNAME) {
+        const body = new URLSearchParams({ username: process.env.AT_USERNAME, to: phone, message: `CROWNY verification: ${code}` });
+        await fetch('https://api.africastalking.com/version1/messaging', {
+            method: 'POST', headers: { 'apiKey': process.env.AT_API_KEY, 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString()
+        });
+        return true;
+    }
+    // Default: console output (dev mode)
+    console.log(`[OTP] ${phone} → ${code}`);
+    return true;
+}
+
 function createUser(username, password, displayName) {
     if (users[username]) return { error: 'Username already exists' };
     if (!/^[a-z0-9._-]{2,20}$/.test(username)) return { error: 'Username: lowercase letters/numbers/._- 2-20 chars' };
@@ -2027,6 +2057,49 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        // ── E1: OTP endpoints ──
+        if (path === '/api/otp/send' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'otp-send', 3)) { res.statusCode = 429; res.end('{"error":"Too many OTP requests. Wait 1 minute."}'); return; }
+            const phone = String(body.phone || '').replace(/[^0-9+]/g, '');
+            if (!phone || phone.length < 8 || phone.length > 16) { res.end('{"error":"Invalid phone number"}'); return; }
+            const code = generateOTP();
+            otpStore[phone] = { code, expires: Date.now() + 5 * 60 * 1000, attempts: 0 };
+            try {
+                await sendOTP(phone, code);
+                res.end(JSON.stringify({ success: true, message: 'OTP sent', expiresIn: 300 }));
+            } catch (e) {
+                res.end(JSON.stringify({ error: 'Failed to send OTP: ' + e.message }));
+            }
+            return;
+        }
+
+        if (path === '/api/otp/verify' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'otp-verify', 10)) { res.statusCode = 429; res.end('{"error":"Too many attempts."}'); return; }
+            const phone = String(body.phone || '').replace(/[^0-9+]/g, '');
+            const code = String(body.code || '');
+            const entry = otpStore[phone];
+            if (!entry) { res.end('{"error":"No OTP sent for this number"}'); return; }
+            if (Date.now() > entry.expires) { delete otpStore[phone]; res.end('{"error":"OTP expired"}'); return; }
+            entry.attempts++;
+            if (entry.attempts > 5) { delete otpStore[phone]; res.end('{"error":"Too many attempts. Request a new OTP."}'); return; }
+            if (entry.code !== code) { res.end('{"error":"Incorrect OTP"}'); return; }
+            // OTP verified — create or login user by phone
+            delete otpStore[phone];
+            const phoneUser = 'u' + phone.replace(/\+/g, '');
+            if (!users[phoneUser]) {
+                const result = createUser(phoneUser, crypto.randomBytes(16).toString('hex'), phone);
+                if (result.error) { res.end(JSON.stringify(result)); return; }
+                users[phoneUser].phone = phone;
+                users[phoneUser].verified = true;
+                saveJSON('users.json', users);
+            }
+            const token = generateToken();
+            sessions[token] = { username: phoneUser, created: Date.now() };
+            saveSessions();
+            res.end(JSON.stringify({ success: true, token, username: phoneUser, phone }));
+            return;
+        }
+
         // ── 인증 ──
         if (path === '/api/register' && req.method === 'POST') {
             if (!rateLimit(clientIp, 'register', 5)) { res.statusCode = 429; res.end('{"error":"Too many requests. Try again later."}'); return; }
@@ -2597,6 +2670,78 @@ const server = http.createServer(async (req, res) => {
         }
 
         // ── 지갑 ──
+        // ═══ E3: Mobile Money Payment Integration ═══
+        if (path === '/api/payment/initiate' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'payment', 5)) { res.statusCode = 429; res.end('{"error":"Too many requests"}'); return; }
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const { provider, phone, amount, currency } = body;
+            if (!provider || !phone || !amount) { res.end('{"error":"provider, phone, amount required"}'); return; }
+            const amt = Number(amount);
+            if (!Number.isFinite(amt) || amt <= 0 || amt > 100000) { res.end('{"error":"Invalid amount"}'); return; }
+
+            const txId = 'pay_' + crypto.randomBytes(8).toString('hex');
+            const payment = { txId, username: user.username, provider, phone, amount: amt, currency: currency || 'USD', status: 'pending', created: Date.now() };
+
+            // Store pending payment
+            const payments = loadJSON('payments.json', {});
+            payments[txId] = payment;
+            saveJSON('payments.json', payments);
+
+            // Provider-specific initiation
+            try {
+                if (provider === 'mpesa' && process.env.MPESA_KEY && process.env.MPESA_SECRET) {
+                    // M-Pesa STK Push (Safaricom)
+                    payment.providerRef = 'mpesa_pending';
+                    // Actual M-Pesa integration would go here
+                } else if (provider === 'bkash' && process.env.BKASH_APP_KEY) {
+                    payment.providerRef = 'bkash_pending';
+                } else if (provider === 'upi' && process.env.UPI_VPA) {
+                    payment.providerRef = 'upi_pending';
+                } else {
+                    // Dev mode: auto-approve after 5s for testing
+                    payment.status = 'dev_pending';
+                    console.log(`[PAYMENT] Dev mode: ${txId} ${provider} ${amt} ${currency || 'USD'} from ${phone}`);
+                }
+                saveJSON('payments.json', payments);
+                res.end(JSON.stringify({ success: true, txId, status: payment.status }));
+            } catch (e) {
+                payment.status = 'failed';
+                payment.error = e.message;
+                saveJSON('payments.json', payments);
+                res.end(JSON.stringify({ error: 'Payment initiation failed: ' + e.message }));
+            }
+            return;
+        }
+
+        if (path === '/api/payment/confirm' && req.method === 'POST') {
+            // Webhook or manual confirmation
+            const { txId, providerRef } = body;
+            const payments = loadJSON('payments.json', {});
+            const payment = payments[txId];
+            if (!payment) { res.end('{"error":"Payment not found"}'); return; }
+            if (payment.status === 'completed') { res.end('{"error":"Already completed"}'); return; }
+            payment.status = 'completed';
+            payment.providerRef = providerRef || payment.providerRef;
+            payment.completedAt = Date.now();
+            saveJSON('payments.json', payments);
+            // Credit wallet
+            const creditResult = walletTransact(payment.username, 'earn', payment.amount, 'payment', `${payment.provider} deposit`, payment.currency === 'KES' ? 'CRM' : 'CRN');
+            res.end(JSON.stringify({ success: true, txId, wallet: creditResult }));
+            return;
+        }
+
+        if (path === '/api/payment/status' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const txId = url.searchParams.get('txId');
+            const payments = loadJSON('payments.json', {});
+            const payment = payments[txId];
+            if (!payment || payment.username !== user.username) { res.end('{"error":"Not found"}'); return; }
+            res.end(JSON.stringify({ txId, status: payment.status, amount: payment.amount, provider: payment.provider }));
+            return;
+        }
+
         if (path === '/api/wallet' && req.method === 'GET') {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
