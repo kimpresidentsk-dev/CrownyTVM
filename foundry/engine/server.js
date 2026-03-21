@@ -134,13 +134,15 @@ function authMiddleware(req, res, pathname) {
     if (PUBLIC_PATHS.has(pathname)) return true;
 
     // 인증 필요한 경로
+    const authMode = process.env.CROWNY_AUTH || 'open';
+    // open: 인증 없이 전체 허용 (개발)
+    // login: 읽기는 허용, 쓰기는 인증 필요
+    // strict: 전면 인증 필수 (국방/프로덕션)
     if (!user) {
-        // 인증 없이도 읽기는 허용 (기본 모드) — 쓰기만 제한
-        // 국방 모드에서는 이 줄을 제거하면 전면 인증 필수
-        if (req.method === 'GET') return true;
-        // POST/PATCH/DELETE는 인증 필요
-        // 단, 현재는 개발 모드이므로 경고만
-        return true;
+        if (authMode === 'open') return true;
+        if (authMode === 'login' && req.method === 'GET') return true;
+        // strict 또는 login+쓰기 → 인증 필요
+        return false;
     }
 
     // 감사 로그 자동 기록 (쓰기 작업)
@@ -606,6 +608,47 @@ route('POST', '/api/foundry/auth/register', async (req, res) => {
     if (!user) return err(res, 409, '이미 존재하는 사용자');
     audit.log('REGISTER', username, `Level: ${CLASS_NAME[user.clearanceLevel]}${req._user ? ' by '+req._user.name : ''}`);
     json(res, 201, { ...user, levelName: CLASS_NAME[user.clearanceLevel] });
+});
+
+// POST /api/foundry/auth/password — 비밀번호 변경
+route('POST', '/api/foundry/auth/password', async (req, res) => {
+    const { username, oldPassword, newPassword } = await parseBody(req);
+    if (!username || !oldPassword || !newPassword) return err(res, 400, '필수 항목 누락');
+    const result = users.changePassword(username, oldPassword, newPassword);
+    if (!result) return err(res, 401, '기존 비밀번호 불일치');
+    audit.log('PASSWORD_CHANGE', username, '비밀번호 변경');
+    json(res, 200, result);
+});
+
+// POST /api/foundry/import/csv — CSV 데이터 가져오기
+route('POST', '/api/foundry/import/csv', async (req, res) => {
+    const { rows, type } = await parseBody(req);
+    // rows: [{ name, content, type, layer, scope }] 또는 [{ subject, predicate, object, layer }]
+    if (!rows || !Array.isArray(rows)) return err(res, 400, 'rows 배열 필수');
+    let created = 0;
+    for (const row of rows) {
+      if (type === 'claims' && row.subject && row.predicate && row.object) {
+        memory.createClaim(row.subject, row.predicate, row.object, 0, row.layer ?? 0);
+        created++;
+      } else if (row.name) {
+        memory.createValue(row.name, row.type ?? 3, row.content ?? '', { layer: row.layer ?? 0, tag: row.scope ?? 0 });
+        created++;
+      }
+    }
+    if (req._user) audit.log('IMPORT', req._user.name, `${created}건 가져오기`);
+    json(res, 201, { imported: created });
+});
+
+// DELETE /api/foundry/cells/bulk — 일괄 삭제
+route('POST', '/api/foundry/cells/bulk-delete', async (req, res) => {
+    const { ids } = await parseBody(req);
+    if (!ids || !Array.isArray(ids)) return err(res, 400, 'ids 배열 필수');
+    let deleted = 0;
+    for (const id of ids) {
+      if (memory.deleteCell(id)) deleted++;
+    }
+    if (req._user) audit.log('BULK_DELETE', req._user.name, `${deleted}건 삭제`);
+    json(res, 200, { deleted });
 });
 
 // GET /api/foundry/auth/users

@@ -19,6 +19,15 @@ import { 보안앱 } from './보안.js';
 const API = '/api/foundry';
 let graph, slots, chart, tmpl, causal, cov, church, lifeApp, cityApp, dash, familyApp, startupApp, enterpriseApp, mapApp, secApp;
 
+// 글로벌 인증 fetch 래퍼 — 모든 앱에서 사용 가능
+window.authFetch = function(url, opts = {}) {
+  const token = localStorage.getItem('crownyToken');
+  if (token) {
+    opts.headers = { ...(opts.headers || {}), 'Authorization': `Bearer ${token}` };
+  }
+  return fetch(url, opts);
+};
+
 // ── View switching ──
 function go(name, params) {
   // params: { tab, highlight } 등 딥링크 파라미터

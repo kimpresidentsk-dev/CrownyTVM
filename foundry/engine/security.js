@@ -255,6 +255,17 @@ class UserStore {
     return u ? { id: u.id, username: u.username, clearanceLevel: u.clearanceLevel } : null;
   }
 
+  changePassword(username, oldPassword, newPassword) {
+    const user = this.authenticate(username, oldPassword);
+    if (!user) return null;
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto.scryptSync(newPassword, salt, 64).toString('hex');
+    const u = this.users.find(u => u.username === username);
+    u.passwordHash = `${salt}:${hash}`;
+    this._save();
+    return { success: true, username };
+  }
+
   listUsers() {
     return this.users.map(u => ({ id: u.id, username: u.username, clearanceLevel: u.clearanceLevel, levelName: CLASS_NAME[u.clearanceLevel] }));
   }
