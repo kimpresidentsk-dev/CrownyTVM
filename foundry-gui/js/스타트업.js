@@ -54,10 +54,15 @@ class 스타트업앱 {
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
         ${Object.entries(cols).map(([col, items]) => {
           const color = col==='완료'?'var(--확정)':col==='진행중'?'var(--미확인)':col==='보류'?'var(--오류)':'var(--text-3)';
-          return `<div>
+          return `<div class="_kanCol" data-col="${col}" style="min-height:80px;padding:4px;border-radius:4px;transition:background .1s"
+                      ondragover="event.preventDefault();this.style.background='var(--확정-bg)'"
+                      ondragleave="this.style.background=''"
+                      ondrop="this.style.background='';this.dispatchEvent(new CustomEvent('colDrop',{detail:event.dataTransfer.getData('text'),bubbles:true}))">
             <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:.04em;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid ${color}">${col} (${items.length})</div>
-            <div style="display:flex;flex-direction:column;gap:4px;min-height:60px">
-              ${items.map(t => `<div class="card" style="padding:6px;font-size:10px;border-left:2px solid ${color}">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              ${items.map(t => `<div class="card _kanCard" draggable="true" data-s="${t.claim?.subject||''}" data-o="${t.claim?.object||''}"
+                    style="padding:6px;font-size:10px;border-left:2px solid ${color};cursor:grab"
+                    ondragstart="event.dataTransfer.setData('text',JSON.stringify({s:this.dataset.s,o:this.dataset.o}))">
                 <div style="font-weight:500">${t.claim?.object||''}</div>
                 <div style="color:var(--text-3);font-size:9px;margin-top:2px">${t.claim?.subject||''}</div>
                 <div style="display:flex;gap:2px;margin-top:4px">
@@ -80,6 +85,21 @@ class 스타트업앱 {
       this.렌더();
     });
 
+    // 드래그 앤 드롭 (#31)
+    el.querySelectorAll('._kanCol').forEach(col => {
+      col.addEventListener('colDrop', async (e) => {
+        try {
+          const { s, o } = JSON.parse(e.detail);
+          const targetCol = col.dataset.col;
+          await fetch(`${API}/claims`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subject: s, predicate: targetCol, object: o, layer: 2, scope: 2 }) });
+          document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `→ ${targetCol}`, type: '확정' } }));
+          this.렌더();
+        } catch {}
+      });
+    });
+
+    // 버튼 클릭 이동 (기존)
     el.querySelectorAll('._mv').forEach(b => b.addEventListener('click', async () => {
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ subject: b.dataset.s, predicate: b.dataset.to, object: b.dataset.o, layer: 2 ,scope:2}) });

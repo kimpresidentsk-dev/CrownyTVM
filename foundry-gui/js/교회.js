@@ -131,6 +131,7 @@ class 교회앱 {
             <option>새가족</option><option>정착</option><option>봉사자</option><option>리더</option>
           </select>
           <input name="group" placeholder="소그룹" style="width:45px">
+          <input name="birthday" type="date" placeholder="생일" style="width:100px" title="생일 (선택)">
           <button type="submit" class="btn btn-p">등록</button>
           <button type="button" class="btn" id="_mCsv" style="font-size:9px">CSV</button>
         </form>
@@ -150,7 +151,7 @@ class 교회앱 {
     el.querySelector('#_mf')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = e.target;
-      const info = [f.cat.value, f.phone.value, f.group.value].filter(Boolean).join(', ');
+      const info = [f.cat.value, f.phone.value, f.group.value, f.birthday.value ? '생일:' + f.birthday.value : ''].filter(Boolean).join(', ');
       await safeFetch(`${API}/cells`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -243,12 +244,24 @@ class 교회앱 {
                        stage === '봉사자' ? 'var(--확정)' :
                        stage === '정착' ? 'var(--미확인)' : 'var(--미인지)';
 
+    // 셀에서 연락처 추출
+    const cellData = await safeFetch(`${API}/search?q=${encodeURIComponent(name)}`);
+    const memberCell = (cellData?.results || []).find(c => c.name === name);
+    const contentStr = memberCell?.content || '';
+    const phoneMatch = contentStr.match(/(01[0-9][-.\s]?\d{3,4}[-.\s]?\d{4})/);
+    const phone = phoneMatch ? phoneMatch[1] : null;
+
     profileEl.innerHTML = `
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-weight:700;font-size:13px">${name}</span>
           <span class="badge" style="background:${stageColor};color:#fff;font-size:9px">${stage}</span>
         </div>
+        ${phone ? `<div style="margin-bottom:6px;display:flex;gap:6px">
+          <a href="tel:${phone}" class="btn" style="font-size:9px;text-decoration:none">전화 ${phone}</a>
+          <a href="sms:${phone}" class="btn" style="font-size:9px;text-decoration:none">문자</a>
+        </div>` : ''}
+        <div style="font-size:10px;color:var(--text-3);margin-bottom:6px">${contentStr}</div>
 
         <div style="display:flex;gap:6px;margin-bottom:8px">
           <div class="stat" style="flex:1"><div class="stat-v">${attendance.length}</div><div class="stat-l">출석</div></div>
@@ -456,6 +469,48 @@ class 교회앱 {
         body: JSON.stringify({ subject: m, predicate: '소그룹', object: g, layer: 1, scope: 3 })
       });
       this._notify(`${m} → ${g}`);
+      this.렌더();
+    });
+
+    // 소그룹 모임 기록 (#24)
+    const meetingData = await safeFetch(`${API}/claims?predicate=${encodeURIComponent('소그룹모임')}`);
+    const meetings = meetingData?.claims || [];
+
+    const meetingHTML = document.createElement('div');
+    meetingHTML.className = 'card';
+    meetingHTML.style.marginTop = '8px';
+    meetingHTML.innerHTML = `
+      <div class="card-h"><span class="card-t">소그룹 모임 기록</span></div>
+      <form id="_meetForm" style="display:flex;gap:3px;flex-wrap:wrap;align-items:end;margin-bottom:6px">
+        <input name="group" placeholder="그룹명" required style="width:55px">
+        <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" style="width:100px">
+        <input name="topic" placeholder="나눔 주제" style="flex:1;min-width:80px">
+        <input name="attendees" placeholder="참석자 (쉼표 구분)" style="width:100px">
+        <button type="submit" class="btn btn-p">기록</button>
+      </form>
+      <div style="display:flex;flex-direction:column;gap:2px;max-height:150px;overflow-y:auto">
+        ${meetings.length ? meetings.slice().reverse().map(m => `
+          <div class="pipe" style="padding:3px 6px">
+            <span style="font-weight:500">${m.claim?.subject || ''}</span>
+            <span style="color:var(--text-3);font-size:9px;flex:1">${m.claim?.object || ''}</span>
+            <span style="font-size:7px;color:var(--text-3)">${fmtDate(m.createdAt)}</span>
+          </div>
+        `).join('') : '<div style="color:var(--text-3);font-size:10px;padding:4px">모임 기록이 없습니다</div>'}
+      </div>
+    `;
+    el.appendChild(meetingHTML);
+
+    meetingHTML.querySelector('#_meetForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const obj = `[${f.date.value}] ${f.topic.value || '나눔'} (${f.attendees.value || '전원'})`;
+      await safeFetch(`${API}/claims`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: f.group.value, predicate: '소그룹모임', object: obj, layer: 1, scope: 3 })
+      });
+      f.reset();
+      this._notify('모임 기록');
       this.렌더();
     });
   }
