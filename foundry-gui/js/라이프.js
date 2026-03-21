@@ -22,6 +22,8 @@ class 라이프앱 {
       { id:'mylife', label:'내 활동' },
       { id:'calendar', label:'일정' },
       { id:'finance', label:'재정' },
+      { id:'journal', label:'일기' },
+      { id:'goals', label:'목표' },
     ];
     this.el.innerHTML = `
       <div style="display:flex;gap:3px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px;flex-wrap:wrap;align-items:center">
@@ -37,6 +39,8 @@ class 라이프앱 {
       case 'mylife': await this._mylifeTab(ct); break;
       case 'calendar': await this._calendarTab(ct); break;
       case 'finance': await this._financeTab(ct); break;
+      case 'journal': await this._journalTab(ct); break;
+      case 'goals': await this._goalsTab(ct); break;
     }
   }
 
@@ -166,50 +170,156 @@ class 라이프앱 {
       </div>`;
   }
 
-  // ─── 일정 탭 ───
+  // ─── 일정 탭 (캘린더 뷰) ───
   async _calendarTab(ct) {
     if (!this.userName) { ct.innerHTML = '<div style="color:var(--text-3);font-size:11px;padding:8px">먼저 습관 탭에서 이름을 등록하세요</div>'; return; }
 
-    // 개인 일정 + 전파된 교회 공지/설교
-    const [personalRes, noticeRes, sermonRes] = await Promise.all([
-      fetch(`${API}/claims?predicate=%EC%9D%BC%EC%A0%95`).then(r=>r.json()),
-      fetch(`${API}/claims?subject=%EA%B3%B5%EC%A7%80`).then(r=>r.json()),
-      fetch(`${API}/claims?predicate=%EC%84%A4%EA%B5%90`).then(r=>r.json()),
+    // 현재 보고 있는 달
+    if (!this._calMonth) {
+      const now = new Date();
+      this._calMonth = now.getMonth();
+      this._calYear = now.getFullYear();
+    }
+
+    // 데이터 로드
+    const [personalRes, noticeRes, sermonRes, attendRes] = await Promise.all([
+      fetch(`${API}/claims?predicate=${encodeURIComponent('일정')}`).then(r => r.json()),
+      fetch(`${API}/claims?subject=${encodeURIComponent('공지')}`).then(r => r.json()),
+      fetch(`${API}/claims?predicate=${encodeURIComponent('설교')}`).then(r => r.json()),
+      fetch(`${API}/claims?subject=${encodeURIComponent(this.userName)}&predicate=${encodeURIComponent('출석')}`).then(r => r.json()),
     ]);
 
-    const personal = personalRes.claims || [];
-    const notices = (noticeRes.claims||[]).filter(c => c.claim?.predicate?.includes('설교') || c.claim?.predicate?.includes('행사'));
-    const sermons = sermonRes.claims || [];
+    // 모든 이벤트를 날짜별로 매핑
+    const eventsByDate = {};
+    const addEvent = (date, type, title) => {
+      const key = date instanceof Date ? date.toISOString().slice(0, 10) : (date || '').slice(0, 10);
+      if (!key || key.length < 8) return;
+      if (!eventsByDate[key]) eventsByDate[key] = [];
+      eventsByDate[key].push({ type, title });
+    };
 
-    const allEvents = [
-      ...personal.map(c => ({ type:'개인', title: c.claim?.object||'', source: c.claim?.subject||'', time: c.createdAt })),
-      ...notices.map(c => ({ type:'교회', title: c.claim?.predicate||'', source: '공지', time: c.createdAt })),
-      ...sermons.map(c => ({ type:'설교', title: (c.claim?.object||'').split('|')[0]||'', source: c.claim?.subject||'', time: c.createdAt })),
-    ].sort((a,b) => (b.time||0) - (a.time||0));
+    (personalRes.claims || []).forEach(c => {
+      const dateMatch = (c.claim?.object || '').match(/(\d{4}-\d{2}-\d{2})/);
+      if (dateMatch) addEvent(dateMatch[1], '일정', (c.claim?.object || '').replace(dateMatch[1], '').trim());
+      else addEvent(new Date(c.createdAt), '일정', c.claim?.object || '');
+    });
+    (noticeRes.claims || []).forEach(c => addEvent(new Date(c.createdAt), '공지', c.claim?.predicate || ''));
+    (sermonRes.claims || []).forEach(c => {
+      const m = (c.claim?.object || '').match(/\[(\d{4}-\d{2}-\d{2})\]/);
+      if (m) addEvent(m[1], '설교', (c.claim?.object || '').split('|')[0].replace(/\[.*?\]/, '').trim());
+    });
+    (attendRes.claims || []).forEach(c => addEvent(new Date(c.createdAt), '출석', c.claim?.object || ''));
+
+    // 캘린더 그리드 생성
+    const year = this._calYear;
+    const month = this._calMonth;
+    const firstDay = new Date(year, month, 1).getDay(); // 0=일
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+
+    let calHTML = '';
+    // 요일 헤더
+    calHTML += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;font-size:9px;font-weight:600;color:var(--text-3);text-align:center;margin-bottom:4px">';
+    ['일', '월', '화', '수', '목', '금', '토'].forEach(d => calHTML += `<div style="padding:3px">${d}</div>`);
+    calHTML += '</div>';
+
+    // 날짜 그리드
+    calHTML += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px">';
+    // 빈 칸
+    for (let i = 0; i < firstDay; i++) calHTML += '<div></div>';
+    // 날짜
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const events = eventsByDate[dateStr] || [];
+      const isToday = dateStr === todayStr;
+      const hasEvents = events.length > 0;
+
+      calHTML += `<div class="_calDay" data-date="${dateStr}" style="min-height:38px;padding:2px;border:1px solid ${isToday ? 'var(--확정)' : 'var(--border)'};border-radius:3px;cursor:pointer;background:${isToday ? 'var(--확정-bg)' : hasEvents ? 'var(--bg)' : ''}">
+        <div style="font-size:10px;font-weight:${isToday ? '700' : '400'};color:${isToday ? 'var(--확정)' : 'var(--text-1)'}">${d}</div>
+        ${events.slice(0, 2).map(e => {
+          const c = e.type === '출석' ? 'var(--확정)' : e.type === '설교' ? 'var(--미확인)' : e.type === '공지' ? '#6B5B8A' : 'var(--text-3)';
+          return `<div style="font-size:7px;color:${c};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.title || e.type}</div>`;
+        }).join('')}
+        ${events.length > 2 ? `<div style="font-size:7px;color:var(--text-3)">+${events.length - 2}</div>` : ''}
+      </div>`;
+    }
+    calHTML += '</div>';
 
     ct.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <button class="btn _calPrev" style="font-size:12px;padding:2px 8px">◀</button>
+        <span style="font-weight:700;font-size:13px;min-width:80px;text-align:center">${year}년 ${monthNames[month]}</span>
+        <button class="btn _calNext" style="font-size:12px;padding:2px 8px">▶</button>
+        <button class="btn _calToday" style="font-size:9px;margin-left:4px">오늘</button>
+      </div>
+
+      <div class="card" style="margin-bottom:8px">
+        ${calHTML}
+      </div>
+
       <div class="card" style="margin-bottom:8px">
         <form id="_cf" style="display:flex;gap:3px;align-items:end">
-          <input name="title" placeholder="일정 제목" required style="flex:1;min-width:100px">
-          <input name="date" type="date" required style="width:110px" value="${new Date().toISOString().slice(0,10)}">
+          <input name="title" placeholder="일정 제목" required style="flex:1;min-width:80px">
+          <input name="date" type="date" required style="width:110px" value="${todayStr}">
           <button type="submit" class="btn btn-p">추가</button>
         </form>
       </div>
-      <div class="card">
-        <div class="card-h"><span class="card-t">일정 (${allEvents.length})</span></div>
-        <div style="display:flex;flex-direction:column;gap:3px;max-height:300px;overflow-y:auto">
-          ${allEvents.length ? allEvents.map(e => {
-            const cls = e.type==='교회'?'미확인':e.type==='설교'?'확정':'미인지';
-            return `<div class="pipe" style="padding:3px 6px"><div class="dot ${cls}"></div><span class="badge ${cls}" style="font-size:7px;min-width:25px;text-align:center">${e.type}</span><span style="font-weight:500;flex:1">${e.title}</span><span style="font-size:8px;color:var(--text-3)">${e.time?new Date(e.time).toLocaleDateString('ko'):''}</span></div>`;
-          }).join('') : '<div style="color:var(--text-3);font-size:10px;padding:6px">일정이 없습니다. 교회 설교/공지가 자동으로 여기에 표시됩니다.</div>'}
-        </div>
-      </div>`;
 
+      <div id="_dayDetail" class="card" style="display:none"></div>
+    `;
+
+    // 월 이동
+    ct.querySelector('._calPrev')?.addEventListener('click', () => {
+      this._calMonth--;
+      if (this._calMonth < 0) { this._calMonth = 11; this._calYear--; }
+      this.렌더();
+    });
+    ct.querySelector('._calNext')?.addEventListener('click', () => {
+      this._calMonth++;
+      if (this._calMonth > 11) { this._calMonth = 0; this._calYear++; }
+      this.렌더();
+    });
+    ct.querySelector('._calToday')?.addEventListener('click', () => {
+      this._calMonth = today.getMonth();
+      this._calYear = today.getFullYear();
+      this.렌더();
+    });
+
+    // 날짜 클릭 → 상세
+    ct.querySelectorAll('._calDay').forEach(el => {
+      el.addEventListener('click', () => {
+        const date = el.dataset.date;
+        const events = eventsByDate[date] || [];
+        const detail = document.getElementById('_dayDetail');
+        if (!detail) return;
+        detail.style.display = 'block';
+        detail.innerHTML = `
+          <div class="card-h"><span class="card-t">${date}</span></div>
+          ${events.length ? events.map(e => `
+            <div class="pipe" style="padding:3px 6px">
+              <div class="dot ${e.type === '출석' ? '확정' : e.type === '설교' ? '미확인' : '미인지'}"></div>
+              <span style="font-size:9px;font-weight:500;min-width:30px">${e.type}</span>
+              <span style="font-size:10px">${e.title}</span>
+            </div>
+          `).join('') : '<div style="color:var(--text-3);font-size:10px;padding:4px">이 날은 기록이 없습니다</div>'}
+        `;
+      });
+    });
+
+    // 일정 추가
     ct.querySelector('#_cf')?.addEventListener('submit', async (e) => {
-      e.preventDefault(); const f = e.target;
-      await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: this.userName, predicate:'일정', object:`${f.date.value} ${f.title.value}`, layer:1, scope:0 }) });
-      f.reset(); this._notify('일정 추가'); this.렌더();
+      e.preventDefault();
+      const f = e.target;
+      await fetch(`${API}/claims`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: this.userName, predicate: '일정', object: `${f.date.value} ${f.title.value}`, layer: 1, scope: 0 })
+      });
+      f.reset();
+      this._notify('일정 추가');
+      this.렌더();
     });
   }
 
@@ -261,6 +371,122 @@ class 라이프앱 {
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ subject:this.userName, predicate:f.type.value, object:obj, layer:1, scope:0 }) });
       f.reset(); this._notify('재정 기록'); this.렌더();
+    });
+  }
+
+  // ─── 일기/메모 탭 ───
+  async _journalTab(ct) {
+    if (!this.userName) { ct.innerHTML = '<div style="color:var(--text-3);font-size:11px;padding:8px">먼저 습관 탭에서 이름을 등록하세요</div>'; return; }
+
+    const data = await (await fetch(`${API}/claims?subject=${encodeURIComponent(this.userName)}&predicate=${encodeURIComponent('일기')}`)).json();
+    const entries = (data.claims || []).reverse();
+
+    ct.innerHTML = `
+      <div class="card" style="margin-bottom:8px">
+        <form id="_jf" style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;gap:3px">
+            <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" style="width:110px">
+            <select name="mood" style="width:70px">
+              <option>좋음</option><option>보통</option><option>피곤</option><option>감사</option><option>힘듦</option>
+            </select>
+          </div>
+          <textarea name="content" placeholder="오늘 하루를 기록하세요..." rows="3" style="resize:vertical"></textarea>
+          <button type="submit" class="btn btn-p" style="align-self:flex-start">기록</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">일기 (${entries.length})</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px;max-height:350px;overflow-y:auto">
+          ${entries.length ? entries.map(e => {
+            const parts = (e.claim?.object || '').split('] ');
+            const meta = parts[0]?.replace('[', '') || '';
+            const content = parts[1] || e.claim?.object || '';
+            return `<div class="card" style="padding:8px;border-left:2px solid var(--확정)">
+              <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-3);margin-bottom:3px">
+                <span>${meta}</span>
+                <span>${e.createdAt ? new Date(e.createdAt).toLocaleDateString('ko') : ''}</span>
+              </div>
+              <div style="font-size:11px;white-space:pre-wrap;line-height:1.5">${content}</div>
+            </div>`;
+          }).join('') : '<div style="color:var(--text-3);font-size:10px;padding:6px">첫 일기를 써보세요</div>'}
+        </div>
+      </div>`;
+
+    ct.querySelector('#_jf')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const obj = `[${f.date.value} ${f.mood.value}] ${f.content.value}`;
+      await fetch(`${API}/claims`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: this.userName, predicate: '일기', object: obj, layer: 1, scope: 0 })
+      });
+      f.reset();
+      this._notify('일기 저장');
+      this.렌더();
+    });
+  }
+
+  // ─── 목표 탭 ───
+  async _goalsTab(ct) {
+    if (!this.userName) { ct.innerHTML = '<div style="color:var(--text-3);font-size:11px;padding:8px">먼저 습관 탭에서 이름을 등록하세요</div>'; return; }
+
+    const data = await (await fetch(`${API}/claims?subject=${encodeURIComponent(this.userName)}`)).json();
+    const goals = (data.claims || []).filter(c => c.claim?.predicate === '목표');
+    const achieved = (data.claims || []).filter(c => c.claim?.predicate === '목표달성');
+    const achievedNames = new Set(achieved.map(a => a.claim?.object));
+
+    ct.innerHTML = `
+      <div class="card" style="margin-bottom:8px">
+        <form id="_gf" style="display:flex;gap:3px;align-items:end">
+          <input name="goal" placeholder="목표 (예: 10kg 감량, 자격증 취득)" required style="flex:1;min-width:120px">
+          <input name="deadline" type="date" style="width:110px">
+          <select name="category" style="width:60px">
+            <option>건강</option><option>학습</option><option>재정</option><option>관계</option><option>신앙</option><option>직업</option>
+          </select>
+          <button type="submit" class="btn btn-p">등록</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">목표 (${goals.length}개, 달성 ${achieved.length})</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          ${goals.length ? goals.map(g => {
+            const done = achievedNames.has(g.claim?.object);
+            return `<div class="pipe" style="padding:4px 8px;${done ? 'opacity:.5' : ''}">
+              <div class="dot ${done ? '확정' : '미확인'}"></div>
+              <span style="font-weight:500;${done ? 'text-decoration:line-through' : ''}">${g.claim?.object || ''}</span>
+              ${!done ? `<button class="btn _achieve" data-o="${g.claim?.object}" style="font-size:8px;padding:1px 5px;margin-left:auto">달성!</button>` : '<span style="font-size:9px;color:var(--확정);margin-left:auto">달성</span>'}
+            </div>`;
+          }).join('') : '<div style="color:var(--text-3);font-size:10px;padding:6px">목표를 세워보세요</div>'}
+        </div>
+      </div>`;
+
+    ct.querySelector('#_gf')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const obj = f.deadline.value
+        ? `[${f.category.value}] ${f.goal.value} (${f.deadline.value}까지)`
+        : `[${f.category.value}] ${f.goal.value}`;
+      await fetch(`${API}/claims`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: this.userName, predicate: '목표', object: obj, layer: 2, scope: 0 })
+      });
+      f.reset();
+      this._notify('목표 등록');
+      this.렌더();
+    });
+
+    ct.querySelectorAll('._achieve').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await fetch(`${API}/claims`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subject: this.userName, predicate: '목표달성', object: btn.dataset.o, layer: 3, scope: 0 })
+        });
+        this._notify('목표 달성!');
+        this.렌더();
+      });
     });
   }
 
