@@ -133,8 +133,7 @@ function showPage(pageId) {
         if (typeof REELS !== 'undefined' && REELS.initReels) REELS.initReels();
     }
     if (pageId === 'messenger') {
-        if (typeof loadMessages === 'function') loadMessages();
-        // Initialize Lucide icons after loading messenger content
+        if (typeof chatInit === 'function') chatInit();
         if (window.lucide) lucide.createIcons();
     }
     if (pageId === 'prop-trading') {

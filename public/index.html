@@ -687,12 +687,13 @@
 
         <section id="today" class="page active">
             <div class="hero">
+                <div id="home-clock" style="font-size:0.75rem;color:#7A5C47;margin-bottom:4px"></div>
                 <h2 data-i18n="today.hero_title">GLOBAL BEAUTIE</h2>
                 <div id="slogan-rotator" class="slogan-rotator">
                     <p class="slogan-text"></p>
                     <span class="slogan-lang"></span>
                 </div>
-                <h1 data-i18n-html="today.hero_subtitle">전 세계를 하나로 연결하는<br>비즈니스 플랫폼</h1>
+                <h1 data-i18n-html="today.hero_subtitle">A Business Platform<br>Connecting the World</h1>
             </div>
 
             <div class="services">
@@ -2504,6 +2505,23 @@
     <script src="/js/search.js?v=24.4" defer></script>
     <script src="/js/settings.js?v=24.4" defer></script>
     <script src="/js/slogans.js?v=24.4" defer></script>
+    <script>
+    // Home clock
+    (function(){
+        function updateHomeClock(){
+            const el=document.getElementById('home-clock');
+            if(!el)return;
+            const now=new Date();
+            const lang=(typeof currentLang!=='undefined'?currentLang:'en')||'en';
+            const locale=lang==='ko'?'ko-KR':lang==='ja'?'ja-JP':lang==='zh'?'zh-CN':'en-US';
+            const date=now.toLocaleDateString(locale,{weekday:'short',month:'short',day:'numeric'});
+            const time=now.toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'});
+            el.textContent=date+' · '+time;
+        }
+        updateHomeClock();
+        setInterval(updateHomeClock,10000);
+    })();
+    </script>
     <script src="/js/care.js?v=24.4" defer></script>
     <script src="/js/ai-assistant.js?v=25.1" defer></script>
     <script src="/js/ai-social.js?v=24.2" defer></script>
