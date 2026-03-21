@@ -180,11 +180,14 @@ function matchRoute(method, pathname) {
 // POST /api/foundry/cells — 셀 생성
 route('POST', '/api/foundry/cells', async (req, res) => {
     const body = await parseBody(req);
-    const { name, type, content, confirmed, layer, owner, tag, scope } = body;
+    const { name, type, content, confirmed, layer, owner, tag, scope, classification } = body;
     if (!name) return err(res, 400, 'name 필수');
     const cell = memory.createValue(name, type ?? TYPE.NONE, content ?? 0, {
-        confirmed: !!confirmed, layer, owner, tag: scope ?? tag ?? 0,
+        confirmed: !!confirmed, layer,
+        owner: classification ?? owner ?? 0,  // owner 슬롯 = 비밀등급
+        tag: scope ?? tag ?? 0,
     });
+    if (req._user) audit.log('CREATE', req._user.name, `셀: ${name} [${CLASS_NAME[classification??0]}]`, CLASS_NAME[classification??0]);
     json(res, 201, cell);
 });
 
@@ -195,11 +198,18 @@ route('GET', '/api/foundry/cells', async (req, res) => {
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
     const scope = url.searchParams.get('scope');
     const result = memory.listCells(offset, limit);
+
+    // scope 필터
     if (scope != null) {
         const s = parseInt(scope);
         result.cells = result.cells.filter(c => (c.tag ?? 0) === s);
-        result.total = result.cells.length;
     }
+
+    // 비밀등급 필터 (Bell-LaPadula: 사용자 등급 이하만 읽기 가능)
+    const userLevel = req._user?.level ?? 0;
+    result.cells = result.cells.filter(c => canRead(userLevel, c.owner ?? 0));
+    result.total = result.cells.length;
+
     json(res, 200, result);
 });
 

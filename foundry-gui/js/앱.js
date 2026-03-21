@@ -14,9 +14,10 @@ import { 가정앱 } from './가정.js';
 import { 스타트업앱 } from './스타트업.js';
 import { 기업앱 } from './기업.js';
 import { 지도앱 } from './지도.js';
+import { 보안앱 } from './보안.js';
 
 const API = '/api/foundry';
-let graph, slots, chart, tmpl, causal, cov, church, lifeApp, cityApp, dash, familyApp, startupApp, enterpriseApp, mapApp;
+let graph, slots, chart, tmpl, causal, cov, church, lifeApp, cityApp, dash, familyApp, startupApp, enterpriseApp, mapApp, secApp;
 
 // ── View switching ──
 function go(name, params) {
@@ -29,7 +30,7 @@ function go(name, params) {
   if (view) view.classList.add('active');
   if (btn) btn.classList.add('active');
 
-  const titles = { home:'CrownyCore', dashboard:'대시보드', graph:'작업 공간', decide:'의사결정', tmpl:'프로젝트', causal:'인과추론', kps:'차트', life:'개인', family:'가정', startup:'스타트업', church:'비영리', enterprise:'기업', city:'관제', map:'전술지도', create:'만들기', search:'찾기', stats:'통계' };
+  const titles = { home:'CrownyCore', dashboard:'대시보드', graph:'작업 공간', decide:'의사결정', tmpl:'프로젝트', causal:'인과추론', kps:'차트', life:'개인', family:'가정', startup:'스타트업', church:'비영리', enterprise:'기업', city:'관제', map:'전술지도', security:'보안', create:'만들기', search:'찾기', stats:'통계' };
   document.getElementById('viewTitle').textContent = titles[name] || name;
 
   // Lazy load
@@ -44,6 +45,7 @@ function go(name, params) {
   if (name === 'startup') startupApp?.초기화();
   if (name === 'enterprise') enterpriseApp?.초기화();
   if (name === 'map') { setTimeout(() => mapApp?.초기화(), 100); }
+  if (name === 'security') secApp?.초기화();
   if (name === 'stats') loadStats();
 }
 
@@ -437,6 +439,7 @@ function init() {
   startupApp = new 스타트업앱('startupApp');
   enterpriseApp = new 기업앱('enterpriseApp');
   mapApp = new 지도앱('mapContainer');
+  secApp = new 보안앱('securityApp');
 
   // Events
   document.addEventListener('셀선택', e => showDetail(e.detail));
