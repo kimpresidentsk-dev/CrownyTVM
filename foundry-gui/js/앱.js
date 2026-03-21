@@ -9,9 +9,10 @@ import { 언약패널 } from './언약.js';
 import { 교회앱 } from './교회.js';
 import { 라이프앱 } from './라이프.js';
 import { 도시앱 } from './도시.js';
+import { 통합대시보드 } from './통합.js';
 
 const API = '/api/foundry';
-let graph, slots, chart, tmpl, causal, cov, church, lifeApp, cityApp;
+let graph, slots, chart, tmpl, causal, cov, church, lifeApp, cityApp, dash;
 
 // ── View switching ──
 function go(name) {
@@ -22,7 +23,7 @@ function go(name) {
   if (view) view.classList.add('active');
   if (btn) btn.classList.add('active');
 
-  const titles = { home:'CrownyCore', graph:'작업 공간', decide:'의사결정', tmpl:'프로젝트 템플릿', causal:'인과추론', kps:'차트 분석', life:'라이프스타일', church:'교회', city:'도시관리', create:'만들기', search:'찾기', stats:'통계' };
+  const titles = { home:'CrownyCore', dashboard:'대시보드', graph:'작업 공간', decide:'의사결정', tmpl:'프로젝트 템플릿', causal:'인과추론', kps:'차트 분석', life:'라이프스타일', church:'교회', city:'도시관리', create:'만들기', search:'찾기', stats:'통계' };
   document.getElementById('viewTitle').textContent = titles[name] || name;
 
   // Lazy load
@@ -32,6 +33,7 @@ function go(name) {
   if (name === 'church') church?.초기화();
   if (name === 'life') lifeApp?.초기화();
   if (name === 'city') cityApp?.초기화();
+  if (name === 'dashboard') dash?.초기화();
   if (name === 'stats') loadStats();
 }
 
@@ -408,6 +410,7 @@ function init() {
   church = new 교회앱('churchApp');
   lifeApp = new 라이프앱('lifeApp');
   cityApp = new 도시앱('cityApp');
+  dash = new 통합대시보드('dashboardApp');
 
   // Events
   document.addEventListener('셀선택', e => showDetail(e.detail));
@@ -440,7 +443,7 @@ function init() {
 
   // Load
   health().then(d => {
-    if (d && d.totalCells > 0) go('graph');
+    if (d && d.totalCells > 0) go('dashboard');
   });
   graph.로드();
 
