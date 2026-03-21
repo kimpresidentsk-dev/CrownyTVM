@@ -4000,6 +4000,49 @@ const server = http.createServer(async (req, res) => {
         }
 
         // ── 관리자 API ──
+        // E5: Monitoring dashboard API
+        if (path === '/api/admin/monitoring' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"Admin access required"}'); return; }
+            const result = { errors: [], metrics: [], summary: {} };
+            try {
+                const errFile = pathModule.join(__dirname, 'logs', 'client-errors.log');
+                if (fs.existsSync(errFile)) {
+                    const lines = fs.readFileSync(errFile, 'utf8').trim().split('\n').filter(Boolean);
+                    result.errors = lines.slice(-100).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+                    // Error summary: count by message
+                    const errCounts = {};
+                    lines.forEach(l => { try { const e = JSON.parse(l); const k = (e.msg || '').substring(0, 80); errCounts[k] = (errCounts[k] || 0) + 1; } catch {} });
+                    result.summary.errorCounts = Object.entries(errCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+                    result.summary.totalErrors = lines.length;
+                }
+            } catch (e) { result.errors = []; }
+            try {
+                const metFile = pathModule.join(__dirname, 'logs', 'perf-metrics.log');
+                if (fs.existsSync(metFile)) {
+                    const lines = fs.readFileSync(metFile, 'utf8').trim().split('\n').filter(Boolean);
+                    result.metrics = lines.slice(-200).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+                    // Metrics summary
+                    const loadTimes = result.metrics.map(m => m.loadTime).filter(t => t > 0);
+                    const fcpTimes = result.metrics.map(m => m.fcp).filter(t => t > 0);
+                    const connTypes = {};
+                    result.metrics.forEach(m => { connTypes[m.conn || 'unknown'] = (connTypes[m.conn || 'unknown'] || 0) + 1; });
+                    result.summary.totalPageLoads = lines.length;
+                    result.summary.avgLoadTime = loadTimes.length ? Math.round(loadTimes.reduce((a, b) => a + b, 0) / loadTimes.length) : 0;
+                    result.summary.avgFCP = fcpTimes.length ? Math.round(fcpTimes.reduce((a, b) => a + b, 0) / fcpTimes.length) : 0;
+                    result.summary.p95LoadTime = loadTimes.length ? loadTimes.sort((a, b) => a - b)[Math.floor(loadTimes.length * 0.95)] : 0;
+                    result.summary.connectionTypes = connTypes;
+                    result.summary.dataSaverUsers = result.metrics.filter(m => m.dataSaver).length;
+                }
+            } catch (e) { result.metrics = []; }
+            result.summary.serverUptime = process.uptime();
+            result.summary.serverMemory = Math.round(process.memoryUsage().rss / 1024 / 1024);
+            result.summary.activeConnections = _activeConnections || 0;
+            result.summary.totalUsers = Object.keys(users).length;
+            res.end(JSON.stringify(result));
+            return;
+        }
+
         if (path === '/api/admin/status' && req.method === 'GET') {
             const user = getAuth(req);
             if (!user || !ADMIN_USERS.includes(user.username)) {

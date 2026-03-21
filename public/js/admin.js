@@ -3864,3 +3864,55 @@ if (typeof lucide !== 'undefined' && lucide.createIcons) {
         lucide.createIcons();
     }
 }
+
+// ========== E5: Monitoring Dashboard ==========
+async function loadMonitoringDashboard() {
+    const container = document.getElementById('admin-monitoring');
+    if (!container) return;
+    container.innerHTML = '<p style="padding:1rem;color:var(--text-secondary);">Loading...</p>';
+    try {
+        const res = await fetch('/api/admin/monitoring', { headers: _adminHeaders() });
+        const d = await res.json();
+        if (d.error) { container.innerHTML = `<p style="color:#B54534;">${d.error}</p>`; return; }
+        const s = d.summary || {};
+
+        container.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.8rem;margin-bottom:1.5rem;">
+            <div class="stat-card"><div class="stat-value">${s.totalUsers || 0}</div><div class="stat-label">${t('admin.users','Users')}</div></div>
+            <div class="stat-card"><div class="stat-value">${Math.floor((s.serverUptime || 0) / 3600)}h</div><div class="stat-label">${t('admin.uptime','Uptime')}</div></div>
+            <div class="stat-card"><div class="stat-value">${s.serverMemory || 0}MB</div><div class="stat-label">${t('admin.memory','Memory')}</div></div>
+            <div class="stat-card"><div class="stat-value">${s.activeConnections || 0}</div><div class="stat-label">${t('admin.connections','Connections')}</div></div>
+            <div class="stat-card"><div class="stat-value">${s.totalPageLoads || 0}</div><div class="stat-label">${t('admin.page_loads','Page Loads')}</div></div>
+            <div class="stat-card"><div class="stat-value">${s.avgLoadTime || 0}ms</div><div class="stat-label">${t('admin.avg_load','Avg Load')}</div></div>
+            <div class="stat-card"><div class="stat-value">${s.avgFCP || 0}ms</div><div class="stat-label">FCP</div></div>
+            <div class="stat-card"><div class="stat-value">${s.p95LoadTime || 0}ms</div><div class="stat-label">P95 Load</div></div>
+        </div>
+
+        <h4 style="margin:1rem 0 0.5rem;">${t('admin.connection_types','Connection Types')}</h4>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+            ${Object.entries(s.connectionTypes || {}).map(([k, v]) =>
+                `<span style="padding:0.3rem 0.8rem;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);">${k}: ${v}</span>`
+            ).join('')}
+            ${s.dataSaverUsers ? `<span style="padding:0.3rem 0.8rem;border-radius:12px;background:#C4841D22;border:1px solid #C4841D;">Data Saver: ${s.dataSaverUsers}</span>` : ''}
+        </div>
+
+        <h4 style="margin:1rem 0 0.5rem;">${t('admin.top_errors','Top Errors')} (${s.totalErrors || 0} total)</h4>
+        <div style="max-height:300px;overflow-y:auto;">
+            <table style="width:100%;font-size:0.8rem;border-collapse:collapse;">
+                <tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:0.4rem;">Error</th><th style="width:60px;">Count</th></tr>
+                ${(s.errorCounts || []).map(([msg, count]) =>
+                    `<tr style="border-bottom:1px solid var(--border,#eee);"><td style="padding:0.4rem;word-break:break-all;">${escHtml ? escHtml(msg) : msg}</td><td style="text-align:center;">${count}</td></tr>`
+                ).join('')}
+            </table>
+        </div>
+
+        <h4 style="margin:1rem 0 0.5rem;">${t('admin.recent_errors','Recent Errors')}</h4>
+        <div style="max-height:300px;overflow-y:auto;font-size:0.75rem;font-family:monospace;background:var(--bg);padding:0.5rem;border-radius:8px;">
+            ${(d.errors || []).slice(-20).reverse().map(e =>
+                `<div style="padding:0.3rem 0;border-bottom:1px solid var(--border,#eee);"><span style="color:var(--text-secondary);">${e.ts?.substring(5,16) || ''}</span> <span style="color:#B54534;">${escHtml ? escHtml(e.msg || '') : (e.msg || '')}</span> <span style="color:var(--text-secondary);">${e.src ? e.src.split('/').pop() + ':' + e.line : ''}</span></div>`
+            ).join('')}
+        </div>`;
+    } catch (e) {
+        container.innerHTML = `<p style="color:#B54534;">Failed: ${e.message}</p>`;
+    }
+}

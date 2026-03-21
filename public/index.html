@@ -1966,7 +1966,12 @@
 
         <section id="crowny-admin" class="page" style="display:none;">
             <div class="section-header"><h2><i data-lucide="server"></i> 서버 관리</h2></div>
+            <div style="display:flex;gap:0.5rem;padding:0 1rem 0.5rem;flex-wrap:wrap;">
+                <button onclick="document.getElementById('ctvm-admin-area').style.display='';document.getElementById('admin-monitoring').style.display='none';" class="btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem;"><i data-lucide="users" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Management</button>
+                <button onclick="document.getElementById('ctvm-admin-area').style.display='none';document.getElementById('admin-monitoring').style.display='';loadMonitoringDashboard();" class="btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem;"><i data-lucide="activity" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Monitoring</button>
+            </div>
             <div id="ctvm-admin-area"><p style="text-align:center;padding:2rem;color:var(--text-secondary);">로딩 중...</p></div>
+            <div id="admin-monitoring" style="display:none;padding:0 1rem;"></div>
         </section>
 
         <section id="settings" class="page">
