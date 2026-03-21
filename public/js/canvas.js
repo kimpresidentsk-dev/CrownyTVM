@@ -139,10 +139,7 @@ const CANVAS = (function() {
                 leftTitle.textContent = 'Natural Language';
                 centerTitle.textContent = 'KPS Restatement';
                 rightTitle.textContent = 'ISA729 Assembly';
-                left.innerHTML = `<textarea class="cv-textarea" placeholder="Enter natural language here...&#10;&#10;Example: I have 3 apples and bought 2 more. Calculate the total." id="cv-nl-input"></textarea>
-                    <button class="cv-btn" onclick="CANVAS.runNL()">▶ Convert</button>`;
-                center.innerHTML = '<div class="cv-mono" id="cv-kps-output">KPS output will appear here...</div>';
-                right.innerHTML = '<div class="cv-mono" id="cv-asm-output">ISA729 assembly will appear here...</div>';
+                loadCanvasWorkspace(left, center, right);
                 break;
             case 'msg':
                 leftTitle.textContent = 'Contacts';
@@ -547,6 +544,296 @@ const CANVAS = (function() {
         if (data.success) openWs('dex');
     }
 
+    // ── 워크스페이스: Canvas (4단계 재진술 파이프라인) ──
+    let canvasState = { nl: '', segments: [], kps: '', jpMode: 'summary' };
+    const JP_MODES = ['summary', 'restate', 'premise', 'question'];
+    const JP_LABELS = { summary: 'Summary', restate: 'Restatement', premise: 'Core Premise', question: 'Next Question' };
+
+    function loadCanvasWorkspace(left, center, right) {
+        left.innerHTML = `<textarea class="cv-textarea" placeholder="Enter natural language here...&#10;&#10;Example: I have 3 apples and bought 2 more today. Calculate the total.&#10;&#10;The clearer the sentence, the better the restatement." id="cv-nl-input" oninput="CANVAS._nlCount()">${escHtml(canvasState.nl)}</textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+                <span style="font-size:0.65rem;color:var(--text-secondary)" id="cv-nl-count">0 chars</span>
+                <div style="display:flex;gap:4px">
+                    <button class="cv-btn" style="background:var(--text-secondary)" onclick="document.getElementById('cv-nl-input').value='';CANVAS._nlCount()">Clear</button>
+                    <button class="cv-btn" onclick="CANVAS.runNL()">▶ Convert</button>
+                </div>
+            </div>
+            <div style="margin-top:8px;font-size:0.65rem;font-weight:700;color:var(--text-secondary)">HISTORY</div>
+            <div id="cv-nl-history" class="cv-scroll" style="max-height:150px"></div>`;
+        _nlCount();
+        _loadNLHistory(document.getElementById('cv-nl-history'));
+
+        center.innerHTML = `<div style="display:flex;border-bottom:1px solid var(--border)">
+                ${JP_MODES.map(m => `<button class="cv-jp-tab${canvasState.jpMode === m ? ' on' : ''}" data-jp="${m}" onclick="CANVAS.setJP('${m}')">${JP_LABELS[m]}</button>`).join('')}
+                <button style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:0.7rem;color:var(--text-secondary);padding:4px 8px" onclick="CANVAS.cycleJP()">Next ▸</button>
+            </div>
+            <div id="cv-kps-body" class="cv-mono" style="padding:8px;flex:1;overflow-y:auto;line-height:1.6">${canvasState.kps || 'Enter text on the left and press Convert...'}</div>
+            <div id="cv-segments" style="padding:4px 8px;border-top:1px solid var(--border);max-height:120px;overflow-y:auto"></div>`;
+
+        right.innerHTML = `<div style="display:flex;gap:4px;padding:4px 8px;border-bottom:1px solid var(--border)">
+                <button class="cv-btn" onclick="CANVAS.runVM()" style="font-size:0.65rem">▶ RUN</button>
+                <button class="cv-btn" style="background:var(--text-secondary);font-size:0.65rem" onclick="CANVAS.resetVM()">RESET</button>
+            </div>
+            <textarea class="cv-textarea" id="cv-asm-code" style="flex:1;font-family:monospace;font-size:0.75rem" placeholder="ISA729 assembly...&#10;LOADI r0 3&#10;LOADI r1 2&#10;ADD r2 r0 r1&#10;PRINTI r2&#10;HALT"></textarea>
+            <div id="cv-vm-output" class="cv-mono" style="padding:4px 8px;border-top:1px solid var(--border);min-height:40px;max-height:80px;overflow-y:auto;color:var(--gold)"></div>`;
+    }
+
+    function _nlCount() {
+        const el = document.getElementById('cv-nl-input');
+        const cnt = document.getElementById('cv-nl-count');
+        if (el && cnt) cnt.textContent = (el.value || '').length + ' chars';
+    }
+
+    function setJP(mode) {
+        canvasState.jpMode = mode;
+        document.querySelectorAll('.cv-jp-tab').forEach(b => b.classList.toggle('on', b.dataset.jp === mode));
+        _renderKPS();
+    }
+
+    function cycleJP() {
+        const idx = JP_MODES.indexOf(canvasState.jpMode);
+        setJP(JP_MODES[(idx + 1) % JP_MODES.length]);
+    }
+
+    async function runNL() {
+        const input = document.getElementById('cv-nl-input');
+        if (!input || !input.value.trim()) return;
+        canvasState.nl = input.value.trim();
+
+        const kpsBody = document.getElementById('cv-kps-body');
+        if (kpsBody) kpsBody.textContent = 'Converting...';
+
+        // NL → 세그먼트 분석 (로컬 파싱)
+        const text = canvasState.nl;
+        const segments = _analyzeNL(text);
+        canvasState.segments = segments;
+
+        // 4단계 재진술 생성
+        const summary = segments.map(s => s.kps).join('\n');
+        const restate = segments.map(s => `[${s.category}] ${s.kps}`).join('\n');
+        const premise = segments.filter(s => s.category === 'definition' || s.category === 'condition').map(s => s.kps).join('\n') || '(no premises found)';
+        const question = _generateQuestion(segments);
+
+        canvasState.jpData = { summary, restate, premise, question };
+        canvasState.kps = summary;
+
+        _renderKPS();
+        _renderSegments();
+
+        // ISA729 코드 자동 생성 (계산 세그먼트)
+        const calcSegs = segments.filter(s => s.category === 'calculation');
+        if (calcSegs.length > 0) {
+            const asmCode = _generateASM(calcSegs);
+            const asmEl = document.getElementById('cv-asm-code');
+            if (asmEl) asmEl.value = asmCode;
+        }
+
+        // 셀에 저장 (COMPUTE 타입)
+        const token = localStorage.getItem('crowny_token');
+        if (token) {
+            const cellData = { type: 1, name: text.slice(0, 50), content: summary, memo: JSON.stringify({ segments, restate, premise, question }) };
+            fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(cellData) }).catch(() => {});
+        }
+
+        // 히스토리 갱신
+        _loadNLHistory(document.getElementById('cv-nl-history'));
+    }
+
+    function _renderKPS() {
+        const body = document.getElementById('cv-kps-body');
+        if (!body || !canvasState.jpData) return;
+        body.textContent = canvasState.jpData[canvasState.jpMode] || '';
+    }
+
+    function _renderSegments() {
+        const el = document.getElementById('cv-segments');
+        if (!el) return;
+        el.innerHTML = canvasState.segments.map((s, i) =>
+            `<div style="display:flex;gap:6px;padding:3px 0;border-bottom:1px solid var(--border);font-size:0.7rem">
+                <span style="color:var(--gold);min-width:20px">${i + 1}</span>
+                <span style="padding:0 4px;border-radius:3px;background:var(--bg-card);font-size:0.6rem;font-weight:600">${s.category}</span>
+                <span style="flex:1;color:var(--text)">${escHtml(s.text)}</span>
+                <span style="color:var(--text-secondary);font-family:monospace;font-size:0.6rem">${s.tritLen}t</span>
+            </div>`
+        ).join('');
+    }
+
+    // NL 분석 (로컬 — 추후 서버 시맨틱 엔진으로 교체)
+    function _analyzeNL(text) {
+        const sentences = text.split(/[.。！!？?\n]+/).filter(s => s.trim());
+        return sentences.map(s => {
+            const t = s.trim();
+            const hasNumber = /\d+/.test(t);
+            const hasCalc = /[+\-*/×÷더하|빼|곱하|나누|합계|총|계산]/.test(t);
+            const hasDef = /^[^은는이가]+[은는이가]\s/.test(t) || /있다|이다|것이다/.test(t);
+            const hasCond = /만약|경우|때|면$/.test(t);
+
+            let category = 'statement';
+            if (hasCalc || (hasNumber && /총|합|계산|몇/.test(t))) category = 'calculation';
+            else if (hasDef) category = 'definition';
+            else if (hasCond) category = 'condition';
+            else if (/\?|질문|무엇|어떻게|왜/.test(t)) category = 'question';
+
+            // 숫자 추출
+            const nums = t.match(/\d+/g)?.map(Number) || [];
+            const tritLen = nums.reduce((a, n) => a + _tritLength(n), 0) + t.length;
+
+            // KPS 재진술
+            let kps = t;
+            if (category === 'calculation' && nums.length >= 2) {
+                kps = nums.join(' + ') + ' = ' + nums.reduce((a, b) => a + b, 0);
+            }
+
+            return { text: t, category, kps, nums, tritLen, executable: category === 'calculation' };
+        });
+    }
+
+    function _tritLength(n) {
+        if (n === 0) return 1;
+        let a = Math.abs(n), l = 0;
+        while (a > 0) { l++; a = Math.floor((a + 1) / 3); }
+        return Math.max(1, l);
+    }
+
+    function _generateQuestion(segments) {
+        const calcs = segments.filter(s => s.category === 'calculation');
+        const defs = segments.filter(s => s.category === 'definition');
+        if (calcs.length > 0) return 'Is this calculation the only operation needed, or are there additional conditions?';
+        if (defs.length > 0) return 'What actions should follow from these definitions?';
+        return 'What specific outcome or calculation do you need?';
+    }
+
+    function _generateASM(calcSegs) {
+        const lines = [];
+        let regIdx = 0;
+        for (const seg of calcSegs) {
+            const nums = seg.nums || [];
+            if (nums.length >= 2) {
+                lines.push(`; ${seg.text}`);
+                const r0 = regIdx, r1 = regIdx + 1, rResult = regIdx + 2;
+                lines.push(`LOADI r${r0} ${nums[0]}`);
+                lines.push(`LOADI r${r1} ${nums[1]}`);
+                // 추가 숫자들 더하기
+                lines.push(`ADD r${rResult} r${r0} r${r1}`);
+                for (let i = 2; i < nums.length; i++) {
+                    lines.push(`LOADI r${r1} ${nums[i]}`);
+                    lines.push(`ADD r${rResult} r${rResult} r${r1}`);
+                }
+                lines.push(`PRINTI r${rResult}`);
+                regIdx = rResult + 1;
+            }
+        }
+        lines.push('HALT');
+        return lines.join('\n');
+    }
+
+    async function runVM() {
+        const code = document.getElementById('cv-asm-code')?.value || '';
+        if (!code.trim()) return;
+        const out = document.getElementById('cv-vm-output');
+        if (out) out.textContent = 'Running...';
+        const token = localStorage.getItem('crowny_token');
+        try {
+            // HanSeon-C 코드로 변환하여 실행
+            const hanseonCode = _asmToHanseon(code);
+            const r = await fetch('/api/chain/contract/execute', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ code: hanseonCode }) });
+            const data = await r.json();
+            if (out) out.textContent = data.success ? '▶ ' + (data.output?.join('\n') || '(no output)') : 'Error: ' + (data.error || '');
+        } catch (e) { if (out) out.textContent = 'Error: ' + e.message; }
+    }
+
+    function _asmToHanseon(asm) {
+        // 간단한 ASM → 한선씨 변환 (LOADI+ADD+PRINTI 패턴)
+        const lines = asm.split('\n').filter(l => l.trim() && !l.trim().startsWith(';'));
+        const vars = {};
+        let output = [];
+        for (const line of lines) {
+            const parts = line.trim().split(/\s+/);
+            const op = parts[0]?.toUpperCase();
+            if (op === 'LOADI' && parts[2]) {
+                vars[parts[1]] = parts[2];
+                output.push(`변수 ${parts[1]} = ${parts[2]}`);
+            } else if (op === 'ADD' && parts[3]) {
+                output.push(`변수 ${parts[1]} = ${parts[2]} + ${parts[3]}`);
+            } else if (op === 'PRINTI') {
+                output.push(`출력(${parts[1]})`);
+            } else if (op === 'HALT' || op === 'END') {
+                break;
+            }
+        }
+        return output.join('\n');
+    }
+
+    function resetVM() {
+        const code = document.getElementById('cv-asm-code');
+        const out = document.getElementById('cv-vm-output');
+        if (code) code.value = '';
+        if (out) out.textContent = '';
+    }
+
+    async function _loadNLHistory(el) {
+        if (!el) return;
+        const token = localStorage.getItem('crowny_token');
+        if (!token) return;
+        try {
+            const r = await fetch('/api/cell/query?type=1&limit=5', { headers: { 'Authorization': 'Bearer ' + token } });
+            const cells = await r.json();
+            el.innerHTML = cells.map(c => `<div class="cv-list-item" style="font-size:0.7rem" onclick="CANVAS.reloadNL(${c.id})">${escHtml((c.data?.[0] || '').slice(0, 40))}<span style="float:right;font-size:0.6rem;color:var(--text-secondary)">${new Date(c.timestamp * 1000).toLocaleDateString()}</span></div>`).join('') || '<div class="cv-mono">No history</div>';
+        } catch {}
+    }
+
+    async function reloadNL(cellId) {
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch(`/api/cell/get?id=${cellId}`, { headers: { 'Authorization': 'Bearer ' + token } });
+        const cell = await r.json();
+        if (cell.data?.[1]) {
+            // KPS 복원
+            const el = document.getElementById('cv-nl-input');
+            if (el) { el.value = cell.data[0] || ''; _nlCount(); }
+            try {
+                const meta = JSON.parse(cell.data[2] || '{}');
+                canvasState.segments = meta.segments || [];
+                canvasState.jpData = meta;
+                canvasState.kps = cell.data[1];
+                _renderKPS();
+                _renderSegments();
+            } catch {}
+        }
+    }
+
+    // ── 워크스페이스 간 연동 (Cross-link) ──
+
+    async function crossLink(fromWs, toWs, data) {
+        const token = localStorage.getItem('crowny_token');
+        if (!token) return;
+        // 소스 워크스페이스에서 셀 생성
+        const typeMap = { canvas:1, msg:2, dex:3, trading:4, docs:5, project:6, content:7, game:8, work:9, shop:10, life:11, synergy:12, mind:13, bible:14, admin:15, om:16 };
+        const from = await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: typeMap[fromWs], name: data.name || 'Link', content: data.content || '' }) }).then(r => r.json());
+        const to = await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: typeMap[toWs], name: data.name || 'Link', content: data.content || '' }) }).then(r => r.json());
+        // 시냅스 연결
+        await fetch('/api/cell/link', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: from.id, to: to.id, direction: 'synapse' }) });
+        return { from: from.id, to: to.id };
+    }
+
+    // Canvas → Workbench 연동 (계산 결과를 코드로)
+    function canvasToWorkbench() {
+        const code = document.getElementById('cv-asm-code')?.value || '';
+        if (!code) return;
+        openWs('work');
+        setTimeout(() => {
+            const el = document.getElementById('cv-code');
+            if (el) el.value = _asmToHanseon(code);
+        }, 100);
+    }
+
+    // Canvas → Note 연동 (재진술을 노트로)
+    async function canvasToNote() {
+        if (!canvasState.kps) return;
+        const token = localStorage.getItem('crowny_token');
+        await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 5, name: 'From Canvas: ' + (canvasState.nl || '').slice(0, 30), content: canvasState.kps }) });
+        if (typeof showToast === 'function') showToast('Saved to Notes', 'success');
+    }
+
     // ── 워크스페이스: Mind (AI 대화) ──
     let mindHistory = [];
 
@@ -853,6 +1140,9 @@ const CANVAS = (function() {
         .cv-chat-bubble { max-width:70%; padding:6px 10px; border-radius:12px; font-size:0.82rem; line-height:1.4; }
         .cv-chat-msg.mine .cv-chat-bubble { background:var(--primary); color:var(--bg); border-bottom-right-radius:4px; }
         .cv-chat-msg.theirs .cv-chat-bubble { background:var(--bg-card); border:1px solid var(--border); border-bottom-left-radius:4px; }
+        .cv-jp-tab { padding:5px 10px; border:none; background:none; cursor:pointer; font-size:0.7rem; font-weight:600; color:var(--text-secondary); border-bottom:2px solid transparent; }
+        .cv-jp-tab.on { color:var(--gold); border-bottom-color:var(--gold); }
+        .cv-jp-tab:hover { color:var(--text); }
         @media(max-width:768px){
             .cv-panel-left,.cv-panel-right{display:none}
             .cv-ws-tab span{display:none}
@@ -886,8 +1176,11 @@ const CANVAS = (function() {
         createShopItem, shopFilter,
         // Admin
         adminSection,
-        // Canvas
-        runNL,
+        // Canvas (4-step pipeline)
+        runNL, setJP, cycleJP, runVM, resetVM, reloadNL,
+        canvasToWorkbench, canvasToNote,
+        crossLink,
+        _nlCount: _nlCount,
         // Core
         setDock, loadCells, createCell,
     };
