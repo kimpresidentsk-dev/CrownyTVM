@@ -1696,7 +1696,12 @@ function simpleTranslate(text, targetLang) {
 
 function getAuth(req) {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
-    return getUser(token);
+    const user = getUser(token);
+    // 체인 키페어 캐시 (API 호출 시마다 확인)
+    if (user && chainAdapter && users[user.username]) {
+        try { chainAdapter.onUserLogin(user.username, users[user.username].password); } catch {}
+    }
+    return user;
 }
 
 // ── 트레이딩 데이터 디렉토리 & 헬퍼 ──
@@ -2111,6 +2116,10 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/login' && req.method === 'POST') {
             if (!rateLimit(clientIp, 'login', 10)) { res.statusCode = 429; res.end('{"error":"Too many attempts. Try again later."}'); return; }
             const result = loginUser(body.username, body.password);
+            // 로그인 성공 시 체인 어댑터에 키페어 캐시
+            if (result.token && chainAdapter && users[body.username]) {
+                try { chainAdapter.onUserLogin(body.username, users[body.username].password); } catch {}
+            }
             res.end(JSON.stringify(result));
             return;
         }
