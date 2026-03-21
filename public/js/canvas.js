@@ -169,10 +169,37 @@ const CANVAS = (function() {
                 leftTitle.textContent = 'Agents';
                 centerTitle.textContent = 'Chat';
                 rightTitle.textContent = 'Memory';
-                center.innerHTML = `<div id="cv-mind-chat" class="cv-scroll"></div>
-                    <div class="cv-input-row"><input id="cv-mind-input" class="cv-input" placeholder="Ask Mind..." onkeydown="if(event.key==='Enter')CANVAS.sendMind()"><button class="cv-btn" onclick="CANVAS.sendMind()">Send</button></div>`;
-                left.innerHTML = '<div class="cv-mono">AI agents list</div>';
-                right.innerHTML = '<div class="cv-mono">Memory bank</div>';
+                loadMindWorkspace(left, center, right);
+                break;
+            case 'game':
+                leftTitle.textContent = 'Library';
+                centerTitle.textContent = 'Play';
+                rightTitle.textContent = 'Leaderboard';
+                loadGameWorkspace(left, center, right);
+                break;
+            case 'shop':
+                leftTitle.textContent = 'Categories';
+                centerTitle.textContent = 'Products';
+                rightTitle.textContent = 'Cart';
+                loadShopWorkspace(left, center, right);
+                break;
+            case 'synergy':
+                leftTitle.textContent = 'Services';
+                centerTitle.textContent = 'Connections';
+                rightTitle.textContent = 'Activity';
+                loadSynergyWorkspace(left, center, right);
+                break;
+            case 'admin':
+                leftTitle.textContent = 'Menu';
+                centerTitle.textContent = 'Dashboard';
+                rightTitle.textContent = 'Logs';
+                loadAdminWorkspace(left, center, right);
+                break;
+            case 'om':
+                leftTitle.textContent = 'Observe';
+                centerTitle.textContent = 'Essence';
+                rightTitle.textContent = 'Reflection';
+                loadOmWorkspace(left, center, right);
                 break;
             case 'docs':
                 leftTitle.textContent = 'Notes';
@@ -520,6 +547,171 @@ const CANVAS = (function() {
         if (data.success) openWs('dex');
     }
 
+    // ── 워크스페이스: Mind (AI 대화) ──
+    let mindHistory = [];
+
+    function loadMindWorkspace(left, center, right) {
+        const agents = [
+            { id: 'general', name: 'Crowny', desc: 'General assistant' },
+            { id: 'code', name: 'CodeBot', desc: 'Programming help' },
+            { id: 'bible', name: 'Scholar', desc: 'Bible study' },
+            { id: 'trade', name: 'Analyst', desc: 'Market analysis' },
+        ];
+        left.innerHTML = agents.map(a => `<div class="cv-list-item" onclick="CANVAS.selectAgent('${a.id}')"><strong>${a.name}</strong><div style="font-size:0.6rem;color:var(--text-secondary)">${a.desc}</div></div>`).join('');
+        center.innerHTML = `<div id="cv-mind-chat" class="cv-scroll">${mindHistory.map(m => `<div class="cv-chat-msg ${m.role === 'user' ? 'mine' : 'theirs'}"><div class="cv-chat-bubble">${escHtml(m.text)}</div></div>`).join('')}</div>
+            <div class="cv-input-row"><input id="cv-mind-input" class="cv-input" placeholder="Ask anything..." onkeydown="if(event.key==='Enter')CANVAS.sendMind()"><button class="cv-btn" onclick="CANVAS.sendMind()">Send</button></div>`;
+        right.innerHTML = `<div style="padding:8px"><div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">MEMORY</div><div class="cv-mono">${mindHistory.length} messages</div>
+            <button class="cv-btn" onclick="CANVAS.clearMind()" style="margin-top:8px;width:100%;background:var(--text-secondary)">Clear</button></div>`;
+        const scroll = document.getElementById('cv-mind-chat');
+        if (scroll) scroll.scrollTop = scroll.scrollHeight;
+    }
+
+    async function sendMind() {
+        const input = document.getElementById('cv-mind-input');
+        if (!input || !input.value.trim()) return;
+        const text = input.value.trim();
+        input.value = '';
+        mindHistory.push({ role: 'user', text });
+        // 간단한 로컬 응답 (AI API 연동 전 placeholder)
+        const responses = {
+            'hello': 'Hello! I\'m Crowny Mind. How can I help?',
+            'hi': 'Hi there! What would you like to explore?',
+        };
+        const lower = text.toLowerCase();
+        let reply = responses[lower] || `I received: "${text}". (AI integration coming soon — for now I echo your input as a cell.)`;
+        // 셀로 저장
+        const token = localStorage.getItem('crowny_token');
+        if (token) {
+            fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 13, content: text, memo: reply }) }).catch(() => {});
+        }
+        mindHistory.push({ role: 'ai', text: reply });
+        loadMindWorkspace(document.getElementById('cv-left-content'), document.getElementById('cv-center-content'), document.getElementById('cv-right-content'));
+    }
+
+    function selectAgent(id) { if (typeof showToast === 'function') showToast('Agent: ' + id, 'info'); }
+    function clearMind() { mindHistory = []; loadMindWorkspace(document.getElementById('cv-left-content'), document.getElementById('cv-center-content'), document.getElementById('cv-right-content')); }
+
+    // ── 워크스페이스: Game ──
+    function loadGameWorkspace(left, center, right) {
+        const games = [
+            { id: 'crowny-world', name: 'Crowny World', desc: 'Life simulation RPG', status: 'In Development' },
+            { id: 'quiz-battle', name: 'Quiz Battle', desc: 'Bible quiz competition', status: 'Available' },
+            { id: 'trit-chess', name: 'Trit Chess', desc: 'Ternary chess variant', status: 'Coming Soon' },
+        ];
+        left.innerHTML = games.map(g => `<div class="cv-list-item" onclick="CANVAS.openGame('${g.id}')"><strong>${g.name}</strong><div style="font-size:0.6rem;color:var(--text-secondary)">${g.desc}</div></div>`).join('');
+        center.innerHTML = `<div style="padding:2rem;text-align:center"><h3>Game Library</h3><p style="font-size:0.8rem;color:var(--text-secondary);margin-top:0.5rem">${games.length} games available</p>
+            <div style="margin-top:1rem">${games.map(g => `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;cursor:pointer" onclick="CANVAS.openGame('${g.id}')"><div style="flex:1;text-align:left"><strong style="font-size:0.85rem">${g.name}</strong><div style="font-size:0.7rem;color:var(--text-secondary)">${g.desc}</div></div><span style="font-size:0.6rem;padding:2px 6px;border-radius:4px;background:var(--bg-card)">${g.status}</span></div>`).join('')}</div></div>`;
+        right.innerHTML = '<div class="cv-mono" style="padding:8px">Leaderboard</div>';
+    }
+
+    function openGame(id) {
+        const center = document.getElementById('cv-center-content');
+        if (id === 'quiz-battle') {
+            openWs('bible'); // 퀴즈 게임은 Bible 워크스페이스로
+        } else if (center) {
+            center.innerHTML = `<div style="padding:2rem;text-align:center"><h3>${id}</h3><p style="color:var(--text-secondary)">Launch with CrownyEngine</p><p style="font-size:0.7rem;margin-top:1rem">Powered by ISA729 VM + CrownyFrame</p></div>`;
+        }
+    }
+
+    // ── 워크스페이스: Shop ──
+    async function loadShopWorkspace(left, center, right) {
+        const categories = ['All', 'Digital', 'Physical', 'Service', 'NFT'];
+        left.innerHTML = categories.map(c => `<div class="cv-list-item" onclick="CANVAS.shopFilter('${c}')">${c}</div>`).join('');
+        const token = localStorage.getItem('crowny_token');
+        try {
+            const r = await fetch('/api/cell/query?type=10&limit=20', { headers: { 'Authorization': 'Bearer ' + token } });
+            const items = await r.json();
+            center.innerHTML = items.length > 0 ? items.map(i => `<div class="cv-list-item"><strong>${escHtml(i.data?.[0] || 'Product')}</strong><span style="float:right;color:var(--gold)">${i.value || 0} CRM</span></div>`).join('') : `<div style="padding:2rem;text-align:center"><p>No products</p><button class="cv-btn" onclick="CANVAS.createShopItem()" style="margin-top:0.5rem">+ List Product</button></div>`;
+        } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        right.innerHTML = '<div style="padding:8px"><div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">CART</div><div class="cv-mono">Empty</div></div>';
+    }
+
+    async function createShopItem() {
+        const name = prompt('Product name:');
+        if (!name) return;
+        const price = parseInt(prompt('Price (CRM):') || '0');
+        const token = localStorage.getItem('crowny_token');
+        await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 10, name, value: price, category: 'digital' }) });
+        openWs('shop');
+    }
+
+    function shopFilter(cat) { if (typeof showToast === 'function') showToast('Filter: ' + cat, 'info'); }
+
+    // ── 워크스페이스: Synergy ──
+    async function loadSynergyWorkspace(left, center, right) {
+        const services = WORKSPACES.filter(w => !w.hidden && w.id !== 'synergy');
+        left.innerHTML = services.map(s => `<div class="cv-list-item"><i data-lucide="${s.icon}" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px"></i>${s.label}</div>`).join('');
+        if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);
+
+        const token = localStorage.getItem('crowny_token');
+        try {
+            const r = await fetch('/api/cell/stats', { headers: { 'Authorization': 'Bearer ' + token } });
+            const stats = await r.json();
+            const types = stats.byType || {};
+            center.innerHTML = `<div style="padding:1rem"><h4>Service Overview</h4>
+                <div style="margin-top:0.5rem">${Object.entries(types).map(([name, count]) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:0.8rem"><span>${name}</span><strong>${count}</strong></div>`).join('')}</div>
+                <div style="margin-top:1rem;font-size:0.8rem;color:var(--text-secondary)">Total: ${stats.totalCells} cells</div></div>`;
+        } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        right.innerHTML = '<div style="padding:8px"><div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">ACTIVITY</div><div class="cv-mono">Recent cross-service events</div></div>';
+    }
+
+    // ── 워크스페이스: Admin ──
+    async function loadAdminWorkspace(left, center, right) {
+        left.innerHTML = ['Users', 'System', 'Chain', 'Cells', 'Backup'].map(m => `<div class="cv-list-item" onclick="CANVAS.adminSection('${m.toLowerCase()}')">${m}</div>`).join('');
+        const token = localStorage.getItem('crowny_token');
+        try {
+            const [chainR, cellR] = await Promise.all([
+                fetch('/api/chain/status', { headers: { 'Authorization': 'Bearer ' + token } }),
+                fetch('/api/cell/stats', { headers: { 'Authorization': 'Bearer ' + token } }),
+            ]);
+            const chain = await chainR.json();
+            const cells = await cellR.json();
+            center.innerHTML = `<div style="padding:1rem">
+                <h4>System Dashboard</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:0.5rem">
+                    <div style="padding:10px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.6rem;color:var(--text-secondary)">CHAIN</div><div style="font-size:1.2rem;font-weight:800">${chain.chain?.height ?? '?'}</div><div style="font-size:0.6rem">blocks</div></div>
+                    <div style="padding:10px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.6rem;color:var(--text-secondary)">CELLS</div><div style="font-size:1.2rem;font-weight:800">${cells.totalCells ?? '?'}</div><div style="font-size:0.6rem">total</div></div>
+                    <div style="padding:10px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.6rem;color:var(--text-secondary)">STATUS</div><div style="font-size:1.2rem;font-weight:800;color:${chain.chain?.running ? 'var(--info)' : 'var(--error)'}">${chain.chain?.running ? 'ON' : 'OFF'}</div></div>
+                    <div style="padding:10px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.6rem;color:var(--text-secondary)">MEMPOOL</div><div style="font-size:1.2rem;font-weight:800">${chain.chain?.mempoolSize ?? 0}</div></div>
+                </div></div>`;
+        } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        right.innerHTML = '<div class="cv-mono" style="padding:8px">System logs</div>';
+    }
+
+    function adminSection(section) {
+        const center = document.getElementById('cv-center-content');
+        if (!center) return;
+        if (section === 'backup') {
+            center.innerHTML = `<div style="padding:1rem"><h4>Backup</h4><button class="cv-btn" onclick="window.open('/api/backup','_blank')" style="margin-top:0.5rem">Download Backup</button></div>`;
+        }
+    }
+
+    // ── 워크스페이스: Om ──
+    function loadOmWorkspace(left, center, right) {
+        const now = new Date();
+        const omYear = now.getFullYear() + 3760;
+        left.innerHTML = `<div style="padding:8px"><div class="cv-mono" style="font-size:0.7rem">Balanced Ternary</div>
+            <div style="font-size:2rem;text-align:center;margin:1rem 0;letter-spacing:4px;color:var(--gold)">▲ ■ ▼</div>
+            <div class="cv-mono" style="text-align:center">Ti · Om · Ta</div></div>`;
+        center.innerHTML = `<div style="padding:2rem;text-align:center">
+            <div style="font-size:0.7rem;color:var(--text-secondary)">Om Calendar</div>
+            <div style="font-size:2.5rem;font-weight:800;color:var(--primary);margin:0.5rem 0">${omYear}</div>
+            <div style="font-size:0.8rem;color:var(--text-secondary)">${now.toLocaleDateString('en', { weekday:'long', month:'long', day:'numeric', year:'numeric' })}</div>
+            <div style="margin-top:2rem;padding:1rem;background:var(--bg-card);border-radius:8px;text-align:left">
+                <div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">FOUR PHASES</div>
+                <div style="font-size:0.8rem;line-height:1.8">
+                    <span style="color:var(--gold)">Confirmed (+2)</span> — Known with certainty<br>
+                    <span style="color:var(--text-secondary)">Unconfirmed (0)</span> — Information present, unverified<br>
+                    <span style="color:var(--error)">Misunderstood (-2)</span> — Incorrectly known<br>
+                    <span style="color:var(--text-muted-light)">Unaware (-1)</span> — Existence unknown
+                </div>
+            </div>
+            <div style="margin-top:1rem;font-size:0.7rem;color:var(--text-secondary)">CrownyOS · ISA729 · 27-Slot Cell</div>
+        </div>`;
+        right.innerHTML = `<div style="padding:8px"><div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:8px">CELL ARCHITECTURE</div>
+            <div class="cv-mono" style="line-height:1.6">27 slots = 3<sup>3</sup><br>729 opcodes = 3<sup>6</sup><br>189 bytes = 27 × 7B<br><br>▲ Ti-link (up)<br>● Om-link (sibling)<br>▼ Ta-link (down)<br>◆ Synapse (connect)</div></div>`;
+    }
+
     // ── CellCore 로드 ──
     async function loadCells(wsType) {
         const typeMap = { canvas:1, msg:2, dex:3, trading:4, docs:5, project:6, content:7, game:8, work:9, shop:10, life:11, synergy:12, mind:13, bible:14, admin:15, om:16 };
@@ -687,7 +879,13 @@ const CANVAS = (function() {
         // DEX
         execSwap,
         // Mind
-        sendMind,
+        sendMind, selectAgent, clearMind,
+        // Game
+        openGame,
+        // Shop
+        createShopItem, shopFilter,
+        // Admin
+        adminSection,
         // Canvas
         runNL,
         // Core
