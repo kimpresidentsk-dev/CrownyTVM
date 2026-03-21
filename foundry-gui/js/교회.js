@@ -64,6 +64,7 @@ class 교회앱 {
             ${t.label}
           </button>
         `).join('')}
+        <button class="btn" id="_demoBtn" style="font-size:9px;padding:2px 6px;margin-left:auto;color:var(--text-3)" title="교인20+헌금50+설교4 데모 데이터 생성">데모 생성</button>
       </div>
       <div id="_cc"></div>
     `;
@@ -73,6 +74,17 @@ class 교회앱 {
         this.tab = b.dataset.tab;
         this.렌더();
       });
+    });
+
+    // 데모 데이터 생성 버튼
+    document.getElementById('_demoBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('_demoBtn');
+      if (btn) { btn.disabled = true; btn.textContent = '생성중...'; }
+      const result = await safeFetch(`${API}/demo/church`, { method: 'POST' });
+      if (result) {
+        this._notify(`데모 생성: 교인${result.members} 출석${result.attendance} 헌금${result.offerings} 설교${result.sermons}`);
+      }
+      this.렌더();
     });
 
     const ct = document.getElementById('_cc');
@@ -526,7 +538,9 @@ class 교회앱 {
         </div>
       `;
 
-      // 리포트
+      // 리포트 (버튼 복제로 중복 리스너 방지)
+      const rptBtn = document.getElementById('_oRpt');
+      if (rptBtn) { const nb = rptBtn.cloneNode(true); rptBtn.replaceWith(nb); }
       document.getElementById('_oRpt')?.addEventListener('click', () => {
         const r = document.getElementById('_rpt');
         r.style.display = r.style.display === 'none' ? 'block' : 'none';
@@ -557,7 +571,9 @@ class 교회앱 {
         `;
       });
 
-      // CSV
+      // CSV (버튼 복제로 중복 리스너 방지)
+      const csvBtn = document.getElementById('_oCsv');
+      if (csvBtn) { const nb = csvBtn.cloneNode(true); csvBtn.replaceWith(nb); }
       document.getElementById('_oCsv')?.addEventListener('click', () => {
         const rows = ['날짜,교인,종류,금액'];
         offs.forEach(c => {
