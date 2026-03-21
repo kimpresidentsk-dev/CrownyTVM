@@ -2540,6 +2540,335 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        // ══════════════════════════════════════
+        // ── 크레딧 시스템 API ──
+        // ══════════════════════════════════════
+        const CREDIT_DIR = pathModule.join(DATA_DIR, 'credit');
+        if (!fs.existsSync(CREDIT_DIR)) fs.mkdirSync(CREDIT_DIR, { recursive: true });
+
+        function loadCredit(file, def = []) {
+            const p = pathModule.join(CREDIT_DIR, file);
+            try { if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e) { /* first run */ }
+            return def;
+        }
+        function saveCredit(file, data) {
+            fs.writeFileSync(pathModule.join(CREDIT_DIR, file), JSON.stringify(data, null, 2));
+        }
+
+        // ── 품앗이 (Pumasi) ──
+        if (path === '/api/credit/pumasi' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const list = loadCredit('pumasi.json', []).filter(p => p.status === 'active' || p.requesterId === user.username);
+            res.end(JSON.stringify({ items: list }));
+            return;
+        }
+
+        if (path === '/api/credit/pumasi' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { amount, reason, days, target } = body;
+            const amt = Number(amount);
+            if (!Number.isFinite(amt) || amt <= 0 || amt > 100000) { res.statusCode = 400; res.end('{"error":"Invalid amount"}'); return; }
+            if (!reason) { res.statusCode = 400; res.end('{"error":"Reason required"}'); return; }
+
+            const list = loadCredit('pumasi.json', []);
+            const item = {
+                id: crypto.randomBytes(8).toString('hex'),
+                requesterId: user.username,
+                requesterName: users[user.username]?.displayName || user.username,
+                targetId: target || '',
+                amount: amt, reason,
+                days: Math.min(Number(days) || 30, 365),
+                interest: 0,
+                raised: 0, backers: [],
+                dueDate: Date.now() + (Math.min(Number(days) || 30, 365)) * 86400000,
+                status: 'active',
+                createdAt: Date.now()
+            };
+            list.push(item);
+            saveCredit('pumasi.json', list);
+            res.end(JSON.stringify({ ok: true, item }));
+            return;
+        }
+
+        if (path === '/api/credit/pumasi/contribute' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { pumasiId, amount } = body;
+            const amt = Number(amount);
+            if (!pumasiId || !Number.isFinite(amt) || amt <= 0) { res.statusCode = 400; res.end('{"error":"Invalid"}'); return; }
+
+            const profile = users[user.username];
+            if (!profile || !profile.offchainBalances) { res.statusCode = 400; res.end('{"error":"No wallet"}'); return; }
+            if ((profile.offchainBalances.crtd || 0) < amt) { res.statusCode = 400; res.end('{"error":"Insufficient CRTD"}'); return; }
+
+            const list = loadCredit('pumasi.json', []);
+            const item = list.find(p => p.id === pumasiId && p.status === 'active');
+            if (!item) { res.statusCode = 404; res.end('{"error":"Not found"}'); return; }
+
+            // 차감 + 기여
+            profile.offchainBalances.crtd = (profile.offchainBalances.crtd || 0) - amt;
+            item.raised += amt;
+            item.backers.push({ userId: user.username, amount: amt, at: Date.now() });
+
+            // 목표 달성 시 수혜자에게 지급
+            if (item.raised >= item.amount) {
+                const target = users[item.requesterId];
+                if (target) {
+                    if (!target.offchainBalances) target.offchainBalances = {};
+                    target.offchainBalances.crtd = (target.offchainBalances.crtd || 0) + item.amount;
+                }
+                item.status = 'funded';
+            }
+            saveCredit('pumasi.json', list);
+            saveJSON('users.json', users);
+            res.end(JSON.stringify({ ok: true, raised: item.raised, status: item.status }));
+            return;
+        }
+
+        // ── 보험 (Insurance) ──
+        if (path === '/api/credit/insurance' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const list = loadCredit('insurance.json', []);
+            const isAdmin = ADMIN_USERS.includes(user.username);
+            const result = isAdmin ? list : list.filter(i => i.requesterId === user.username);
+            res.end(JSON.stringify({ items: result, isAdmin }));
+            return;
+        }
+
+        if (path === '/api/credit/insurance' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { type, amount, reason } = body;
+            const amt = Number(amount);
+            if (!Number.isFinite(amt) || amt <= 0 || amt > 1000000) { res.statusCode = 400; res.end('{"error":"Invalid amount"}'); return; }
+            if (!reason) { res.statusCode = 400; res.end('{"error":"Reason required"}'); return; }
+
+            const list = loadCredit('insurance.json', []);
+            const item = {
+                id: crypto.randomBytes(8).toString('hex'),
+                requesterId: user.username,
+                requesterName: users[user.username]?.displayName || user.username,
+                type: type || 'other', amount: amt, reason,
+                status: 'pending',
+                approvedBy: null, funded: 0,
+                createdAt: Date.now()
+            };
+            list.push(item);
+            saveCredit('insurance.json', list);
+            res.end(JSON.stringify({ ok: true, item }));
+            return;
+        }
+
+        if (path === '/api/credit/insurance/approve' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { insuranceId, approved } = body;
+
+            const list = loadCredit('insurance.json', []);
+            const item = list.find(i => i.id === insuranceId);
+            if (!item) { res.statusCode = 404; res.end('{"error":"Not found"}'); return; }
+
+            if (approved) {
+                item.status = 'approved';
+                item.approvedBy = user.username;
+                // 수혜자에게 CRNY 지급
+                const target = users[item.requesterId];
+                if (target) {
+                    if (!target.balances) target.balances = { crny: 0, fnc: 0, crfn: 0 };
+                    target.balances.crny = (target.balances.crny || 0) + item.amount;
+                }
+                saveJSON('users.json', users);
+            } else {
+                item.status = 'rejected';
+                item.approvedBy = user.username;
+            }
+            saveCredit('insurance.json', list);
+            res.end(JSON.stringify({ ok: true, status: item.status }));
+            return;
+        }
+
+        // ── 기부 (Donate) ──
+        if (path === '/api/credit/donate' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { amount, targetUsername, targetType } = body;
+            const amt = Number(amount);
+            if (!Number.isFinite(amt) || amt <= 0 || amt > 100000) { res.statusCode = 400; res.end('{"error":"Invalid amount"}'); return; }
+
+            const profile = users[user.username];
+            if (!profile || !profile.offchainBalances || (profile.offchainBalances.crtd || 0) < amt) {
+                res.statusCode = 400; res.end('{"error":"Insufficient CRTD"}'); return;
+            }
+
+            // 차감
+            profile.offchainBalances.crtd -= amt;
+
+            // 지정 대상이면 지급
+            if (targetType === 'designated' && targetUsername && users[targetUsername]) {
+                const target = users[targetUsername];
+                if (!target.offchainBalances) target.offchainBalances = {};
+                target.offchainBalances.crtd = (target.offchainBalances.crtd || 0) + amt;
+            }
+
+            // 기부 기록 저장
+            const donations = loadCredit('donations.json', []);
+            donations.push({
+                id: crypto.randomBytes(8).toString('hex'),
+                donorId: user.username, amount: amt, token: 'CRTD',
+                targetType: targetType || 'open',
+                targetId: targetUsername || '',
+                createdAt: Date.now()
+            });
+            saveCredit('donations.json', donations);
+            saveJSON('users.json', users);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        if (path === '/api/credit/donations' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const donations = loadCredit('donations.json', []).filter(d => d.donorId === user.username);
+            res.end(JSON.stringify({ items: donations }));
+            return;
+        }
+
+        // ── 계모임 (Gye) ──
+        if (path === '/api/credit/gye' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const list = loadCredit('gye.json', []).filter(g => g.status === 'recruiting' || g.status === 'active' || g.members.some(m => m.userId === user.username));
+            res.end(JSON.stringify({ items: list }));
+            return;
+        }
+
+        if (path === '/api/credit/gye' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { name, monthlyAmount, maxMembers } = body;
+            const amt = Number(monthlyAmount);
+            if (!name || !Number.isFinite(amt) || amt <= 0) { res.statusCode = 400; res.end('{"error":"Name and amount required"}'); return; }
+
+            const list = loadCredit('gye.json', []);
+            const item = {
+                id: crypto.randomBytes(8).toString('hex'),
+                name, monthlyAmount: amt,
+                maxMembers: Math.min(Number(maxMembers) || 10, 50),
+                currentRound: 0,
+                members: [{ userId: user.username, name: users[user.username]?.displayName || user.username }],
+                organizerId: user.username,
+                token: 'CRTD', status: 'recruiting',
+                createdAt: Date.now()
+            };
+            list.push(item);
+            saveCredit('gye.json', list);
+            res.end(JSON.stringify({ ok: true, item }));
+            return;
+        }
+
+        if (path === '/api/credit/gye/join' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { gyeId } = body;
+            const list = loadCredit('gye.json', []);
+            const gye = list.find(g => g.id === gyeId);
+            if (!gye) { res.statusCode = 404; res.end('{"error":"Not found"}'); return; }
+            if (gye.members.some(m => m.userId === user.username)) { res.statusCode = 400; res.end('{"error":"Already joined"}'); return; }
+            if (gye.members.length >= gye.maxMembers) { res.statusCode = 400; res.end('{"error":"Full"}'); return; }
+
+            gye.members.push({ userId: user.username, name: users[user.username]?.displayName || user.username });
+            if (gye.members.length >= gye.maxMembers) gye.status = 'active';
+            saveCredit('gye.json', list);
+            res.end(JSON.stringify({ ok: true, members: gye.members.length, status: gye.status }));
+            return;
+        }
+
+        // ── 계모임 라운드 실행 ──
+        if (path === '/api/credit/gye/round' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { gyeId } = body;
+            const list = loadCredit('gye.json', []);
+            const gye = list.find(g => g.id === gyeId);
+            if (!gye) { res.statusCode = 404; res.end('{"error":"Not found"}'); return; }
+            if (gye.organizerId !== user.username) { res.statusCode = 403; res.end('{"error":"Organizer only"}'); return; }
+            if (gye.members.length < 2) { res.statusCode = 400; res.end('{"error":"Min 2 members"}'); return; }
+            if (gye.currentRound >= gye.members.length) { res.statusCode = 400; res.end('{"error":"All rounds done"}'); return; }
+
+            const recipient = gye.members[gye.currentRound];
+            const totalPot = gye.monthlyAmount * gye.members.length;
+
+            // 각 멤버 잔액 확인
+            for (const member of gye.members) {
+                if (member.userId === recipient.userId) continue;
+                const mProfile = users[member.userId];
+                if (!mProfile || (mProfile.offchainBalances?.crtd || 0) < gye.monthlyAmount) {
+                    res.statusCode = 400;
+                    res.end(JSON.stringify({ error: (member.name || member.userId) + ' insufficient balance' }));
+                    return;
+                }
+            }
+
+            // 차감 및 지급
+            for (const member of gye.members) {
+                if (member.userId === recipient.userId) continue;
+                users[member.userId].offchainBalances.crtd -= gye.monthlyAmount;
+            }
+            if (!users[recipient.userId]) { res.statusCode = 400; res.end('{"error":"Recipient not found"}'); return; }
+            if (!users[recipient.userId].offchainBalances) users[recipient.userId].offchainBalances = {};
+            users[recipient.userId].offchainBalances.crtd = (users[recipient.userId].offchainBalances.crtd || 0) + totalPot;
+
+            gye.currentRound += 1;
+            if (gye.currentRound >= gye.members.length) gye.status = 'completed';
+            saveCredit('gye.json', list);
+            saveJSON('users.json', users);
+            res.end(JSON.stringify({ ok: true, round: gye.currentRound, recipient: recipient.name || recipient.userId, totalPot, status: gye.status }));
+            return;
+        }
+
+        // ── 크레딧 점수 ──
+        if (path === '/api/credit/score' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const profile = users[user.username] || {};
+            const crtd = profile.offchainBalances?.crtd || 0;
+            const donations = loadCredit('donations.json', []).filter(d => d.donorId === user.username);
+            const pumasi = loadCredit('pumasi.json', []);
+            const activePumasi = pumasi.filter(p => p.requesterId === user.username && p.status === 'active');
+            const fundedPumasi = pumasi.filter(p => p.requesterId === user.username && p.status === 'funded');
+            const contributions = pumasi.reduce((sum, p) => sum + (p.backers || []).filter(b => b.userId === user.username).reduce((s, b) => s + b.amount, 0), 0);
+            const totalDonated = donations.reduce((sum, d) => sum + d.amount, 0);
+
+            // 크레딧 점수 계산
+            let score = 300;
+            score += Math.min(crtd * 0.1, 100);         // CRTD 보유 (최대 +100)
+            score += Math.min(totalDonated * 0.5, 150);  // 기부 (최대 +150)
+            score += Math.min(contributions * 0.3, 100);  // 품앗이 기여 (최대 +100)
+            score += fundedPumasi.length * 20;            // 상환 완료 (건당 +20)
+            score += Math.min(donations.length * 5, 50);  // 기부 횟수 (최대 +50)
+            score = Math.min(Math.round(score), 850);
+
+            res.end(JSON.stringify({
+                score,
+                activeLoans: activePumasi.length,
+                totalDonated,
+                totalContributions: contributions,
+                donationCount: donations.length,
+                breakdown: {
+                    base: 300,
+                    crtdHolding: Math.min(Math.round(crtd * 0.1), 100),
+                    donationScore: Math.min(Math.round(totalDonated * 0.5), 150),
+                    contributionScore: Math.min(Math.round(contributions * 0.3), 100),
+                    repaymentScore: Math.min(fundedPumasi.length * 20, 100),
+                    frequencyScore: Math.min(donations.length * 5, 50)
+                }
+            }));
+            return;
+        }
+
         // ── 트레이딩 게임 ──
         if (path === '/api/trading/participation' && req.method === 'GET') {
             const user = getAuth(req);

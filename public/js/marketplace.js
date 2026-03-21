@@ -3,9 +3,9 @@
 const ORDER_STATUS_LABELS = { paid:t('mall.status_paid','<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Paid'), shipping:t('mall.status_shipping','<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Shipping'), delivered:t('mall.status_delivered','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delivered'), cancelled:t('mall.status_cancelled','<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Cancelled') };
 const ORDER_STATUS_COLORS = { paid:'#C4841D', shipping:'#5B7B8C', delivered:'#6B8F3C', cancelled:'#B54534' };
 const BRAND_SLOGANS = {
-    present: '아름다움을 선물하다', doctor: '건강한 삶의 시작', medical: '신뢰할 수 있는 의료',
-    avls: '감각을 깨우다', solution: '안전을 디자인하다', architect: '공간을 창조하다',
-    mall: '일상의 가치', designers: '스타일을 입다'
+    present: t('brand.slogan_present','Gift of beauty'), doctor: t('brand.slogan_doctor','The start of a healthy life'), medical: t('brand.slogan_medical','Trustworthy medical care'),
+    avls: t('brand.slogan_avls','Awaken your senses'), solution: t('brand.slogan_solution','Design safety'), architect: t('brand.slogan_architect','Create spaces'),
+    mall: t('brand.slogan_mall','Everyday value'), designers: t('brand.slogan_designers','Wear your style')
 };
 const BRAND_COLORS = {
     present:'#F7F3ED', doctor:'#F7F3ED', medical:'#F7F3ED', avls:'#F7F3ED',
@@ -14,14 +14,14 @@ const BRAND_COLORS = {
 const BRAND_ICONS = {
     present:'<i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', doctor:'<i data-lucide="pill" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', medical:'<i data-lucide="hospital" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', avls:'<i data-lucide="film" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', solution:'<i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', architect:'<i data-lucide="building-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', mall:'<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', designers:'<i data-lucide="shirt" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'
 };
-const RETURN_REASONS = ['불량','오배송','단순변심','기타'];
+const RETURN_REASONS = [t('marketplace.return_defective','Defective'),t('marketplace.return_wrong_delivery','Wrong delivery'),t('marketplace.return_change_of_mind','Change of mind'),t('marketplace.return_other','Other')];
 const MAX_ORDER_AMOUNT = 10000; // 1회 최대 주문 금액 (CRGC)
 let _orderInProgress = false; // 동시 주문 방지 플래그
 
 const MALL_CATEGORIES = {
-    'present':'<i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 프레즌트','doctor':'<i data-lucide="pill" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 포닥터','medical':'<i data-lucide="hospital" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 메디컬','avls':'<i data-lucide="film" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> AVLs',
-    'solution':'<i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 프라이빗','architect':'<i data-lucide="building-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 아키텍트','mall':'<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 크라우니몰','designers':'<i data-lucide="shirt" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 디자이너스',
-    '뷰티':'<i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 화장품','음향':'<i data-lucide="volume-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 음향','헬스':'<i data-lucide="zap" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 헬스','생활':'<i data-lucide="coffee" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 생활','전자':'<i data-lucide="battery" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 전자','패션':'<i data-lucide="shirt" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 패션','식품':'<i data-lucide="utensils" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 식품','기타':'<i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 기타'
+    'present':'<i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_present','Present'),'doctor':'<i data-lucide="pill" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_doctor','For Doctor'),'medical':'<i data-lucide="hospital" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_medical','Medical'),'avls':'<i data-lucide="film" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> AVLs',
+    'solution':'<i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_private','Private'),'architect':'<i data-lucide="building-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_architect','Architect'),'mall':'<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_crowny_mall','Crowny Mall'),'designers':'<i data-lucide="shirt" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_designers','Designers'),
+    '뷰티':'<i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_beauty','Beauty'),'음향':'<i data-lucide="volume-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_audio','Audio'),'헬스':'<i data-lucide="zap" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_health','Health'),'생활':'<i data-lucide="coffee" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_living','Living'),'전자':'<i data-lucide="battery" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_electronics','Electronics'),'패션':'<i data-lucide="shirt" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_fashion','Fashion'),'식품':'<i data-lucide="utensils" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_food','Food'),'기타':'<i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('marketplace.category_other','Other')
 };
 
 function renderStars(rating, size='0.85rem') {
@@ -665,7 +665,7 @@ async function donateCampaign(id) {
         const creatorReceive = amount - platformFee;
         
         if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, amount, `기부: ${camp.title}`);
+            const success = await spendOffchainPoints(tk, amount, t('fund.donation_desc','Donation') + ': ' + camp.title);
             if (!success) return;
             const creatorOff = (await db.collection('users').doc(camp.creatorId).get()).data()?.offchainBalances || {};
             await db.collection('users').doc(camp.creatorId).update({
@@ -692,23 +692,23 @@ async function donateCampaign(id) {
 // ========== CREB LABS - 미래기술 투자 ==========
 
 const CREB_CATEGORIES = {
-    energy: { icon: '<i data-lucide="zap" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#C4841D', label: '에너지', sdg: 'SDG 7' },
-    genetics: { icon: '<i data-lucide="dna" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#B54534', label: '유전공학', sdg: 'SDG 3' },
-    biotech: { icon: '<i data-lucide="microscope" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#6B8F3C', label: '생명공학', sdg: 'SDG 3' },
-    ai_robotics: { icon: '<i data-lucide="bot" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#5B7B8C', label: 'AI·로보틱스', sdg: 'SDG 9' }
+    energy: { icon: '<i data-lucide="zap" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#C4841D', label: t('invest.impact_energy','Energy'), sdg: 'SDG 7' },
+    genetics: { icon: '<i data-lucide="dna" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#B54534', label: t('invest.impact_genetics','Genetic Engineering'), sdg: 'SDG 3' },
+    biotech: { icon: '<i data-lucide="microscope" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#6B8F3C', label: t('invest.impact_biotech','Biotechnology'), sdg: 'SDG 3' },
+    ai_robotics: { icon: '<i data-lucide="bot" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#5B7B8C', label: t('invest.impact_ai_robotics','AI & Robotics'), sdg: 'SDG 9' }
 };
 
 const CREB_INVEST_TYPES = {
-    return: { icon: '<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: '수익형', color: '#C4841D', bg: '#FFF3E0' },
-    donation: { icon: '<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: '기부형 · 선한 투자', color: '#6B8F3C', bg: '#E8F5E9' },
-    hybrid: { icon: '<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: '하이브리드', color: '#5B7B8C', bg: '#E3F2FD' }
+    return: { icon: '<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: t('invest.type_profit','Profit-type'), color: '#C4841D', bg: '#FFF3E0' },
+    donation: { icon: '<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: t('invest.type_donation','Donation & Good Investment'), color: '#6B8F3C', bg: '#E8F5E9' },
+    hybrid: { icon: '<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: t('invest.type_hybrid','Hybrid'), color: '#5B7B8C', bg: '#E3F2FD' }
 };
 
 const CREB_IMPACT = {
-    energy: { unit: 'kW 청정에너지 생산에 기여', factor: 0.5 },
-    genetics: { unit: '시간 희귀질환 연구 지원', factor: 0.01 },
-    biotech: { unit: '단계 신약 파이프라인 진행', factor: 0.005 },
-    ai_robotics: { unit: '건 AI 학습 데이터 처리', factor: 0.1 }
+    energy: { unit: t('invest.unit_energy','kW clean energy produced'), factor: 0.5 },
+    genetics: { unit: t('invest.unit_genetics','hours of rare disease research supported'), factor: 0.01 },
+    biotech: { unit: t('invest.unit_biotech','stages of drug pipeline advanced'), factor: 0.005 },
+    ai_robotics: { unit: t('invest.unit_ai','AI training data batches processed'), factor: 0.1 }
 };
 
 let _crebCurrentFilter = 'all';
@@ -771,10 +771,10 @@ async function loadEnergyProjects() {
                 </div>
                 <div style="margin-bottom:0.3rem;">${renderInvestBadge(x)}</div>
                 <p style="font-size:0.85rem; color:var(--accent); margin:0.3rem 0;">${x.location || ''} ${x.capacity ? '· ' + x.capacity + 'kW' : ''} ${rate > 0 ? '· ' + t('energy.expected_return','Expected return') + ' ' + rate + '%' : ''}</p>
-                ${rate > 0 ? `<div style="font-size:0.8rem; color:#6B8F3C; margin-top:0.3rem;"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 100 CREB 투자 시 → 월 ${exMonthly} CREB (연 ${rate}%)</div>` : ''}
+                ${rate > 0 ? `<div style="font-size:0.8rem; color:#6B8F3C; margin-top:0.3rem;"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('invest.per_100_creb','100 CREB invested')} → ${t('invest.monthly_short','monthly')} ${exMonthly} CREB (${t('invest.annual_short','annual')} ${rate}%)</div>` : ''}
                 ${itype === 'donation' ? `<div style="font-size:0.8rem; color:#6B8F3C; margin-top:0.3rem;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('energy.pure_donation','Pure donation - investing in the future without returns')}</div>` : ''}
                 ${itype === 'hybrid' ? `<div style="font-size:0.8rem; color:#5B7B8C; margin-top:0.3rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('energy.hybrid_desc','50% returns + 50% reinvestment')}</div>` : ''}
-                <div style="font-size:0.75rem; color:var(--accent);">👥 투자자 ${xInvestors}명</div>
+                <div style="font-size:0.75rem; color:var(--accent);">👥 ${t('invest.investors','Investors')} ${xInvestors}${t('common.count_people','')}</div>
                 <div style="background:#e0e0e0; height:6px; border-radius:3px; margin:0.5rem 0;"><div style="background:${catInfo.color}; height:100%; border-radius:3px; width:${pct}%;"></div></div>
                 <div style="display:flex; justify-content:space-between; font-size:0.85rem;"><span>${xInvested}/${xGoal} CREB</span><span>${pct}%</span></div>
                 ${renderMilestones(x.milestones)}
@@ -803,12 +803,12 @@ async function openProjectDetail(projectId) {
 
         let teamHtml = '';
         if (x.teamMembers && x.teamMembers.length) {
-            teamHtml = `<div style="margin-top:1rem;"><h4>👥 팀</h4>${x.teamMembers.map(m => `<div style="padding:0.3rem 0; font-size:0.85rem;">${m.name} — ${m.role || ''}</div>`).join('')}</div>`;
+            teamHtml = `<div style="margin-top:1rem;"><h4>👥 ${t('invest.team','Team')}</h4>${x.teamMembers.map(m => `<div style="padding:0.3rem 0; font-size:0.85rem;">${m.name} — ${m.role || ''}</div>`).join('')}</div>`;
         }
 
         let milestonesHtml = '';
         if (x.milestones && x.milestones.length) {
-            milestonesHtml = `<div style="margin-top:1rem;"><h4>📋 마일스톤</h4>${x.milestones.map(m => {
+            milestonesHtml = `<div style="margin-top:1rem;"><h4>📋 ${t('invest.milestones','Milestones')}</h4>${x.milestones.map(m => {
                 const mp = Math.min(100, Math.round((m.current/m.target)*100));
                 return `<div style="margin:0.5rem 0;"><div style="font-size:0.85rem; font-weight:600;">${m.name}</div><div style="background:#e0e0e0; height:6px; border-radius:3px; margin:0.3rem 0;"><div style="background:${catInfo.color}; height:100%; border-radius:3px; width:${mp}%;"></div></div><div style="font-size:0.75rem; color:var(--accent);">${m.current}/${m.target} (${mp}%)</div></div>`;
             }).join('')}</div>`;
@@ -854,7 +854,7 @@ async function openProjectDetail(projectId) {
                 <div style="background:#e0e0e0; height:8px; border-radius:4px; margin:0.8rem 0;"><div style="background:${catInfo.color}; height:100%; border-radius:4px; width:${pct}%;"></div></div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:1rem;"><span>${xInvested}/${xGoal} CREB (${pct}%)</span><span>${t('energy.return_rate','Return rate')} ${rate}%</span></div>
                 ${teamHtml}${milestonesHtml}${investorsHtml}
-                <div style="margin-top:1rem;"><h4>💬 댓글</h4>
+                <div style="margin-top:1rem;"><h4>💬 ${t('invest.comments','Comments')}</h4>
                     <div style="display:flex; gap:0.5rem; margin-bottom:0.8rem;">
                         <input type="text" id="creb-comment-input" placeholder="${t('energy.comment_placeholder','Questions or comments...')}" style="flex:1; padding:0.5rem; border:1px solid var(--border); border-radius:6px;">
                         <button onclick="postCrebComment('${projectId}')" style="background:${catInfo.color}; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:6px; cursor:pointer;">${t('common.submit','Submit')}</button>
@@ -893,7 +893,7 @@ async function investEnergy(id) {
     if (!amount || amount <= 0) return;
     try {
         if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, amount, `에너지 투자: ${id}`);
+            const success = await spendOffchainPoints(tk, amount, t('invest.energy_invest','Energy investment') + ': ' + id);
             if (!success) return;
         } else {
             const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
@@ -1001,7 +1001,7 @@ async function supportArtist(id) {
     if (!amount || amount <= 0) return;
     try {
         if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, amount, `아티스트 후원: ${id}`);
+            const success = await spendOffchainPoints(tk, amount, t('artist.support_desc','Artist support') + ': ' + id);
             if (!success) return;
             const doc = await db.collection('artists').doc(id).get(); const artist = doc.data();
             const artistOff = (await db.collection('users').doc(artist.userId).get()).data()?.offchainBalances || {};
@@ -1079,7 +1079,7 @@ async function buyBook(id) {
     if (!await showConfirmModal(t('books.buy_book','Buy Book'), `"${b.title}"\n${b.price} CRGC — ${t('mall.confirm_buy_msg','Proceed with purchase?')}`)) return;
     try {
         if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, b.price, `책 구매: ${b.title}`);
+            const success = await spendOffchainPoints(tk, b.price, t('books.purchase_desc','Book purchase') + ': ' + b.title);
             if (!success) return;
             const pubOff = (await db.collection('users').doc(b.publisherId).get()).data()?.offchainBalances || {};
             await db.collection('users').doc(b.publisherId).update({
@@ -1098,27 +1098,19 @@ async function buyBook(id) {
 
 // ========== CREDIT - P2P 크레딧 ==========
 
-// 보험 승인/거절 (관리자 레벨 2+)
+// 보험 승인/거절 (관리자)
 async function approveInsurance(id) {
     if (!currentUser) return;
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        if ((userDoc.data()?.adminLevel || 0) < 2) { showToast(t('admin.no_permission','Admin permission required'), 'error'); return; }
-        const doc = await db.collection('insurance_requests').doc(id).get();
-        if (!doc.exists) return;
-        const req = doc.data();
-        if (req.status !== 'pending') { showToast(t('credit.already_processed','This request has already been processed'), 'info'); return; }
-        if (!await showConfirmModal(t('credit.approve_insurance','Approve Insurance'), `${req.requesterNickname || req.requesterEmail}\n${req.amount} CRTD — ${req.reason}\n\n${t('common.confirm_proceed','Proceed?')}`)) return;
-        // 보험금 지급 (오프체인 CRTD 기반)
-        const reqUser = await db.collection('users').doc(req.requesterId).get();
-        const reqBal = reqUser.data()?.offchainBalances || {};
-        await db.collection('users').doc(req.requesterId).update({
-            ['offchainBalances.crtd']: (reqBal.crtd || 0) + req.amount
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/insurance/approve', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ insuranceId: id, approved: true })
         });
-        await db.collection('insurance_requests').doc(id).update({
-            status: 'approved', approvedBy: currentUser.uid, approvedAt: new Date()
-        });
-        showToast(`🛡️ 보험 ${req.amount} CRTD 승인 완료!`, 'success');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
+        showToast(t('credit.insurance_approved','Insurance approved'), 'success');
         loadInsuranceAdmin(); loadMyInsuranceClaims();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
@@ -1126,13 +1118,14 @@ async function approveInsurance(id) {
 async function rejectInsurance(id) {
     if (!currentUser) return;
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        if ((userDoc.data()?.adminLevel || 0) < 2) { showToast(t('admin.no_permission','Admin permission required'), 'error'); return; }
-        const reasonText = await showPromptModal(t('credit.reject_reason','Rejection Reason'), t('credit.enter_reject_reason','Enter reason for rejection'), '');
-        if (!reasonText) return;
-        await db.collection('insurance_requests').doc(id).update({
-            status: 'rejected', rejectedBy: currentUser.uid, rejectReason: reasonText, rejectedAt: new Date()
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/insurance/approve', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ insuranceId: id, approved: false })
         });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
         showToast(t('credit.insurance_rejected','Insurance request rejected'), 'info');
         loadInsuranceAdmin(); loadMyInsuranceClaims();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -1143,24 +1136,26 @@ async function loadInsuranceAdmin() {
     const c = document.getElementById('insurance-admin-list');
     if (!c || !currentUser) return;
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        if ((userDoc.data()?.adminLevel || 0) < 2) { c.style.display = 'none'; return; }
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/insurance', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!resp.ok) throw new Error('Failed');
+        const { items, isAdmin } = await resp.json();
+        if (!isAdmin) { c.style.display = 'none'; return; }
         c.style.display = 'block';
-        const docs = await db.collection('insurance_requests').where('status', '==', 'pending').orderBy('createdAt', 'desc').limit(20).get();
-        if (docs.empty) { c.innerHTML = `<p style="color:var(--accent); font-size:0.85rem;">${t('credit.no_pending_insurance','No pending insurance requests')}</p>`; return; }
+        const pending = items.filter(r => r.status === 'pending');
+        if (!pending.length) { c.innerHTML = `<p style="color:var(--accent); font-size:0.85rem;">${t('credit.no_pending_insurance','No pending insurance requests')}</p>`; return; }
         const TYPES = { medical: t('credit.insurance_medical','Medical'), disaster: t('credit.insurance_disaster','Disaster'), education: t('credit.insurance_education','Education'), housing: t('credit.insurance_housing','Housing'), other: t('credit.insurance_other','Other') };
         c.innerHTML = `<h4><i data-lucide="hourglass"></i> ${t('credit.pending_insurance','Pending Insurance Requests')}</h4>`;
-        docs.forEach(d => {
-            const r = d.data();
+        pending.forEach(r => {
             c.innerHTML += `<div class="credit-list-item credit-list-item--pending">
                 <div class="row">
-                    <div><strong>${r.requesterNickname || r.requesterEmail}</strong> <span class="meta">${TYPES[r.type] || r.type}</span></div>
+                    <div><strong>${r.requesterName || r.requesterId}</strong> <span class="meta">${TYPES[r.type] || r.type}</span></div>
                     <span style="font-weight:700; color:#C4841D;">${r.amount} CRTD</span>
                 </div>
                 <p class="meta">${r.reason}</p>
                 <div class="credit-admin-actions">
-                    <button onclick="approveInsurance('${d.id}')" style="background:#6B8F3C;"><i data-lucide="check-circle"></i> ${t('credit.approve','Approve')}</button>
-                    <button onclick="rejectInsurance('${d.id}')" style="background:#B54534;"><i data-lucide="x-circle"></i> ${t('credit.reject','Reject')}</button>
+                    <button onclick="approveInsurance('${r.id}')" style="background:#6B8F3C;"><i data-lucide="check-circle"></i> ${t('credit.approve','Approve')}</button>
+                    <button onclick="rejectInsurance('${r.id}')" style="background:#B54534;"><i data-lucide="x-circle"></i> ${t('credit.reject','Reject')}</button>
                 </div>
             </div>`;
         });
@@ -1172,19 +1167,21 @@ async function loadMyInsuranceClaims() {
     const c = document.getElementById('my-insurance-claims');
     if (!c || !currentUser) return;
     try {
-        const docs = await db.collection('insurance_requests').where('requesterId', '==', currentUser.uid).orderBy('createdAt', 'desc').limit(10).get();
-        if (docs.empty) { c.innerHTML = `<p style="color:var(--accent); font-size:0.85rem;">${t('credit.no_insurance_claims','No insurance claims')}</p>`; return; }
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/insurance', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!resp.ok) throw new Error('Failed');
+        const { items } = await resp.json();
+        const mine = items.filter(r => r.requesterId === currentUser.uid);
+        if (!mine.length) { c.innerHTML = `<p style="color:var(--accent); font-size:0.85rem;">${t('credit.no_insurance_claims','No insurance claims')}</p>`; return; }
         const STATUS = { pending: `<i data-lucide="hourglass"></i> ${t('credit.status_pending','Pending')}`, approved: `<i data-lucide="check-circle"></i> ${t('credit.status_approved','Approved')}`, rejected: `<i data-lucide="x-circle"></i> ${t('credit.status_rejected','Rejected')}` };
         const STATUS_COLOR = { pending: '#C4841D', approved: '#6B8F3C', rejected: '#B54534' };
         c.innerHTML = '';
-        docs.forEach(d => {
-            const r = d.data();
+        mine.forEach(r => {
             c.innerHTML += `<div class="credit-claim-item" style="border-left:3px solid ${STATUS_COLOR[r.status] || '#6B5744'};">
                 <div class="row" style="font-size:0.85rem;">
-                    <span><strong>${r.amount} CRNY</strong> — ${r.reason?.slice(0, 40)}</span>
+                    <span><strong>${r.amount} CRNY</strong> — ${(r.reason || '').slice(0, 40)}</span>
                     <span style="color:${STATUS_COLOR[r.status]}; font-weight:600;">${STATUS[r.status] || r.status}</span>
                 </div>
-                ${r.rejectReason ? `<p class="target" style="margin-top:0.2rem;">${t('credit.reason','Reason')}: ${r.rejectReason}</p>` : ''}
             </div>`;
         });
     } catch (e) { c.innerHTML = e.message; }
@@ -1194,48 +1191,16 @@ async function loadMyInsuranceClaims() {
 async function executeGyeRound(gyeId) {
     if (!currentUser) return;
     try {
-        const doc = await db.collection('gye_groups').doc(gyeId).get();
-        if (!doc.exists) return;
-        const g = doc.data();
-        if (g.organizerId !== currentUser.uid) { showToast(t('credit.organizer_only','Only the organizer can run rounds'), 'error'); return; }
-        if (!g.members || g.members.length < 2) { showToast(t('credit.min_members','At least 2 members required'), 'warning'); return; }
-        if (g.currentRound >= g.members.length) { showToast(t('credit.all_rounds_done','All rounds completed'), 'info'); return; }
-        const recipient = g.members[g.currentRound];
-        const totalPot = g.monthlyAmount * g.members.length;
-        if (!await showConfirmModal(t('credit.execute_round','Execute Gye Round'), `Round ${g.currentRound + 1}: ${g.members.length} × ${g.monthlyAmount} CRTD = ${totalPot} CRTD\n\n${t('credit.recipient','Recipient')}: ${recipient.nickname || recipient.email}\n\n${t('common.confirm_proceed','Proceed?')}`)) return;
-        // 각 멤버에서 monthlyAmount 차감, 수령자에게 전체 지급
-        for (const member of g.members) {
-            if (member.userId === recipient.userId) continue;
-            const mUser = await db.collection('users').doc(member.userId).get();
-            const mBal = mUser.data()?.offchainBalances || {};
-            if ((mBal.crtd || 0) < g.monthlyAmount) {
-                showToast(`${member.nickname || member.email}의 잔액이 부족합니다`, 'error');
-                return;
-            }
-        }
-        for (const member of g.members) {
-            if (member.userId === recipient.userId) continue;
-            const mUser = await db.collection('users').doc(member.userId).get();
-            const mBal = mUser.data()?.offchainBalances || {};
-            await db.collection('users').doc(member.userId).update({
-                ['offchainBalances.crtd']: (mBal.crtd || 0) - g.monthlyAmount
-            });
-        }
-        const rUser = await db.collection('users').doc(recipient.userId).get();
-        const rBal = rUser.data()?.offchainBalances || {};
-        await db.collection('users').doc(recipient.userId).update({
-            ['offchainBalances.crtd']: (rBal.crtd || 0) + totalPot
+        if (!await showConfirmModal(t('credit.execute_round','Execute Gye Round'), t('common.confirm_proceed','Proceed?'))) return;
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/gye/round', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gyeId })
         });
-        await db.collection('gye_groups').doc(gyeId).update({
-            currentRound: g.currentRound + 1,
-            status: (g.currentRound + 1) >= g.members.length ? 'completed' : 'active'
-        });
-        await db.collection('transactions').add({
-            type: 'gye_round', gyeId, round: g.currentRound + 1,
-            recipientId: recipient.userId, amount: totalPot, token: 'CRTD',
-            participants: g.members.length, timestamp: new Date()
-        });
-        showToast(`<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Round ${g.currentRound + 1} 완료! ${recipient.nickname || recipient.email}에게 ${totalPot} CRTD 지급`, 'success');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
+        showToast('Round ' + data.round + ' ' + t('credit.round_complete','complete!') + ' ' + data.recipient + ' ' + t('credit.received','received') + ' ' + data.totalPot + ' CRTD', 'success');
         loadGyeList();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
@@ -1245,36 +1210,22 @@ async function loadCreditScoreBreakdown() {
     const c = document.getElementById('credit-score-breakdown');
     if (!c || !currentUser) return;
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const data = userDoc.data();
-        const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-        const bal = wallets.docs[0]?.data()?.balances || {};
-        const offBal = data?.offchainBalances || {};
-        const crtdHeld = offBal.crtd || 0;
-        const referrals = data.referralCount || 0;
-        // 거래 내역 수
-        const txCount = (await db.collection('transactions').where('from', '==', currentUser.uid).limit(100).get()).size;
-        // 상환율 (품앗이 완료/전체)
-        const allPumasi = await db.collection('pumasi_requests').where('requesterId', '==', currentUser.uid).get();
-        let totalP = allPumasi.size, repaidP = 0;
-        allPumasi.forEach(d => { if (d.data().status === 'repaid' || d.data().raised >= d.data().amount) repaidP++; });
-        const repayRate = totalP > 0 ? Math.round((repaidP / totalP) * 100) : 100;
-
-        const holdingScore = Math.min(200, crtdHeld * 10);
-        const referralScore = Math.min(150, referrals * 20);
-        const txScore = Math.min(150, txCount * 3);
-        const repayScore = Math.min(150, repayRate * 1.5);
-        const totalScore = Math.min(850, 300 + holdingScore + referralScore + txScore + repayScore);
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/score', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!resp.ok) throw new Error('Failed to load score');
+        const data = await resp.json();
+        const b = data.breakdown;
+        const totalScore = data.score;
 
         c.innerHTML = `
             <div class="credit-breakdown">
-                <div class="credit-breakdown-row"><span>👑 ${t('credit.crtd_held','CRTD Held')}</span><span>${crtdHeld} CRTD → +${holdingScore}${t('credit.points','pts')}</span></div>
-                <div class="credit-breakdown-row"><span>👥 ${t('credit.referrals','Referrals')}</span><span>${referrals}${t('common.people','')} → +${referralScore}${t('credit.points','pts')}</span></div>
-                <div class="credit-breakdown-row"><span><i data-lucide="bar-chart"></i> ${t('credit.tx_count','Transactions')}</span><span>${txCount} → +${txScore}${t('credit.points','pts')}</span></div>
-                <div class="credit-breakdown-row"><span>💯 ${t('credit.repay_rate','Repay Rate')}</span><span>${repayRate}% → +${repayScore}${t('credit.points','pts')}</span></div>
+                <div class="credit-breakdown-row"><span>👑 ${t('credit.crtd_held','CRTD Held')}</span><span>+${b.crtdHolding}${t('credit.points','pts')}</span></div>
+                <div class="credit-breakdown-row"><span><i data-lucide="heart"></i> ${t('credit.donations','Donations')}</span><span>+${b.donationScore}${t('credit.points','pts')}</span></div>
+                <div class="credit-breakdown-row"><span><i data-lucide="users"></i> ${t('credit.contributions','Contributions')}</span><span>+${b.contributionScore}${t('credit.points','pts')}</span></div>
+                <div class="credit-breakdown-row"><span>💯 ${t('credit.repay_rate','Repay Rate')}</span><span>+${b.repaymentScore}${t('credit.points','pts')}</span></div>
+                <div class="credit-breakdown-row"><span><i data-lucide="bar-chart"></i> ${t('credit.frequency','Frequency')}</span><span>+${b.frequencyScore}${t('credit.points','pts')}</span></div>
                 <div class="credit-breakdown-total"><span><i data-lucide="trophy"></i> ${t('credit.total_score','Total Credit Score')}</span><span>${totalScore}</span></div>
             </div>`;
-        // 메인 점수도 업데이트
         const scoreEl = document.getElementById('credit-score');
         if (scoreEl) { scoreEl.textContent = totalScore; scoreEl.style.color = totalScore >= 700 ? '#6B8F3C' : totalScore >= 500 ? '#C4841D' : '#B54534'; }
     } catch (e) { c.innerHTML = `<p style="color:red;">${e.message}</p>`; }
@@ -1286,7 +1237,7 @@ async function viewBusinessDetail(id) {
     const doc = await db.collection('businesses').doc(id).get();
     if (!doc.exists) return;
     const b = doc.data();
-    const BIZ_CATS = {retail:'<i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 소매',food:'<i data-lucide="utensils" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 요식업',service:'<i data-lucide="wrench" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 서비스',tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 테크',education:'<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 교육',health:'<i data-lucide="pill" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 헬스',logistics:'<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 물류',entertainment:'<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 엔터',other:'🏢 기타'};
+    const BIZ_CATS = {retail:'<i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_retail','Retail'),food:'<i data-lucide="utensils" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_food','Food & Beverage'),service:'<i data-lucide="wrench" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_service','Service'),tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_tech','Tech'),education:'<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_education','Education'),health:'<i data-lucide="pill" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_health','Health'),logistics:'<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_logistics','Logistics'),entertainment:'<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_entertainment','Entertainment'),other:'🏢 ' + t('biz.cat_other','Other')};
     // 투자 현황
     const investments = await db.collection('business_investments').where('businessId', '==', id).get();
     let totalInvested = 0, investorCount = 0;
@@ -1305,18 +1256,18 @@ async function viewBusinessDetail(id) {
             <h3>${b.name}</h3>
             <p style="color:var(--accent); font-size:0.85rem; margin:0.3rem 0;">${[BIZ_CATS[b.category], b.country, b.ownerNickname || b.ownerEmail].filter(Boolean).join(' · ')}</p>
             ${b.description ? `<p style="font-size:0.9rem; margin:0.8rem 0;">${b.description}</p>` : ''}
-            ${b.website ? `<a href="${b.website}" target="_blank" style="font-size:0.85rem;">🔗 웹사이트</a>` : ''}
+            ${b.website ? `<a href="${b.website}" target="_blank" style="font-size:0.85rem;">🔗 ${t('biz.website','Website')}</a>` : ''}
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem; margin:1rem 0;">
                 <div style="background:var(--bg); padding:0.6rem; border-radius:8px; text-align:center;">
-                    <div style="font-size:0.7rem; color:var(--accent);">총 투자</div>
+                    <div style="font-size:0.7rem; color:var(--accent);">${t('invest.total_invested','Total invested')}</div>
                     <div style="font-weight:700;">${totalInvested} CRGC</div>
                 </div>
                 <div style="background:var(--bg); padding:0.6rem; border-radius:8px; text-align:center;">
-                    <div style="font-size:0.7rem; color:var(--accent);">투자자</div>
-                    <div style="font-weight:700;">${investorCount}명</div>
+                    <div style="font-size:0.7rem; color:var(--accent);">${t('invest.investors','Investors')}</div>
+                    <div style="font-weight:700;">${investorCount}${t('common.count_people','')}</div>
                 </div>
                 <div style="background:var(--bg); padding:0.6rem; border-radius:8px; text-align:center;">
-                    <div style="font-size:0.7rem; color:var(--accent);">평점</div>
+                    <div style="font-size:0.7rem; color:var(--accent);">${t('biz.rating','Rating')}</div>
                     <div style="font-weight:700;">${avgRating} ${stars}</div>
                 </div>
             </div>
@@ -1335,7 +1286,7 @@ async function investBusiness(id) {
     if (!amount || amount <= 0) return;
     try {
         if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, amount, `사업 투자: ${id}`);
+            const success = await spendOffchainPoints(tk, amount, t('biz.invest_desc','Business investment') + ': ' + id);
             if (!success) return;
         } else {
             const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
@@ -1360,7 +1311,7 @@ async function investBusiness(id) {
             investorId: currentUser.uid, investorEmail: currentUser.email,
             amount, token: tkName, timestamp: new Date()
         });
-        showToast(`<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${biz.name}에 ${amount} ${tkName} 투자 완료!`, 'success');
+        showToast('<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + amount + ' ' + tkName + ' ' + t('invest.invested_in','invested in') + ' ' + biz.name + '!', 'success');
         document.getElementById('biz-detail-modal')?.remove();
         loadBusinessList(); loadUserWallet();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -1377,7 +1328,7 @@ async function rateBusinessAfterInvest(businessId) {
             rating: (biz.rating || 0) + rating,
             reviews: (biz.reviews || 0) + 1
         });
-        showToast(`<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${rating}점 평가 완료!`, 'success');
+        showToast('<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.rating_done','Rating submitted') + ' ' + rating + '/5!', 'success');
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
 
@@ -1387,8 +1338,8 @@ async function viewArtistDetail(id) {
     const doc = await db.collection('artists').doc(id).get();
     if (!doc.exists) return;
     const a = doc.data();
-    const GENRES = {music:'<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 음악',dance:'<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 댄스',acting:'<i data-lucide="film" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 연기',comedy:'<i data-lucide="smile" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 코미디',creator:'<i data-lucide="video" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 크리에이터',model:'<i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 모델',dj:'<i data-lucide="headphones" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> DJ',other:'<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 기타'};
-    // 후원 이력
+    const GENRES = {music:'<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_music','Music'),dance:'<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_dance','Dance'),acting:'<i data-lucide="film" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_acting','Acting'),comedy:'<i data-lucide="smile" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_comedy','Comedy'),creator:'<i data-lucide="video" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_creator','Creator'),model:'<i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_model','Model'),dj:'<i data-lucide="headphones" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> DJ',other:'<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_other','Other')};
+    // Support history
     const supports = await db.collection('transactions').where('artistId', '==', id).where('type', '==', 'artist_support').orderBy('timestamp', 'desc').limit(10).get();
     let supportHtml = '';
     supports.forEach(d => {
@@ -1413,10 +1364,10 @@ async function viewArtistDetail(id) {
             <p style="color:var(--accent); font-size:0.85rem;">${GENRES[a.genre] || ''} · ${t('artist.fans','Fans')} ${uniqueFans.size} · ${t('artist.total_support','Total support')} ${a.totalSupport || 0}</p>
             ${a.bio ? `<p style="font-size:0.9rem; margin:0.8rem 0;">${a.bio}</p>` : ''}
             <div style="margin:1rem 0;">
-                <h4 style="font-size:0.85rem; margin-bottom:0.5rem;">💖 최근 후원</h4>
+                <h4 style="font-size:0.85rem; margin-bottom:0.5rem;">💖 ${t('artist.recent_support','Recent support')}</h4>
                 ${supportHtml || `<p style="font-size:0.8rem; color:var(--accent);">${t('artist.no_support','No support history')}</p>`}
             </div>
-            <button onclick="supportArtist('${id}'); document.getElementById('artist-detail-modal').remove();" style="background:#B54534; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700; width:100%; margin-bottom:0.5rem;">💖 후원하기</button>
+            <button onclick="supportArtist('${id}'); document.getElementById('artist-detail-modal').remove();" style="background:#B54534; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700; width:100%; margin-bottom:0.5rem;">💖 ${t('artist.support_action','Support')}</button>
             <button onclick="document.getElementById('artist-detail-modal').remove()" style="background:#E8E0D8; border:none; padding:0.6rem; border-radius:8px; cursor:pointer; width:100%;">${t('common.close','Close')}</button>
         </div></div>`;
     document.body.appendChild(modal);
@@ -1428,7 +1379,7 @@ async function viewBookDetail(id) {
     const doc = await db.collection('books').doc(id).get();
     if (!doc.exists) return;
     const b = doc.data();
-    const GENRES = {novel:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 소설',essay:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 에세이',selfhelp:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 자기계발',business:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 비즈니스',tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 기술',poetry:'<i data-lucide="pen-tool" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 시',children:'<i data-lucide="users" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 아동',comic:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 만화',other:'<i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 기타'};
+    const GENRES = {novel:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_novel','Novel'),essay:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_essay','Essay'),selfhelp:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_selfhelp','Self-help'),business:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_business','Business'),tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_tech','Technology'),poetry:'<i data-lucide="pen-tool" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_poetry','Poetry'),children:'<i data-lucide="users" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_children','Children'),comic:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_comic','Comics'),other:'<i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_other','Other')};
     const isOwner = currentUser?.uid === b.publisherId;
 
     const modal = document.createElement('div');
@@ -1446,7 +1397,7 @@ async function viewBookDetail(id) {
             ${b.description ? `<p style="font-size:0.9rem; margin:0.8rem 0; line-height:1.6;">${b.description}</p>` : ''}
             <div style="display:flex; gap:0.5rem; margin-top:1rem;">
                 ${!isOwner && b.price > 0 ? `<button onclick="buyBook('${id}'); document.getElementById('book-detail-modal').remove();" style="flex:1; background:#3D2B1F; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;"><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.buy_now','Buy Now')}</button>` : ''}
-                ${!isOwner && b.price <= 0 ? `<button onclick="showToast('<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 무료 열람!', 'info'); document.getElementById('book-detail-modal').remove();" style="flex:1; background:#6B8F3C; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;"><i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 무료 읽기</button>` : ''}
+                ${!isOwner && b.price <= 0 ? `<button onclick="showToast('<i data-lucide=\\'book-open\\' style=\\'width:14px;height:14px;display:inline-block;vertical-align:middle;\\'></i> ' + t('books.free_access','Free access!'), 'info'); document.getElementById('book-detail-modal').remove();" style="flex:1; background:#6B8F3C; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;"><i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('books.free_read','Free read')}</button>` : ''}
                 <button onclick="addToReadingList('${id}')" style="flex:1; background:#C4841D; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;"><i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('books.want_to_read','Want to read')}</button>
             </div>
             <button onclick="document.getElementById('book-detail-modal').remove()" style="background:#E8E0D8; border:none; padding:0.6rem; border-radius:8px; cursor:pointer; width:100%; margin-top:0.5rem;">${t('common.close','Close')}</button>
@@ -1467,7 +1418,7 @@ async function addToReadingList(bookId) {
             bookTitle: book.title, bookAuthor: book.author || '',
             addedAt: new Date()
         });
-        showToast(`<i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${book.title}" 읽고 싶은 책에 추가!`, 'success');
+        showToast('<i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + book.title + '" ' + t('books.added_to_reading_list','added to reading list!'), 'success');
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
 
@@ -1520,39 +1471,19 @@ async function requestPumasi() {
     const amount = parseFloat(document.getElementById('pumasi-amount').value);
     const reason = document.getElementById('pumasi-reason').value.trim();
     const days = parseInt(document.getElementById('pumasi-days').value) || 30;
-    const targetInput = (document.getElementById('pumasi-target')?.value || '').trim();
+    const target = (document.getElementById('pumasi-target')?.value || '').trim();
     if (!amount || !reason) { showToast(t('credit.enter_amount_reason','Please enter amount and reason'), 'warning'); return; }
-    
+
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        // 대상 지정 시 이메일/닉네임으로 검색
-        let targetId = '', targetEmail = '', targetNickname = '';
-        if (targetInput) {
-            let targetDoc;
-            // 이메일 형식이면 이메일로 검색
-            if (targetInput.includes('@')) {
-                const q = await db.collection('users').where('email', '==', targetInput).limit(1).get();
-                if (!q.empty) targetDoc = q.docs[0];
-            } else {
-                const q = await db.collection('users').where('nickname', '==', targetInput).limit(1).get();
-                if (!q.empty) targetDoc = q.docs[0];
-            }
-            if (!targetDoc) { showToast(t('credit.target_not_found','Target user not found'), 'error'); return; }
-            targetId = targetDoc.id;
-            targetEmail = targetDoc.data().email || '';
-            targetNickname = targetDoc.data().nickname || '';
-        }
-        
-        await db.collection('pumasi_requests').add({
-            requesterId: currentUser.uid, requesterEmail: currentUser.email,
-            requesterNickname: userDoc.data()?.nickname || '',
-            targetId, targetEmail, targetNickname,
-            amount, reason, days, interest: 0,
-            raised: 0, backers: 0,
-            dueDate: new Date(Date.now() + days * 86400000),
-            status: 'active', createdAt: new Date()
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/pumasi', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount, reason, days, target })
         });
-        showToast(t('credit.pumasi_requested','Pumasi request submitted') + ` ${amount} CRTD${targetNickname ? ' → '+targetNickname : ''}`, 'success');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
+        showToast(t('credit.pumasi_requested','Pumasi request submitted') + ` ${amount} CRTD${target ? ' → ' + target : ''}`, 'success');
         document.getElementById('pumasi-target').value = '';
         document.getElementById('pumasi-amount').value = '';
         document.getElementById('pumasi-reason').value = '';
@@ -1564,49 +1495,42 @@ async function loadPumasiList() {
     const c = document.getElementById('pumasi-list');
     if (!c) return; c.innerHTML = t('common.loading','Loading...');
     try {
-        const docs = await db.collection('pumasi_requests').where('status','==','active').orderBy('createdAt','desc').limit(20).get();
-        if (docs.empty) { c.innerHTML = `<p style="color:var(--accent);">${t('credit.no_requests','No requests')}</p>`; return; }
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/pumasi', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!resp.ok) throw new Error('Failed');
+        const { items } = await resp.json();
+        if (!items.length) { c.innerHTML = `<p style="color:var(--accent);">${t('credit.no_requests','No requests')}</p>`; return; }
         c.innerHTML = '';
-        docs.forEach(d => { const x = d.data(); const pct = Math.min(100, Math.round((x.raised/x.amount)*100));
+        items.filter(x => x.status === 'active').forEach(x => {
+            const pct = Math.min(100, Math.round((x.raised / x.amount) * 100));
+            const backerCount = Array.isArray(x.backers) ? x.backers.length : (x.backers || 0);
             c.innerHTML += `<div class="credit-list-item">
-                <div class="row"><strong>${x.requesterNickname || x.requesterEmail}</strong><span style="font-weight:700;">${x.amount} CRTD</span></div>
-                ${x.targetNickname ? `<p class="target">→ ${t('credit.target','Target')}: ${x.targetNickname || x.targetEmail}</p>` : `<p class="meta">${t('credit.public_request','Open to community')}</p>`}
+                <div class="row"><strong>${x.requesterName || x.requesterId}</strong><span style="font-weight:700;">${x.amount} CRTD</span></div>
+                ${x.targetId ? `<p class="target">→ ${t('credit.target','Target')}: ${x.targetId}</p>` : `<p class="meta">${t('credit.public_request','Open to community')}</p>`}
                 <p class="meta">${x.reason}</p>
                 <div class="credit-progress"><div class="credit-progress-bar" style="width:${pct}%;"></div></div>
-                <div class="row" style="font-size:0.8rem;"><span>${x.raised}/${x.amount} · ${x.backers}${t('common.people','')}</span><span class="credit-info">${t('credit.zero_interest','Interest 0%')}</span></div>
-                ${x.requesterId !== currentUser?.uid ? `<button onclick="contributePumasi('${d.id}')" class="credit-action-btn credit-action-btn--green">${t('credit.help_btn','Help')}</button>` : ''}
-            </div>`; });
+                <div class="row" style="font-size:0.8rem;"><span>${x.raised}/${x.amount} · ${backerCount}${t('common.people','')}</span><span class="credit-info">${t('credit.zero_interest','Interest 0%')}</span></div>
+                ${x.requesterId !== currentUser?.uid ? `<button onclick="contributePumasi('${x.id}')" class="credit-action-btn credit-action-btn--green">${t('credit.help_btn','Help')}</button>` : ''}
+            </div>`;
+        });
     } catch (e) { c.innerHTML = e.message; }
 }
 
 async function contributePumasi(id) {
-    const tk = 'crtd';
-    const tkName = 'CRTD';
-    const amountStr = await showPromptModal(t('credit.help_amount','Help Amount'), `${tkName} ${t('common.enter_amount','Enter amount')}`, '');
+    const amountStr = await showPromptModal(t('credit.help_amount','Help Amount'), `CRTD ${t('common.enter_amount','Enter amount')}`, '');
     const amount = parseFloat(amountStr);
     if (!amount || amount <= 0) return;
     try {
-        if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, amount, `품앗이 기여: ${id}`);
-            if (!success) return;
-            const doc = await db.collection('pumasi_requests').doc(id).get(); const req = doc.data();
-            const reqOff = (await db.collection('users').doc(req.requesterId).get()).data()?.offchainBalances || {};
-            await db.collection('users').doc(req.requesterId).update({
-                [`offchainBalances.${tk}`]: (reqOff[tk] || 0) + amount
-            });
-        } else {
-            const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-            const bal = wallets.docs[0]?.data()?.balances || {};
-            if ((bal[tk]||0) < amount) { showToast(`${tkName} ${t('mall.insufficient_balance','Insufficient balance')}`, 'error'); return; }
-            await wallets.docs[0].ref.update({ [`balances.${tk}`]: bal[tk] - amount });
-            const doc = await db.collection('pumasi_requests').doc(id).get(); const req = doc.data();
-            const reqW = await db.collection('users').doc(req.requesterId).collection('wallets').limit(1).get();
-            if (!reqW.empty) { const rb = reqW.docs[0].data().balances||{}; await reqW.docs[0].ref.update({ [`balances.${tk}`]: (rb[tk]||0) + amount }); }
-        }
-        const doc2 = await db.collection('pumasi_requests').doc(id).get(); const req2 = doc2.data();
-        await db.collection('pumasi_requests').doc(id).update({ raised: req2.raised + amount, backers: req2.backers + 1 });
-        await db.collection('transactions').add({ from:currentUser.uid, to:req2.requesterId, amount, token:tkName, type:'pumasi', pumasiId:id, timestamp:new Date() });
-        showToast(t('credit.help_complete','Contribution complete') + ` ${amount} ${tkName}`, 'success'); loadPumasiList(); loadUserWallet();
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/pumasi/contribute', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pumasiId: id, amount })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
+        showToast(t('credit.help_complete','Contribution complete') + ` ${amount} CRTD`, 'success');
+        loadPumasiList(); loadUserWallet();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
 
@@ -1617,18 +1541,18 @@ async function requestInsurance() {
     const amount = parseFloat(document.getElementById('insurance-amount').value);
     const reason = document.getElementById('insurance-reason').value.trim();
     if (!amount || !reason) { showToast(t('credit.enter_amount_reason','Please enter amount and reason'), 'warning'); return; }
-    
+
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        await db.collection('insurance_requests').add({
-            requesterId: currentUser.uid, requesterEmail: currentUser.email,
-            requesterNickname: userDoc.data()?.nickname || '',
-            type, amount, reason,
-            status: 'pending', // 중간 관리자 승인 필요
-            approvedBy: null, funded: 0,
-            createdAt: new Date()
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/insurance', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type, amount, reason })
         });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
         showToast(t('credit.insurance_submitted','Insurance claim submitted for review'), 'success');
+        loadMyInsuranceClaims();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
 
@@ -1636,78 +1560,44 @@ async function requestInsurance() {
 async function quickDonate() {
     if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
     const amount = parseFloat(document.getElementById('donate-amount').value);
-    const token = 'CRTD';
-    const target = document.getElementById('donate-target').value;
+    const targetType = document.getElementById('donate-target').value;
     if (!amount || amount < 1) { showToast(t('fund.min_donation','Minimum donation is 1'), 'warning'); return; }
-    
+
     try {
-        const tk = token.toLowerCase();
-        
-        if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, amount, `기부: ${target}`);
-            if (!success) return;
-        } else {
-            const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-            const bal = wallets.docs[0]?.data()?.balances || {};
-            if ((bal[tk]||0) < amount) { showToast(`${token} ${t('mall.insufficient_balance','Insufficient balance')}`, 'error'); return; }
-            await wallets.docs[0].ref.update({ [`balances.${tk}`]: bal[tk] - amount });
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const payload = { amount, targetType };
+        if (targetType === 'designated') {
+            payload.targetUsername = (document.getElementById('donate-target-email')?.value || '').trim();
         }
-        
-        const donation = {
-            donorId: currentUser.uid, donorEmail: currentUser.email,
-            amount, token, targetType: target,
-            timestamp: new Date()
-        };
-        
-        if (target === 'designated') {
-            const targetEmail = document.getElementById('donate-target-email').value.trim();
-            if (targetEmail) {
-                donation.targetEmail = targetEmail;
-                const targetUsers = await db.collection('users').where('email','==',targetEmail).get();
-                if (!targetUsers.empty) {
-                    const targetUid = targetUsers.docs[0].id;
-                    if (isOffchainToken(tk)) {
-                        const tOff = targetUsers.docs[0].data()?.offchainBalances || {};
-                        await db.collection('users').doc(targetUid).update({
-                            [`offchainBalances.${tk}`]: (tOff[tk] || 0) + amount
-                        });
-                    } else {
-                        const tW = await db.collection('users').doc(targetUid).collection('wallets').limit(1).get();
-                        if (!tW.empty) { const tb = tW.docs[0].data().balances||{}; await tW.docs[0].ref.update({ [`balances.${tk}`]: (tb[tk]||0) + amount }); }
-                    }
-                }
-            }
-        }
-        
-        await db.collection('donations').add(donation);
-        showToast(t('credit.donation_complete','Donation complete') + ` ${amount} ${token}`, 'success'); loadUserWallet();
+        const resp = await fetch('/api/credit/donate', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
+        showToast(t('credit.donation_complete','Donation complete') + ` ${amount} CRTD`, 'success');
+        loadUserWallet();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
 
 async function loadCreditInfo() {
     if (!currentUser) return;
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const data = userDoc.data();
-        const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-        const bal = wallets.docs[0]?.data()?.balances || {};
-        const crtdHeld = data?.offchainBalances?.crtd || 0;
-        const score = Math.min(850, 300 + crtdHeld * 10 + (data.referralCount || 0) * 20);
-        
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/score', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!resp.ok) throw new Error('Failed');
+        const data = await resp.json();
+
         const scoreEl = document.getElementById('credit-score');
-        if (scoreEl) { scoreEl.textContent = score; scoreEl.style.color = score >= 700 ? '#6B8F3C' : score >= 500 ? '#C4841D' : '#B54534'; }
-        
-        const loans = await db.collection('pumasi_requests').where('requesterId','==',currentUser.uid).where('status','==','active').get();
+        if (scoreEl) { scoreEl.textContent = data.score; scoreEl.style.color = data.score >= 700 ? '#6B8F3C' : data.score >= 500 ? '#C4841D' : '#B54534'; }
+
         const loansEl = document.getElementById('active-loans');
-        if (loansEl) loansEl.textContent = `${loans.size}건`;
-        
-        // 총 기부
-        const donations = await db.collection('donations').where('donorId','==',currentUser.uid).get();
-        let totalDonated = 0;
-        donations.forEach(d => totalDonated += d.data().amount || 0);
+        if (loansEl) loansEl.textContent = data.activeLoans + t('common.count_items','');
+
         const donatedEl = document.getElementById('total-donated');
-        if (donatedEl) donatedEl.textContent = totalDonated;
-        // 추가 로드
+        if (donatedEl) donatedEl.textContent = data.totalDonated;
+
         loadCreditScoreBreakdown();
         loadMyInsuranceClaims();
         loadInsuranceAdmin();
@@ -1750,16 +1640,14 @@ async function createGye() {
     const maxMembers = parseInt(document.getElementById('gye-members')?.value) || 10;
     if (!name || !monthlyAmount) { showToast(t('credit.enter_name_amount','Please enter name and monthly amount'), 'warning'); return; }
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        await db.collection('gye_groups').add({
-            name, monthlyAmount, maxMembers,
-            currentMembers: 1, currentRound: 0,
-            members: [{ userId: currentUser.uid, email: currentUser.email, nickname: userDoc.data()?.nickname || '' }],
-            organizerId: currentUser.uid, organizerEmail: currentUser.email,
-            organizerNickname: userDoc.data()?.nickname || '',
-            token: 'CRTD', status: 'recruiting',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/gye', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, monthlyAmount, maxMembers })
         });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
         showToast(t('credit.gye_created','Gye group created') + `: ${name}`, 'success');
         document.getElementById('gye-name').value = '';
         loadGyeList();
@@ -1770,27 +1658,30 @@ async function loadGyeList() {
     const c = document.getElementById('gye-list');
     if (!c) return; c.innerHTML = t('common.loading','Loading...');
     try {
-        const docs = await db.collection('gye_groups').where('status','in',['recruiting','active']).orderBy('createdAt','desc').limit(20).get();
-        if (docs.empty) { c.innerHTML = `<p style="color:var(--accent);">${t('credit.no_gye','No gye groups yet. Create the first one!')}</p>`; return; }
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/gye', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!resp.ok) throw new Error('Failed');
+        const { items } = await resp.json();
+        if (!items.length) { c.innerHTML = `<p style="color:var(--accent);">${t('credit.no_gye','No gye groups yet. Create the first one!')}</p>`; return; }
         c.innerHTML = '';
-        docs.forEach(d => {
-            const g = d.data();
+        items.forEach(g => {
             const isMember = g.members?.some(m => m.userId === currentUser?.uid);
+            const memberCount = g.members?.length || 0;
             c.innerHTML += `<div class="credit-list-item credit-list-item--gye">
                 <div class="row">
                     <div>
                         <strong><i data-lucide="refresh-cw"></i> ${g.name}</strong>
-                        <div class="meta">${g.organizerNickname || g.organizerEmail} · ${g.currentMembers}/${g.maxMembers}${t('common.people','')}</div>
+                        <div class="meta">${g.organizerId} · ${memberCount}/${g.maxMembers}${t('common.people','')}</div>
                     </div>
                     <div style="text-align:right;">
                         <div style="font-weight:700; color:#FF9800;">${g.monthlyAmount} CRTD/${t('common.month','mo')}</div>
                         <div class="meta">Round ${g.currentRound}</div>
                     </div>
                 </div>
-                ${!isMember && g.currentMembers < g.maxMembers ? `<button onclick="joinGye('${d.id}')" class="credit-action-btn credit-action-btn--orange">${t('credit.join_btn','Join')}</button>` : ''}
+                ${!isMember && memberCount < g.maxMembers ? `<button onclick="joinGye('${g.id}')" class="credit-action-btn credit-action-btn--orange">${t('credit.join_btn','Join')}</button>` : ''}
                 ${isMember ? `<div class="credit-status credit-status--active"><i data-lucide="check-circle"></i> ${t('credit.participating','Participating')}</div>` : ''}
-                ${g.organizerId === currentUser?.uid && g.status === 'active' && g.currentRound < (g.members?.length || 0) ? `<button onclick="executeGyeRound('${d.id}')" class="credit-action-btn credit-action-btn--red"><i data-lucide="refresh-cw"></i> Round ${g.currentRound + 1} ${t('credit.execute','Execute')}</button>` : ''}
-                ${g.status === 'recruiting' && g.currentMembers >= g.maxMembers ? `<div class="credit-status credit-status--done">${t('credit.recruitment_full','Recruitment complete')}</div>` : ''}
+                ${g.organizerId === currentUser?.uid && g.status === 'active' && g.currentRound < memberCount ? `<button onclick="executeGyeRound('${g.id}')" class="credit-action-btn credit-action-btn--red"><i data-lucide="refresh-cw"></i> Round ${g.currentRound + 1} ${t('credit.execute','Execute')}</button>` : ''}
+                ${g.status === 'recruiting' && memberCount >= g.maxMembers ? `<div class="credit-status credit-status--done">${t('credit.recruitment_full','Recruitment complete')}</div>` : ''}
             </div>`;
         });
     } catch (e) { c.innerHTML = e.message; }
@@ -1799,21 +1690,17 @@ async function loadGyeList() {
 async function joinGye(gyeId) {
     if (!currentUser) return;
     try {
-        const doc = await db.collection('gye_groups').doc(gyeId).get();
-        const g = doc.data();
-        if (g.currentMembers >= g.maxMembers) { showToast(t('credit.group_full','Group is full'), 'warning'); return; }
-        if (g.members?.some(m => m.userId === currentUser.uid)) { showToast(t('credit.already_member','Already a member'), 'info'); return; }
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const confirmed = await showConfirmModal(t('credit.join_gye','Join Gye'), `"${g.name}"\n${t('credit.monthly','Monthly')}: ${g.monthlyAmount} CRTD\n${t('common.confirm_proceed','Proceed?')}`);
+        const confirmed = await showConfirmModal(t('credit.join_gye','Join Gye'), t('common.confirm_proceed','Proceed?'));
         if (!confirmed) return;
-        await db.collection('gye_groups').doc(gyeId).update({
-            members: firebase.firestore.FieldValue.arrayUnion({
-                userId: currentUser.uid, email: currentUser.email,
-                nickname: userDoc.data()?.nickname || ''
-            }),
-            currentMembers: g.currentMembers + 1
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const resp = await fetch('/api/credit/gye/join', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gyeId })
         });
-        showToast('🤝 계모임 참여 완료!', 'success');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
+        showToast(t('credit.gye_joined','Joined gye group!'), 'success');
         loadGyeList();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
@@ -1888,7 +1775,7 @@ async function loadMyEnergyInvestments() {
                     </div>
                     <div style="text-align:right;">
                         <div style="font-weight:700; color:${catInfo.color};">${inv.amount} ${inv.token || 'CREB'}</div>
-                        ${rate > 0 ? `<div style="font-size:0.75rem; color:#6B8F3C;">월 ${monthlyReturn.toFixed(2)} CREB (연 ${rate}%)</div>` : `<div style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 기부</div>`}
+                        ${rate > 0 ? `<div style="font-size:0.75rem; color:#6B8F3C;">${t('invest.monthly_short','monthly')} ${monthlyReturn.toFixed(2)} CREB (${t('invest.annual_short','annual')} ${rate}%)</div>` : `<div style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('invest.type_donation_short','Donation')}</div>`}
                     </div>
                 </div>
             </div>`;
@@ -1896,9 +1783,9 @@ async function loadMyEnergyInvestments() {
         
         c.innerHTML = `
             <div style="background:#FFF8E1; padding:0.8rem; border-radius:8px; margin-bottom:0.8rem; display:flex; justify-content:space-around; text-align:center;">
-                <div><div style="font-size:0.7rem; color:var(--accent);">총 투자</div><strong>${totalInvested.toFixed(1)}</strong></div>
-                <div><div style="font-size:0.7rem; color:var(--accent);">예상 월 수익</div><strong style="color:#6B8F3C;">${totalMonthly.toFixed(2)} CREB</strong></div>
-                <div><div style="font-size:0.7rem; color:var(--accent);">예상 연 수익</div><strong style="color:#8B6914;">${(totalMonthly * 12).toFixed(2)} CREB</strong></div>
+                <div><div style="font-size:0.7rem; color:var(--accent);">${t('invest.total_invested','Total invested')}</div><strong>${totalInvested.toFixed(1)}</strong></div>
+                <div><div style="font-size:0.7rem; color:var(--accent);">${t('invest.expected_monthly','Expected monthly')}</div><strong style="color:#6B8F3C;">${totalMonthly.toFixed(2)} CREB</strong></div>
+                <div><div style="font-size:0.7rem; color:var(--accent);">${t('invest.expected_annual','Expected annual')}</div><strong style="color:#8B6914;">${(totalMonthly * 12).toFixed(2)} CREB</strong></div>
             </div>
             ${rows}`;
         
@@ -1913,7 +1800,7 @@ async function loadMyEnergyInvestments() {
         if (dashboard) {
             dashboard.style.display = 'block';
             document.getElementById('impact-total-creb').textContent = `${totalInvested.toFixed(0)} CREB`;
-            document.getElementById('impact-project-count').textContent = `${projectIds.size}개`;
+            document.getElementById('impact-project-count').textContent = projectIds.size + t('common.count_items','');
             
             // 카테고리 바
             const barsEl = document.getElementById('impact-category-bars');
@@ -1968,7 +1855,7 @@ async function distributeEnergyReturns(projectId) {
         let totalInvested = 0;
         investments.forEach(d => totalInvested += d.data().amount);
         
-        const confirmed = await showConfirmModal('수익 배분 확인', `프로젝트: ${proj.name || proj.title}\n총 투자: ${totalInvested}\n수익률: ${rate}%\n월 배분 총액: ${(totalInvested * rate / 100 / 12).toFixed(2)} CREB\n\n${investments.size}명에게 배분하시겠습니까?`);
+        const confirmed = await showConfirmModal(t('invest.confirm_distribute','Confirm Distribution'), t('invest.project','Project') + ': ' + (proj.name || proj.title) + '\n' + t('invest.total_invested','Total invested') + ': ' + totalInvested + '\n' + t('energy.return_rate','Return rate') + ': ' + rate + '%\n' + t('invest.monthly_total','Monthly total') + ': ' + (totalInvested * rate / 100 / 12).toFixed(2) + ' CREB\n\n' + t('invest.distribute_to','Distribute to') + ' ' + investments.size + t('common.count_people','') + '?');
         if (!confirmed) return;
         
         let distributed = 0;
@@ -1993,7 +1880,7 @@ async function distributeEnergyReturns(projectId) {
             }
         }
         
-        showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${distributed.toFixed(2)} CREB을 ${investments.size}명에게 배분 완료!`, 'success');
+        showToast('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + distributed.toFixed(2) + ' CREB ' + t('invest.distributed_to','distributed to') + ' ' + investments.size + t('common.count_people','') + '!', 'success');
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
 
@@ -2011,7 +1898,7 @@ async function closeCampaign(id) {
         const feeAmount = camp.raised * (fee / 100);
         const creatorAmount = camp.raised - feeAmount;
         
-        const confirmed = await showConfirmModal('캠페인 종료', `"${camp.title}"\n\n모금 총액: ${camp.raised} ${camp.token}\n수수료 (${fee}%): ${feeAmount.toFixed(2)} ${camp.token}\n수령액: ${creatorAmount.toFixed(2)} ${camp.token}\n\n종료하시겠습니까?`);
+        const confirmed = await showConfirmModal(t('fund.close_campaign','Close Campaign'), '"' + camp.title + '"\n\n' + t('fund.total_raised','Total raised') + ': ' + camp.raised + ' ' + camp.token + '\n' + t('fund.fee','Fee') + ' (' + fee + '%): ' + feeAmount.toFixed(2) + ' ' + camp.token + '\n' + t('fund.creator_receives','Creator receives') + ': ' + creatorAmount.toFixed(2) + ' ' + camp.token + '\n\n' + t('common.confirm_proceed','Proceed?'));
         if (!confirmed) return;
         
         // 수수료 기록
@@ -2023,7 +1910,7 @@ async function closeCampaign(id) {
         }
         
         await db.collection('campaigns').doc(id).update({ status: 'closed', closedAt: new Date() });
-        showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${camp.title}" 캠페인 종료! ${creatorAmount.toFixed(2)} ${camp.token} 수령`, 'success');
+        showToast('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + camp.title + '" ' + t('fund.campaign_closed','Campaign closed!') + ' ' + creatorAmount.toFixed(2) + ' ' + camp.token + ' ' + t('fund.received','received'), 'success');
         loadCampaigns();
         // 모달 닫기
         const modal = document.getElementById('campaign-detail-modal');
@@ -2075,13 +1962,13 @@ async function showCampaignDetail(id) {
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
                     <span style="font-weight:700;">${camp.raised} / ${camp.goal} ${camp.token}</span>
-                    <span>${pct}% · ${camp.backerCount || camp.backers || 0}명</span>
+                    <span>${pct}% · ${camp.backerCount || camp.backers || 0}${t('common.count_people','')}</span>
                 </div>
-                <div style="font-size:0.8rem; color:#6B8F3C; margin-top:0.5rem;"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 수수료 ${fee}% · 창작자 수령 ${(100 - fee).toFixed(1)}%</div>
+                <div style="font-size:0.8rem; color:#6B8F3C; margin-top:0.5rem;"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.fee','Fee')} ${fee}% · ${t('fund.creator_receives','Creator receives')} ${(100 - fee).toFixed(1)}%</div>
             </div>
-            <button onclick="donateCampaign('${id}')" style="background:#6B8F3C; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:0.8rem;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 기부하기</button>
-            ${isCreator && camp.status === 'active' ? `<button onclick="closeCampaign('${id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:1rem;">🔒 캠페인 종료 및 수령</button>` : ''}
-            <h4 style="margin-bottom:0.5rem;">👥 후원자 내역 (${donorDocs.size}명)</h4>
+            <button onclick="donateCampaign('${id}')" style="background:#6B8F3C; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:0.8rem;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.donate_btn','Donate')}</button>
+            ${isCreator && camp.status === 'active' ? `<button onclick="closeCampaign('${id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:1rem;">🔒 ${t('fund.close_and_receive','Close campaign & receive funds')}</button>` : ''}
+            <h4 style="margin-bottom:0.5rem;">👥 ${t('fund.donor_list','Donor list')} (${donorDocs.size}${t('common.count_people','')})</h4>
             ${donorList}`;
         
         const modal = document.getElementById('campaign-detail-modal');
@@ -2110,7 +1997,7 @@ async function addToCart(productId) {
                 productId, title: p.title, price: p.price, token: p.token || 'CRGC',
                 imageData: p.imageData || '', qty: 1, addedAt: new Date()
             });
-            showToast(`<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${p.title}" 장바구니에 담았습니다`, 'success');
+            showToast('<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + p.title + '" ' + t('mall.added_to_cart','added to cart'), 'success');
         }
         updateCartBadge();
     } catch(e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -2237,7 +2124,7 @@ async function checkoutCart(btn) {
             await db.runTransaction(async (tx) => {
                 const prodDoc = await tx.get(db.collection('products').doc(item.productId));
                 const pNow = prodDoc.data();
-                if ((pNow.stock - (pNow.sold||0)) < qty) throw new Error(`"${item.title}" 재고 부족`);
+                if ((pNow.stock - (pNow.sold||0)) < qty) throw new Error('"' + item.title + '" ' + t('mall.out_of_stock','out of stock'));
                 tx.update(db.collection('products').doc(item.productId), { sold: (pNow.sold||0) + qty });
                 
                 const sellerDoc = await tx.get(db.collection('users').doc(p.sellerId));
@@ -2264,7 +2151,7 @@ async function checkoutCart(btn) {
             if (typeof distributeReferralReward === 'function') await distributeReferralReward(currentUser.uid, subtotal, 'CRGC');
             await db.collection('users').doc(currentUser.uid).collection('cart').doc(item.cartDocId).delete();
         }
-        showToast(`<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${items.length}개 상품 결제 완료!`, 'success');
+        showToast('<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + items.length + ' ' + t('mall.items_checkout_done','items checkout complete!'), 'success');
         loadCart(); updateCartBadge(); loadUserWallet();
     } catch(e) { showToast(t('mall.checkout_fail','Checkout failed') + ': ' + e.message, 'error'); } finally { _orderInProgress = false; }
 }
@@ -2289,7 +2176,7 @@ async function toggleWishlist(productId) {
                 productId, title: p.title, price: p.price, token: p.token || 'CRGC',
                 imageData: p.imageData || '', addedAt: new Date()
             });
-            showToast(`<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${p.title}" 찜 완료`, 'success');
+            showToast('<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + p.title + '" ' + t('mall.wishlisted','added to wishlist'), 'success');
             const btn = document.getElementById(`wish-btn-${productId}`);
             if (btn) btn.textContent = '<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>';
         }
@@ -2319,7 +2206,7 @@ async function loadWishlist() {
                     <div style="color:#3D2B1F; font-weight:700; font-size:0.85rem;">${item.price} CRGC</div>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:0.3rem;">
-                    <button onclick="event.stopPropagation(); addToCart('${item.productId}')" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.4rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.75rem;"><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 담기</button>
+                    <button onclick="event.stopPropagation(); addToCart('${item.productId}')" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.4rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.75rem;"><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.add_to_cart','Add')}</button>
                     <button onclick="event.stopPropagation(); toggleWishlist('${item.productId}'); setTimeout(loadWishlist, 500);" style="background:none; border:1px solid #e91e63; color:#e91e63; padding:0.3rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.75rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
                 </div>
             </div>`;
@@ -2392,15 +2279,15 @@ async function renderStorePage(sellerId) {
                         <h2 style="margin:0; font-size:1.3rem;">${storeName}</h2>
                         ${storeDesc ? `<p style="color:var(--accent); font-size:0.85rem; margin-top:0.3rem;">${storeDesc}</p>` : ''}
                         <div style="display:flex; gap:1rem; margin-top:0.5rem; font-size:0.8rem; color:var(--accent);">
-                            <span><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 상품 ${prodDocs.size}개</span>
-                            <span><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 총 판매 ${totalSold}건</span>
-                            <span>📋 주문 ${orderCount}건</span>
+                            <span><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.products','Products')} ${prodDocs.size}${t('common.count_items','')}</span>
+                            <span><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.total_sold','Total sold')} ${totalSold}${t('common.count_items','')}</span>
+                            <span>📋 ${t('mall.orders','Orders')} ${orderCount}${t('common.count_items','')}</span>
                         </div>
                     </div>
                 </div>
-                ${isOwner ? `<button onclick="showStoreSettingsModal()" style="margin-top:0.8rem; background:#C4841D; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600;">⚙️ 스토어 설정</button>` : (currentUser ? `<button onclick="reportSeller('${sellerId}')" style="margin-top:0.8rem; background:none; color:#B54534; border:1px solid #B54534; padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer; font-size:0.8rem;"><i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.report_seller','Report Seller')}</button>` : '')}
+                ${isOwner ? `<button onclick="showStoreSettingsModal()" style="margin-top:0.8rem; background:#C4841D; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600;">⚙️ ${t('mall.store_settings','Store settings')}</button>` : (currentUser ? `<button onclick="reportSeller('${sellerId}')" style="margin-top:0.8rem; background:none; color:#B54534; border:1px solid #B54534; padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer; font-size:0.8rem;"><i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.report_seller','Report Seller')}</button>` : '')}
             </div>
-            <h3 style="margin-bottom:0.8rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 상품 목록</h3>
+            <h3 style="margin-bottom:0.8rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.product_list','Product list')}</h3>
             <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:0.8rem;">
                 ${productsHtml || `<p style="color:var(--accent); grid-column:1/-1; text-align:center;">${t('mall.no_products','No products registered')}</p>`}
             </div>`;
@@ -2417,21 +2304,21 @@ async function showStoreSettingsModal() {
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `<div style="background:#FFF8F0; border-radius:12px; max-width:450px; width:100%; max-height:90vh; overflow-y:auto; padding:1.5rem;">
-        <h3 style="margin-bottom:1rem;">⚙️ 스토어 설정</h3>
+        <h3 style="margin-bottom:1rem;">⚙️ ${t('mall.store_settings','Store settings')}</h3>
         <div style="display:grid; gap:0.8rem;">
             <div>
-                <label style="font-size:0.8rem; color:var(--accent);">스토어명</label>
+                <label style="font-size:0.8rem; color:var(--accent);">${t('mall.store_name','Store name')}</label>
                 <input type="text" id="store-set-name" value="${data.storeName || data.nickname || ''}" style="width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:6px; box-sizing:border-box;">
             </div>
             <div>
-                <label style="font-size:0.8rem; color:var(--accent);">스토어 소개</label>
+                <label style="font-size:0.8rem; color:var(--accent);">${t('mall.store_description','Store description')}</label>
                 <textarea id="store-set-desc" rows="3" style="width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:6px; resize:vertical; box-sizing:border-box;">${data.storeDesc || ''}</textarea>
             </div>
             <div>
-                <label style="font-size:0.8rem; color:var(--accent);">스토어 이미지</label>
+                <label style="font-size:0.8rem; color:var(--accent);">${t('mall.store_image','Store image')}</label>
                 <input type="file" id="store-set-image" accept="image/*" style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px;">
             </div>
-            <button onclick="saveStoreSettings()" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;">💾 저장</button>
+            <button onclick="saveStoreSettings()" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;">💾 ${t('common.save','Save')}</button>
             <button onclick="document.getElementById('store-settings-modal').remove()" style="background:#E8E0D8; border:none; padding:0.6rem; border-radius:8px; cursor:pointer;">${t('common.close','Close')}</button>
         </div>
     </div>`;
@@ -2450,7 +2337,7 @@ async function saveStoreSettings() {
             updateData.storeImage = await fileToBase64Resized(imageFile, 400);
         }
         await db.collection('users').doc(currentUser.uid).update(updateData);
-        showToast('⚙️ 스토어 설정 저장 완료!', 'success');
+        showToast('⚙️ ' + t('mall.store_settings_saved','Store settings saved!'), 'success');
         document.getElementById('store-settings-modal')?.remove();
         renderStorePage(currentUser.uid);
     } catch(e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -2489,7 +2376,7 @@ async function loadMyShopDashboard() {
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.3rem;">
                     <div><strong>${p.title}</strong> — ${p.price} CRGC · ${t('mall.sold','Sold')} ${p.sold||0}/${p.stock} · ${t('mall.stock','Stock')} ${remaining} ${statusBadge}</div>
                     <div style="display:flex; gap:0.3rem;">
-                        <button onclick="editProductModal('${d.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 수정</button>
+                        <button onclick="editProductModal('${d.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.edit','Edit')}</button>
                         <button onclick="toggleProduct('${d.id}','${p.status}')" style="background:${p.status==='active'?'#6B5744':'#6B8F3C'}; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${p.status==='active'?'<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>':'▶'}</button>
                         <button onclick="deleteProduct('${d.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
                     </div>
@@ -2504,8 +2391,8 @@ async function loadMyShopDashboard() {
             const statusLabel = ORDER_STATUS_LABELS[o.status] || o.status;
             const statusColor = ORDER_STATUS_COLORS[o.status] || 'var(--accent)';
             const nextActions = [];
-            if (o.status === 'paid') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','shipping')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem;"><i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 배송</button>`);
-            if (o.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','delivered')" style="background:#6B8F3C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 완료</button>`);
+            if (o.status === 'paid') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','shipping')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem;"><i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.ship','Ship')}</button>`);
+            if (o.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','delivered')" style="background:#6B8F3C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.complete','Complete')}</button>`);
             const shipInfo = o.shippingInfo ? `<div style="font-size:0.65rem; color:#6B5744;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${o.shippingInfo.name} · ${o.shippingInfo.phone} · ${o.shippingInfo.address}</div>` : '';
             ordersHtml += `<div style="padding:0.5rem; background:var(--bg); border-radius:6px; margin-bottom:0.3rem; font-size:0.8rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.2rem;">
@@ -2519,39 +2406,39 @@ async function loadMyShopDashboard() {
         });
 
         c.innerHTML = `
-            <button onclick="showPage('mall')" style="background:none; border:none; font-size:1rem; cursor:pointer; margin-bottom:0.8rem; color:var(--accent);">← 쇼핑몰</button>
-            <h2 style="margin-bottom:1rem;"><i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 내 상점</h2>
+            <button onclick="showPage('mall')" style="background:none; border:none; font-size:1rem; cursor:pointer; margin-bottom:0.8rem; color:var(--accent);">← ${t('mall.back_to_mall','Mall')}</button>
+            <h2 style="margin-bottom:1rem;"><i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.my_shop','My shop')}</h2>
             
             <!-- 매출 통계 -->
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.8rem; margin-bottom:1.5rem;">
                 <div style="background:linear-gradient(135deg,#8B6914,#6B5744); color:#FFF8F0; padding:1rem; border-radius:12px; text-align:center;">
-                    <div style="font-size:0.7rem; opacity:0.8;">총 매출</div>
+                    <div style="font-size:0.7rem; opacity:0.8;">${t('mall.total_revenue','Total revenue')}</div>
                     <div style="font-size:1.3rem; font-weight:700;">${totalRevenue} CRGC</div>
                 </div>
                 <div style="background:linear-gradient(135deg,#8B6914,#6B5744); color:#FFF8F0; padding:1rem; border-radius:12px; text-align:center;">
-                    <div style="font-size:0.7rem; opacity:0.8;">이번 달</div>
+                    <div style="font-size:0.7rem; opacity:0.8;">${t('mall.this_month','This month')}</div>
                     <div style="font-size:1.3rem; font-weight:700;">${monthlyRevenue} CRGC</div>
                 </div>
                 <div style="background:linear-gradient(135deg,#8B6914,#6B5744); color:#FFF8F0; padding:1rem; border-radius:12px; text-align:center;">
-                    <div style="font-size:0.7rem; opacity:0.8;">총 주문</div>
-                    <div style="font-size:1.3rem; font-weight:700;">${totalOrders}건</div>
+                    <div style="font-size:0.7rem; opacity:0.8;">${t('mall.total_orders','Total orders')}</div>
+                    <div style="font-size:1.3rem; font-weight:700;">${totalOrders}${t('common.count_items','')}</div>
                 </div>
             </div>
             
             <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-                <button onclick="viewStore('${currentUser.uid}')" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem;"><i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 내 스토어 보기</button>
-                <button onclick="showStoreSettingsModal()" style="background:#C4841D; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem;">⚙️ 스토어 설정</button>
+                <button onclick="viewStore('${currentUser.uid}')" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem;"><i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.view_my_store','View my store')}</button>
+                <button onclick="showStoreSettingsModal()" style="background:#C4841D; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem;">⚙️ ${t('mall.store_settings','Store settings')}</button>
             </div>
             
             <!-- 내 상품 -->
             <div style="background:#FFF8F0; padding:1.2rem; border-radius:12px; margin-bottom:1rem;">
-                <h3 style="margin-bottom:0.8rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 내 상품 (${prodDocs.size})</h3>
+                <h3 style="margin-bottom:0.8rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.my_products','My products')} (${prodDocs.size})</h3>
                 ${productsHtml || `<p style="color:var(--accent); font-size:0.85rem;">${t('mall.no_products','No products registered')}</p>`}
             </div>
             
             <!-- 받은 주문 -->
             <div style="background:#FFF8F0; padding:1.2rem; border-radius:12px;">
-                <h3 style="margin-bottom:0.8rem;">📬 받은 주문 (${totalOrders})</h3>
+                <h3 style="margin-bottom:0.8rem;">📬 ${t('mall.received_orders','Received orders')} (${totalOrders})</h3>
                 ${ordersHtml || `<p style="color:var(--accent); font-size:0.85rem;">${t('mall.no_orders_received','No orders received')}</p>`}
             </div>`;
     } catch(e) { c.innerHTML = `<p style="color:red; text-align:center;">${e.message}</p>`; }
@@ -2573,35 +2460,35 @@ async function editProductModal(id) {
     const imgPreview = images.map((img, i) => `<img src="${img}" style="width:50px; height:50px; object-fit:cover; border-radius:4px; border:${i===0?'2px solid #3D2B1F':'1px solid #E8E0D8'};">`).join('');
 
     overlay.innerHTML = `<div style="background:#FFF8F0; border-radius:12px; max-width:450px; width:100%; max-height:90vh; overflow-y:auto; padding:1.5rem;">
-        <h3 style="margin-bottom:1rem;"><i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 상품 수정</h3>
+        <h3 style="margin-bottom:1rem;"><i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.edit_product','Edit product')}</h3>
         <div style="display:grid; gap:0.8rem;">
             <div>
-                <label style="font-size:0.8rem; color:var(--accent);">상품명</label>
+                <label style="font-size:0.8rem; color:var(--accent);">${t('mall.product_name','Product name')}</label>
                 <input type="text" id="ep-title" value="${p.title}" style="width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:6px; box-sizing:border-box;">
             </div>
             <div>
-                <label style="font-size:0.8rem; color:var(--accent);">설명</label>
+                <label style="font-size:0.8rem; color:var(--accent);">${t('mall.description','Description')}</label>
                 <textarea id="ep-desc" rows="3" style="width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:6px; resize:vertical; box-sizing:border-box;">${p.description || ''}</textarea>
             </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
                 <div>
-                    <label style="font-size:0.8rem; color:var(--accent);">가격 (CRGC)</label>
+                    <label style="font-size:0.8rem; color:var(--accent);">${t('mall.price','Price')} (CRGC)</label>
                     <input type="number" id="ep-price" value="${p.price}" style="width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:6px; box-sizing:border-box;">
                 </div>
                 <div>
-                    <label style="font-size:0.8rem; color:var(--accent);">재고</label>
+                    <label style="font-size:0.8rem; color:var(--accent);">${t('mall.stock','Stock')}</label>
                     <input type="number" id="ep-stock" value="${p.stock}" style="width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:6px; box-sizing:border-box;">
                 </div>
             </div>
             <div>
-                <label style="font-size:0.8rem; color:var(--accent);">현재 이미지</label>
-                <div style="display:flex; gap:0.3rem; margin-top:0.3rem;">${imgPreview || '<span style="color:var(--accent); font-size:0.85rem;">없음</span>'}</div>
+                <label style="font-size:0.8rem; color:var(--accent);">${t('mall.current_images','Current images')}</label>
+                <div style="display:flex; gap:0.3rem; margin-top:0.3rem;">${imgPreview || '<span style="color:var(--accent); font-size:0.85rem;">' + t('common.none','None') + '</span>'}</div>
             </div>
             <div>
-                <label style="font-size:0.8rem; color:var(--accent);">새 이미지 (최대 5장, 선택 시 교체)</label>
+                <label style="font-size:0.8rem; color:var(--accent);">${t('mall.new_images','New images (max 5, replaces current)')}</label>
                 <input type="file" id="ep-images" accept="image/*" multiple style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px;">
             </div>
-            <button onclick="saveEditProduct('${id}')" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;">💾 저장</button>
+            <button onclick="saveEditProduct('${id}')" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;">💾 ${t('common.save','Save')}</button>
             <button onclick="document.getElementById('edit-product-modal').remove()" style="background:#E8E0D8; border:none; padding:0.6rem; border-radius:8px; cursor:pointer;">${t('common.close','Close')}</button>
         </div>
     </div>`;
@@ -2640,7 +2527,7 @@ async function saveEditProduct(id) {
                 wishSnap.forEach(async (wDoc) => {
                     const userId = wDoc.ref.parent.parent.id;
                     if (userId !== currentUser.uid) {
-                        await createNotification(userId, 'order_status', { message: `<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 찜한 상품 "${updateData.title}" 가격이 ${updateData.price} CRGC로 변경되었습니다`, link: `#page=product-detail&id=${id}` });
+                        await createNotification(userId, 'order_status', { message: '<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.wishlist_price_changed','Wishlisted product price changed') + ': "' + updateData.title + '" → ' + updateData.price + ' CRGC', link: '#page=product-detail&id=' + id });
                     }
                 });
             } catch(e) { /* collectionGroup may need index */ }
@@ -2669,14 +2556,14 @@ async function showShippingModal() {
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.6);z-index:99997;display:flex;align-items:center;justify-content:center;padding:1rem;';
         overlay.innerHTML = `
             <div style="background:#FFF8F0;padding:1.5rem;border-radius:12px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">
-                <h3 style="margin-bottom:1rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 배송지 정보</h3>
+                <h3 style="margin-bottom:1rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.shipping_info','Shipping information')}</h3>
                 <div style="display:grid; gap:0.7rem;">
-                    <input type="text" id="ship-name" placeholder="수령인 이름" value="${lastAddr.name||''}" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
-                    <input type="tel" id="ship-phone" placeholder="전화번호" value="${lastAddr.phone||''}" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
-                    <input type="text" id="ship-address" placeholder="배송 주소" value="${lastAddr.address||''}" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
-                    <input type="text" id="ship-memo" placeholder="배송 메모 (선택)" value="${lastAddr.memo||''}" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
+                    <input type="text" id="ship-name" placeholder="${t('mall.recipient_name','Recipient name')}" value="${lastAddr.name||''}" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
+                    <input type="tel" id="ship-phone" placeholder="${t('mall.phone_number','Phone number')}" value="${lastAddr.phone||''}" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
+                    <input type="text" id="ship-address" placeholder="${t('mall.shipping_address','Shipping address')}" value="${lastAddr.address||''}" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
+                    <input type="text" id="ship-memo" placeholder="${t('mall.shipping_memo','Delivery memo (optional)')}" value="${lastAddr.memo||''}" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
                     <label style="font-size:0.8rem; display:flex; align-items:center; gap:0.3rem; color:var(--accent);">
-                        <input type="checkbox" id="ship-save" checked> 이 주소 저장하기
+                        <input type="checkbox" id="ship-save" checked> ${t('mall.save_address','Save this address')}
                     </label>
                 </div>
                 <div style="display:flex; gap:0.5rem; margin-top:1rem;">
@@ -2752,7 +2639,7 @@ async function loadBuyerOrders() {
     try {
         const snap = await db.collection('orders').where('buyerId','==',currentUser.uid).orderBy('createdAt','desc').limit(30).get();
         if (snap.empty) {
-            c.innerHTML = `<button onclick="showPage('mall')" style="background:none;border:none;font-size:1rem;cursor:pointer;margin-bottom:0.8rem;color:var(--accent);">← 쇼핑몰</button>
+            c.innerHTML = `<button onclick="showPage('mall')" style="background:none;border:none;font-size:1rem;cursor:pointer;margin-bottom:0.8rem;color:var(--accent);">← ${t('mall.back_to_mall','Mall')}</button>
                 <div style="text-align:center;padding:3rem;color:var(--accent);"><div style="font-size:3rem;margin-bottom:1rem;">📋</div><p>${t('mall.no_orders','No orders yet')}</p></div>`;
             return;
         }
@@ -2769,15 +2656,15 @@ async function loadBuyerOrders() {
                 </div>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:600;font-size:0.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.productTitle}</div>
-                    <div style="font-size:0.75rem;color:var(--accent);">${dateStr} · ${o.qty||1}개</div>
+                    <div style="font-size:0.75rem;color:var(--accent);">${dateStr} · ${o.qty||1}${t('common.count_items','')}</div>
                     <div style="font-weight:700;color:#3D2B1F;font-size:0.85rem;">${o.amount} CRGC</div>
                 </div>
                 <span style="background:${statusColor}15;color:${statusColor};font-size:0.75rem;font-weight:700;padding:0.3rem 0.6rem;border-radius:12px;white-space:nowrap;">${statusLabel}</span>
             </div>`;
         });
         c.innerHTML = `
-            <button onclick="showPage('mall')" style="background:none;border:none;font-size:1rem;cursor:pointer;margin-bottom:0.8rem;color:var(--accent);">← 쇼핑몰</button>
-            <h2 style="margin-bottom:1rem;">📋 내 주문</h2>
+            <button onclick="showPage('mall')" style="background:none;border:none;font-size:1rem;cursor:pointer;margin-bottom:0.8rem;color:var(--accent);">← ${t('mall.back_to_mall','Mall')}</button>
+            <h2 style="margin-bottom:1rem;">📋 ${t('mall.my_orders','My orders')}</h2>
             ${listHtml}`;
     } catch(e) { c.innerHTML = `<p style="color:red;">${e.message}</p>`; }
 }
@@ -2817,18 +2704,18 @@ async function showOrderDetail(orderId) {
         timelineHtml += '</div>';
 
         // Tracking number
-        const trackingHtml = o.trackingNumber ? `<div style="background:#F7F3ED;padding:0.6rem;border-radius:8px;margin-bottom:1rem;font-size:0.85rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 추적번호: <strong>${o.trackingNumber}</strong></div>` : '';
+        const trackingHtml = o.trackingNumber ? `<div style="background:#F7F3ED;padding:0.6rem;border-radius:8px;margin-bottom:1rem;font-size:0.85rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.tracking_number','Tracking number')}: <strong>${o.trackingNumber}</strong></div>` : '';
 
         // Return status check
         let returnHtml = '';
         const returnSnap = await db.collection('returns').where('orderId','==',orderId).limit(1).get();
         if (!returnSnap.empty) {
             const ret = returnSnap.docs[0].data();
-            const retStatus = {requested:'<i data-lucide="hourglass" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 반품 요청중',approved:'<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 반품 승인',rejected:'<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 반품 거절',completed:'<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 환불 완료'};
+            const retStatus = {requested:'<i data-lucide="hourglass" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_requested','Return requested'),approved:'<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_approved_label','Return approved'),rejected:'<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_rejected_label','Return rejected'),completed:'<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.refund_complete','Refund complete')};
             const retColor = {requested:'#C4841D',approved:'#6B8F3C',rejected:'#B54534',completed:'#5B7B8C'};
             returnHtml = `<div style="background:${retColor[ret.status]}15;border-left:4px solid ${retColor[ret.status]};padding:0.8rem;border-radius:0 8px 8px 0;margin-bottom:1rem;">
                 <div style="font-weight:700;color:${retColor[ret.status]};">${retStatus[ret.status] || ret.status}</div>
-                <div style="font-size:0.8rem;color:#6B5744;margin-top:0.2rem;">사유: ${ret.reasonCategory} — ${ret.reasonDetail||''}</div>
+                <div style="font-size:0.8rem;color:#6B5744;margin-top:0.2rem;">${t('mall.reason','Reason')}: ${ret.reasonCategory} — ${ret.reasonDetail||''}</div>
             </div>`;
         }
 
@@ -2837,7 +2724,7 @@ async function showOrderDetail(orderId) {
         if (o.status === 'delivered' && returnSnap.empty) {
             const deliveredAt = o.deliveredAt?.toDate ? o.deliveredAt.toDate() : (historyMap.delivered ? new Date(historyMap.delivered) : null);
             if (deliveredAt && (Date.now() - deliveredAt.getTime()) < 7 * 86400000) {
-                returnBtnHtml = `<button onclick="requestReturn('${orderId}')" style="background:#B54534;color:#FFF8F0;border:none;padding:0.7rem;border-radius:8px;cursor:pointer;font-weight:600;width:100%;margin-bottom:0.5rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 반품/환불 요청</button>`;
+                returnBtnHtml = `<button onclick="requestReturn('${orderId}')" style="background:#B54534;color:#FFF8F0;border:none;padding:0.7rem;border-radius:8px;cursor:pointer;font-weight:600;width:100%;margin-bottom:0.5rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.request_return','Request return/refund')}</button>`;
             }
         }
 
@@ -2846,7 +2733,7 @@ async function showOrderDetail(orderId) {
         if (o.status === 'delivered') {
             const existingReview = await db.collection('product_reviews').where('productId','==',o.productId).where('buyerId','==',currentUser.uid).limit(1).get();
             if (existingReview.empty) {
-                reviewBtnHtml = `<button onclick="writeReview('${o.productId}')" style="background:#C4841D;color:#FFF8F0;border:none;padding:0.7rem;border-radius:8px;cursor:pointer;font-weight:600;width:100%;margin-bottom:0.5rem;"><i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 리뷰 작성</button>`;
+                reviewBtnHtml = `<button onclick="writeReview('${o.productId}')" style="background:#C4841D;color:#FFF8F0;border:none;padding:0.7rem;border-radius:8px;cursor:pointer;font-weight:600;width:100%;margin-bottom:0.5rem;"><i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.write_review','Write review')}</button>`;
             }
         }
 
@@ -2856,7 +2743,7 @@ async function showOrderDetail(orderId) {
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
         overlay.innerHTML = `<div style="background:#FFF8F0;border-radius:12px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;padding:1.5rem;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                <h3 style="margin:0;">주문 상세</h3>
+                <h3 style="margin:0;">${t('mall.order_detail','Order detail')}</h3>
                 <button onclick="document.getElementById('order-detail-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">✕</button>
             </div>
             <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid #E8E0D8;">
@@ -2865,7 +2752,7 @@ async function showOrderDetail(orderId) {
                 </div>
                 <div>
                     <div style="font-weight:700;font-size:1rem;">${o.productTitle}</div>
-                    <div style="font-size:0.85rem;color:var(--accent);">${o.qty||1}개 · ${o.amount} CRGC</div>
+                    <div style="font-size:0.85rem;color:var(--accent);">${o.qty||1}${t('common.count_items','')} · ${o.amount} CRGC</div>
                     <span style="background:${statusColor}15;color:${statusColor};font-size:0.75rem;font-weight:700;padding:0.2rem 0.5rem;border-radius:8px;">${statusLabel}</span>
                 </div>
             </div>
@@ -2873,14 +2760,14 @@ async function showOrderDetail(orderId) {
             ${trackingHtml}
             ${returnHtml}
             ${o.shippingInfo ? `<div style="background:var(--bg);padding:0.8rem;border-radius:8px;margin-bottom:1rem;font-size:0.85rem;">
-                <div style="font-weight:600;margin-bottom:0.3rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 배송지</div>
+                <div style="font-weight:600;margin-bottom:0.3rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.shipping_address','Shipping address')}</div>
                 <div>${o.shippingInfo.name} · ${o.shippingInfo.phone}</div>
                 <div>${o.shippingInfo.address}</div>
-                ${o.shippingInfo.memo ? `<div style="color:var(--accent);">메모: ${o.shippingInfo.memo}</div>` : ''}
+                ${o.shippingInfo.memo ? `<div style="color:var(--accent);">${t('mall.memo','Memo')}: ${o.shippingInfo.memo}</div>` : ''}
             </div>` : ''}
             ${returnBtnHtml}
             ${reviewBtnHtml}
-            <button onclick="viewProduct('${o.productId}'); document.getElementById('order-detail-modal').remove();" style="background:#3D2B1F;color:#FFF8F0;border:none;padding:0.7rem;border-radius:8px;cursor:pointer;width:100%;font-weight:600;"><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 상품 보기</button>
+            <button onclick="viewProduct('${o.productId}'); document.getElementById('order-detail-modal').remove();" style="background:#3D2B1F;color:#FFF8F0;border:none;padding:0.7rem;border-radius:8px;cursor:pointer;width:100%;font-weight:600;"><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.view_product','View product')}</button>
         </div>`;
         document.body.appendChild(overlay);
     } catch(e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -2894,17 +2781,17 @@ async function requestReturn(orderId) {
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;';
         overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(); } };
         overlay.innerHTML = `<div style="background:#FFF8F0;padding:1.5rem;border-radius:12px;max-width:420px;width:100%;">
-            <h3 style="margin-bottom:1rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 반품/환불 요청</h3>
+            <h3 style="margin-bottom:1rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.request_return','Request return/refund')}</h3>
             <div style="display:grid;gap:0.8rem;">
                 <div>
-                    <label style="font-size:0.8rem;color:var(--accent);">반품 사유</label>
+                    <label style="font-size:0.8rem;color:var(--accent);">${t('mall.return_reason','Return reason')}</label>
                     <select id="return-reason" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:6px;">
                         ${RETURN_REASONS.map(r => `<option value="${r}">${r}</option>`).join('')}
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.8rem;color:var(--accent);">상세 사유</label>
-                    <textarea id="return-detail" rows="3" placeholder="상세 사유를 입력하세요..." style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:6px;resize:vertical;box-sizing:border-box;"></textarea>
+                    <label style="font-size:0.8rem;color:var(--accent);">${t('mall.detail_reason','Detail reason')}</label>
+                    <textarea id="return-detail" rows="3" placeholder="${t('mall.enter_detail_reason','Please enter the detailed reason...')}" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:6px;resize:vertical;box-sizing:border-box;"></textarea>
                 </div>
                 <div style="display:flex;gap:0.5rem;">
                     <button onclick="this.closest('div[style]').parentElement.parentElement.remove()" style="flex:1;padding:0.7rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;">${t('common.cancel','Cancel')}</button>
@@ -2930,7 +2817,7 @@ async function requestReturn(orderId) {
                 });
                 // 판매자 알림
                 if (typeof createNotification === 'function') {
-                    await createNotification(order.sellerId, 'order_status', { message: `<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${order.productTitle}" 반품 요청이 있습니다`, link: '#page=my-shop' });
+                    await createNotification(order.sellerId, 'order_status', { message: '<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + order.productTitle + '" ' + t('mall.return_request_received','return request received'), link: '#page=my-shop' });
                 }
                 showToast(`<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.return_submitted','Return request submitted')}`,'success');
                 overlay.remove();
@@ -2948,7 +2835,7 @@ async function loadSellerReturns() {
     try {
         const snap = await db.collection('returns').where('sellerId','==',currentUser.uid).where('status','==','requested').orderBy('createdAt','desc').limit(20).get();
         if (snap.empty) return '';
-        let html = '<div style="margin-top:1rem;"><h4 style="color:#B54534;margin-bottom:0.5rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 반품 요청 ('+snap.size+')</h4>';
+        let html = '<div style="margin-top:1rem;"><h4 style="color:#B54534;margin-bottom:0.5rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_requests','Return requests') + ' ('+snap.size+')</h4>';
         snap.forEach(d => {
             const r = d.data();
             const dateStr = r.createdAt?.toDate ? r.createdAt.toDate().toLocaleDateString('ko-KR') : '';
@@ -2959,8 +2846,8 @@ async function loadSellerReturns() {
                 </div>
                 <div style="font-size:0.8rem;color:#6B5744;margin:0.3rem 0;">${r.buyerEmail} · ${r.reasonCategory}: ${r.reasonDetail||''}</div>
                 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-                    <button onclick="approveReturn('${d.id}')" style="flex:1;background:#6B8F3C;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.8rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 승인 (환불)</button>
-                    <button onclick="rejectReturn('${d.id}')" style="flex:1;background:#B54534;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.8rem;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 거절</button>
+                    <button onclick="approveReturn('${d.id}')" style="flex:1;background:#6B8F3C;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.8rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.approve_refund','Approve (refund)')}</button>
+                    <button onclick="rejectReturn('${d.id}')" style="flex:1;background:#B54534;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.8rem;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.reject','Reject')}</button>
                 </div>
             </div>`;
         });
@@ -2982,7 +2869,7 @@ async function approveReturn(returnId) {
             const orderDoc = await tx.get(db.collection('orders').doc(ret.orderId));
             if (!orderDoc.exists) throw new Error(t('mall.order_not_found','Original order not found'));
             const order = orderDoc.data();
-            if (order.amount !== ret.amount) throw new Error(`환불 금액(${ret.amount})이 주문 금액(${order.amount})과 불일치`);
+            if (order.amount !== ret.amount) throw new Error(t('mall.refund_mismatch','Refund amount mismatch') + ': ' + ret.amount + ' vs ' + order.amount);
             if (order.status === 'cancelled') throw new Error(t('mall.already_cancelled','Order already cancelled'));
 
             if (typeof isOffchainToken === 'function' && isOffchainToken(tk)) {
@@ -2999,11 +2886,11 @@ async function approveReturn(returnId) {
             }
             tx.update(db.collection('returns').doc(returnId), { status:'completed', completedAt: new Date() });
             tx.update(db.collection('orders').doc(ret.orderId), { status:'cancelled', cancelledAt: new Date(),
-                statusHistory: firebase.firestore.FieldValue.arrayUnion({status:'cancelled', at: new Date().toISOString(), reason:'반품환불'})
+                statusHistory: firebase.firestore.FieldValue.arrayUnion({status:'cancelled', at: new Date().toISOString(), reason:'return_refund'})
             });
         });
         if (typeof createNotification === 'function') {
-            await createNotification(ret.buyerId, 'order_status', { message: `<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${ret.productTitle}" 반품이 승인되었습니다. 환불 완료!`, link: '#page=buyer-orders' });
+            await createNotification(ret.buyerId, 'order_status', { message: '<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + ret.productTitle + '" ' + t('mall.return_approved_msg','return approved. Refund complete!'), link: '#page=buyer-orders' });
         }
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.return_approved','Return approved and refund completed')}`,'success');
         loadSellerOrders();
@@ -3018,7 +2905,7 @@ async function rejectReturn(returnId) {
         const ret = rDoc.data();
         await db.collection('returns').doc(returnId).update({ status:'rejected', rejectReason: reason, rejectedAt: new Date() });
         if (typeof createNotification === 'function') {
-            await createNotification(ret.buyerId, 'order_status', { message: `<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${ret.productTitle}" 반품이 거부되었습니다. 사유: ${reason}`, link: '#page=buyer-orders' });
+            await createNotification(ret.buyerId, 'order_status', { message: '<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + ret.productTitle + '" ' + t('mall.return_rejected_msg','return was rejected. Reason') + ': ' + reason, link: '#page=buyer-orders' });
         }
         showToast(t('mall.return_rejected','Return request rejected'),'info');
         loadSellerOrders();
@@ -3075,26 +2962,26 @@ async function renderBrandLanding(brand) {
             : `<p style="color:var(--accent);text-align:center;">${t('mall.no_products','No products registered')}</p>`;
 
         c.innerHTML = `
-            <button onclick="showPage('mall')" style="background:none;border:none;font-size:1rem;cursor:pointer;margin-bottom:0.8rem;color:var(--accent);">← 전체 몰</button>
+            <button onclick="showPage('mall')" style="background:none;border:none;font-size:1rem;cursor:pointer;margin-bottom:0.8rem;color:var(--accent);">← ${t('mall.all_mall','All Mall')}</button>
             <!-- Banner -->
             <div style="background:${bgColor};padding:2rem 1.5rem;border-radius:16px;text-align:center;margin-bottom:1.5rem;position:relative;overflow:hidden;">
                 <div style="font-size:3rem;margin-bottom:0.5rem;">${icon}</div>
                 <h2 style="margin:0;font-size:1.5rem;">${brandName}</h2>
                 <p style="color:#6B5744;font-size:0.95rem;margin-top:0.3rem;font-style:italic;">"${slogan}"</p>
-                <div style="font-size:0.8rem;color:var(--accent);margin-top:0.5rem;">${items.length}개 상품</div>
+                <div style="font-size:0.8rem;color:var(--accent);margin-top:0.5rem;">${items.length} ${t('mall.products','Products')}</div>
             </div>
             <!-- Popular -->
             ${popular.length > 0 ? `<div style="margin-bottom:1.5rem;">
-                <h3 style="margin-bottom:0.8rem;"><i data-lucide="flame" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 인기 상품</h3>
+                <h3 style="margin-bottom:0.8rem;"><i data-lucide="flame" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.popular_products','Popular products')}</h3>
                 ${horizontalScroll(popular)}
             </div>` : ''}
             <!-- New -->
             ${newest.length > 0 ? `<div style="margin-bottom:1.5rem;">
-                <h3 style="margin-bottom:0.8rem;">🆕 신상품</h3>
+                <h3 style="margin-bottom:0.8rem;">🆕 ${t('mall.new_products','New products')}</h3>
                 ${horizontalScroll(newest)}
             </div>` : ''}
             <!-- All -->
-            <h3 style="margin-bottom:0.8rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 전체 상품</h3>
+            <h3 style="margin-bottom:0.8rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.all_products','All products')}</h3>
             ${gridHtml}`;
     } catch(e) { c.innerHTML = `<p style="color:red;">${e.message}</p>`; }
 }
@@ -3108,15 +2995,15 @@ async function reportProduct(productId) {
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.6);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;';
         overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(); } };
         overlay.innerHTML = `<div style="background:#FFF8F0;padding:1.5rem;border-radius:12px;max-width:400px;width:100%;">
-            <h3 style="margin-bottom:1rem;"><i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 상품 신고</h3>
+            <h3 style="margin-bottom:1rem;"><i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.report_product','Report product')}</h3>
             <div style="display:grid;gap:0.8rem;">
                 <select id="report-reason" style="padding:0.7rem;border:1px solid var(--border);border-radius:6px;">
-                    <option value="fake">허위상품</option>
-                    <option value="inappropriate">부적절</option>
-                    <option value="scam">사기의심</option>
-                    <option value="other">기타</option>
+                    <option value="fake">${t('mall.report_fake','Fake product')}</option>
+                    <option value="inappropriate">${t('mall.report_inappropriate','Inappropriate')}</option>
+                    <option value="scam">${t('mall.report_scam','Suspected scam')}</option>
+                    <option value="other">${t('mall.report_other','Other')}</option>
                 </select>
-                <textarea id="report-detail" rows="3" placeholder="상세 내용 (선택)" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:6px;resize:vertical;box-sizing:border-box;"></textarea>
+                <textarea id="report-detail" rows="3" placeholder="${t('mall.report_detail_placeholder','Details (optional)')}" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:6px;resize:vertical;box-sizing:border-box;"></textarea>
                 <div style="display:flex;gap:0.5rem;">
                     <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:0.7rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;">${t('common.cancel','Cancel')}</button>
                     <button id="report-submit-btn" style="flex:1;padding:0.7rem;border:none;border-radius:8px;cursor:pointer;background:#B54534;color:#FFF8F0;font-weight:700;">${t('mall.report','Report')}</button>
