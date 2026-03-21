@@ -49,6 +49,7 @@ const { SLOT, SLOT_META, RING, PROTOCOL, CovenantEngine } = require('./covenant'
 const { LifeEngine } = require('./life');
 const { CityEngine } = require('./city');
 const { SCOPES, SCOPE_NAME, SCOPE_APP, PropagationEngine } = require('./scope');
+const { generateChurchDemo } = require('./demo-church');
 
 const memory = new Memory();
 const causal = new CausalEngine(memory);
@@ -409,6 +410,13 @@ route('GET', '/api/foundry/covenant/stats', async (req, res) => {
 // GET /api/foundry/covenant/slots — 27슬롯 언약 구조
 route('GET', '/api/foundry/covenant/slots', async (req, res) => {
     json(res, 200, { slots: SLOT_META, rings: RING, protocol: PROTOCOL });
+});
+
+// ═══ 데모 데이터 API ═══
+
+route('POST', '/api/foundry/demo/church', async (req, res) => {
+    const results = generateChurchDemo(memory);
+    json(res, 201, results);
 });
 
 // ═══ 스코프 + 전파 API ═══

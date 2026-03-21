@@ -453,6 +453,13 @@ function init() {
   // Welcome shortcuts
   document.getElementById('w_sample')?.addEventListener('click', loadSample);
   document.getElementById('w_nation')?.addEventListener('click', ()=>go('tmpl'));
+  document.getElementById('w_churchdemo')?.addEventListener('click', async ()=>{
+    toast('교회 데모 데이터 생성 중...','미확인');
+    const r = await fetch(`${API}/demo/church`,{method:'POST'});
+    const d = await r.json();
+    toast(`교인${d.members} 출석${d.attendance} 헌금${d.offerings} 설교${d.sermons}`,'확정');
+    await refresh(); go('church');
+  });
   document.getElementById('w_decide')?.addEventListener('click', ()=>go('decide'));
   // 3 카테고리 — 해당 도메인으로 템플릿 필터
   document.getElementById('w_biz')?.addEventListener('click', ()=>{ localStorage.setItem('crownyScope','2'); applyNavScope(); go('startup'); });
