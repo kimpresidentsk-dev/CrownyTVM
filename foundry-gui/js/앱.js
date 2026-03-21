@@ -20,14 +20,22 @@ import { 전술앱 } from './전술.js';
 const API = '/api/foundry';
 let graph, slots, chart, tmpl, causal, cov, church, lifeApp, cityApp, dash, familyApp, startupApp, enterpriseApp, mapApp, secApp, tacApp;
 
-// 글로벌 인증 fetch 래퍼 — 모든 앱에서 사용 가능
+// 글로벌 인증 fetch 래퍼
 window.authFetch = function(url, opts = {}) {
   const token = localStorage.getItem('crownyToken');
-  if (token) {
-    opts.headers = { ...(opts.headers || {}), 'Authorization': `Bearer ${token}` };
-  }
+  if (token) opts.headers = { ...(opts.headers || {}), 'Authorization': `Bearer ${token}` };
   return fetch(url, opts);
 };
+
+// 다크 모드 (#49)
+if (localStorage.getItem('crownyTheme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+
+// 로딩 인디케이터 (#53)
+window.showLoading = () => document.getElementById('loadingBar')?.classList.add('active');
+window.hideLoading = () => { const el = document.getElementById('loadingBar'); el?.classList.remove('active'); el?.classList.add('done'); setTimeout(() => el?.classList.remove('done'), 500); };
+
+// PWA 서비스 워커 (#55)
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 
 // ── View switching ──
 function go(name, params) {
@@ -466,6 +474,13 @@ function init() {
   document.getElementById('refreshBtn')?.addEventListener('click', refresh);
   initWorkspaceActions();
   document.getElementById('notifBadge')?.addEventListener('click', () => go('dashboard'));
+
+  // 다크 모드 토글
+  document.getElementById('themeToggle')?.addEventListener('click', () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    document.documentElement.setAttribute('data-theme', isDark ? '' : 'dark');
+    localStorage.setItem('crownyTheme', isDark ? '' : 'dark');
+  });
   applyNavScope();
 
   // Welcome shortcuts

@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#1C1C1A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
   <title>CrownyCore</title>
   <link rel="stylesheet" href="css/코어.css">
   <link rel="stylesheet" href="css/leaflet.css">
@@ -16,6 +20,7 @@
 <header class="hdr">
   <div class="logo">Crowny<em>Core</em></div>
   <div class="hdr-r">
+    <button id="themeToggle" style="background:none;border:1px solid var(--border);border-radius:3px;width:24px;height:24px;cursor:pointer;font-size:12px;color:var(--text-2)" title="다크/라이트 전환">◐</button>
     <span id="notifBadge" class="badge 미인지" style="cursor:pointer;display:none" title="알림">0</span>
     <span id="badge" class="badge 미인지">—</span>
     <span id="sel" style="font-size:10px;color:var(--text-3)"></span>
@@ -237,6 +242,7 @@
   </div>
 </aside>
 
+<div class="loading" id="loadingBar"><div class="loading-bar"></div></div>
 <div id="toast" class="toast"></div>
 
 <script type="module" src="js/앱.js"></script>

@@ -64,7 +64,19 @@ class Memory {
             names: Object.fromEntries(this.names),
             links: Object.fromEntries(this.links),
         };
-        fs.writeFileSync(this._filePath(), JSON.stringify(data, null, 2), 'utf8');
+        const json = JSON.stringify(data, null, 2);
+
+        // #75 암호화 저장 (CROWNY_ENCRYPT 환경변수 설정 시)
+        if (process.env.CROWNY_ENCRYPT) {
+            try {
+                const { encrypt } = require('./security');
+                const encrypted = encrypt(json, process.env.CROWNY_ENCRYPT);
+                fs.writeFileSync(this._filePath() + '.enc', encrypted, 'utf8');
+            } catch {}
+        }
+
+        // 평문도 항상 저장 (호환성)
+        fs.writeFileSync(this._filePath(), json, 'utf8');
     }
 
     // ═══ ID 생성 ═══
