@@ -2124,7 +2124,7 @@ const server = http.createServer(async (req, res) => {
                     (u.displayName || '').toLowerCase().includes(q)
                 ))
                 .slice(0, 20)
-                .map(u => ({ username: u.username, displayName: u.displayName || u.username, email: u.email }));
+                .map(u => ({ username: u.username, displayName: u.displayName || u.username, email: u.email, photoURL: u.photoURL || '', statusMessage: u.statusMessage || '' }));
             res.end(JSON.stringify(results));
             return;
         }
@@ -3957,6 +3957,324 @@ const server = http.createServer(async (req, res) => {
             }
             fs.writeFileSync(notifFile, JSON.stringify(list, null, 2));
             res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ═══ 친구 & 팔로우 시스템 ═══
+
+        // GET /api/friends/list — 친구 목록
+        if (path === '/api/friends/list' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const friends = loadJSON('friends.json', {});
+            const myFriends = friends[user.username] || [];
+            const enriched = myFriends.map(f => ({
+                uid: f.uid,
+                nickname: users[f.uid]?.displayName || f.uid,
+                photoURL: users[f.uid]?.photoURL || '',
+                statusMessage: users[f.uid]?.statusMessage || '',
+                addedAt: f.addedAt
+            }));
+            res.end(JSON.stringify(enriched));
+            return;
+        }
+
+        // GET /api/friends/requests — 받은 친구 요청 목록
+        if (path === '/api/friends/requests' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const requests = loadJSON('friend_requests.json', []);
+            const pending = requests.filter(r => r.to === user.username && r.status === 'pending');
+            const enriched = pending.map(r => ({
+                id: r.id,
+                from: r.from,
+                nickname: users[r.from]?.displayName || r.from,
+                photoURL: users[r.from]?.photoURL || '',
+                timestamp: r.timestamp
+            }));
+            res.end(JSON.stringify(enriched));
+            return;
+        }
+
+        // POST /api/friends/request — 친구 요청 보내기
+        if (path === '/api/friends/request' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const targetUid = body.targetUid;
+            if (!targetUid || targetUid === user.username) { res.statusCode = 400; res.end('{"error":"invalid target"}'); return; }
+            if (!users[targetUid]) { res.statusCode = 404; res.end('{"error":"user not found"}'); return; }
+
+            const friends = loadJSON('friends.json', {});
+            const myFriends = friends[user.username] || [];
+            if (myFriends.some(f => f.uid === targetUid)) { res.end(JSON.stringify({ ok: true, status: 'already_friends' })); return; }
+
+            const requests = loadJSON('friend_requests.json', []);
+            const existing = requests.find(r => r.from === user.username && r.to === targetUid && r.status === 'pending');
+            if (existing) { res.end(JSON.stringify({ ok: true, status: 'already_sent' })); return; }
+
+            // Check reverse request (auto-accept)
+            const reverse = requests.find(r => r.from === targetUid && r.to === user.username && r.status === 'pending');
+            if (reverse) {
+                reverse.status = 'accepted';
+                if (!friends[user.username]) friends[user.username] = [];
+                if (!friends[targetUid]) friends[targetUid] = [];
+                friends[user.username].push({ uid: targetUid, addedAt: Date.now() });
+                friends[targetUid].push({ uid: user.username, addedAt: Date.now() });
+                saveJSON('friends.json', friends);
+                saveJSON('friend_requests.json', requests);
+                res.end(JSON.stringify({ ok: true, status: 'auto_accepted' }));
+                return;
+            }
+
+            const reqId = `fr_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+            requests.push({ id: reqId, from: user.username, to: targetUid, status: 'pending', timestamp: Date.now() });
+            saveJSON('friend_requests.json', requests);
+
+            // Create notification
+            const notifFile = pathModule.join(DATA_DIR, 'notifications.json');
+            const notifs = fs.existsSync(notifFile) ? JSON.parse(fs.readFileSync(notifFile, 'utf8')) : [];
+            notifs.push({ id: `n_${Date.now()}`, userId: targetUid, type: 'friend_request', fromUid: user.username, read: false, createdAt: Date.now() });
+            fs.writeFileSync(notifFile, JSON.stringify(notifs, null, 2));
+
+            res.end(JSON.stringify({ ok: true, status: 'sent', requestId: reqId }));
+            return;
+        }
+
+        // POST /api/friends/accept — 친구 요청 수락
+        if (path === '/api/friends/accept' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const requests = loadJSON('friend_requests.json', []);
+            const req_ = requests.find(r => r.id === body.requestId && r.to === user.username && r.status === 'pending');
+            if (!req_) { res.statusCode = 404; res.end('{"error":"request not found"}'); return; }
+
+            req_.status = 'accepted';
+            const friends = loadJSON('friends.json', {});
+            if (!friends[user.username]) friends[user.username] = [];
+            if (!friends[req_.from]) friends[req_.from] = [];
+            if (!friends[user.username].some(f => f.uid === req_.from)) {
+                friends[user.username].push({ uid: req_.from, addedAt: Date.now() });
+            }
+            if (!friends[req_.from].some(f => f.uid === user.username)) {
+                friends[req_.from].push({ uid: user.username, addedAt: Date.now() });
+            }
+            saveJSON('friends.json', friends);
+            saveJSON('friend_requests.json', requests);
+
+            // Notify the requester
+            const notifFile = pathModule.join(DATA_DIR, 'notifications.json');
+            const notifs = fs.existsSync(notifFile) ? JSON.parse(fs.readFileSync(notifFile, 'utf8')) : [];
+            notifs.push({ id: `n_${Date.now()}`, userId: req_.from, type: 'friend_accepted', fromUid: user.username, read: false, createdAt: Date.now() });
+            fs.writeFileSync(notifFile, JSON.stringify(notifs, null, 2));
+
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // POST /api/friends/reject — 친구 요청 거절
+        if (path === '/api/friends/reject' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const requests = loadJSON('friend_requests.json', []);
+            const req_ = requests.find(r => r.id === body.requestId && r.to === user.username && r.status === 'pending');
+            if (!req_) { res.statusCode = 404; res.end('{"error":"request not found"}'); return; }
+            req_.status = 'rejected';
+            saveJSON('friend_requests.json', requests);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // POST /api/friends/remove — 친구 삭제
+        if (path === '/api/friends/remove' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const friendUid = body.friendUid;
+            if (!friendUid) { res.statusCode = 400; res.end('{"error":"missing friendUid"}'); return; }
+            const friends = loadJSON('friends.json', {});
+            if (friends[user.username]) friends[user.username] = friends[user.username].filter(f => f.uid !== friendUid);
+            if (friends[friendUid]) friends[friendUid] = friends[friendUid].filter(f => f.uid !== user.username);
+            saveJSON('friends.json', friends);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // GET /api/friends/check?uid= — 친구 여부 확인
+        if (path === '/api/friends/check' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const targetUid = url.searchParams.get('uid');
+            const friends = loadJSON('friends.json', {});
+            const myFriends = friends[user.username] || [];
+            res.end(JSON.stringify({ isFriend: myFriends.some(f => f.uid === targetUid) }));
+            return;
+        }
+
+        // POST /api/follow — 팔로우/언팔로우 토글
+        if (path === '/api/follow' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const targetUid = body.targetUid;
+            if (!targetUid || targetUid === user.username) { res.statusCode = 400; res.end('{"error":"invalid target"}'); return; }
+            const follows = loadJSON('follows.json', {});
+            if (!follows.following) follows.following = {};
+            if (!follows.followers) follows.followers = {};
+            if (!follows.following[user.username]) follows.following[user.username] = [];
+            if (!follows.followers[targetUid]) follows.followers[targetUid] = [];
+
+            const idx = follows.following[user.username].indexOf(targetUid);
+            let followed;
+            if (idx >= 0) {
+                follows.following[user.username].splice(idx, 1);
+                follows.followers[targetUid] = follows.followers[targetUid].filter(u => u !== user.username);
+                followed = false;
+            } else {
+                follows.following[user.username].push(targetUid);
+                follows.followers[targetUid].push(user.username);
+                followed = true;
+                // Notification
+                const notifFile = pathModule.join(DATA_DIR, 'notifications.json');
+                const notifs = fs.existsSync(notifFile) ? JSON.parse(fs.readFileSync(notifFile, 'utf8')) : [];
+                notifs.push({ id: `n_${Date.now()}`, userId: targetUid, type: 'new_follower', fromUid: user.username, read: false, createdAt: Date.now() });
+                fs.writeFileSync(notifFile, JSON.stringify(notifs, null, 2));
+            }
+            saveJSON('follows.json', follows);
+            res.end(JSON.stringify({ ok: true, followed }));
+            return;
+        }
+
+        // GET /api/follow/check?uid= — 팔로우 여부 확인
+        if (path === '/api/follow/check' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const targetUid = url.searchParams.get('uid');
+            const follows = loadJSON('follows.json', {});
+            const myFollowing = (follows.following || {})[user.username] || [];
+            res.end(JSON.stringify({ isFollowing: myFollowing.includes(targetUid) }));
+            return;
+        }
+
+        // GET /api/follow/counts?uid= — 팔로워/팔로잉 수
+        if (path === '/api/follow/counts' && req.method === 'GET') {
+            const targetUid = url.searchParams.get('uid');
+            const follows = loadJSON('follows.json', {});
+            const followers = ((follows.followers || {})[targetUid] || []).length;
+            const following = ((follows.following || {})[targetUid] || []).length;
+            res.end(JSON.stringify({ followers, following }));
+            return;
+        }
+
+        // GET /api/users/profile?uid= — 유저 프로필 상세 (친구수, 게시물수 포함)
+        if (path === '/api/users/profile' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const targetUid = url.searchParams.get('uid');
+            const target = users[targetUid];
+            if (!target) { res.statusCode = 404; res.end('{"error":"user not found"}'); return; }
+
+            const friends = loadJSON('friends.json', {});
+            const friendCount = (friends[targetUid] || []).length;
+
+            const follows = loadJSON('follows.json', {});
+            const followersCount = ((follows.followers || {})[targetUid] || []).length;
+            const followingCount = ((follows.following || {})[targetUid] || []).length;
+
+            const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
+            let postCount = 0;
+            try {
+                const posts = JSON.parse(fs.readFileSync(postsFile, 'utf8'));
+                postCount = posts.filter(p => p.author === targetUid).length;
+            } catch(e) {}
+
+            const myFriends = friends[user.username] || [];
+            const isFriend = myFriends.some(f => f.uid === targetUid);
+            const myFollowing = ((follows.following || {})[user.username] || []);
+            const isFollowing = myFollowing.includes(targetUid);
+
+            res.end(JSON.stringify({
+                username: target.username,
+                nickname: target.displayName || target.username,
+                photoURL: target.photoURL || '',
+                statusMessage: target.statusMessage || '',
+                friendCount, followersCount, followingCount, postCount,
+                isFriend, isFollowing
+            }));
+            return;
+        }
+
+        // POST /api/social/save — 게시물 저장/해제 토글
+        if (path === '/api/social/save' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const postId = body.postId;
+            if (!postId) { res.statusCode = 400; res.end('{"error":"missing postId"}'); return; }
+            const saved = loadJSON('saved_posts.json', {});
+            if (!saved[user.username]) saved[user.username] = [];
+            const idx = saved[user.username].indexOf(postId);
+            let isSaved;
+            if (idx >= 0) { saved[user.username].splice(idx, 1); isSaved = false; }
+            else { saved[user.username].push(postId); isSaved = true; }
+            saveJSON('saved_posts.json', saved);
+            res.end(JSON.stringify({ ok: true, saved: isSaved }));
+            return;
+        }
+
+        // GET /api/social/save/check?postId= — 저장 여부 확인
+        if (path === '/api/social/save/check' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const postId = url.searchParams.get('postId');
+            const saved = loadJSON('saved_posts.json', {});
+            const userSaved = saved[user.username] || [];
+            res.end(JSON.stringify({ saved: userSaved.includes(postId) }));
+            return;
+        }
+
+        // POST /api/social/repost — 리포스트
+        if (path === '/api/social/repost' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const postId = body.postId;
+            if (!postId) { res.statusCode = 400; res.end('{"error":"missing postId"}'); return; }
+            const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
+            let posts = [];
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+            const original = posts.find(p => p.id === postId);
+            if (!original) { res.statusCode = 404; res.end('{"error":"post not found"}'); return; }
+            const repost = {
+                id: `p_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+                author: user.username,
+                text: original.text || '',
+                image: original.image || null,
+                youtube: original.youtube || null,
+                likes: [],
+                commentCount: 0,
+                repostOf: postId,
+                originalAuthor: original.author,
+                ts: Date.now(),
+            };
+            posts.push(repost);
+            fs.writeFileSync(postsFile, JSON.stringify(posts, null, 1));
+            res.end(JSON.stringify({ ok: true, post: repost }));
+            return;
+        }
+
+        // POST /api/social/comment/like — 댓글 좋아요 토글
+        if (path === '/api/social/comment/like' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { postId, commentId } = body;
+            if (!postId || !commentId) { res.statusCode = 400; res.end('{"error":"missing ids"}'); return; }
+            const commFile = pathModule.join(SOCIAL_DIR, `comments_${postId}.json`);
+            let comments = [];
+            try { comments = JSON.parse(fs.readFileSync(commFile, 'utf8')); } catch(e) {}
+            const comment = comments.find(c => c.id === commentId);
+            if (!comment) { res.statusCode = 404; res.end('{"error":"comment not found"}'); return; }
+            if (!comment.likes) comment.likes = [];
+            const idx = comment.likes.indexOf(user.username);
+            if (idx >= 0) comment.likes.splice(idx, 1);
+            else comment.likes.push(user.username);
+            fs.writeFileSync(commFile, JSON.stringify(comments, null, 1));
+            res.end(JSON.stringify({ ok: true, liked: idx < 0, count: comment.likes.length }));
             return;
         }
 

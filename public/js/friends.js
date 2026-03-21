@@ -1,4 +1,9 @@
-// ===== friends.js v1.0 - 친구 시스템, 팔로우, 프로필 뷰, 딥링크 =====
+// ===== friends.js v2.0 - 친구 시스템, 팔로우, 프로필 뷰, 딥링크 (Server API) =====
+
+function _authHeaders() {
+    const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+}
 
 // ========== FRIEND SYSTEM ==========
 let friendsList = [];
@@ -8,30 +13,20 @@ let friendRequestsList = [];
 async function sendFriendRequest(targetUid) {
     if (!currentUser || targetUid === currentUser.uid) return;
     try {
-        // Check if already friends
-        const existing = await db.collection('users').doc(currentUser.uid).collection('friends').doc(targetUid).get();
-        if (existing.exists) { showToast(t('friends.already_friend', 'Already friends'), 'info'); return; }
-        // Check if request already sent
-        const existingReq = await db.collection('friend_requests')
-            .where('from', '==', currentUser.uid).where('to', '==', targetUid).where('status', '==', 'pending').get();
-        if (!existingReq.empty) { showToast(t('friends.request_already_sent', 'Friend request already sent'), 'info'); return; }
-        // Check if reverse request exists (they sent to me)
-        const reverseReq = await db.collection('friend_requests')
-            .where('from', '==', targetUid).where('to', '==', currentUser.uid).where('status', '==', 'pending').get();
-        if (!reverseReq.empty) {
-            // Auto-accept
-            await acceptFriendRequest(reverseReq.docs[0].id, targetUid);
+        const resp = await fetch('/api/friends/request', {
+            method: 'POST', headers: _authHeaders(),
+            body: JSON.stringify({ targetUid })
+        });
+        const data = await resp.json();
+        if (!resp.ok) { showToast(t('friends.request_fail', 'Friend request failed'), 'error'); return; }
+        if (data.status === 'already_friends') { showToast(t('friends.already_friend', 'Already friends'), 'info'); return; }
+        if (data.status === 'already_sent') { showToast(t('friends.request_already_sent', 'Friend request already sent'), 'info'); return; }
+        if (data.status === 'auto_accepted') {
+            showToast(`<i data-lucide="check-circle"></i> ${t('friends.accepted', 'You are now friends!')}`, 'success');
+            loadFriendsGrid();
+            loadFriendRequests();
             return;
         }
-        await db.collection('friend_requests').add({
-            from: currentUser.uid, to: targetUid, status: 'pending', timestamp: new Date()
-        });
-        // Notify target
-        await db.collection('notifications').add({
-            userId: targetUid, type: 'friend_request', message: '', fromUid: currentUser.uid, read: false, createdAt: new Date()
-        });
-        const myInfo = await getUserDisplayInfo(currentUser.uid);
-        addNotification('social_like', `<i data-lucide="users"></i> ${myInfo.nickname}님에게 친구 요청을 보냈습니다`, {});
         showToast(t('friends.request_sent', 'Friend request sent'), 'success');
     } catch (e) {
         console.error('Friend request error:', e);
@@ -40,22 +35,13 @@ async function sendFriendRequest(targetUid) {
 }
 
 // Accept friend request
-async function acceptFriendRequest(requestId, fromUid) {
+async function acceptFriendRequest(requestId) {
     try {
-        await db.collection('friend_requests').doc(requestId).update({ status: 'accepted' });
-        const myInfo = await getUserDisplayInfo(currentUser.uid);
-        const theirInfo = await getUserDisplayInfo(fromUid);
-        // Add both directions
-        await db.collection('users').doc(currentUser.uid).collection('friends').doc(fromUid).set({
-            addedAt: new Date(), nickname: theirInfo.nickname
+        const resp = await fetch('/api/friends/accept', {
+            method: 'POST', headers: _authHeaders(),
+            body: JSON.stringify({ requestId })
         });
-        await db.collection('users').doc(fromUid).collection('friends').doc(currentUser.uid).set({
-            addedAt: new Date(), nickname: myInfo.nickname
-        });
-        // Notify
-        await db.collection('notifications').add({
-            userId: fromUid, type: 'friend_accepted', message: '', fromUid: currentUser.uid, read: false, createdAt: new Date()
-        });
+        if (!resp.ok) throw new Error('Accept failed');
         showToast(`<i data-lucide="check-circle"></i> ${t('friends.accepted', 'You are now friends!')}`, 'success');
         loadFriendsGrid();
         loadFriendRequests();
@@ -67,7 +53,11 @@ async function acceptFriendRequest(requestId, fromUid) {
 // Reject friend request
 async function rejectFriendRequest(requestId) {
     try {
-        await db.collection('friend_requests').doc(requestId).update({ status: 'rejected' });
+        const resp = await fetch('/api/friends/reject', {
+            method: 'POST', headers: _authHeaders(),
+            body: JSON.stringify({ requestId })
+        });
+        if (!resp.ok) throw new Error('Reject failed');
         showToast(t('friends.rejected', 'Friend request declined'), 'info');
         loadFriendRequests();
     } catch (e) {
@@ -79,8 +69,11 @@ async function rejectFriendRequest(requestId) {
 async function removeFriend(friendUid, friendName) {
     if (!await showConfirmModal(t('friends.remove_title', 'Remove Friend'), `"${friendName}" ${t('friends.remove_confirm', ' will be removed from your friends. Continue?')}`)) return;
     try {
-        await db.collection('users').doc(currentUser.uid).collection('friends').doc(friendUid).delete();
-        await db.collection('users').doc(friendUid).collection('friends').doc(currentUser.uid).delete();
+        const resp = await fetch('/api/friends/remove', {
+            method: 'POST', headers: _authHeaders(),
+            body: JSON.stringify({ friendUid })
+        });
+        if (!resp.ok) throw new Error('Remove failed');
         showToast(t('friends.removed', 'Friend removed'), 'info');
         loadFriendsGrid();
     } catch (e) {
@@ -93,21 +86,21 @@ async function loadFriendsGrid() {
     if (!currentUser) return;
     const grid = document.getElementById('friends-grid');
     if (!grid) return;
-    
+
     try {
-        const friendsSnap = await db.collection('users').doc(currentUser.uid).collection('friends').get();
-        friendsList = friendsSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
-        
+        const resp = await fetch('/api/friends/list', { headers: _authHeaders() });
+        if (!resp.ok) throw new Error('Load failed');
+        friendsList = await resp.json();
+
         let html = `<div class="friend-icon-item" onclick="showFriendSearchModal()">
             <div class="friend-add-btn">＋</div>
             <span class="friend-icon-name">${t('friends.add', 'Add')}</span>
         </div>`;
-        
+
         for (const f of friendsList) {
-            const info = await getUserDisplayInfo(f.uid);
             html += `<div class="friend-icon-item" onclick="showUserProfile('${f.uid}')">
-                <div class="friend-avatar-wrap">${avatarHTML(info.photoURL, info.nickname, 56)}</div>
-                <span class="friend-icon-name">${(info.nickname || '').substring(0, 6)}</span>
+                <div class="friend-avatar-wrap">${avatarHTML(f.photoURL, f.nickname, 56)}</div>
+                <span class="friend-icon-name">${(f.nickname || '').substring(0, 6)}</span>
             </div>`;
         }
         grid.innerHTML = html;
@@ -122,26 +115,25 @@ async function loadFriendRequests() {
     if (!currentUser) return;
     const container = document.getElementById('friend-requests-list');
     if (!container) return;
-    
+
     try {
-        const reqs = await db.collection('friend_requests')
-            .where('to', '==', currentUser.uid).where('status', '==', 'pending').get();
-        
-        if (reqs.empty) {
+        const resp = await fetch('/api/friends/requests', { headers: _authHeaders() });
+        if (!resp.ok) throw new Error('Load failed');
+        const pending = await resp.json();
+
+        if (!pending.length) {
             container.innerHTML = '';
             container.style.display = 'none';
             return;
         }
         container.style.display = 'block';
         let html = `<div style="font-size:0.85rem;font-weight:700;margin-bottom:0.5rem;">📬 ${t('friends.pending_requests', 'Friend Requests')}</div>`;
-        for (const doc of reqs.docs) {
-            const req = doc.data();
-            const info = await getUserDisplayInfo(req.from);
+        for (const req of pending) {
             html += `<div class="friend-request-item">
-                ${avatarHTML(info.photoURL, info.nickname, 36)}
-                <span style="flex:1;font-size:0.85rem;font-weight:600;">${info.nickname}</span>
-                <button onclick="acceptFriendRequest('${doc.id}','${req.from}')" class="btn-primary" style="padding:0.3rem 0.6rem;font-size:0.75rem;border-radius:6px;">수락</button>
-                <button onclick="rejectFriendRequest('${doc.id}')" style="padding:0.3rem 0.6rem;font-size:0.75rem;border-radius:6px;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;">거절</button>
+                ${avatarHTML(req.photoURL, req.nickname, 36)}
+                <span style="flex:1;font-size:0.85rem;font-weight:600;">${req.nickname}</span>
+                <button onclick="acceptFriendRequest('${req.id}')" class="btn-primary" style="padding:0.3rem 0.6rem;font-size:0.75rem;border-radius:6px;">${t('friends.accept', 'Accept')}</button>
+                <button onclick="rejectFriendRequest('${req.id}')" style="padding:0.3rem 0.6rem;font-size:0.75rem;border-radius:6px;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;">${t('friends.decline', 'Decline')}</button>
             </div>`;
         }
         container.innerHTML = html;
@@ -176,38 +168,33 @@ async function searchFriends() {
     const query = document.getElementById('friend-search-input').value.trim().toLowerCase();
     const results = document.getElementById('friend-search-results');
     if (!query) return;
-    results.innerHTML = '<p style="text-align:center;color:var(--text-muted,#6B5744);">검색 중...</p>';
-    
+    results.innerHTML = '<p style="text-align:center;color:var(--text-muted,#6B5744);">' + t('friends.searching', 'Searching...') + '</p>';
+
     try {
-        // Search by email
-        let users = await db.collection('users').where('email', '==', query).get();
-        // Also search by nickname (starts with)
-        if (users.empty) {
-            users = await db.collection('users').orderBy('nickname').startAt(query).endAt(query + '\uf8ff').limit(10).get();
-        }
-        if (users.empty) {
+        const resp = await fetch('/api/users/search?q=' + encodeURIComponent(query), { headers: _authHeaders() });
+        if (!resp.ok) throw new Error('Search failed');
+        const userList = await resp.json();
+
+        if (!userList.length) {
             results.innerHTML = `<p style="text-align:center;color:var(--text-muted,#6B5744);">${t('friends.no_results', 'No results found')}</p>`;
             return;
         }
         let html = '';
-        for (const doc of users.docs) {
-            if (doc.id === currentUser.uid) continue;
-            const data = doc.data();
-            const info = { nickname: data.nickname || data.email?.split('@')[0] || '사용자', photoURL: data.photoURL || '' };
-            const isFriend = friendsList.some(f => f.uid === doc.id);
+        for (const u of userList) {
+            const isFriend = friendsList.some(f => f.uid === u.username);
             html += `<div style="display:flex;align-items:center;gap:0.8rem;padding:0.6rem 0;border-bottom:1px solid #F7F3ED;">
-                ${avatarHTML(info.photoURL, info.nickname, 40)}
+                ${avatarHTML(u.photoURL || '', u.displayName, 40)}
                 <div style="flex:1;min-width:0;">
-                    <div style="font-weight:600;font-size:0.9rem;">${info.nickname}</div>
-                    <div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">${data.statusMessage || ''}</div>
+                    <div style="font-weight:600;font-size:0.9rem;">${u.displayName}</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">${u.statusMessage || ''}</div>
                 </div>
-                ${isFriend ? `<span style="font-size:0.75rem;color:#6B8F3C;"><i data-lucide="check-circle"></i> 친구</span>` :
-                `<button onclick="sendFriendRequest('${doc.id}');this.textContent='요청됨';this.disabled=true;" class="btn-primary" style="padding:0.3rem 0.8rem;font-size:0.8rem;border-radius:6px;">친구 추가</button>`}
+                ${isFriend ? `<span style="font-size:0.75rem;color:#6B8F3C;"><i data-lucide="check-circle"></i> ${t('friends.friend', 'Friend')}</span>` :
+                `<button onclick="sendFriendRequest('${u.username}');this.textContent='${t('friends.requested', 'Requested')}';this.disabled=true;" class="btn-primary" style="padding:0.3rem 0.8rem;font-size:0.8rem;border-radius:6px;">${t('friends.add_friend', 'Add Friend')}</button>`}
             </div>`;
         }
         results.innerHTML = html || `<p style="text-align:center;color:var(--text-muted,#6B5744);">${t('friends.no_results', 'No results found')}</p>`;
     } catch (e) {
-        results.innerHTML = `<p style="color:red;">검색 오류: ${e.message}</p>`;
+        results.innerHTML = `<p style="color:red;">${t('friends.search_error', 'Search error')}: ${e.message}</p>`;
     }
 }
 
@@ -215,25 +202,16 @@ async function searchFriends() {
 async function followUser(targetUid) {
     if (!currentUser || targetUid === currentUser.uid) return;
     try {
-        const existingFollow = await db.collection('users').doc(currentUser.uid).collection('following').doc(targetUid).get();
-        if (existingFollow.exists) {
-            // Unfollow
-            await db.collection('users').doc(currentUser.uid).collection('following').doc(targetUid).delete();
-            await db.collection('users').doc(targetUid).collection('followers').doc(currentUser.uid).delete();
-            showToast(t('friends.unfollowed', 'Unfollowed'), 'info');
-        } else {
-            // Follow
-            await db.collection('users').doc(currentUser.uid).collection('following').doc(targetUid).set({ followedAt: new Date() });
-            await db.collection('users').doc(targetUid).collection('followers').doc(currentUser.uid).set({ followedAt: new Date() });
-            const myInfo = await getUserDisplayInfo(currentUser.uid);
-            await db.collection('notifications').add({
-                userId: targetUid, type: 'new_follower', message: '', fromUid: currentUser.uid, read: false, createdAt: new Date()
-            });
-            // Social notification
-            if (typeof createSocialNotification === 'function') {
-                createSocialNotification(targetUid, 'follow', `${myInfo.nickname}님이 팔로우했습니다`, {});
-            }
+        const resp = await fetch('/api/follow', {
+            method: 'POST', headers: _authHeaders(),
+            body: JSON.stringify({ targetUid })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error('Follow failed');
+        if (data.followed) {
             showToast(`<i data-lucide="check-circle"></i> ${t('friends.followed', 'Followed')}`, 'success');
+        } else {
+            showToast(t('friends.unfollowed', 'Unfollowed'), 'info');
         }
     } catch (e) {
         showToast(t('friends.follow_fail', 'Follow failed'), 'error');
@@ -242,27 +220,29 @@ async function followUser(targetUid) {
 
 async function getFollowCounts(uid) {
     try {
-        const [followers, following] = await Promise.all([
-            db.collection('users').doc(uid).collection('followers').get(),
-            db.collection('users').doc(uid).collection('following').get()
-        ]);
-        return { followers: followers.size, following: following.size };
+        const resp = await fetch('/api/follow/counts?uid=' + encodeURIComponent(uid), { headers: _authHeaders() });
+        if (!resp.ok) return { followers: 0, following: 0 };
+        return await resp.json();
     } catch (e) { return { followers: 0, following: 0 }; }
 }
 
 async function isFollowing(targetUid) {
     if (!currentUser) return false;
     try {
-        const doc = await db.collection('users').doc(currentUser.uid).collection('following').doc(targetUid).get();
-        return doc.exists;
+        const resp = await fetch('/api/follow/check?uid=' + encodeURIComponent(targetUid), { headers: _authHeaders() });
+        if (!resp.ok) return false;
+        const data = await resp.json();
+        return data.isFollowing;
     } catch (e) { return false; }
 }
 
 async function isFriend(targetUid) {
     if (!currentUser) return false;
     try {
-        const doc = await db.collection('users').doc(currentUser.uid).collection('friends').doc(targetUid).get();
-        return doc.exists;
+        const resp = await fetch('/api/friends/check?uid=' + encodeURIComponent(targetUid), { headers: _authHeaders() });
+        if (!resp.ok) return false;
+        const data = await resp.json();
+        return data.isFriend;
     } catch (e) { return false; }
 }
 
@@ -270,16 +250,12 @@ async function isFriend(targetUid) {
 async function showUserProfile(uid) {
     if (!uid) return;
     try {
-        const info = await getUserDisplayInfo(uid);
-        const followCounts = await getFollowCounts(uid);
-        const friendsSnap = await db.collection('users').doc(uid).collection('friends').get();
-        const friendCount = friendsSnap.size;
-        const postsSnap = await db.collection('posts').where('userId', '==', uid).get();
-        const postCount = postsSnap.size;
+        const resp = await fetch('/api/users/profile?uid=' + encodeURIComponent(uid), { headers: _authHeaders() });
+        if (!resp.ok) throw new Error('Profile load failed');
+        const profile = await resp.json();
+
         const isMe = currentUser && uid === currentUser.uid;
-        const amFollowing = isMe ? false : await isFollowing(uid);
-        const amFriend = isMe ? false : await isFriend(uid);
-        
+
         const overlay = document.createElement('div');
         overlay.id = 'user-profile-modal';
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.6);z-index:99997;display:flex;align-items:center;justify-content:center;padding:1rem;';
@@ -287,21 +263,21 @@ async function showUserProfile(uid) {
         overlay.innerHTML = `
         <div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:400px;width:100%;">
             <div style="text-align:center;margin-bottom:1rem;">
-                ${avatarHTML(info.photoURL, info.nickname, 80)}
-                <h3 style="margin-top:0.5rem;margin-bottom:0.2rem;">${info.nickname}</h3>
-                ${info.statusMessage ? `<p style="font-size:0.85rem;color:var(--text-muted,#6B5744);">${info.statusMessage}</p>` : ''}
+                ${avatarHTML(profile.photoURL, profile.nickname, 80)}
+                <h3 style="margin-top:0.5rem;margin-bottom:0.2rem;">${profile.nickname}</h3>
+                ${profile.statusMessage ? `<p style="font-size:0.85rem;color:var(--text-muted,#6B5744);">${profile.statusMessage}</p>` : ''}
             </div>
             <div style="display:flex;justify-content:space-around;text-align:center;margin-bottom:1rem;padding:0.8rem 0;border-top:1px solid #E8E0D8;border-bottom:1px solid var(--border,#E8E0D8);">
-                <div><div style="font-weight:700;font-size:1.1rem;">${postCount}</div><div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">게시물</div></div>
-                <div><div style="font-weight:700;font-size:1.1rem;">${friendCount}</div><div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">친구</div></div>
-                <div><div style="font-weight:700;font-size:1.1rem;">${followCounts.followers}</div><div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">팔로워</div></div>
-                <div><div style="font-weight:700;font-size:1.1rem;">${followCounts.following}</div><div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">팔로잉</div></div>
+                <div><div style="font-weight:700;font-size:1.1rem;">${profile.postCount}</div><div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">${t('friends.posts', 'Posts')}</div></div>
+                <div><div style="font-weight:700;font-size:1.1rem;">${profile.friendCount}</div><div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">${t('friends.friends', 'Friends')}</div></div>
+                <div><div style="font-weight:700;font-size:1.1rem;">${profile.followersCount}</div><div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">${t('friends.followers', 'Followers')}</div></div>
+                <div><div style="font-weight:700;font-size:1.1rem;">${profile.followingCount}</div><div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">${t('friends.following', 'Following')}</div></div>
             </div>
             ${!isMe ? `
             <div style="display:flex;gap:0.5rem;">
-                <button onclick="followUser('${uid}');document.getElementById('user-profile-modal')?.remove();" class="btn-primary" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;">${amFollowing ? '<i data-lucide="check"></i> 팔로잉' : '팔로우'}</button>
-                ${!amFriend ? `<button onclick="sendFriendRequest('${uid}');document.getElementById('user-profile-modal')?.remove();" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;">친구 추가</button>` : `<span style="flex:1;display:flex;align-items:center;justify-content:center;font-size:0.85rem;color:#6B8F3C;"><i data-lucide="check-circle"></i> 친구</span>`}
-                <button onclick="startChatFromProfile('${uid}');document.getElementById('user-profile-modal')?.remove();" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;"><i data-lucide="message-circle"></i> 메시지</button>
+                <button onclick="followUser('${uid}');document.getElementById('user-profile-modal')?.remove();" class="btn-primary" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;">${profile.isFollowing ? '<i data-lucide="check"></i> ' + t('friends.following', 'Following') : t('friends.follow', 'Follow')}</button>
+                ${!profile.isFriend ? `<button onclick="sendFriendRequest('${uid}');document.getElementById('user-profile-modal')?.remove();" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;">${t('friends.add_friend', 'Add Friend')}</button>` : `<span style="flex:1;display:flex;align-items:center;justify-content:center;font-size:0.85rem;color:#6B8F3C;"><i data-lucide="check-circle"></i> ${t('friends.friend', 'Friend')}</span>`}
+                <button onclick="startChatFromProfile('${uid}');document.getElementById('user-profile-modal')?.remove();" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;"><i data-lucide="message-circle"></i> ${t('friends.message', 'Message')}</button>
             </div>
             ` : ''}
             <button onclick="document.getElementById('user-profile-modal')?.remove()" style="width:100%;margin-top:0.8rem;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;background:var(--bg-card,#3D2B1F);cursor:pointer;">${t('common.close', 'Close')}</button>
@@ -309,20 +285,20 @@ async function showUserProfile(uid) {
         document.body.appendChild(overlay);
     } catch (e) {
         console.error('Profile error:', e);
-        showToast('프로필 로드 실패', 'error');
+        showToast(t('friends.profile_load_failed', 'Profile load failed'), 'error');
     }
 }
 
 async function startChatFromProfile(uid) {
     try {
-        const userDoc = await db.collection('users').doc(uid).get();
-        const email = userDoc.data()?.email;
-        if (email) {
+        // uid is already the username, use it directly as email for chat
+        const email = uid + '@crowny.org';
+        if (typeof startNewChat === 'function') {
             await startNewChat(email);
             showPage('messenger');
         }
     } catch (e) {
-        showToast('채팅 시작 실패', 'error');
+        showToast(t('friends.chat_start_failed', 'Failed to start chat'), 'error');
     }
 }
 
@@ -334,18 +310,17 @@ const TIKTOK_REGEX = /tiktok\.com\/@[\w.]+\/video\/(\d+)|vm\.tiktok\.com\/[\w]+/
 
 function parseLinkPreviews(text) {
     if (!text) return { html: text, previews: '' };
-    
+
     const urls = text.match(URL_REGEX);
     if (!urls) return { html: escapeHtml(text), previews: '' };
-    
+
     let processedText = escapeHtml(text);
     let previewCards = '';
-    
+
     for (const url of urls) {
         const escapedUrl = escapeHtml(url);
-        // Make URL clickable
         processedText = processedText.replace(escapedUrl, `<a href="${escapedUrl}" target="_blank" rel="noopener" style="color:#3D2B1F;text-decoration:none;">${escapedUrl}</a>`);
-        
+
         const ytMatch = url.match(YOUTUBE_REGEX);
         if (ytMatch) {
             const videoId = ytMatch[1];
@@ -354,12 +329,12 @@ function parseLinkPreviews(text) {
                 <img src="https://img.youtube.com/vi/${videoId}/mqdefault.jpg" style="width:100%;border-radius:8px 8px 0 0;" loading="lazy">
                 <div style="padding:0.5rem 0.8rem;display:flex;align-items:center;gap:0.5rem;">
                     <span style="font-size:1.2rem;">▶️</span>
-                    <span style="font-size:0.8rem;color:var(--text-muted,#6B5744);">YouTube 동영상 · 클릭하여 재생</span>
+                    <span style="font-size:0.8rem;color:var(--text-muted,#6B5744);">${t('friends.youtube_click_play', 'YouTube video · Click to play')}</span>
                 </div>
             </div>`;
             continue;
         }
-        
+
         if (INSTAGRAM_REGEX.test(url)) {
             previewCards += `
             <a href="${escapedUrl}" target="_blank" rel="noopener" class="link-preview-card" style="text-decoration:none;display:flex;align-items:center;gap:0.8rem;padding:0.8rem;">
@@ -372,7 +347,7 @@ function parseLinkPreviews(text) {
             </a>`;
             continue;
         }
-        
+
         if (TIKTOK_REGEX.test(url)) {
             previewCards += `
             <a href="${escapedUrl}" target="_blank" rel="noopener" class="link-preview-card" style="text-decoration:none;display:flex;align-items:center;gap:0.8rem;padding:0.8rem;">
@@ -386,7 +361,7 @@ function parseLinkPreviews(text) {
             continue;
         }
     }
-    
+
     return { html: processedText, previews: previewCards };
 }
 
@@ -399,9 +374,7 @@ function escapeHtml(str) {
 // ========== HASHTAGS & MENTIONS ==========
 function parseHashtagsAndMentions(text) {
     if (!text) return text;
-    // #hashtag
     text = text.replace(/#([\wㄱ-ㅎㅏ-ㅣ가-힣]+)/g, '<a href="#" onclick="filterByHashtag(\'$1\');return false;" style="color:#3D2B1F;font-weight:600;">#$1</a>');
-    // @mention
     text = text.replace(/@([\wㄱ-ㅎㅏ-ㅣ가-힣]+)/g, '<span style="color:#3D2B1F;font-weight:600;cursor:pointer;" onclick="searchAndShowProfile(\'$1\')">@$1</span>');
     return text;
 }
@@ -430,9 +403,11 @@ function clearHashtagFilter() {
 
 async function searchAndShowProfile(nickname) {
     try {
-        const users = await db.collection('users').where('nickname', '==', nickname).limit(1).get();
-        if (!users.empty) {
-            showUserProfile(users.docs[0].id);
+        const resp = await fetch('/api/users/search?q=' + encodeURIComponent(nickname), { headers: _authHeaders() });
+        if (!resp.ok) return;
+        const results = await resp.json();
+        if (results.length > 0) {
+            showUserProfile(results[0].username);
         } else {
             showToast(t('friends.user_not_found', 'User not found'), 'info');
         }
@@ -441,7 +416,7 @@ async function searchAndShowProfile(nickname) {
 
 // ========== DEEP LINKS / ANCHOR URLs ==========
 function generateShareURL(type, id) {
-    const base = 'https://crowny-org.vercel.app';
+    const base = 'https://crowny.org';
     if (type === 'post') return `${base}/#page=social&post=${id}`;
     if (type === 'user') return `${base}/#page=social&user=${id}`;
     if (type === 'page') return `${base}/#page=${id}`;
@@ -463,9 +438,8 @@ function initDeepLinks() {
     const page = params.get('page');
     const postId = params.get('post');
     const userId = params.get('user');
-    
+
     if (page) {
-        // Wait for auth then navigate
         const checkAuth = setInterval(() => {
             if (typeof currentUser !== 'undefined' && currentUser) {
                 clearInterval(checkAuth);
@@ -478,7 +452,7 @@ function initDeepLinks() {
                 }
             }
         }, 300);
-        setTimeout(() => clearInterval(checkAuth), 10000); // 10s timeout
+        setTimeout(() => clearInterval(checkAuth), 10000);
     }
 }
 
@@ -495,26 +469,30 @@ function scrollToPost(postId) {
 async function toggleSavePost(postId) {
     if (!currentUser) return;
     try {
-        const ref = db.collection('users').doc(currentUser.uid).collection('savedPosts').doc(postId);
-        const doc = await ref.get();
-        if (doc.exists) {
-            await ref.delete();
-            showToast(t('social.unsaved', 'Bookmark removed'), 'info');
-        } else {
-            await ref.set({ savedAt: new Date() });
+        const resp = await fetch('/api/social/save', {
+            method: 'POST', headers: _authHeaders(),
+            body: JSON.stringify({ postId })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error('Save failed');
+        if (data.saved) {
             showToast(t('social.saved', 'Saved'), 'success');
+        } else {
+            showToast(t('social.unsaved', 'Bookmark removed'), 'info');
         }
         loadSocialFeed();
     } catch (e) {
-        showToast('저장 실패', 'error');
+        showToast(t('friends.save_failed', 'Save failed'), 'error');
     }
 }
 
 async function isPostSaved(postId) {
     if (!currentUser) return false;
     try {
-        const doc = await db.collection('users').doc(currentUser.uid).collection('savedPosts').doc(postId).get();
-        return doc.exists;
+        const resp = await fetch('/api/social/save/check?postId=' + encodeURIComponent(postId), { headers: _authHeaders() });
+        if (!resp.ok) return false;
+        const data = await resp.json();
+        return data.saved;
     } catch (e) { return false; }
 }
 
@@ -522,26 +500,15 @@ async function isPostSaved(postId) {
 async function repostPost(postId) {
     if (!currentUser) return;
     try {
-        const original = await db.collection('posts').doc(postId).get();
-        if (!original.exists) return;
-        const data = original.data();
-        await db.collection('posts').add({
-            userId: currentUser.uid,
-            text: data.text || '',
-            imageUrl: data.imageUrl || null,
-            images: data.images || [],
-            likes: 0, likedBy: [], commentCount: 0,
-            repostOf: postId,
-            repostBy: currentUser.uid,
-            originalUserId: data.userId,
-            hashtags: data.hashtags || [],
-            mentions: data.mentions || [],
-            timestamp: new Date()
+        const resp = await fetch('/api/social/repost', {
+            method: 'POST', headers: _authHeaders(),
+            body: JSON.stringify({ postId })
         });
+        if (!resp.ok) throw new Error('Repost failed');
         showToast(t('social.reposted', '<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Reposted!'), 'success');
         loadSocialFeed();
     } catch (e) {
-        showToast('리포스트 실패', 'error');
+        showToast(t('friends.repost_failed', 'Repost failed'), 'error');
     }
 }
 
@@ -549,19 +516,11 @@ async function repostPost(postId) {
 async function toggleCommentLike(postId, commentId) {
     if (!currentUser) return;
     try {
-        const ref = db.collection('posts').doc(postId).collection('comments').doc(commentId);
-        const doc = await ref.get();
-        const data = doc.data();
-        let likedBy = data.likedBy || [];
-        let likes = data.likes || 0;
-        if (likedBy.includes(currentUser.uid)) {
-            likedBy = likedBy.filter(u => u !== currentUser.uid);
-            likes = Math.max(0, likes - 1);
-        } else {
-            likedBy.push(currentUser.uid);
-            likes++;
-        }
-        await ref.update({ likedBy, likes });
+        const resp = await fetch('/api/social/comment/like', {
+            method: 'POST', headers: _authHeaders(),
+            body: JSON.stringify({ postId, commentId })
+        });
+        if (!resp.ok) throw new Error('Like failed');
         loadComments(postId);
     } catch (e) {
         console.error('Comment like error:', e);
