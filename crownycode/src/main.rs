@@ -23,6 +23,7 @@ mod color;
 mod time_util;
 mod config_parser;
 mod i18n;
+mod template;
 
 use error::Result;
 use color::Colorize;
@@ -97,6 +98,18 @@ async fn main() -> Result<()> {
         cli::Command::Share { output } => {
             engine.share_patterns(&output)?;
         }
+        cli::Command::Repl => {
+            engine.run_repl()?;
+        }
+        cli::Command::Teach { intent, file, target } => {
+            engine.teach_pattern(&intent, &file, target.as_deref())?;
+        }
+        cli::Command::Read { file } => {
+            engine.read_and_explain(&file)?;
+        }
+        cli::Command::Scaffold { template, name, target } => {
+            engine.scaffold(&template, name.as_deref(), target.as_deref())?;
+        }
         cli::Command::Seed { .. } => unreachable!(),
     }
     Ok(())
@@ -170,6 +183,18 @@ fn main() -> Result<()> {
         }
         cli::Command::Share { output } => {
             engine.share_patterns(&output)?;
+        }
+        cli::Command::Repl => {
+            engine.run_repl()?;
+        }
+        cli::Command::Teach { intent, file, target } => {
+            engine.teach_pattern(&intent, &file, target.as_deref())?;
+        }
+        cli::Command::Read { file } => {
+            engine.read_and_explain(&file)?;
+        }
+        cli::Command::Scaffold { template, name, target } => {
+            engine.scaffold(&template, name.as_deref(), target.as_deref())?;
         }
         cli::Command::Seed { .. } => unreachable!(),
     }

@@ -3346,8 +3346,8 @@ async function fetchMassiveHistory() {
         const endDate = new Date().toISOString().split('T')[0];
         const startDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         
-        const url = `https://api.polygon.io/v2/aggs/ticker/C:NQ/range/5/minute/${startDate}/${endDate}?adjusted=true&sort=asc&apiKey=${apiKey}`;
-        
+        const url = `/api/market/candles?ticker=C:NQ&from=${startDate}&to=${endDate}&timespan=5min`;
+
         const response = await fetch(url);
         const data = await response.json();
         

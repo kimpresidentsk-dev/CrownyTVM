@@ -837,7 +837,7 @@ window.CARE = (function() {
         if (lngEl) lngEl.textContent = lng.toFixed(4);
         // Update maps link
         const mapLink = document.getElementById('sos-map-link');
-        if (mapLink) mapLink.href = `https://www.google.com/maps?q=${lat},${lng}`;
+        if (mapLink) mapLink.href = `geo:${lat},${lng}`;
     }
 
     // --- SOS Active Panel UI ---
@@ -848,7 +848,7 @@ window.CARE = (function() {
         const timeStr = sosStartTime.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
         const lat = location ? location.lat.toFixed(4) : '--';
         const lng = location ? location.lng.toFixed(4) : '--';
-        const mapsUrl = location ? `https://www.google.com/maps?q=${location.lat},${location.lng}` : '#';
+        const mapsUrl = location ? `geo:${location.lat},${location.lng}` : '#';
 
         let ecHtml = '';
         if (emergencyContacts.length > 0) {

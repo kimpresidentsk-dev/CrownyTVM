@@ -24,3 +24,4 @@ pub mod color;
 pub mod time_util;
 pub mod config_parser;
 pub mod i18n;
+pub mod template;

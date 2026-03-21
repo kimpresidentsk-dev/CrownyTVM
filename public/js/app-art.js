@@ -32,7 +32,7 @@ const ART_CONFIG = {
     maxImageSize: 1200,
     thumbnailSize: 400,
     storagePath: 'artworks',
-    ipfsGateway: 'https://ipfs.io/ipfs/',
+    ipfsGateway: '/api/ipfs/',
     donationMinCRFN: 10,
     platformFeePercent: 2.5
 };
@@ -681,7 +681,6 @@ async function viewArtwork(artId) {
         if (art.isNFT) {
             const typeLabel = art.nftType === 'erc1155' ? `ERC-1155 (Ed.×${art.editionCount})` : 'ERC-721 (1/1)';
             const cShort = art.nftContract ? `${art.nftContract.slice(0,6)}…${art.nftContract.slice(-4)}` : '—';
-            const scanUrl = `https://polygonscan.com/token/${art.nftContract}?a=${art.nftTokenId}`;
             const ipfsUrl = art.ipfsImageUri ? ipfsToHttp(art.ipfsImageUri) : null;
             nftInfoHtml = `
                 <div style="background:linear-gradient(135deg,#8B6914,#6B5744);padding:.8rem;border-radius:8px;margin-bottom:1rem;color:#E8D5C4">
@@ -689,10 +688,10 @@ async function viewArtwork(artId) {
                     <div style="font-size:.78rem;display:grid;gap:.2rem">
                         <div>${t('art.type','Type')}: ${typeLabel}</div>
                         <div>Token ID: #${art.nftTokenId}</div>
-                        <div>${t('art.contract','Contract')}: <a href="${scanUrl}" target="_blank" style="color:#E8D5C4;text-decoration:underline">${cShort}</a></div>
+                        <div>${t('art.contract','Contract')}: <span style="color:#E8D5C4;font-family:monospace">${cShort}</span></div>
                         <div>${t('art.royalty','Royalty')}: ${art.royaltyPercent || 10}%</div>
                         ${ipfsUrl ? `<div>IPFS: <a href="${ipfsUrl}" target="_blank" style="color:#E8D5C4;text-decoration:underline">${t('art.view_original','View original')}</a></div>` : ''}
-                        ${art.mintTxHash ? `<div>TX: <a href="https://polygonscan.com/tx/${art.mintTxHash}" target="_blank" style="color:#E8D5C4;text-decoration:underline">${art.mintTxHash.slice(0,10)}\u2026</a></div>` : ''}
+                        ${art.mintTxHash ? `<div>TX: <span style="color:#E8D5C4;font-family:monospace">${art.mintTxHash.slice(0,10)}\u2026</span></div>` : ''}
                     </div>
                 </div>`;
         }

@@ -134,7 +134,7 @@
                 const submitBtn = document.getElementById('sf-submit-btn');
                 if (ytMatch) {
                     preview.style.display = 'block';
-                    preview.innerHTML = `<img src="https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg" style="width:100%;border-radius:8px;">`;
+                    preview.innerHTML = `<img src="/api/yt-thumb/${ytMatch[1]}" style="width:100%;border-radius:8px;">`;
                     submitBtn.disabled = false;
                 } else {
                     preview.style.display = 'none';

@@ -49,6 +49,24 @@ pub enum Command {
     Share {
         output: String,
     },
+    /// 대화형 REPL 모드
+    Repl,
+    /// 파일에서 새 패턴 학습
+    Teach {
+        intent: String,
+        file: String,
+        target: Option<String>,
+    },
+    /// 코드 파일 분석/설명
+    Read {
+        file: String,
+    },
+    /// 프로젝트 스캐폴딩
+    Scaffold {
+        template: String,
+        name: Option<String>,
+        target: Option<String>,
+    },
 }
 
 pub fn parse() -> Args {
@@ -221,6 +239,65 @@ pub fn parse() -> Args {
             }
             Command::Seed { count }
         }
+        "repl" => Command::Repl,
+        "read" => {
+            if filtered.len() < 2 {
+                eprintln!("사용법: crownycode read <file>");
+                std::process::exit(1);
+            }
+            Command::Read { file: filtered[1].clone() }
+        }
+        "scaffold" | "new" => {
+            let template = if filtered.len() > 1 { filtered[1].clone() } else { "rest-api".to_string() };
+            let mut name = None;
+            let mut target = None;
+            let mut j = 2;
+            while j < filtered.len() {
+                match filtered[j].as_str() {
+                    "--name" | "-n" => { if j+1 < filtered.len() { name = Some(filtered[j+1].clone()); j += 2; } else { j += 1; } }
+                    "-t" | "--target" => { if j+1 < filtered.len() { target = Some(filtered[j+1].clone()); j += 2; } else { j += 1; } }
+                    _ => { if name.is_none() { name = Some(filtered[j].clone()); } j += 1; }
+                }
+            }
+            Command::Scaffold { template, name, target }
+        }
+        "teach" => {
+            if filtered.len() < 3 {
+                eprintln!("사용법: crownycode teach <intent> -f <file> [-t lang]");
+                std::process::exit(1);
+            }
+            let intent = filtered[1].clone();
+            let mut file = String::new();
+            let mut target = None;
+            let mut j = 2;
+            while j < filtered.len() {
+                match filtered[j].as_str() {
+                    "-f" | "--file" => {
+                        if j + 1 < filtered.len() {
+                            file = filtered[j + 1].clone();
+                            j += 2;
+                        } else {
+                            j += 1;
+                        }
+                    }
+                    "-t" | "--target" => {
+                        if j + 1 < filtered.len() {
+                            target = Some(filtered[j + 1].clone());
+                            j += 2;
+                        } else {
+                            j += 1;
+                        }
+                    }
+                    other => {
+                        if file.is_empty() {
+                            file = other.to_string();
+                        }
+                        j += 1;
+                    }
+                }
+            }
+            Command::Teach { intent, file, target }
+        }
         other => {
             eprintln!("{}: {other}", crate::i18n::msg("err_unknown_cmd"));
             print_help();
@@ -243,6 +320,10 @@ fn print_help() {
     eprintln!("  {}", msg("help_tutorial"));
     eprintln!("  {}", msg("help_status"));
     eprintln!("  {}", msg("help_share"));
+    eprintln!("  {}", msg("help_read"));
+    eprintln!("  {}", msg("help_scaffold"));
+    eprintln!("  repl                             — 대화형 REPL 모드");
+    eprintln!("  teach <intent> <file> [-t lang]   — 파일에서 패턴 학습");
     eprintln!("  snapshot <export|import> <path>");
     eprintln!("  seed [--count <N>]");
     eprintln!();

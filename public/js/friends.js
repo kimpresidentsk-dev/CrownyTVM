@@ -326,7 +326,7 @@ function parseLinkPreviews(text) {
             const videoId = ytMatch[1];
             previewCards += `
             <div class="link-preview-card youtube-preview" onclick="this.innerHTML='<iframe src=\\'https://www.youtube.com/embed/${videoId}\\' style=\\'width:100%;aspect-ratio:16/9;border:none;border-radius:8px;\\' allowfullscreen></iframe>'">
-                <img src="https://img.youtube.com/vi/${videoId}/mqdefault.jpg" style="width:100%;border-radius:8px 8px 0 0;" loading="lazy">
+                <img src="/api/yt-thumb/${videoId}" style="width:100%;border-radius:8px 8px 0 0;" loading="lazy">
                 <div style="padding:0.5rem 0.8rem;display:flex;align-items:center;gap:0.5rem;">
                     <span style="font-size:1.2rem;">▶️</span>
                     <span style="font-size:0.8rem;color:var(--text-muted,#6B5744);">${t('friends.youtube_click_play', 'YouTube video · Click to play')}</span>

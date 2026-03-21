@@ -89,6 +89,18 @@ pub fn msg(key: &str) -> &'static str {
         ("pt", "help_share") => "share <caminho>               exportar padrões para compartilhar",
         (_, "help_share") => "share <path>                  export patterns for sharing",
 
+        ("ko", "help_read") => "read <파일>                    코드 파일 분석/설명",
+        ("sw", "help_read") => "read <faili>                   changanua/eleza faili ya msimbo",
+        ("hi", "help_read") => "read <फ़ाइल>                   कोड फ़ाइल विश्लेषण/व्याख्या",
+        ("pt", "help_read") => "read <arquivo>                 analisar/explicar arquivo de código",
+        (_, "help_read") => "read <file>                    analyze/explain code file",
+
+        ("ko", "help_scaffold") => "scaffold <템플릿> [-n 이름] [-t 언어]  프로젝트 생성",
+        ("sw", "help_scaffold") => "scaffold <kiolezo> [-n jina] [-t lugha]  unda mradi",
+        ("hi", "help_scaffold") => "scaffold <टेम्पलेट> [-n नाम] [-t भाषा]  प्रोजेक्ट बनाएं",
+        ("pt", "help_scaffold") => "scaffold <modelo> [-n nome] [-t lingua]  criar projeto",
+        (_, "help_scaffold") => "scaffold <template> [-n name] [-t lang]  create project",
+
         ("ko", "help_config") => "--config <경로>    설정 파일 (기본: crownycode.toml)",
         ("sw", "help_config") => "--config <njia>    faili ya usanidi (chaguo-msingi: crownycode.toml)",
         ("hi", "help_config") => "--config <पथ>      कॉन्फ़िग फ़ाइल (डिफ़ॉल्ट: crownycode.toml)",
@@ -197,6 +209,7 @@ mod tests {
             "auto_seed_start", "auto_seed_done",
             "help_usage", "help_commands", "help_options",
             "help_gen", "help_intents", "help_tutorial", "help_status", "help_share",
+            "help_read", "help_scaffold",
             "err_no_command", "err_gen_input", "err_unknown_cmd",
             "instant_hit", "stats", "saved_to", "no_cells",
             "warning", "share_hint",

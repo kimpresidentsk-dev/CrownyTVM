@@ -2044,6 +2044,51 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        // ── YouTube thumbnail proxy (no external dependency on client) ──
+        if (path.startsWith('/api/yt-thumb/') && req.method === 'GET') {
+            const videoId = path.split('/api/yt-thumb/')[1];
+            if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) { res.statusCode = 400; res.end('bad id'); return; }
+            if (!rateLimit(clientIp, 'yt-thumb', 60)) { res.statusCode = 429; res.end('rate limited'); return; }
+            const ytUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+            https.get(ytUrl, (upstream) => {
+                res.writeHead(upstream.statusCode, { 'Content-Type': upstream.headers['content-type'] || 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+                upstream.pipe(res);
+            }).on('error', () => { res.statusCode = 502; res.end('proxy error'); });
+            return;
+        }
+
+        // ── IPFS proxy ──
+        if (path.startsWith('/api/ipfs/') && req.method === 'GET') {
+            const cid = path.split('/api/ipfs/')[1];
+            if (!cid || cid.length < 10 || cid.length > 100) { res.statusCode = 400; res.end('bad cid'); return; }
+            if (!rateLimit(clientIp, 'ipfs', 10)) { res.statusCode = 429; res.end('rate limited'); return; }
+            const ipfsUrl = `https://ipfs.io/ipfs/${cid}`;
+            https.get(ipfsUrl, (upstream) => {
+                res.writeHead(upstream.statusCode, { 'Content-Type': upstream.headers['content-type'] || 'application/octet-stream', 'Cache-Control': 'public, max-age=604800' });
+                upstream.pipe(res);
+            }).on('error', () => { res.statusCode = 502; res.end('proxy error'); });
+            return;
+        }
+
+        // ── Market candles proxy (polygon.io) ──
+        if (path === '/api/market/candles' && req.method === 'GET') {
+            if (!rateLimit(clientIp, 'market-candles', 10)) { res.statusCode = 429; res.end('{}'); return; }
+            const params = new URL(req.url, 'http://localhost').searchParams;
+            const ticker = params.get('ticker') || 'C:NQ';
+            const from = params.get('from');
+            const to = params.get('to');
+            if (!from || !to) { res.statusCode = 400; res.end('{"error":"missing from/to"}'); return; }
+            const apiKey = (process.env.POLYGON_API_KEY || (typeof MASSIVE_CONFIG !== 'undefined' && MASSIVE_CONFIG.apiKey) || '');
+            if (!apiKey) { res.statusCode = 503; res.end('{"error":"no api key"}'); return; }
+            const polyUrl = `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(ticker)}/range/5/minute/${from}/${to}?adjusted=true&sort=asc&apiKey=${apiKey}`;
+            https.get(polyUrl, (upstream) => {
+                let d = '';
+                upstream.on('data', c => d += c);
+                upstream.on('end', () => { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' }); res.end(d); });
+            }).on('error', () => { res.statusCode = 502; res.end('{"error":"upstream error"}'); });
+            return;
+        }
+
         // I2: Client error reporting — collect browser errors for monitoring
         if (path === '/api/client-error' && req.method === 'POST') {
             if (!rateLimit(clientIp, 'client-error', 30)) { res.statusCode = 429; res.end('{}'); return; }

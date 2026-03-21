@@ -104,26 +104,29 @@ impl LangAdapter for EnAdapter {
     }
 
     fn extract_target(&self, input: &str) -> String {
-        const NOISE: &[&str] = &[
+        // Multi-word noise (removed via substring replace, safe since they are multi-word)
+        const NOISE_MULTI: &[&str] = &[
             "create", "make", "build", "write", "implement",
             "generate", "develop", "design", "code", "program",
             "set up", "setup", "scaffold", "bootstrap",
-            "add", "show me", "give me", "provide", "me",
+            "show me", "give me", "provide",
             "in python", "using python", "with python",
             "in rust", "using rust", "with rust",
             "in javascript", "in js", "using node",
             "in typescript", "in ts", "in go", "using go",
             "in c", "in java",
             "async", "asynchronous", "fast", "simple", "minimal",
-            "with tests", "restful", "a", "an", "the",
+            "with tests", "restful",
             "please", "can you", "could you", "i need", "i want",
         ];
+        // Single-word noise (removed only as whole words to avoid mangling)
+        const NOISE_WORDS: &[&str] = &["a", "an", "the", "me", "add"];
         let mut result = input.to_lowercase();
-        for n in NOISE {
+        for n in NOISE_MULTI {
             result = result.replace(n, " ");
         }
         result.split_whitespace()
-            .filter(|s| !s.is_empty() && s.len() > 1)
+            .filter(|s| !s.is_empty() && s.len() > 1 && !NOISE_WORDS.contains(s))
             .collect::<Vec<_>>()
             .join(" ")
             .trim()

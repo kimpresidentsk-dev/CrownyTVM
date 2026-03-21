@@ -118,6 +118,9 @@ impl Engine {
                 direct_hits[0].1.clone()
             };
 
+            // Apply parameterization from natural language input
+            let combined_code = crate::template::parameterize_code(&combined_code, input);
+
             let display_code = if explain {
                 add_explanations(&combined_code, &target)
             } else {
@@ -243,6 +246,8 @@ impl Engine {
             phase_meta: phase_meta.clone(),
         };
         let code = codegen::generate(&final_ir, &target, &opts)?;
+        // Apply parameterization from natural language input
+        let code = crate::template::parameterize_code(&code, input);
         println!(" {}", "완료".green());
 
         let display_code = if explain {
@@ -353,6 +358,8 @@ impl Engine {
             } else {
                 direct_hits[0].1.clone()
             };
+            // Apply parameterization from natural language input
+            let combined_code = crate::template::parameterize_code(&combined_code, input);
             let display_code = if explain {
                 add_explanations(&combined_code, &target)
             } else {
@@ -407,6 +414,8 @@ impl Engine {
             phase_meta: phase_meta.clone(),
         };
         let code = codegen::generate(&think_result.merged_ir, &target, &opts)?;
+        // Apply parameterization from natural language input
+        let code = crate::template::parameterize_code(&code, input);
         println!(" {}", "완료".green());
 
         let display_code = if explain {
@@ -611,6 +620,155 @@ impl Engine {
         Ok(())
     }
 
+    /// 코드 파일 읽기 + 줄별 설명 (read 명령)
+    pub fn read_and_explain(&self, file_path: &str) -> Result<()> {
+        let code = std::fs::read_to_string(file_path)
+            .map_err(|e| crate::error::err!("파일 읽기 실패: {}: {}", file_path, e))?;
+
+        let lang = detect_lang_from_ext(file_path);
+
+        println!("{} {} ({}, {} 줄)",
+            "분석:".bold().bright_cyan(), file_path, lang, code.lines().count());
+        println!();
+
+        // File summary
+        let summary = analyze_code(&code, lang);
+        println!("{}", "요약:".bold());
+        for item in &summary {
+            println!("  {} {}", "·".dimmed(), item);
+        }
+        println!();
+
+        // Line-by-line explanation
+        println!("{}", "코드:".bold());
+        for (i, line) in code.lines().enumerate() {
+            let num = format!("{:4}", i + 1).dimmed();
+            let explanation = explain_line(line.trim());
+            if let Some(exp) = explanation {
+                println!("{} {} {} {}", num, line, "//".dimmed(), exp.dimmed());
+            } else {
+                println!("{} {}", num, line);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// 프로젝트 스캐폴딩 (scaffold 명령)
+    pub fn scaffold(&self, template: &str, name: Option<&str>, target: Option<&str>) -> Result<()> {
+        let project_name = name.unwrap_or("my_project");
+        let lang = target.unwrap_or(&self.config.engine.default_target);
+
+        // Determine which intents to combine for this template
+        let intents: Vec<&str> = match template {
+            "rest-api" | "rest" | "api" => vec!["rest_api", "config_loader", "logger", "health_check", "cors_middleware", "env_config"],
+            "cli" | "cli-tool" => vec!["cli_tool", "argument_parser", "config_loader", "logger", "color_output"],
+            "web-server" | "web" => vec!["http_server", "static_file_server", "cors_middleware", "logger", "health_check"],
+            "crud" | "crud-api" => vec!["rest_api", "database_client", "validator", "pagination", "health_check"],
+            "auth-api" => vec!["rest_api", "auth_handler", "jwt_handler", "password_hasher", "session_manager", "cors_middleware"],
+            "microservice" => vec!["rest_api", "health_check", "logger", "metrics_collector", "env_config", "circuit_breaker"],
+            "data-pipeline" | "etl" => vec!["etl_pipeline", "csv_parser", "json_parser", "database_client", "logger"],
+            "websocket" | "chat" => vec!["websocket_chat", "auth_handler", "logger", "redis_client"],
+            _ => {
+                println!("{}", "사용 가능한 템플릿:".bold());
+                println!("  rest-api      REST API 서버 (라우팅, 설정, 로깅, CORS)");
+                println!("  cli           CLI 도구 (인자 파서, 설정, 색상 출력)");
+                println!("  web-server    웹 서버 (정적 파일, CORS, 로깅)");
+                println!("  crud          CRUD API (REST + DB + 검증 + 페이지네이션)");
+                println!("  auth-api      인증 API (JWT, 비밀번호 해싱, 세션)");
+                println!("  microservice  마이크로서비스 (헬스체크, 메트릭, 서킷브레이커)");
+                println!("  data-pipeline 데이터 파이프라인 (ETL, CSV, JSON, DB)");
+                println!("  websocket     웹소켓 채팅 (인증, Redis)");
+                return Ok(());
+            }
+        };
+
+        // Create project directory
+        std::fs::create_dir_all(project_name)?;
+
+        println!("{} {} ({})", "프로젝트 생성:".bold().bright_cyan(), project_name, template);
+        println!();
+
+        // Generate main file
+        let net = self.db.cell_net();
+        let mut main_parts = Vec::new();
+        main_parts.push(format!("// {} — Generated by CrownyCode", project_name));
+        main_parts.push(format!("// Template: {}", template));
+        main_parts.push(String::new());
+
+        for intent in &intents {
+            if let Some(cell) = net.find_by_intent(intent) {
+                if let Some(pattern) = cell.pattern_for(lang) {
+                    main_parts.push(format!("// ── {} ──", intent));
+                    main_parts.push(pattern.code.clone());
+                    main_parts.push(String::new());
+                }
+            }
+        }
+        drop(net);
+
+        let ext = match lang {
+            "python" | "py" => "py",
+            "rust" | "rs" => "rs",
+            "javascript" | "js" => "js",
+            _ => "txt",
+        };
+
+        let main_file = format!("{}/main.{}", project_name, ext);
+        let main_code = main_parts.join("\n");
+        std::fs::write(&main_file, &main_code)?;
+        println!("  {} {} ({} 줄)", "생성:".green(), main_file, main_code.lines().count());
+
+        // Generate dependency file
+        let deps_file = match lang {
+            "python" | "py" => {
+                let deps = generate_python_requirements(&intents);
+                let path = format!("{}/requirements.txt", project_name);
+                std::fs::write(&path, &deps)?;
+                Some(path)
+            }
+            "rust" | "rs" => {
+                let deps = generate_cargo_toml(project_name, &intents);
+                let path = format!("{}/Cargo.toml", project_name);
+                std::fs::write(&path, &deps)?;
+                Some(path)
+            }
+            "javascript" | "js" => {
+                let deps = generate_package_json(project_name, &intents);
+                let path = format!("{}/package.json", project_name);
+                std::fs::write(&path, &deps)?;
+                Some(path)
+            }
+            _ => None,
+        };
+        if let Some(ref path) = deps_file {
+            println!("  {} {}", "생성:".green(), path);
+        }
+
+        // Generate README
+        let readme = format!("# {}\n\nGenerated by CrownyCode (template: {})\n\n## Run\n\n```bash\n{}\n```\n",
+            project_name, template,
+            match lang {
+                "python" | "py" => "pip install -r requirements.txt\npython main.py".to_string(),
+                "rust" | "rs" => "cargo run".to_string(),
+                "javascript" | "js" => "npm install\nnode main.js".to_string(),
+                _ => "see main file".to_string(),
+            });
+        let readme_path = format!("{}/README.md", project_name);
+        std::fs::write(&readme_path, &readme)?;
+        println!("  {} {}", "생성:".green(), readme_path);
+
+        println!();
+        println!("{}", format!("cd {} && {}", project_name, match lang {
+            "python" | "py" => "python main.py",
+            "rust" | "rs" => "cargo run",
+            "javascript" | "js" => "node main.js",
+            _ => "cat main.*",
+        }).dimmed());
+
+        Ok(())
+    }
+
     pub fn run_tutorial(&self) -> Result<()> {
         println!("{}", "═══ 크라우니코드 튜토리얼 ═══".bold().bright_cyan());
         println!();
@@ -647,6 +805,27 @@ impl Engine {
         println!("  {} crownycode gen \"JSON parser\" -t js", "$".dimmed());
         println!();
 
+        println!("{}", "단계 7: REPL 모드".bold());
+        println!("  {} crownycode repl", "$".dimmed());
+        println!("  → 대화형 코드 생성, /modify로 수정, /teach로 학습");
+        println!();
+
+        println!("{}", "단계 8: 패턴 학습".bold());
+        println!("  {} crownycode teach redis_pubsub server.py", "$".dimmed());
+        println!("  → 파일에서 새로운 패턴을 학습시킵니다");
+        println!();
+
+        println!("{}", "단계 9: 코드 파일 분석".bold());
+        println!("  {} crownycode read main.py", "$".dimmed());
+        println!("  → 파일을 줄별로 분석하고 설명합니다");
+        println!();
+
+        println!("{}", "단계 10: 프로젝트 스캐폴딩".bold());
+        println!("  {} crownycode scaffold rest-api -n my_api -t python", "$".dimmed());
+        println!("  {} crownycode new cli -n my_tool -t rust", "$".dimmed());
+        println!("  → 템플릿: rest-api, cli, web-server, crud, auth-api, microservice, data-pipeline, websocket");
+        println!();
+
         println!("{}", "지원 언어:".bold());
         println!("  출력: Python, Rust, JavaScript/TypeScript");
         println!("  입력: 한국어, English, Kiswahili, हिंदी, Português-BR");
@@ -655,9 +834,218 @@ impl Engine {
         let cell_count = self.db.cell_net().len();
         println!("{} 현재 {}개 의도 패턴이 설치되어 있습니다.", "상태:".bright_cyan(), cell_count);
         if cell_count == 0 {
-            println!("  {} crownycode seed --count 51", "시드 설치:".yellow());
+            println!("  {} crownycode seed --count 200", "시드 설치:".yellow());
         }
 
+        Ok(())
+    }
+
+    pub fn run_repl(&self) -> Result<()> {
+        use std::io::{stdin, stdout, Write, BufRead};
+
+        println!("{}", "크라우니코드 REPL — 대화형 코드 생성".bold().bright_cyan());
+        println!("{}", "명령: /target <lang>, /explain, /save <path>, /modify <instruction>, /quit".dimmed());
+        println!();
+
+        let mut current_target = self.config.engine.default_target.clone();
+        let mut current_code = String::new();
+        let mut explain_mode = false;
+
+        loop {
+            print!("{} ", format!("crowny({})", current_target).green());
+            stdout().flush()?;
+
+            let mut input = String::new();
+            if stdin().lock().read_line(&mut input).is_err() || input.is_empty() {
+                break;
+            }
+            let input = input.trim();
+            if input.is_empty() { continue; }
+
+            // REPL commands
+            if input.starts_with('/') {
+                let parts: Vec<&str> = input.splitn(2, ' ').collect();
+                match parts[0] {
+                    "/quit" | "/exit" | "/q" => {
+                        println!("{}", "안녕히!".dimmed());
+                        break;
+                    }
+                    "/target" | "/t" => {
+                        if parts.len() > 1 {
+                            current_target = parts[1].to_string();
+                            println!("  {} {}", "타겟:".bright_cyan(), current_target);
+                        } else {
+                            println!("  현재 타겟: {}", current_target.bright_cyan());
+                        }
+                    }
+                    "/explain" | "/e" => {
+                        explain_mode = !explain_mode;
+                        println!("  설명 모드: {}", if explain_mode { "ON".green() } else { "OFF".dimmed() });
+                    }
+                    "/save" | "/s" => {
+                        if parts.len() > 1 && !current_code.is_empty() {
+                            match std::fs::write(parts[1], &current_code) {
+                                Ok(_) => println!("  {} {}", msg("saved_to").green(), parts[1]),
+                                Err(e) => println!("  {} {}", "오류:".red(), e),
+                            }
+                        } else if current_code.is_empty() {
+                            println!("  {}", "저장할 코드가 없습니다. 먼저 생성하세요.".yellow());
+                        } else {
+                            println!("  사용법: /save <파일경로>");
+                        }
+                    }
+                    "/modify" | "/m" => {
+                        if parts.len() > 1 && !current_code.is_empty() {
+                            let instruction = parts[1];
+                            current_code = apply_modification(&current_code, instruction, &current_target);
+                            println!("{}", "─".repeat(50).dimmed());
+                            if explain_mode {
+                                println!("{}", add_explanations(&current_code, &current_target));
+                            } else {
+                                println!("{}", &current_code);
+                            }
+                            println!("{}", "─".repeat(50).dimmed());
+                        } else {
+                            println!("  사용법: /modify <수정 지시> (예: /modify 포트를 3000으로)");
+                        }
+                    }
+                    "/code" | "/c" => {
+                        if !current_code.is_empty() {
+                            println!("{}", "─".repeat(50).dimmed());
+                            println!("{}", &current_code);
+                            println!("{}", "─".repeat(50).dimmed());
+                        } else {
+                            println!("  {}", "생성된 코드가 없습니다.".dimmed());
+                        }
+                    }
+                    "/teach" => {
+                        if parts.len() > 1 && !current_code.is_empty() {
+                            let intent = parts[1].replace(' ', "_").to_lowercase();
+                            self.db.cell_net_mut().upsert_pattern(&intent, &current_target, &current_code, 0.85);
+                            let _ = self.db.save_net();
+                            println!("  {} '{}' 패턴으로 저장됨 ({})", "학습:".bright_cyan(), intent, current_target);
+                        } else {
+                            println!("  사용법: /teach <의도이름> (예: /teach redis_pubsub)");
+                        }
+                    }
+                    "/intents" | "/i" => {
+                        let net = self.db.cell_net();
+                        println!("  {} 의도 {}개 저장됨", "상태:".dimmed(), net.len());
+                    }
+                    "/help" | "/h" => {
+                        println!("  /target <lang>   — 출력 언어 변경 (python, rust, js)");
+                        println!("  /explain         — 설명 모드 토글");
+                        println!("  /save <path>     — 현재 코드를 파일로 저장");
+                        println!("  /modify <지시>   — 현재 코드 수정 (포트 변경, 에러 처리 등)");
+                        println!("  /code            — 현재 코드 다시 보기");
+                        println!("  /teach <intent>  — 현재 코드를 새 패턴으로 학습");
+                        println!("  /intents         — 저장된 의도 수");
+                        println!("  /quit            — 종료");
+                    }
+                    other => {
+                        println!("  {} /help 로 명령 확인", format!("알 수 없는 명령: {}", other).yellow());
+                    }
+                }
+                continue;
+            }
+
+            // Generate code from natural language input
+            let lookup_intents = ir::split_compound_intents(input);
+            let direct_hits: Vec<(String, String, f32)> = {
+                let net = self.db.cell_net();
+                lookup_intents.iter().filter_map(|intent| {
+                    net.find_by_intent(intent).and_then(|cell| {
+                        if cell.trit_state == crate::cell::TritState::Confirmed {
+                            cell.pattern_for(&current_target).map(|p| (
+                                intent.clone(), p.code.clone(), cell.energy,
+                            ))
+                        } else {
+                            None
+                        }
+                    })
+                }).collect()
+            };
+
+            // Also try single intent normalization
+            let single_intent = {
+                let kps_nodes = kps::parse(input)?;
+                let ir = ir::build(&kps_nodes)?;
+                ir.intent.clone()
+            };
+
+            let code = if !direct_hits.is_empty() {
+                let combined = if direct_hits.len() > 1 {
+                    let mut parts = vec![format!("// 복합: {}", input)];
+                    for (i, (intent, code, _)) in direct_hits.iter().enumerate() {
+                        parts.push(format!("// ═══ [{}/{}] {} ═══", i + 1, direct_hits.len(), intent));
+                        parts.push(code.clone());
+                        parts.push(String::new());
+                    }
+                    parts.join("\n")
+                } else {
+                    direct_hits[0].1.clone()
+                };
+                for (intent, _, energy) in &direct_hits {
+                    println!("  {} {} [energy:{:.2}]", msg("instant_hit").green(), intent.bold(), energy);
+                }
+                combined
+            } else {
+                // Try single intent direct hit
+                let hit = {
+                    let net = self.db.cell_net();
+                    net.find_by_intent(&single_intent).and_then(|cell| {
+                        if cell.trit_state == crate::cell::TritState::Confirmed {
+                            cell.pattern_for(&current_target).map(|p| p.code.clone())
+                        } else {
+                            None
+                        }
+                    })
+                };
+                if let Some(code) = hit {
+                    println!("  {} {} [확정]", msg("instant_hit").green(), single_intent.bold());
+                    code
+                } else {
+                    println!("  {} '{}'", "미인지:".yellow(), single_intent);
+                    println!("  {}", "힌트: /teach <intent> 로 직접 패턴을 등록할 수 있습니다".dimmed());
+                    continue;
+                }
+            };
+
+            // Apply parameterization
+            current_code = crate::template::parameterize_code(&code, input);
+
+            println!("{}", "─".repeat(50).dimmed());
+            if explain_mode {
+                println!("{}", add_explanations(&current_code, &current_target));
+            } else {
+                println!("{}", &current_code);
+            }
+            println!("{}", "─".repeat(50).dimmed());
+        }
+
+        Ok(())
+    }
+
+    pub fn teach_pattern(&self, intent: &str, file_path: &str, target: Option<&str>) -> Result<()> {
+        let code = std::fs::read_to_string(file_path)
+            .map_err(|e| crate::error::err!("파일 읽기 실패: {}: {}", file_path, e))?;
+
+        // Detect language from file extension if not specified
+        let lang = target.unwrap_or_else(|| {
+            if file_path.ends_with(".py") { "python" }
+            else if file_path.ends_with(".rs") { "rust" }
+            else if file_path.ends_with(".js") || file_path.ends_with(".ts") { "javascript" }
+            else { "rust" }
+        });
+
+        self.db.cell_net_mut().upsert_pattern(intent, lang, &code, 0.85);
+        self.db.save_net()?;
+
+        println!("  {} '{}' [{}] — {} 줄",
+            "학습 완료:".green().bold(),
+            intent.bold(),
+            lang.bright_cyan(),
+            code.lines().count());
         Ok(())
     }
 
@@ -672,6 +1060,107 @@ impl Engine {
         }
         Ok(())
     }
+}
+
+/// Apply a modification instruction to existing code
+fn apply_modification(code: &str, instruction: &str, lang: &str) -> String {
+    let lower = instruction.to_lowercase();
+    let mut result = code.to_string();
+
+    // Port change: "포트를 3000으로", "change port to 3000", "port 3000"
+    if lower.contains("포트") || lower.contains("port") || lower.contains("bandari") {
+        if let Some(port) = extract_number(&lower) {
+            result = result.replace("8080", &port.to_string());
+            result = result.replace("3000", &port.to_string());
+            result = result.replace("9000", &port.to_string());
+            result = result.replace("8765", &port.to_string());
+        }
+    }
+
+    // Add error handling: "에러 핸들링", "error handling", "handle errors"
+    if lower.contains("에러") || lower.contains("error") || lower.contains("오류") {
+        match lang {
+            "python" | "py" => {
+                result = wrap_python_try_except(&result);
+            }
+            "rust" | "rs" => {
+                result = result.replace(".unwrap()", "?");
+            }
+            "javascript" | "js" => {
+                result = wrap_js_try_catch(&result);
+            }
+            _ => {}
+        }
+    }
+
+    // Add logging: "로깅 추가", "add logging"
+    if lower.contains("로깅") || lower.contains("logging") || lower.contains("로그") || lower.contains("log") {
+        match lang {
+            "python" | "py" => {
+                if !result.contains("import logging") {
+                    result = format!("import logging\nlogging.basicConfig(level=logging.INFO)\nlogger = logging.getLogger(__name__)\n\n{}", result);
+                }
+            }
+            "rust" | "rs" => {
+                if !result.contains("eprintln!") {
+                    result = result.replace("fn main() {", "fn main() {\n    eprintln!(\"[INFO] 서버 시작\");");
+                }
+            }
+            "javascript" | "js" => {
+                if !result.contains("console.log") {
+                    result = result.replace("app.listen", "console.log('Server starting...');\napp.listen");
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Async conversion: "비동기로", "make async"
+    if lower.contains("비동기") || lower.contains("async") {
+        match lang {
+            "python" | "py" => {
+                result = result.replace("def ", "async def ");
+                if !result.contains("import asyncio") {
+                    result = format!("import asyncio\n\n{}", result);
+                }
+            }
+            "javascript" | "js" => {
+                result = result.replace("function ", "async function ");
+            }
+            _ => {}
+        }
+    }
+
+    result
+}
+
+fn extract_number(s: &str) -> Option<u64> {
+    s.split_whitespace()
+        .filter_map(|w| w.parse::<u64>().ok())
+        .next()
+}
+
+fn wrap_python_try_except(code: &str) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    lines.push("try:".to_string());
+    for line in code.lines() {
+        lines.push(format!("    {}", line));
+    }
+    lines.push("except Exception as e:".to_string());
+    lines.push("    print(f\"오류: {e}\")".to_string());
+    lines.join("\n")
+}
+
+fn wrap_js_try_catch(code: &str) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    lines.push("try {".to_string());
+    for line in code.lines() {
+        lines.push(format!("  {}", line));
+    }
+    lines.push("} catch (error) {".to_string());
+    lines.push("  console.error('Error:', error.message);".to_string());
+    lines.push("}".to_string());
+    lines.join("\n")
 }
 
 /// 생성된 코드의 기본 구문 검증
@@ -728,7 +1217,7 @@ fn confidence_to_phase(confidence: f32) -> Phase {
 }
 
 /// 코드에 줄별 설명 추가 (--explain 모드)
-fn add_explanations(code: &str, _lang: &str) -> String {
+pub fn add_explanations(code: &str, _lang: &str) -> String {
     let mut result = Vec::new();
     for line in code.lines() {
         let trimmed = line.trim();
@@ -746,51 +1235,284 @@ fn add_explanations(code: &str, _lang: &str) -> String {
     result.join("\n")
 }
 
-/// 코드 줄 패턴별 설명 생성
+/// Localized explanation helper — picks string by user language
+fn localized_explanation(ko: &'static str, en: &'static str, sw: &'static str, hi: &'static str) -> &'static str {
+    match crate::i18n::detect_lang() {
+        "ko" => ko,
+        "sw" => sw,
+        "hi" => hi,
+        _ => en,
+    }
+}
+
+/// 코드 줄 패턴별 설명 생성 (다국어)
 fn explain_line(line: &str) -> Option<&'static str> {
     let l = line.to_lowercase();
     // Python
-    if l.contains("import ") || (l.contains("from ") && l.contains("import")) { return Some("라이브러리 가져오기"); }
-    if l.contains("def ") { return Some("함수 정의"); }
-    if l.contains("class ") && !l.contains("// class") { return Some("클래스 정의"); }
-    if l.starts_with("return ") || l.starts_with("    return") { return Some("결과 반환"); }
-    if l.contains("if __name__") { return Some("직접 실행 시에만 동작"); }
-    if l.contains("for ") && l.contains(" in ") { return Some("반복문"); }
-    if l.contains("while ") && !l.contains("//") { return Some("조건 반복"); }
-    if l.contains(".append(") { return Some("목록에 추가"); }
-    if l.contains("print(") || l.contains("println!") { return Some("화면 출력"); }
+    if l.contains("import ") || (l.contains("from ") && l.contains("import")) {
+        return Some(localized_explanation("라이브러리 가져오기", "import library", "ingiza maktaba", "लाइब्रेरी आयात"));
+    }
+    if l.contains("def ") {
+        return Some(localized_explanation("함수 정의", "function definition", "ufafanuzi wa kazi", "फ़ंक्शन परिभाषा"));
+    }
+    if l.contains("class ") && !l.contains("// class") {
+        return Some(localized_explanation("클래스 정의", "class definition", "ufafanuzi wa darasa", "क्लास परिभाषा"));
+    }
+    if l.starts_with("return ") || l.starts_with("    return") {
+        return Some(localized_explanation("결과 반환", "return result", "rudisha matokeo", "परिणाम वापसी"));
+    }
+    if l.contains("if __name__") {
+        return Some(localized_explanation("직접 실행 시에만 동작", "run only when executed directly", "endesha tu inapotekelezwa moja kwa moja", "सीधे चलाने पर ही काम करे"));
+    }
+    if l.contains("for ") && l.contains(" in ") {
+        return Some(localized_explanation("반복문", "loop", "kitanzi", "लूप"));
+    }
+    if l.contains("while ") && !l.contains("//") {
+        return Some(localized_explanation("조건 반복", "loop", "kitanzi", "लूप"));
+    }
+    if l.contains(".append(") {
+        return Some(localized_explanation("목록에 추가", "add to list", "ongeza kwenye orodha", "सूची में जोड़ें"));
+    }
+    if l.contains("print(") || l.contains("println!") {
+        return Some(localized_explanation("화면 출력", "print output", "chapisha matokeo", "आउटपुट प्रिंट"));
+    }
     // Rust
-    if l.starts_with("use ") { return Some("라이브러리 가져오기"); }
-    if l.starts_with("fn ") || l.contains("pub fn ") || l.contains("async fn ") { return Some("함수 정의"); }
-    if l.starts_with("struct ") || l.contains("pub struct ") { return Some("구조체 정의"); }
-    if l.contains("impl ") { return Some("구현 블록"); }
-    if l.contains("let ") && l.contains("= ") { return Some("변수 선언"); }
-    if l.contains(".unwrap()") { return Some("값 추출 (실패 시 중단)"); }
-    if l.contains(".await") { return Some("비동기 대기"); }
-    if l.contains("match ") { return Some("패턴 매칭"); }
-    if l.contains("Vec<") { return Some("동적 배열"); }
-    if l.contains("HashMap") { return Some("키-값 맵"); }
-    if l.contains("Option<") { return Some("있을 수도 없을 수도 있는 값"); }
-    if l.contains("Result<") { return Some("성공 또는 실패"); }
-    if l.contains("#[tokio::main]") { return Some("비동기 메인 함수"); }
-    if l.contains("#[test]") { return Some("테스트 함수"); }
-    if l.contains("#[derive(") { return Some("자동 구현 매크로"); }
-    if l.contains("TcpListener") || l.contains("bind(") { return Some("서버 포트 열기"); }
-    if l.contains(".listen(") || l.contains(".incoming()") { return Some("연결 대기"); }
-    if l.contains(".write_all(") || l.contains(".send(") { return Some("데이터 전송"); }
-    if l.contains(".read(") { return Some("데이터 읽기"); }
-    if l.contains("Router::new()") { return Some("URL 라우터 생성"); }
-    if l.contains(".route(") { return Some("경로 등록"); }
+    if l.starts_with("use ") {
+        return Some(localized_explanation("라이브러리 가져오기", "import library", "ingiza maktaba", "लाइब्रेरी आयात"));
+    }
+    if l.starts_with("fn ") || l.contains("pub fn ") || l.contains("async fn ") {
+        return Some(localized_explanation("함수 정의", "function definition", "ufafanuzi wa kazi", "फ़ंक्शन परिभाषा"));
+    }
+    if l.starts_with("struct ") || l.contains("pub struct ") {
+        return Some(localized_explanation("구조체 정의", "struct definition", "ufafanuzi wa darasa", "स्ट्रक्ट परिभाषा"));
+    }
+    if l.contains("impl ") {
+        return Some(localized_explanation("구현 블록", "implementation block", "kizuizi cha utekelezaji", "इम्प्लीमेंटेशन ब्लॉक"));
+    }
+    if l.contains("let ") && l.contains("= ") {
+        return Some(localized_explanation("변수 선언", "variable declaration", "tamko la kigezo", "वेरिएबल घोषणा"));
+    }
+    if l.contains(".unwrap()") {
+        return Some(localized_explanation("값 추출 (실패 시 중단)", "unwrap value (panic on failure)", "toa thamani (simama ikishindwa)", "वैल्यू निकालें (विफल होने पर रुकें)"));
+    }
+    if l.contains(".await") {
+        return Some(localized_explanation("비동기 대기", "async operation", "operesheni ya async", "एसिंक ऑपरेशन"));
+    }
+    if l.contains("match ") {
+        return Some(localized_explanation("패턴 매칭", "condition", "sharti", "शर्त"));
+    }
+    if l.contains("Vec<") {
+        return Some(localized_explanation("동적 배열", "dynamic array", "safu inayobadilika", "डायनेमिक एरे"));
+    }
+    if l.contains("HashMap") {
+        return Some(localized_explanation("키-값 맵", "key-value map", "ramani ya ufunguo-thamani", "की-वैल्यू मैप"));
+    }
+    if l.contains("Option<") {
+        return Some(localized_explanation("있을 수도 없을 수도 있는 값", "optional value", "thamani ya hiari", "वैकल्पिक वैल्यू"));
+    }
+    if l.contains("Result<") {
+        return Some(localized_explanation("성공 또는 실패", "error handling", "kushughulikia makosa", "एरर हैंडलिंग"));
+    }
+    if l.contains("#[tokio::main]") {
+        return Some(localized_explanation("비동기 메인 함수", "async main function", "kazi kuu ya async", "एसिंक मेन फ़ंक्शन"));
+    }
+    if l.contains("#[test]") {
+        return Some(localized_explanation("테스트 함수", "test function", "kazi ya jaribio", "टेस्ट फ़ंक्शन"));
+    }
+    if l.contains("#[derive(") {
+        return Some(localized_explanation("자동 구현 매크로", "derive macro", "makro ya kupata", "डेराइव मैक्रो"));
+    }
+    if l.contains("TcpListener") || l.contains("bind(") {
+        return Some(localized_explanation("서버 포트 열기", "open server port", "fungua bandari ya seva", "सर्वर पोर्ट खोलें"));
+    }
+    if l.contains(".listen(") || l.contains(".incoming()") {
+        return Some(localized_explanation("연결 대기", "wait for connections", "subiri miunganisho", "कनेक्शन की प्रतीक्षा"));
+    }
+    if l.contains(".write_all(") || l.contains(".send(") {
+        return Some(localized_explanation("데이터 전송", "send data", "tuma data", "डेटा भेजें"));
+    }
+    if l.contains(".read(") {
+        return Some(localized_explanation("데이터 읽기", "read data", "soma data", "डेटा पढ़ें"));
+    }
+    if l.contains("Router::new()") {
+        return Some(localized_explanation("URL 라우터 생성", "create URL router", "unda kipanga njia cha URL", "URL राउटर बनाएं"));
+    }
+    if l.contains(".route(") {
+        return Some(localized_explanation("경로 등록", "register route", "sajili njia", "रूट रजिस्टर करें"));
+    }
     // JavaScript
-    if l.contains("require(") { return Some("모듈 가져오기"); }
-    if l.contains("module.exports") { return Some("모듈 내보내기"); }
-    if l.contains("express()") { return Some("Express 앱 생성"); }
-    if l.contains(".listen(") { return Some("서버 시작"); }
-    if l.contains("console.log(") { return Some("콘솔 출력"); }
-    if l.contains("async function") { return Some("비동기 함수 정의"); }
-    if l.starts_with("function ") { return Some("함수 정의"); }
-    if l.contains("const ") && l.contains(" = ") { return Some("상수 선언"); }
-    if l.starts_with("let ") && l.contains(" = ") { return Some("변수 선언"); }
-    if l.contains(".json(") { return Some("JSON 응답"); }
+    if l.contains("require(") {
+        return Some(localized_explanation("모듈 가져오기", "import library", "ingiza maktaba", "लाइब्रेरी आयात"));
+    }
+    if l.contains("module.exports") {
+        return Some(localized_explanation("모듈 내보내기", "export module", "hamisha moduli", "मॉड्यूल निर्यात"));
+    }
+    if l.contains("express()") {
+        return Some(localized_explanation("Express 앱 생성", "create Express app", "unda programu ya Express", "Express ऐप बनाएं"));
+    }
+    if l.contains("console.log(") {
+        return Some(localized_explanation("콘솔 출력", "print output", "chapisha matokeo", "आउटपुट प्रिंट"));
+    }
+    if l.contains("async function") {
+        return Some(localized_explanation("비동기 함수 정의", "async operation", "operesheni ya async", "एसिंक ऑपरेशन"));
+    }
+    if l.starts_with("function ") {
+        return Some(localized_explanation("함수 정의", "function definition", "ufafanuzi wa kazi", "फ़ंक्शन परिभाषा"));
+    }
+    if l.contains("const ") && l.contains(" = ") {
+        return Some(localized_explanation("상수 선언", "variable declaration", "tamko la kigezo", "वेरिएबल घोषणा"));
+    }
+    if l.starts_with("let ") && l.contains(" = ") {
+        return Some(localized_explanation("변수 선언", "variable declaration", "tamko la kigezo", "वेरिएबल घोषणा"));
+    }
+    if l.contains(".json(") {
+        return Some(localized_explanation("JSON 응답", "JSON response", "jibu la JSON", "JSON रिस्पॉन्स"));
+    }
+    // Error handling patterns
+    if l.contains("try:") || l.contains("try {") || l.contains("try!") {
+        return Some(localized_explanation("에러 처리", "error handling", "kushughulikia makosa", "एरर हैंडलिंग"));
+    }
+    if l.contains("except ") || l.contains("catch ") || l.contains("Err(") {
+        return Some(localized_explanation("에러 처리", "error handling", "kushughulikia makosa", "एरर हैंडलिंग"));
+    }
+    // if/else conditions
+    if l.starts_with("if ") || l.starts_with("} else") || l.starts_with("elif ") {
+        return Some(localized_explanation("조건문", "condition", "sharti", "शर्त"));
+    }
     None
+}
+
+/// 파일 확장자로 언어 감지
+fn detect_lang_from_ext(path: &str) -> &'static str {
+    if path.ends_with(".py") { "python" }
+    else if path.ends_with(".rs") { "rust" }
+    else if path.ends_with(".js") || path.ends_with(".ts") { "javascript" }
+    else if path.ends_with(".go") { "go" }
+    else if path.ends_with(".java") { "java" }
+    else if path.ends_with(".c") || path.ends_with(".h") { "c" }
+    else if path.ends_with(".cpp") || path.ends_with(".hpp") { "cpp" }
+    else { "unknown" }
+}
+
+/// 코드 파일 요약 분석
+fn analyze_code(code: &str, lang: &str) -> Vec<String> {
+    let mut summary = Vec::new();
+    let lines = code.lines().count();
+    summary.push(format!("{} 줄", lines));
+
+    match lang {
+        "python" => {
+            let imports = code.lines().filter(|l| l.trim().starts_with("import ") || l.trim().starts_with("from ")).count();
+            let functions = code.lines().filter(|l| l.trim().starts_with("def ") || l.trim().starts_with("async def ")).count();
+            let classes = code.lines().filter(|l| l.trim().starts_with("class ")).count();
+            if imports > 0 { summary.push(format!("import {}개", imports)); }
+            if functions > 0 { summary.push(format!("함수 {}개", functions)); }
+            if classes > 0 { summary.push(format!("클래스 {}개", classes)); }
+        }
+        "rust" => {
+            let uses = code.lines().filter(|l| l.trim().starts_with("use ")).count();
+            let fns = code.lines().filter(|l| l.contains("fn ") && !l.trim().starts_with("//")).count();
+            let structs = code.lines().filter(|l| l.contains("struct ") && !l.trim().starts_with("//")).count();
+            let impls = code.lines().filter(|l| l.trim().starts_with("impl ")).count();
+            if uses > 0 { summary.push(format!("use {}개", uses)); }
+            if fns > 0 { summary.push(format!("함수 {}개", fns)); }
+            if structs > 0 { summary.push(format!("구조체 {}개", structs)); }
+            if impls > 0 { summary.push(format!("impl {}개", impls)); }
+        }
+        "javascript" => {
+            let imports = code.lines().filter(|l| l.trim().starts_with("import ") || l.contains("require(")).count();
+            let fns = code.lines().filter(|l| l.contains("function ") || l.contains("=> {") || l.contains("=>")).count();
+            let classes = code.lines().filter(|l| l.trim().starts_with("class ")).count();
+            if imports > 0 { summary.push(format!("import {}개", imports)); }
+            if fns > 0 { summary.push(format!("함수/화살표 {}개", fns)); }
+            if classes > 0 { summary.push(format!("클래스 {}개", classes)); }
+        }
+        _ => {}
+    }
+
+    // Detect patterns
+    if code.contains("async") { summary.push("비동기 코드".to_string()); }
+    if code.contains("#[test]") || code.contains("def test_") || code.contains("describe(") { summary.push("테스트 포함".to_string()); }
+    if code.contains("TODO") || code.contains("FIXME") { summary.push("TODO/FIXME 있음".to_string()); }
+
+    summary
+}
+
+fn generate_python_requirements(intents: &[&str]) -> String {
+    let mut deps = Vec::new();
+    for intent in intents {
+        match *intent {
+            "rest_api" | "health_check" | "cors_middleware" | "pagination" | "api_versioning" => deps.push("fastapi>=0.100.0"),
+            "http_server" | "static_file_server" => deps.push("uvicorn>=0.23.0"),
+            "database_client" | "postgresql_client" => deps.push("asyncpg>=0.28.0"),
+            "mongodb_client" => deps.push("pymongo>=4.5.0"),
+            "redis_client" | "cache_client" => deps.push("redis>=5.0.0"),
+            "jwt_handler" | "auth_handler" => deps.push("pyjwt>=2.8.0"),
+            "password_hasher" => deps.push("bcrypt>=4.0.0"),
+            "graphql_server" => deps.push("ariadne>=0.20.0"),
+            "grpc_server" => deps.push("grpcio>=1.58.0"),
+            "websocket_chat" | "websocket_server" => deps.push("websockets>=12.0"),
+            "mqtt_client" => deps.push("paho-mqtt>=1.6.0"),
+            "csv_parser" | "json_parser" | "yaml_parser" => {}
+            "validator" => deps.push("pydantic>=2.4.0"),
+            "etl_pipeline" | "data_processor" => deps.push("pandas>=2.1.0"),
+            "logger" | "env_config" | "config_loader" => {}
+            _ => {}
+        }
+    }
+    deps.sort();
+    deps.dedup();
+    deps.join("\n") + "\n"
+}
+
+fn generate_cargo_toml(name: &str, intents: &[&str]) -> String {
+    let mut deps = Vec::new();
+    for intent in intents {
+        match *intent {
+            "rest_api" | "http_server" | "health_check" | "cors_middleware" | "static_file_server" =>
+                { deps.push("axum = \"0.7\""); deps.push("tokio = { version = \"1\", features = [\"full\"] }"); }
+            "database_client" | "postgresql_client" => deps.push("sqlx = { version = \"0.7\", features = [\"runtime-tokio\", \"postgres\"] }"),
+            "mongodb_client" => deps.push("mongodb = \"2\""),
+            "redis_client" | "cache_client" => deps.push("redis = \"0.23\""),
+            "jwt_handler" => deps.push("jsonwebtoken = \"9\""),
+            "password_hasher" => deps.push("bcrypt = \"0.15\""),
+            "serializer" | "deserializer" | "json_parser" | "config_loader" =>
+                { deps.push("serde = { version = \"1\", features = [\"derive\"] }"); deps.push("serde_json = \"1\""); }
+            "logger" => deps.push("tracing = \"0.1\""),
+            "env_config" => deps.push("dotenvy = \"0.15\""),
+            "graphql_server" => deps.push("async-graphql = \"6\""),
+            "grpc_server" => deps.push("tonic = \"0.10\""),
+            "websocket_chat" | "websocket_server" => deps.push("tokio-tungstenite = \"0.20\""),
+            _ => {}
+        }
+    }
+    deps.sort();
+    deps.dedup();
+
+    format!("[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n{}\n",
+        name.replace('-', "_"), deps.join("\n"))
+}
+
+fn generate_package_json(name: &str, intents: &[&str]) -> String {
+    let mut deps = Vec::new();
+    for intent in intents {
+        match *intent {
+            "rest_api" | "http_server" | "health_check" | "static_file_server" => deps.push("\"express\": \"^4.18.0\""),
+            "cors_middleware" => { deps.push("\"express\": \"^4.18.0\""); deps.push("\"cors\": \"^2.8.5\""); }
+            "database_client" | "postgresql_client" => deps.push("\"pg\": \"^8.11.0\""),
+            "mongodb_client" => deps.push("\"mongodb\": \"^6.1.0\""),
+            "redis_client" | "cache_client" => deps.push("\"redis\": \"^4.6.0\""),
+            "jwt_handler" | "auth_handler" => deps.push("\"jsonwebtoken\": \"^9.0.0\""),
+            "password_hasher" => deps.push("\"bcrypt\": \"^5.1.0\""),
+            "websocket_chat" | "websocket_server" => deps.push("\"ws\": \"^8.14.0\""),
+            "env_config" => deps.push("\"dotenv\": \"^16.3.0\""),
+            "logger" => deps.push("\"winston\": \"^3.11.0\""),
+            _ => {}
+        }
+    }
+    deps.sort();
+    deps.dedup();
+
+    format!("{{\n  \"name\": \"{}\",\n  \"version\": \"0.1.0\",\n  \"main\": \"main.js\",\n  \"dependencies\": {{\n    {}\n  }}\n}}\n",
+        name, deps.join(",\n    "))
 }

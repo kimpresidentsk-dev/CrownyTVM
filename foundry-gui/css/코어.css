@@ -28,6 +28,37 @@
   --r:        5px;
 }
 
+/* ── 다크 모드 (#49) ── */
+[data-theme="dark"] {
+  --확정:   #3DAA7A;
+  --미확인: #C49A4E;
+  --오류:   #C45555;
+  --미인지: #888;
+  --확정-bg:   #1A2E25;
+  --미확인-bg: #2E2A1A;
+  --오류-bg:   #2E1A1A;
+  --미인지-bg: #222;
+  --bg:       #141414;
+  --surface:  #1C1C1C;
+  --panel:    #181818;
+  --border:   rgba(255,255,255,0.08);
+  --text-1:   #E8E8E6;
+  --text-2:   #A0A09C;
+  --text-3:   #686864;
+}
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background: var(--bg); color: var(--text-1); border-color: var(--border);
+}
+[data-theme="dark"] .card { background: var(--surface); }
+[data-theme="dark"] .stat { background: var(--surface); }
+
+/* ── 로딩 인디케이터 (#53) ── */
+.loading { position: fixed; top: var(--header-h); left: 0; right: 0; height: 2px; z-index: 100; pointer-events: none; }
+.loading-bar { height: 100%; background: var(--확정); width: 0; transition: width .3s; }
+.loading.active .loading-bar { width: 70%; animation: loadPulse 1.5s infinite; }
+.loading.done .loading-bar { width: 100%; opacity: 0; transition: width .2s, opacity .3s .2s; }
+@keyframes loadPulse { 0%{width:10%} 50%{width:70%} 100%{width:90%} }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {

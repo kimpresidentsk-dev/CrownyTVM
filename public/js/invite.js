@@ -2,7 +2,7 @@
 (function() {
     'use strict';
 
-    const INVITE_URL_BASE = 'https://crowny-org.vercel.app/#invite=';
+    const INVITE_URL_BASE = 'https://crowny.org/#invite=';
     let inviteSettings = null;
     let rewardSettings = null;
     let userReferralCode = null;
@@ -72,16 +72,19 @@
         try {
             if (!window.Kakao) { showToast(t('invite.kakao_sdk_fail', 'Kakao SDK failed to load'), 'error'); return; }
             if (!Kakao.isInitialized()) Kakao.init(appKey);
-            Kakao.Share.sendDefault({ objectType: 'feed', content: { title: t('invite.kakao_title', 'CROWNY'), description: t('invite.kakao_desc', 'All-in-One Platform'), imageUrl: 'https://crowny-org.vercel.app/img/og-image.png', link: { mobileWebUrl: link, webUrl: link } }, buttons: [{ title: t('invite.kakao_btn', 'Sign Up'), link: { mobileWebUrl: link, webUrl: link } }] });
+            Kakao.Share.sendDefault({ objectType: 'feed', content: { title: t('invite.kakao_title', 'CROWNY'), description: t('invite.kakao_desc', 'All-in-One Platform'), imageUrl: 'https://crowny.org/img/og-image.png', link: { mobileWebUrl: link, webUrl: link } }, buttons: [{ title: t('invite.kakao_btn', 'Sign Up'), link: { mobileWebUrl: link, webUrl: link } }] });
         } catch (e) { console.error('Kakao share error:', e); showToast(t('invite.kakao_fail', 'KakaoTalk share failed'), 'error'); }
     }
 
     function shareFacebook() {
         const link = getInviteLink(); if (!link) return;
-        const appId = inviteSettings?.facebookAppId;
-        if (!appId) { showToast(t('invite.fb_no_id', 'Facebook App ID is not configured.'), 'warning'); return; }
-        if (window.FB) { FB.ui({ method: 'share', href: link }, function() {}); }
-        else { window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link), '_blank'); }
+        if (navigator.share) {
+            navigator.share({ title: 'CROWNY', text: t('invite.share_text', 'Join CROWNY!'), url: link }).catch(() => {});
+        } else {
+            // Fallback: copy to clipboard
+            navigator.clipboard?.writeText(link);
+            showToast(t('invite.link_copied', 'Link copied to clipboard'), 'success');
+        }
     }
 
     async function showInviteModal() {
