@@ -608,6 +608,14 @@ function saveCells() { saveJSON('cells.json', cells); }
 // ═══ 사용자 관리 ═══
 
 let users = loadJSON('users.json', {});
+// Guard: if users.json was corrupted to array format, convert back to dict
+if (Array.isArray(users)) {
+    const fixed = {};
+    users.forEach(u => { if (u && u.username) { fixed[u.username] = u; if (u.passwordHash && !u.password) u.password = u.passwordHash; } });
+    users = fixed;
+    saveJSON('users.json', users);
+    console.log('[WARN] users.json was array format — auto-converted to dict:', Object.keys(users).length, 'users');
+}
 
 // ── 비밀번호 해싱 (scrypt + 랜덤 salt) ──
 function hashPasswordSecure(pw) {
