@@ -1,264 +1,300 @@
-// CrownyCore — 교회 전용 UI
-// 교인 한 명의 삶 = 디지털 트윈
-// 교인 카드 → 출석/소그룹/기도/봉사/헌금/성장 통합
-
+// CrownyCore — 교회 관리 (실사용 수준)
+// 탭: 교인 | 소그룹 | 헌금 | 기도 | 공지
 const API = '/api/foundry';
 
 class 교회앱 {
-  constructor(컨테이너ID) {
-    this.el = document.getElementById(컨테이너ID);
-    this.members = [];
-    this.selected = null;
-  }
+  constructor(id) { this.el = document.getElementById(id); this.tab = 'member'; }
 
   async 초기화() {
-    // 교회 템플릿이 배포되어 있는지 확인
-    const res = await fetch(`${API}/stats`);
-    const stats = await res.json();
+    if (!this.el) return;
+    // 핵심 템플릿 자동 배포
+    const stats = await (await fetch(`${API}/stats`)).json();
     if (stats.totalCells === 0) {
-      // 교회 4개 핵심 템플릿 자동 배포
-      const tmpls = ['ch-member','ch-smallgroup','ch-prayer','ch-offering'];
-      for (const id of tmpls) {
+      for (const id of ['ch-member','ch-smallgroup','ch-prayer','ch-offering']) {
         await fetch(`${API}/templates/${id}/deploy`, { method: 'POST' });
       }
     }
-    await this.로드();
-  }
-
-  async 로드() {
-    // "교인" 타입 셀 검색 (layer:0 + 사용자가 추가한 교인 셀)
-    const res = await fetch(`${API}/cells?limit=500`);
-    const data = await res.json();
-    this.allCells = data.cells || [];
-    // 교인 = layer 0이면서 type 3(문자열)이고 시스템 셀이 아닌 것
-    this.members = this.allCells.filter(c =>
-      c.type === 3 && !['교인등록','가족관계','소그룹목록','소그룹원','리더','모임일정',
-        '나눔기록','기도제목','요청자','중보기도자','기도체인','감사나눔',
-        '주일헌금','감사헌금','선교헌금','건축헌금','예산편성','월간보고',
-        '새가족과정','은사파악','봉사배치','출석기록'].includes(c.name)
-      && c.name && c.name.length >= 2 && c.name.length <= 20
-    );
     this.렌더();
   }
 
-  렌더() {
+  async 렌더() {
     if (!this.el) return;
-
-    const stats = {
-      total: this.members.length,
-      confirmed: this.members.filter(c => c.status === 2).length,
-      pending: this.members.filter(c => c.status === 0).length,
-    };
+    const tabs = [
+      { id: 'member', label: '교인 관리' },
+      { id: 'group', label: '소그룹' },
+      { id: 'offering', label: '헌금·재정' },
+      { id: 'prayer', label: '기도' },
+      { id: 'notice', label: '공지·주보' },
+    ];
 
     this.el.innerHTML = `
-      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-        <div class="stat" style="flex:1;min-width:80px"><div class="stat-v">${stats.total}</div><div class="stat-l">전체 교인</div></div>
-        <div class="stat" style="flex:1;min-width:80px"><div class="stat-v" style="color:var(--확정)">${stats.confirmed}</div><div class="stat-l">정착 완료</div></div>
-        <div class="stat" style="flex:1;min-width:80px"><div class="stat-v" style="color:var(--미확인)">${stats.pending}</div><div class="stat-l">새가족</div></div>
+      <div style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px">
+        ${tabs.map(t => `<button class="btn ${this.tab===t.id?'btn-p':''} _tab" data-tab="${t.id}" style="font-size:11px">${t.label}</button>`).join('')}
       </div>
+      <div id="_churchContent"></div>
+    `;
 
-      <!-- 교인 등록 -->
-      <div class="card" style="margin-bottom:12px">
-        <div class="card-h"><span class="card-t">교인 등록</span></div>
-        <form id="_memberForm" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
-          <div style="display:flex;flex-direction:column;gap:2px">
-            <label style="font-size:9px;color:var(--text-3)">이름</label>
-            <input name="name" placeholder="홍길동" required style="width:80px">
-          </div>
-          <div style="display:flex;flex-direction:column;gap:2px">
-            <label style="font-size:9px;color:var(--text-3)">연락처</label>
-            <input name="phone" placeholder="010-0000-0000" style="width:110px">
-          </div>
-          <div style="display:flex;flex-direction:column;gap:2px">
-            <label style="font-size:9px;color:var(--text-3)">구분</label>
-            <select name="category" style="width:80px">
-              <option>새가족</option><option>정착</option><option>봉사자</option><option>리더</option>
-            </select>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:2px">
-            <label style="font-size:9px;color:var(--text-3)">소그룹</label>
-            <input name="group" placeholder="1셀" style="width:60px">
-          </div>
+    this.el.querySelectorAll('._tab').forEach(btn => {
+      btn.addEventListener('click', () => { this.tab = btn.dataset.tab; this.렌더(); });
+    });
+
+    const content = document.getElementById('_churchContent');
+    if (!content) return;
+
+    switch (this.tab) {
+      case 'member': await this._memberTab(content); break;
+      case 'group': await this._groupTab(content); break;
+      case 'offering': await this._offeringTab(content); break;
+      case 'prayer': await this._prayerTab(content); break;
+      case 'notice': this._noticeTab(content); break;
+    }
+  }
+
+  // ─── 교인 관리 탭 ───
+  async _memberTab(el) {
+    const cells = await (await fetch(`${API}/cells?limit=500`)).json();
+    const sysNames = ['교인등록','가족관계','소그룹목록','소그룹원','리더','모임일정','나눔기록','기도제목','요청자','중보기도자','기도체인','감사나눔','주일헌금','감사헌금','선교헌금','건축헌금','예산편성','월간보고','새가족과정','은사파악','봉사배치','출석기록','소그룹배정','성장추적','성장단계','정착확인','총수입','집행내역','잔액현황','감사결과','긴급도','기도횟수','응답기록','활동도','그룹건강','설교목록','설교자','성경본문','설교시리즈','핵심메시지','영상링크','삶적용','적용확인'];
+    const members = (cells.cells||[]).filter(c => c.type === 3 && c.name && !sysNames.includes(c.name) && c.name.length >= 2 && c.name.length <= 20 && !c.name.includes(':'));
+    const confirmed = members.filter(m => m.status === 2).length;
+
+    el.innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <div class="stat" style="flex:1;min-width:70px"><div class="stat-v">${members.length}</div><div class="stat-l">전체 교인</div></div>
+        <div class="stat" style="flex:1;min-width:70px"><div class="stat-v" style="color:var(--확정)">${confirmed}</div><div class="stat-l">정착</div></div>
+        <div class="stat" style="flex:1;min-width:70px"><div class="stat-v" style="color:var(--미확인)">${members.length - confirmed}</div><div class="stat-l">새가족</div></div>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <form id="_mForm" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
+          <input name="name" placeholder="이름" required style="width:70px">
+          <input name="phone" placeholder="연락처" style="width:100px">
+          <select name="cat" style="width:70px"><option>새가족</option><option>정착</option><option>봉사자</option><option>리더</option></select>
+          <input name="group" placeholder="소그룹" style="width:60px">
+          <input name="note" placeholder="메모" style="width:100px">
           <button type="submit" class="btn btn-p">등록</button>
         </form>
       </div>
-
-      <!-- 교인 목록 -->
       <div class="card">
-        <div class="card-h">
-          <span class="card-t">교인 명부</span>
-          <input id="_memberFilter" placeholder="이름 검색..." style="width:120px;font-size:10px">
-        </div>
-        <div style="max-height:400px;overflow-y:auto" id="_memberList">
-          ${this.members.length ? '' : '<div style="padding:20px;text-align:center;color:var(--text-3);font-size:11px">위에서 교인을 등록하세요</div>'}
-        </div>
-      </div>
+        <input id="_mFilter" placeholder="이름 검색..." style="width:150px;margin-bottom:8px">
+        <table style="width:100%;font-size:11px;border-collapse:collapse" id="_mTable">
+          <thead><tr style="border-bottom:1px solid var(--border);font-size:9px;color:var(--text-3);font-weight:600">
+            <th style="padding:3px 6px;text-align:left">상태</th><th style="padding:3px 6px;text-align:left">이름</th>
+            <th style="padding:3px 6px;text-align:left">정보</th><th style="padding:3px 6px">출석</th><th style="padding:3px 6px">신뢰</th>
+            <th style="padding:3px 6px;text-align:right">작업</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>`;
 
-      <!-- 선택된 교인 상세 -->
-      <div class="card" style="margin-top:12px;display:none" id="_memberDetail"></div>
-    `;
+    this._renderMembers(members);
 
-    this._renderList();
-    this._bindEvents();
-  }
-
-  _renderList(filter = '') {
-    const list = document.getElementById('_memberList');
-    if (!list) return;
-    const q = filter.toLowerCase();
-    const filtered = q ? this.members.filter(m => (m.name||'').toLowerCase().includes(q)) : this.members;
-
-    list.innerHTML = `
-      <table style="width:100%;font-size:11px;border-collapse:collapse">
-        <thead><tr style="border-bottom:1px solid var(--border);color:var(--text-3);font-size:9px;font-weight:600;letter-spacing:.04em">
-          <th style="padding:4px 8px;text-align:left">상태</th>
-          <th style="padding:4px 8px;text-align:left">이름</th>
-          <th style="padding:4px 8px;text-align:left">정보</th>
-          <th style="padding:4px 8px;text-align:left">근거</th>
-          <th style="padding:4px 8px;text-align:left">신뢰</th>
-          <th style="padding:4px 8px;text-align:right">작업</th>
-        </tr></thead>
-        <tbody>
-        ${filtered.map(m => {
-          const st = ({'2':'확정','0':'미확인','-2':'오류','-1':'미인지'})[String(m.status)] || '미인지';
-          return `<tr class="ws-item" data-id="${m.id}" style="border-bottom:1px solid var(--border);cursor:pointer">
-            <td style="padding:4px 8px"><div class="dot ${st}" style="display:inline-block"></div></td>
-            <td style="padding:4px 8px;font-weight:500">${m.name}</td>
-            <td style="padding:4px 8px;color:var(--text-3);font-size:10px">${typeof m.content === 'string' ? m.content.slice(0,20) : ''}</td>
-            <td style="padding:4px 8px">${m.evidence||0}</td>
-            <td style="padding:4px 8px">${m.trust||0}/13</td>
-            <td style="padding:4px 8px;text-align:right">
-              <button class="btn _ev" data-id="${m.id}" title="출석/활동 근거" style="font-size:9px;padding:1px 5px">출석+</button>
-              <button class="btn _adv" data-id="${m.id}" title="상태 승격" style="font-size:9px;padding:1px 5px">전진▲</button>
-            </td>
-          </tr>`;
-        }).join('')}
-        </tbody>
-      </table>
-    `;
-
-    // 행 클릭 → 상세
-    list.querySelectorAll('tr[data-id]').forEach(tr => {
-      tr.addEventListener('click', (e) => {
-        if (e.target.tagName === 'BUTTON') return;
-        this._showMember(+tr.dataset.id);
-      });
-    });
-
-    // 출석 버튼
-    list.querySelectorAll('._ev').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await fetch(`${API}/cells/${btn.dataset.id}/evidence`, { method: 'POST' });
-        await this.로드();
-        document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '출석 기록!', type: '확정' } }));
-      });
-    });
-
-    // 전진 버튼
-    list.querySelectorAll('._adv').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await fetch(`${API}/cells/${btn.dataset.id}/advance`, { method: 'POST' });
-        await this.로드();
-      });
-    });
-  }
-
-  async _showMember(id) {
-    const res = await fetch(`${API}/cells/${id}`);
-    if (!res.ok) return;
-    const m = await res.json();
-    const detail = document.getElementById('_memberDetail');
-    if (!detail) return;
-    detail.style.display = 'block';
-
-    // 연결 정보
-    let chainHtml = '';
-    try {
-      const cr = await fetch(`${API}/cells/${id}/chain?depth=5`);
-      const chain = await cr.json();
-      if (chain.chain?.length > 1) {
-        chainHtml = '<div style="margin-top:8px"><span style="font-size:9px;color:var(--text-3)">연결:</span> ' +
-          chain.chain.map(c => `<span class="badge ${({'2':'확정','0':'미확인'})[String(c.status)]||'미인지'}" style="margin:1px">${c.name||'#'+c.id}</span>`).join(' → ') + '</div>';
-      }
-    } catch {}
-
-    // Claim 검색
-    let claimsHtml = '';
-    try {
-      const clRes = await fetch(`${API}/claims?subject=${encodeURIComponent(m.name)}`);
-      const cls = await clRes.json();
-      if (cls.claims?.length > 0) {
-        claimsHtml = '<div style="margin-top:8px"><span style="font-size:9px;color:var(--text-3)">기록:</span><div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">' +
-          cls.claims.map(c => `<div class="pipe" style="font-size:10px"><span style="font-weight:500">${c.claim?.predicate||''}</span><span style="color:var(--text-3)">${c.claim?.object||''}</span></div>`).join('') + '</div></div>';
-      }
-    } catch {}
-
-    const st = ({'2':'▲ 정착 완료','0':'● 새가족','-2':'▼ 주의','-1':'◆ 미등록'})[String(m.status)] || '미등록';
-
-    detail.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="font-weight:700;font-size:14px">${m.name}</span>
-        <span class="badge ${({'2':'확정','0':'미확인'})[String(m.status)]||'미인지'}">${st}</span>
-      </div>
-      <table style="font-size:11px;width:100%">
-        <tr><td style="color:var(--text-3);padding:2px 8px 2px 0">정보</td><td>${m.content||'—'}</td></tr>
-        <tr><td style="color:var(--text-3);padding:2px 8px 2px 0">출석(근거)</td><td>${m.evidence||0}회 ${m.evidence>=3?'→ 정착 확정':'(3회 시 자동 정착)'}</td></tr>
-        <tr><td style="color:var(--text-3);padding:2px 8px 2px 0">신뢰도</td><td>${m.trust||0}/13</td></tr>
-        <tr><td style="color:var(--text-3);padding:2px 8px 2px 0">등록일</td><td>${m.createdAt ? new Date(m.createdAt).toLocaleDateString('ko') : '—'}</td></tr>
-      </table>
-      ${chainHtml}
-      ${claimsHtml}
-      <div style="display:flex;gap:4px;margin-top:10px;flex-wrap:wrap">
-        <button class="btn" onclick="document.getElementById('_claimInput').style.display='flex'">기록 추가</button>
-        <button class="btn" onclick="fetch('${API}/cells/${m.id}/evidence',{method:'POST'}).then(()=>location.reload())">출석+</button>
-        <button class="btn" style="color:var(--오류)" onclick="if(confirm('삭제?'))fetch('${API}/cells/${m.id}',{method:'DELETE'}).then(()=>location.reload())">삭제</button>
-      </div>
-      <div id="_claimInput" style="display:none;margin-top:8px;gap:4px;align-items:center">
-        <select id="_claimType" style="width:70px;font-size:10px">
-          <option>헌금</option><option>봉사</option><option>기도</option><option>출석</option><option>교육</option><option>심방</option><option>간증</option>
-        </select>
-        <input id="_claimVal" placeholder="내용 (예: 주일헌금 5만원)" style="flex:1;font-size:10px">
-        <button class="btn btn-p" id="_claimSubmit" style="font-size:10px">저장</button>
-      </div>
-    `;
-
-    document.getElementById('_claimSubmit')?.addEventListener('click', async () => {
-      const type = document.getElementById('_claimType')?.value;
-      const val = document.getElementById('_claimVal')?.value;
-      if (!val) return;
-      await fetch(`${API}/claims`, {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: m.name, predicate: type, object: val, layer: 1 })
-      });
-      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${m.name} ${type}: ${val}`, type: '확정' } }));
-      this._showMember(m.id);
-    });
-  }
-
-  _bindEvents() {
-    document.getElementById('_memberForm')?.addEventListener('submit', async (e) => {
+    el.querySelector('#_mForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = e.target;
-      const name = f.name.value.trim();
-      if (!name) return;
-      const info = [f.category.value, f.phone.value, f.group.value ? f.group.value+'셀' : ''].filter(Boolean).join(', ');
-      const confirmed = f.category.value === '정착' || f.category.value === '봉사자' || f.category.value === '리더';
-
-      await fetch(`${API}/cells`, {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ name, type: 3, content: info, confirmed, layer: 0 })
-      });
+      const info = [f.cat.value, f.phone.value, f.group.value, f.note.value].filter(Boolean).join(', ');
+      await fetch(`${API}/cells`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name: f.name.value, type: 3, content: info, confirmed: f.cat.value !== '새가족', layer: 0 }) });
       f.reset();
-      await this.로드();
+      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '교인 등록', type: '확정' } }));
       document.dispatchEvent(new CustomEvent('데이터변경'));
-      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${name} 등록 완료`, type: '확정' } }));
+      this.렌더();
     });
 
-    document.getElementById('_memberFilter')?.addEventListener('input', (e) => {
-      this._renderList(e.target.value);
+    el.querySelector('#_mFilter')?.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      this._renderMembers(q ? members.filter(m => m.name.toLowerCase().includes(q)) : members);
     });
+  }
+
+  _renderMembers(members) {
+    const tbody = document.querySelector('#_mTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = members.map(m => {
+      const st = ({'2':'확정','0':'미확인'})[String(m.status)]||'미인지';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:4px 6px"><div class="dot ${st}" style="display:inline-block"></div></td>
+        <td style="padding:4px 6px;font-weight:500">${m.name}</td>
+        <td style="padding:4px 6px;color:var(--text-3);font-size:10px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.content||''}</td>
+        <td style="padding:4px 6px;text-align:center">${m.evidence||0}</td>
+        <td style="padding:4px 6px;text-align:center">${m.trust||0}</td>
+        <td style="padding:4px 6px;text-align:right"><button class="btn _att" data-id="${m.id}" style="font-size:9px;padding:1px 5px">출석</button><button class="btn _rec" data-id="${m.id}" data-name="${m.name}" style="font-size:9px;padding:1px 5px;margin-left:2px">기록</button></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" style="padding:12px;text-align:center;color:var(--text-3)">교인을 등록하세요</td></tr>';
+
+    tbody.querySelectorAll('._att').forEach(b => b.addEventListener('click', async () => {
+      await fetch(`${API}/cells/${b.dataset.id}/evidence`, { method:'POST' });
+      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '출석!', type: '확정' } }));
+      this.렌더();
+    }));
+
+    tbody.querySelectorAll('._rec').forEach(b => b.addEventListener('click', () => {
+      const type = prompt('기록 종류:\n헌금 / 봉사 / 기도 / 교육 / 심방 / 간증');
+      if (!type) return;
+      const val = prompt(`${type} 내용:`);
+      if (!val) return;
+      fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ subject: b.dataset.name, predicate: type, object: val, layer: 1 }) })
+        .then(() => document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${b.dataset.name} ${type} 기록`, type: '확정' } })));
+    }));
+  }
+
+  // ─── 소그룹 탭 ───
+  async _groupTab(el) {
+    const claims = await (await fetch(`${API}/claims`)).json();
+    const groupClaims = (claims.claims||[]).filter(c => c.claim?.predicate === '소그룹' || c.claim?.predicate === '배정');
+
+    el.innerHTML = `
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-h"><span class="card-t">소그룹 배정</span></div>
+        <div style="display:flex;gap:6px;align-items:end">
+          <input id="_grpMember" placeholder="교인 이름" style="width:80px">
+          <input id="_grpName" placeholder="소그룹명 (예: 1셀)" style="width:80px">
+          <button class="btn btn-p" id="_grpAssign">배정</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">소그룹 현황</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${groupClaims.length ? groupClaims.map(c => `<div class="pipe"><span style="font-weight:500">${c.claim?.subject||''}</span><span style="color:var(--text-3)">→ ${c.claim?.object||''}</span></div>`).join('') : '<div style="color:var(--text-3);font-size:11px;padding:8px">소그룹 배정 기록이 없습니다</div>'}
+        </div>
+      </div>`;
+
+    el.querySelector('#_grpAssign')?.addEventListener('click', async () => {
+      const member = document.getElementById('_grpMember')?.value?.trim();
+      const group = document.getElementById('_grpName')?.value?.trim();
+      if (!member || !group) return;
+      await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ subject: member, predicate: '소그룹', object: group, layer: 1 }) });
+      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${member} → ${group} 배정`, type: '확정' } }));
+      this.렌더();
+    });
+  }
+
+  // ─── 헌금·재정 탭 ───
+  async _offeringTab(el) {
+    const claims = await (await fetch(`${API}/claims`)).json();
+    const offerings = (claims.claims||[]).filter(c => c.claim?.predicate === '헌금');
+    const total = offerings.reduce((s, c) => {
+      const m = (c.claim?.object||'').match(/(\d+)/);
+      return s + (m ? parseInt(m[1]) : 0);
+    }, 0);
+
+    el.innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div class="stat" style="flex:1"><div class="stat-v">${offerings.length}</div><div class="stat-l">헌금 건수</div></div>
+        <div class="stat" style="flex:1"><div class="stat-v" style="color:var(--확정)">${total.toLocaleString()}</div><div class="stat-l">합계 (원)</div></div>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-h"><span class="card-t">헌금 입력</span></div>
+        <form id="_offForm" style="display:flex;gap:6px;align-items:end;flex-wrap:wrap">
+          <input name="name" placeholder="교인 이름" required style="width:80px">
+          <select name="type" style="width:80px"><option>주일헌금</option><option>감사헌금</option><option>선교헌금</option><option>십일조</option><option>건축헌금</option></select>
+          <input name="amount" type="number" placeholder="금액" required style="width:80px">
+          <input name="note" placeholder="메모" style="width:80px">
+          <button type="submit" class="btn btn-p">입력</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">헌금 내역</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px;max-height:300px;overflow-y:auto">
+          ${offerings.length ? offerings.reverse().map(c => `<div class="pipe"><span style="font-weight:500">${c.claim?.subject||''}</span><span style="color:var(--text-3)">${c.claim?.object||''}</span><span style="font-size:9px;color:var(--text-3);margin-left:auto">${c.createdAt ? new Date(c.createdAt).toLocaleDateString('ko') : ''}</span></div>`).join('') : '<div style="color:var(--text-3);font-size:11px;padding:8px">헌금 기록이 없습니다</div>'}
+        </div>
+      </div>`;
+
+    el.querySelector('#_offForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const obj = `${f.type.value} ${Number(f.amount.value).toLocaleString()}원${f.note.value ? ' ('+f.note.value+')' : ''}`;
+      await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ subject: f.name.value, predicate: '헌금', object: obj, layer: 1 }) });
+      f.reset();
+      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '헌금 기록 완료', type: '확정' } }));
+      this.렌더();
+    });
+  }
+
+  // ─── 기도 탭 ───
+  async _prayerTab(el) {
+    const claims = await (await fetch(`${API}/claims`)).json();
+    const prayers = (claims.claims||[]).filter(c => c.claim?.predicate === '기도' || c.claim?.predicate === '기도제목');
+    const answered = prayers.filter(p => (p.claim?.object||'').includes('응답'));
+
+    el.innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div class="stat" style="flex:1"><div class="stat-v">${prayers.length}</div><div class="stat-l">기도제목</div></div>
+        <div class="stat" style="flex:1"><div class="stat-v" style="color:var(--확정)">${answered.length}</div><div class="stat-l">응답</div></div>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-h"><span class="card-t">기도제목 등록</span></div>
+        <form id="_prayForm" style="display:flex;gap:6px;align-items:end;flex-wrap:wrap">
+          <input name="who" placeholder="누구를 위해" required style="width:80px">
+          <input name="content" placeholder="기도 내용" required style="flex:1;min-width:120px">
+          <button type="submit" class="btn btn-p">등록</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">기도제목 목록</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px;max-height:300px;overflow-y:auto">
+          ${prayers.length ? prayers.reverse().map(c => `<div class="pipe"><span style="font-weight:500">${c.claim?.subject||''}</span><span style="flex:1">${c.claim?.object||''}</span><button class="btn _ans" data-s="${c.claim?.subject}" style="font-size:9px;padding:1px 5px">응답!</button></div>`).join('') : '<div style="color:var(--text-3);font-size:11px;padding:8px">기도제목을 등록하세요</div>'}
+        </div>
+      </div>`;
+
+    el.querySelector('#_prayForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ subject: f.who.value, predicate: '기도제목', object: f.content.value, layer: 1 }) });
+      f.reset();
+      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '기도제목 등록', type: '확정' } }));
+      this.렌더();
+    });
+
+    el.querySelectorAll('._ans').forEach(b => b.addEventListener('click', async () => {
+      const note = prompt('응답 내용:');
+      if (!note) return;
+      await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ subject: b.dataset.s, predicate: '기도', object: '응답: ' + note, layer: 3 }) });
+      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '기도 응답 기록!', type: '확정' } }));
+      this.렌더();
+    }));
+  }
+
+  // ─── 공지 탭 ───
+  _noticeTab(el) {
+    el.innerHTML = `
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-h"><span class="card-t">공지 작성</span></div>
+        <form id="_noticeForm" style="display:flex;flex-direction:column;gap:6px">
+          <input name="title" placeholder="제목" required>
+          <textarea name="content" placeholder="내용" rows="4" style="resize:vertical"></textarea>
+          <button type="submit" class="btn btn-p" style="align-self:flex-start">게시</button>
+        </form>
+      </div>
+      <div id="_notices"></div>`;
+
+    el.querySelector('#_noticeForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ subject: '공지', predicate: f.title.value, object: f.content.value, layer: 0 }) });
+      f.reset();
+      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '공지 게시', type: '확정' } }));
+      this._loadNotices();
+    });
+
+    this._loadNotices();
+  }
+
+  async _loadNotices() {
+    const claims = await (await fetch(`${API}/claims?subject=%EA%B3%B5%EC%A7%80`)).json();
+    const notices = (claims.claims||[]).reverse();
+    const el = document.getElementById('_notices');
+    if (!el) return;
+    el.innerHTML = notices.map(n => `
+      <div class="card" style="margin-bottom:6px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:4px">${n.claim?.predicate||''}</div>
+        <div style="font-size:11px;color:var(--text-2);white-space:pre-wrap">${n.claim?.object||''}</div>
+        <div style="font-size:9px;color:var(--text-3);margin-top:4px">${n.createdAt ? new Date(n.createdAt).toLocaleString('ko') : ''}</div>
+      </div>`).join('') || '<div style="color:var(--text-3);font-size:11px;padding:8px">공지가 없습니다</div>';
   }
 }
 
