@@ -137,3 +137,30 @@
 [data-theme="dark"] ::-webkit-scrollbar-track { background: var(--bg); }
 [data-theme="dark"] ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 [data-theme="dark"] ::selection { background: rgba(139,105,20,0.3); color: var(--text); }
+
+/* Inline style overrides for dark mode */
+[data-theme="dark"] .hero { background: var(--bg) !important; }
+[data-theme="dark"] .section-header { color: var(--text) !important; }
+[data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select {
+    background: var(--bg-card) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+[data-theme="dark"] .chat-bubble { color: var(--text) !important; }
+[data-theme="dark"] .chat-msg.theirs .chat-bubble {
+    background: var(--bg-card) !important;
+    border-color: var(--border) !important;
+}
+[data-theme="dark"] .ctvm-quiz-option {
+    background: var(--bg-card) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+[data-theme="dark"] .cv-btn {
+    background: var(--bg-card) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+[data-theme="dark"] details summary {
+    color: var(--text) !important;
+}

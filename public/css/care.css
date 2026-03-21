@@ -51,7 +51,7 @@
 .care-btn:active { transform: scale(0.96); }
 .care-btn-primary {
     background: linear-gradient(135deg, #8B6914, #B8860B);
-    color: #FFF8F0;
+    color: var(--bg);
     padding: 0.8rem 1.5rem;
     font-size: 1.1rem;
 }
@@ -63,7 +63,7 @@
 }
 .care-btn-med {
     background: linear-gradient(135deg, #8B6914, #6B5744);
-    color: #FFF8F0;
+    color: var(--bg);
     padding: 0.8rem 1.5rem;
     font-size: 1.1rem;
     min-width: 80px;
@@ -74,7 +74,7 @@
 /* SOS Button */
 .care-sos-btn {
     background: linear-gradient(135deg, #B54534, #8B2C1B);
-    color: #FFF8F0;
+    color: var(--bg);
     border: none;
     border-radius: 50%;
     width: 140px;
@@ -159,8 +159,8 @@
 }
 .care-quick-btn:active {
     transform: scale(0.92);
-    background: #8B6914;
-    color: #FFF8F0;
+    background: var(--gold);
+    color: var(--bg);
 }
 
 /* Messages */
@@ -183,7 +183,7 @@
 }
 .care-member-tag.guardian {
     background: linear-gradient(135deg, #8B6914, #B8860B);
-    color: #FFF8F0;
+    color: var(--bg);
 }
 .care-member-tag.member-tag {
     background: var(--bg-card-alt);
@@ -208,7 +208,7 @@
 .care-schedule-time {
     font-weight: 800;
     font-size: 1.2rem;
-    color: #8B6914;
+    color: var(--gold);
     min-width: 60px;
 }
 .care-schedule-label {
@@ -234,7 +234,7 @@
 .care-med-done {
     font-size: 1.2rem;
     font-weight: 700;
-    color: #6B8F3C;
+    color: var(--success);
 }
 
 /* Health Card */
@@ -265,7 +265,7 @@
     height: 100%;
     background-size: cover;
     background-position: center;
-    background-color: #3D2B1F;
+    background-color: var(--primary);
     transition: background-image 1.5s ease-in-out;
 }
 .care-board-overlay {
@@ -277,7 +277,7 @@
     align-items: center;
     justify-content: center;
     padding: 2rem;
-    color: #FFF8F0;
+    color: var(--bg);
     text-align: center;
 }
 .care-board-exit {
@@ -286,7 +286,7 @@
     right: 1.5rem;
     background: rgba(255,248,240,0.2);
     border: none;
-    color: #FFF8F0;
+    color: var(--bg);
     font-size: 2rem;
     width: 60px;
     height: 60px;
@@ -312,7 +312,7 @@
     font-size: 1.5rem;
     padding: 0.8rem;
     opacity: 0.9;
-    border-left: 3px solid #8B6914;
+    border-left: 3px solid var(--gold);
     margin-bottom: 0.5rem;
     text-align: left;
     padding-left: 1rem;
@@ -339,7 +339,7 @@
 }
 .sos-countdown-content {
     text-align: center;
-    color: #FFF8F0;
+    color: var(--bg);
     animation: sosCountdownPulse 1s infinite;
 }
 .sos-countdown-icon {
@@ -365,8 +365,8 @@
 }
 .sos-countdown-cancel {
     background: rgba(255,248,240,0.2);
-    color: #FFF8F0;
-    border: 2px solid #FFF8F0;
+    color: var(--bg);
+    border: 2px solid var(--bg);
     padding: 1rem 3rem;
     border-radius: 50px;
     font-size: 1.3rem;
@@ -389,7 +389,7 @@
     border-radius: 16px;
     padding: 1.5rem;
     box-shadow: 0 4px 24px rgba(229,57,53,0.2);
-    border: 2px solid #B54534;
+    border: 2px solid var(--danger);
     margin-bottom: 1.5rem;
 }
 .sos-active-header {
@@ -398,7 +398,7 @@
     gap: 1rem;
     margin-bottom: 1.2rem;
     padding-bottom: 1rem;
-    border-bottom: 2px solid #F7F3ED;
+    border-bottom: 2px solid var(--bg-card);
 }
 .sos-active-icon {
     font-size: 3rem;
@@ -411,7 +411,7 @@
 .sos-active-title {
     font-size: 1.4rem;
     font-weight: 800;
-    color: #B54534;
+    color: var(--danger);
 }
 .sos-active-time {
     font-size: 1rem;
@@ -426,14 +426,14 @@
 .sos-location-status {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #5B7B8C;
+    color: var(--info);
 }
 .sos-map-btn {
     display: inline-block;
     margin-top: 0.5rem;
     padding: 0.5rem 1rem;
-    background: #F7F3ED;
-    color: #5B7B8C;
+    background: var(--bg-card);
+    color: var(--info);
     border-radius: 8px;
     text-decoration: none;
     font-weight: 600;
@@ -468,11 +468,11 @@
 }
 .sos-119 {
     background: linear-gradient(135deg, #B54534, #8B2C1B);
-    color: #FFF8F0;
+    color: var(--bg);
 }
 .sos-112 {
     background: linear-gradient(135deg, #B54534, #8B2C1B);
-    color: #FFF8F0;
+    color: var(--bg);
 }
 .sos-ec-card {
     display: flex;
@@ -489,8 +489,8 @@
 .sos-call-btn {
     display: inline-block;
     padding: 0.6rem 1.2rem;
-    background: #6B8F3C;
-    color: #FFF8F0;
+    background: var(--success);
+    color: var(--bg);
     border-radius: 10px;
     text-decoration: none;
     font-weight: 700;
@@ -510,7 +510,7 @@
     width: 100%;
     padding: 1.2rem;
     background: linear-gradient(135deg, #8B6914, #6B5744);
-    color: #FFF8F0;
+    color: var(--bg);
     border: none;
     border-radius: 16px;
     font-size: 1.3rem;
