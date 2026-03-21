@@ -679,10 +679,46 @@ const CANVAS = (function() {
 
     // ── 워크스페이스: Content ──
     async function loadContentWorkspace(left, center, right) {
-        left.innerHTML = '<div class="cv-mono">Gallery categories</div>';
-        center.innerHTML = `<div style="padding:2rem;text-align:center"><h3>Content Studio</h3><p style="font-size:0.8rem;color:var(--text-secondary)">Create art, music, and media</p>
-            <button class="cv-btn" onclick="CANVAS.createCell(7)" style="margin-top:1rem">+ New Creation</button></div>`;
-        right.innerHTML = '<div class="cv-mono">Analytics</div>';
+        const categories = ['All', 'Art', 'Music', 'Video', 'Writing', 'Photography'];
+        left.innerHTML = categories.map(c => `<div class="cv-list-item" style="font-size:0.75rem">${c}</div>`).join('') +
+            `<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px"><button class="cv-btn" onclick="CANVAS.createContent()" style="width:100%">+ Create</button></div>`;
+
+        const token = localStorage.getItem('crowny_token');
+        try {
+            const r = await fetch('/api/cell/query?type=7&limit=20', { headers: { 'Authorization': 'Bearer ' + token } });
+            const items = await r.json();
+            center.innerHTML = items.length > 0
+                ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:4px">${items.map(i => `<div style="border:1px solid var(--border);border-radius:8px;padding:10px;cursor:pointer" onclick="CANVAS.viewContent(${i.id})">
+                    <div style="font-size:0.8rem;font-weight:600">${escHtml(i.data?.[0] || 'Untitled')}</div>
+                    <div style="font-size:0.6rem;color:var(--text-secondary);margin-top:2px">${i.category || 'art'}</div>
+                    <div style="font-size:0.6rem;color:var(--text-secondary)">${new Date(i.timestamp*1000).toLocaleDateString()}</div>
+                </div>`).join('')}</div>`
+                : `<div style="padding:2rem;text-align:center;color:var(--text-secondary)"><p>No content yet</p><button class="cv-btn" onclick="CANVAS.createContent()" style="margin-top:0.5rem">Create First</button></div>`;
+        } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+
+        right.innerHTML = `<div style="padding:8px"><div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);margin-bottom:8px">ANALYTICS</div>
+            <div class="cv-mono">Views: --<br>Likes: --<br>Revenue: 0 CRM</div></div>`;
+    }
+
+    async function createContent() {
+        const name = prompt('Content title:');
+        if (!name) return;
+        const type = prompt('Type (art/music/video/writing):') || 'art';
+        const token = localStorage.getItem('crowny_token');
+        await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 7, name, category: type }) });
+        openWs('content');
+    }
+
+    async function viewContent(id) {
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch(`/api/cell/get?id=${id}`, { headers: { 'Authorization': 'Bearer ' + token } });
+        const c = await r.json();
+        const center = document.getElementById('cv-center-content');
+        if (center) center.innerHTML = `<div style="padding:1rem"><h3>${escHtml(c.data?.[0] || 'Content')}</h3>
+            <div style="font-size:0.75rem;color:var(--text-secondary);margin:4px 0">${c.category || 'art'} · ${new Date(c.timestamp*1000).toLocaleDateString()}</div>
+            <div style="padding:1rem;background:var(--bg-card);border-radius:8px;margin-top:8px;min-height:100px">${escHtml(c.data?.[1] || 'No description')}</div>
+            <div style="display:flex;gap:4px;margin-top:8px"><button class="cv-btn" onclick="CANVAS.crossLink('content','shop',{name:'${escHtml(c.data?.[0] || '')}'})">List on Shop</button>
+            <button class="cv-btn" style="background:var(--text-secondary)">Share</button></div></div>`;
     }
 
     // ── 워크스페이스: Life ──
@@ -1178,19 +1214,56 @@ const CANVAS = (function() {
     // ── 워크스페이스: Synergy ──
     async function loadSynergyWorkspace(left, center, right) {
         const services = WORKSPACES.filter(w => !w.hidden && w.id !== 'synergy');
-        left.innerHTML = services.map(s => `<div class="cv-list-item"><i data-lucide="${s.icon}" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px"></i>${s.label}</div>`).join('');
+        left.innerHTML = services.map(s => `<div class="cv-list-item" onclick="CANVAS.openWs('${s.id}')"><i data-lucide="${s.icon}" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px"></i>${s.label}</div>`).join('');
         if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);
 
         const token = localStorage.getItem('crowny_token');
         try {
-            const r = await fetch('/api/cell/stats', { headers: { 'Authorization': 'Bearer ' + token } });
-            const stats = await r.json();
+            const [statsR, chainR, walletR] = await Promise.all([
+                fetch('/api/cell/stats', { headers: { 'Authorization': 'Bearer ' + token } }),
+                fetch('/api/chain/status', { headers: { 'Authorization': 'Bearer ' + token } }),
+                fetch('/api/wallet', { headers: { 'Authorization': 'Bearer ' + token } }),
+            ]);
+            const stats = await statsR.json();
+            const chain = await chainR.json();
+            const wallet = await walletR.json();
             const types = stats.byType || {};
-            center.innerHTML = `<div style="padding:1rem"><h4>Service Overview</h4>
-                <div style="margin-top:0.5rem">${Object.entries(types).map(([name, count]) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:0.8rem"><span>${name}</span><strong>${count}</strong></div>`).join('')}</div>
-                <div style="margin-top:1rem;font-size:0.8rem;color:var(--text-secondary)">Total: ${stats.totalCells} cells</div></div>`;
+            const b = wallet.balances || {};
+
+            center.innerHTML = `<div style="padding:0.5rem">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:1rem">
+                    <div style="padding:10px;background:var(--bg-card);border-radius:8px;text-align:center"><div style="font-size:0.6rem;color:var(--text-secondary)">CELLS</div><div style="font-size:1.3rem;font-weight:800">${stats.totalCells || 0}</div></div>
+                    <div style="padding:10px;background:var(--bg-card);border-radius:8px;text-align:center"><div style="font-size:0.6rem;color:var(--text-secondary)">CHAIN</div><div style="font-size:1.3rem;font-weight:800">${chain.chain?.height ?? 0}</div></div>
+                    <div style="padding:10px;background:var(--bg-card);border-radius:8px;text-align:center"><div style="font-size:0.6rem;color:var(--text-secondary)">CRN</div><div style="font-size:1.3rem;font-weight:800">${b.CRN || 0}</div></div>
+                </div>
+                <div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">CELL DISTRIBUTION</div>
+                ${Object.entries(types).map(([name, count]) => {
+                    const max = Math.max(...Object.values(types));
+                    const pct = max > 0 ? (count / max * 100) : 0;
+                    return `<div style="margin-bottom:4px"><div style="display:flex;justify-content:space-between;font-size:0.7rem"><span>${name}</span><strong>${count}</strong></div>
+                        <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--gold);border-radius:2px"></div></div></div>`;
+                }).join('')}
+                <div style="margin-top:1rem;font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">QUICK ACTIONS</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                    <button class="cv-btn" style="font-size:0.65rem" onclick="CANVAS.openWs('canvas')">NL Convert</button>
+                    <button class="cv-btn" style="font-size:0.65rem" onclick="CANVAS.openWs('msg')">Send Message</button>
+                    <button class="cv-btn" style="font-size:0.65rem" onclick="CANVAS.openWs('docs')">New Note</button>
+                    <button class="cv-btn" style="font-size:0.65rem" onclick="CANVAS.openWs('trading')">Open Chart</button>
+                </div>
+            </div>`;
         } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
-        right.innerHTML = '<div style="padding:8px"><div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">ACTIVITY</div><div class="cv-mono">Recent cross-service events</div></div>';
+
+        // 우측: 최근 셀 활동
+        try {
+            const r = await fetch('/api/cell/query?limit=10', { headers: { 'Authorization': 'Bearer ' + token } });
+            const recent = await r.json();
+            right.innerHTML = `<div style="padding:4px"><div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);margin-bottom:6px">RECENT ACTIVITY</div>
+                ${recent.map(c => `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:0.7rem">
+                    <span style="padding:0 3px;border-radius:2px;background:var(--bg-card);font-size:0.55rem;font-weight:600">${c.typeName || c.type}</span>
+                    ${escHtml((c.data?.[0] || c.subject || '').slice(0, 25))}
+                    <div style="font-size:0.55rem;color:var(--text-secondary)">${new Date(c.timestamp*1000).toLocaleString()}</div>
+                </div>`).join('')}</div>`;
+        } catch {}
     }
 
     // ── 워크스페이스: Admin ──
@@ -1427,6 +1500,8 @@ const CANVAS = (function() {
         openGame, _tritMove,
         // Shop
         createShopItem, shopFilter,
+        // Content
+        createContent, viewContent,
         // Admin
         adminSection,
         // Canvas (4-step pipeline)
