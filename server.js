@@ -8683,6 +8683,31 @@ server.listen(PORT, () => {
     }
 });
 
+// ── S2: Auto daily backup ──
+(function scheduleAutoBackup() {
+    const BACKUP_DIR = pathModule.join(DATA_DIR, 'backups');
+    if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+
+    function runBackup() {
+        try {
+            const date = new Date().toISOString().split('T')[0];
+            const backupFile = pathModule.join(BACKUP_DIR, `auto-${date}.json`);
+            if (fs.existsSync(backupFile)) return; // already backed up today
+            const data = exportAllData();
+            const tmp = backupFile + '.tmp';
+            fs.writeFileSync(tmp, JSON.stringify(data));
+            fs.renameSync(tmp, backupFile);
+            // Keep only last 7 days
+            const files = fs.readdirSync(BACKUP_DIR).filter(f => f.startsWith('auto-')).sort();
+            while (files.length > 7) { fs.unlinkSync(pathModule.join(BACKUP_DIR, files.shift())); }
+            console.log('[BACKUP] Auto backup:', date);
+        } catch (e) { console.warn('[BACKUP] Failed:', e.message); }
+    }
+
+    runBackup(); // backup on startup
+    setInterval(runBackup, 6 * 60 * 60 * 1000); // every 6 hours
+})();
+
 // ── Graceful shutdown ──
 function shutdown(signal) {
     console.log(`\n[${signal}] Shutting down gracefully...`);
