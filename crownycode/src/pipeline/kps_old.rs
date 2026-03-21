@@ -5,7 +5,7 @@
 // Phase 0: 규칙 기반 한국어/영어 파싱
 // Phase 2+: 다국어 어댑터로 확장 예정
 
-use anyhow::Result;
+use crate::error::Result;
 
 /// KPS 노드 — 의미 단위
 #[derive(Debug, Clone)]

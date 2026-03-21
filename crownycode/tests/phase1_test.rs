@@ -9,7 +9,7 @@ use crownycode::cell::store::CrownyDb;
 use crownycode::cell::signal::SignalKind;
 
 fn temp_db() -> CrownyDb {
-    CrownyDb::open(&format!("/tmp/p1_{}.db", uuid::Uuid::new_v4())).unwrap()
+    CrownyDb::open(&format!("/tmp/p1_{}.db", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos())).unwrap()
 }
 
 // ── KPS 어댑터 자동 감지 ─────────────────────────────────────

@@ -12,8 +12,6 @@ pub mod net;
 pub mod signal;
 pub mod store;
 
-use serde::{Deserialize, Serialize};
-
 // ── CellId ──────────────────────────────────────────────────
 
 /// 셀 고유 식별자 (TriWord 기반 — 후에 ISA729 네이티브로 확장)
@@ -34,18 +32,16 @@ pub fn set_cell_id_start(start: u64) {
 // ── TritState ───────────────────────────────────────────────
 
 /// 4상 인식 상태 — 균형3진 1st-class 값
-///
-/// 이진법에서 0은 '거짓'. 균형3진에서 0은 '미확인'.
-/// 이 차이가 코드 추론에서 연산 절약의 근거.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "claude", derive(serde::Serialize, serde::Deserialize))]
 pub enum TritState {
-    /// +2 — 완전히 신뢰. 즉시 코드 생성, 테스트 불필요
+    /// +2 — 완전히 신뢰
     Confirmed,
-    ///  0 — 존재하나 불확실. 코드 생성 + 자동 테스트 첨부
+    ///  0 — 존재하나 불확실
     Uncertain,
-    /// -1 — 반박됨 / 의도 충돌. 명확화 질문 발동, 코드 생성 중단
+    /// -1 — 반박됨
     Refuted,
-    /// -2 — 전혀 모름. Claude 학습채널 자동 호출
+    /// -2 — 전혀 모름
     Unknown,
 }
 
@@ -68,7 +64,6 @@ impl TritState {
         }
     }
 
-    /// 에너지 값으로부터 상태 재계산
     pub fn from_energy(energy: f32) -> Self {
         match energy {
             e if e >= 0.75 => TritState::Confirmed,
@@ -82,7 +77,8 @@ impl TritState {
 // ── Relation ────────────────────────────────────────────────
 
 /// 셀 간 관계 유형
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "claude", derive(serde::Serialize, serde::Deserialize))]
 pub enum Relation {
     Related,
     Refutes,
@@ -93,11 +89,11 @@ pub enum Relation {
 // ── CellEdge ────────────────────────────────────────────────
 
 /// 셀 간 엣지 — 셀이 직접 보유 (DB 테이블이 아님!)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "claude", derive(serde::Serialize, serde::Deserialize))]
 pub struct CellEdge {
     pub target: CellId,
     pub relation: Relation,
-    /// +1: 강화, 0: 중립, -1: 약화 (균형3진 trit)
     pub weight: i8,
 }
 
@@ -109,7 +105,8 @@ impl CellEdge {
 
 // ── PatternSource ───────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "claude", derive(serde::Serialize, serde::Deserialize))]
 pub enum PatternSource {
     Generated,
     LearnedFromClaude,
@@ -120,7 +117,8 @@ pub enum PatternSource {
 // ── Pattern ─────────────────────────────────────────────────
 
 /// 코드 패턴 — 하나의 셀이 여러 언어 패턴을 보유 가능
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "claude", derive(serde::Serialize, serde::Deserialize))]
 pub struct Pattern {
     pub target_lang: String,
     pub code: String,
@@ -142,10 +140,8 @@ impl Pattern {
 // ── CrownyCell ──────────────────────────────────────────────
 
 /// 크라우니셀 — 관계망의 기본 단위
-///
-/// 핵심: 셀이 자기 엣지(edges)를 직접 보유한다.
-/// 이것 하나가 크라우니셀로직의 존재 이유다.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "claude", derive(serde::Serialize, serde::Deserialize))]
 pub struct CrownyCell {
     pub id: CellId,
     pub intent: String,
@@ -161,7 +157,7 @@ pub struct CrownyCell {
 
 impl CrownyCell {
     pub fn new(intent: &str) -> Self {
-        let now = chrono::Utc::now().timestamp();
+        let now = crate::time_util::now_timestamp();
         Self {
             id: next_cell_id(),
             intent: intent.to_string(),
@@ -183,7 +179,6 @@ impl CrownyCell {
         cell
     }
 
-    /// 코드 패턴 추가 (같은 언어에서 confidence가 높은 것만 유지)
     pub fn add_pattern(&mut self, pattern: Pattern) {
         if let Some(existing) = self.patterns.iter_mut()
             .find(|p| p.target_lang == pattern.target_lang)
@@ -197,7 +192,6 @@ impl CrownyCell {
         self.recalculate_energy();
     }
 
-    /// 엣지 추가 (같은 대상이면 교체)
     pub fn add_edge(&mut self, edge: CellEdge) {
         if let Some(existing) = self.edges.iter_mut()
             .find(|e| e.target == edge.target)
@@ -208,20 +202,17 @@ impl CrownyCell {
         }
     }
 
-    /// 활성화 기록
     pub fn activate(&mut self) {
-        self.last_activated = chrono::Utc::now().timestamp();
+        self.last_activated = crate::time_util::now_timestamp();
         self.activation_count += 1;
         self.recalculate_energy();
     }
 
-    /// 반박 등록
     pub fn refute(&mut self) {
         self.refutation_count += 1;
         self.recalculate_energy();
     }
 
-    /// 에너지 재계산 → trit_state 자동 갱신
     pub fn recalculate_energy(&mut self) {
         let base = if self.patterns.is_empty() {
             0.0
@@ -231,7 +222,7 @@ impl CrownyCell {
         };
         let usage_bonus = (self.activation_count as f32 / 20.0).min(0.2);
         let refutation_penalty = (self.refutation_count as f32 * 0.1).min(0.4);
-        let now = chrono::Utc::now().timestamp();
+        let now = crate::time_util::now_timestamp();
         let age_days = ((now - self.last_activated) as f32 / 86400.0).max(0.0);
         let age_factor = (-age_days / 30.0_f32).exp();
 
@@ -257,4 +248,3 @@ impl CrownyCell {
         self.edges.iter().map(|e| e.target).collect()
     }
 }
-

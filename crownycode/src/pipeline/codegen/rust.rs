@@ -1,7 +1,7 @@
 // crownycode/src/pipeline/codegen/rust.rs
 // 한선씨 IR → Rust 코드 생성기
 
-use anyhow::Result;
+use crate::error::Result;
 use crate::pipeline::ir::{IrTree, IrNode, TypeHint, HttpMethod, Constraint};
 use super::GenOptions;
 

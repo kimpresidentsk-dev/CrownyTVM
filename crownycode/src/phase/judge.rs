@@ -1,7 +1,7 @@
 // crownycode/src/phase/judge.rs
 // 4상 판별기 v2 — 다중 신호 가중합 기반
 
-use anyhow::Result;
+use crate::error::Result;
 use crate::cell::store::CrownyDb;
 use crate::pipeline::ir::IrTree;
 use super::signals::{compute_signals, compute_seed_signals};

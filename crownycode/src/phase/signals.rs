@@ -3,7 +3,6 @@
 // Phase 0: 단순 임계값
 // Phase 1: 4개 신호의 가중 합산 → confidence 계산
 
-use chrono::Utc;
 use crate::cell::CrownyCell;
 
 /// 신호 추출 결과 — 4개 신호 각각의 값
@@ -48,7 +47,7 @@ impl SignalSet {
 
 /// 나이 신호: 생성 후 30일 이내 = 1.0, 이후 지수 감쇠
 pub fn age_signal(cell: &CrownyCell) -> f32 {
-    let now = Utc::now().timestamp();
+    let now = crate::time_util::now_timestamp();
     let days_old = ((now - cell.birth) as f32 / 86400.0).max(0.0);
     // 30일이면 0.5, 90일이면 0.22, 180일이면 0.08
     (-days_old / 43.3).exp().clamp(0.0, 1.0)

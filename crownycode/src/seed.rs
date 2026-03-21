@@ -8,7 +8,7 @@
 //
 // 사용법: crownycode seed --count 50
 
-use colored::*;
+use crate::color::Colorize;
 
 use crate::cell::net::CellNet;
 use crate::cell::{CrownyCell, Pattern, PatternSource, Relation};

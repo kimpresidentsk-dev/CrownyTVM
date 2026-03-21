@@ -2194,6 +2194,3 @@ function shareIndependentPost(postId, text) {
 
 // createPost hook
 window._createPostIndependent = createIndependentPost;
-ost;
-ost;
-ost;

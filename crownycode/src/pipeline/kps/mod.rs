@@ -11,7 +11,7 @@ pub mod sw;
 pub mod hi;
 pub mod pt_br;
 
-use anyhow::Result;
+use crate::error::Result;
 use adapter::LangAdapter;
 
 /// KPS 노드 — 의미 단위 (Phase 0에서 이전, 구조 동일)
@@ -73,7 +73,7 @@ pub fn parse_with_lang(input: &str, lang: &str) -> Result<Vec<KpsNode>> {
     let adapters = adapters();
     let adapter = adapters.iter()
         .find(|a| a.lang_code() == lang)
-        .ok_or_else(|| anyhow::anyhow!("지원하지 않는 언어: {lang}"))?;
+        .ok_or_else(|| crate::error::err!("지원하지 않는 언어: {lang}"))?;
     Ok(adapter.parse(input))
 }
 

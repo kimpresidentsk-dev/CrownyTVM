@@ -5,7 +5,7 @@
 //
 // IR은 언어 독립적: 한 번 빌드하면 Python/Rust/크라우니어 모두 출력 가능
 
-use anyhow::Result;
+use crate::error::Result;
 use crate::pipeline::kps::{KpsNode, KpsKind};
 
 /// IR 트리 — 최상위 컨텍스트

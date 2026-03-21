@@ -5,8 +5,9 @@
 pub mod python;
 pub mod rust;
 pub mod crowny;
+pub mod javascript;
 
-use anyhow::{Result, bail};
+use crate::error::{Result, bail};
 use crate::pipeline::ir::IrTree;
 use crate::phase::judge::Phase;
 
@@ -24,7 +25,8 @@ pub fn generate(ir: &IrTree, target: &str, opts: &GenOptions) -> Result<String> 
     match effective_target {
         "python" | "py" => python::generate(ir, opts),
         "rust" | "rs"  => rust::generate(ir, opts),
+        "javascript" | "js" | "typescript" | "ts" => javascript::generate(ir, opts),
         "crowny"       => crowny::generate(ir, opts),
-        other => bail!("지원하지 않는 대상 언어: {other}. (python | rust | crowny)"),
+        other => bail!("지원하지 않는 대상 언어: {other}. (python | rust | javascript | crowny)"),
     }
 }

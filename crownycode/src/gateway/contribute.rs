@@ -3,38 +3,29 @@
 // 개발자가 새 코드 패턴을 제출하면 검증 후 셀DB에 등록
 // 기여 횟수에 따라 Claude API 추가 쿼터 보상
 
-use anyhow::Result;
-use chrono::Utc;
-use rusqlite::{Connection, params};
+use crate::error::Result;
+use crate::time_util;
 use crate::cell::store::CrownyDb;
 use super::quota::QuotaManager;
+use std::collections::HashMap;
 
 /// 기여 보상 정책
 pub const BONUS_PER_CONTRIBUTION: u32 = 5;    // 기여 1건 = 5회 추가 쿼터
 pub const MAX_BONUS_PER_MONTH: u32    = 200;   // 월 최대 보너스 쿼터
 
-pub struct ContributeManager<'a> {
-    conn: &'a Connection,
+pub struct ContributeManager {
+    dir: String,
 }
 
-impl<'a> ContributeManager<'a> {
-    pub fn new(conn: &'a Connection) -> Self { Self { conn } }
+impl ContributeManager {
+    pub fn new(db_path: &str) -> Self {
+        let base = db_path.trim_end_matches(".db");
+        let dir = format!("{}_contributions", base);
+        Self { dir }
+    }
 
     pub fn init_schema(&self) -> Result<()> {
-        self.conn.execute_batch("
-            CREATE TABLE IF NOT EXISTS contributions (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                dev_id      TEXT NOT NULL,
-                intent      TEXT NOT NULL,
-                target_lang TEXT NOT NULL,
-                code        TEXT NOT NULL,
-                confidence  REAL NOT NULL DEFAULT 0.5,
-                status      TEXT NOT NULL DEFAULT 'pending',
-                submitted_at TEXT NOT NULL,
-                reviewed_at  TEXT,
-                review_note  TEXT
-            );
-        ")?;
+        std::fs::create_dir_all(&self.dir)?;
         Ok(())
     }
 
@@ -57,27 +48,23 @@ impl<'a> ContributeManager<'a> {
             });
         }
 
-        // 2. DB에 저장
-        self.conn.execute(
-            "INSERT INTO contributions (dev_id, intent, target_lang, code, confidence, submitted_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![
-                dev_id, intent, target_lang, code,
-                validation.confidence, Utc::now().to_rfc3339()
-            ],
-        )?;
-        let id = self.conn.last_insert_rowid() as u32;
+        // 2. 파일에 저장
+        let id = self.next_id()?;
+        let record = format!(
+            "id={}\ndev_id={}\nintent={}\ntarget_lang={}\ncode={}\nconfidence={}\nstatus=pending\nsubmitted_at={}\n",
+            id, dev_id, intent, target_lang,
+            code.replace('\n', "\\n"),
+            validation.confidence,
+            time_util::now_rfc3339()
+        );
+        std::fs::write(format!("{}/{}.contrib", self.dir, id), &record)?;
 
         // 3. 쿼터 보너스 지급
-        let qm = QuotaManager::new(self.conn);
-        let note = format!("기여 #{id}: {intent} ({target_lang})");
+        let quota_dir = self.dir.replace("_contributions", "_quotas");
+        let qm = QuotaManager::new(&quota_dir);
+        qm.init_schema().unwrap_or(());
+        let note = format!("기여 #{}: {} ({})", id, intent, target_lang);
         qm.grant_contribution_bonus(dev_id, BONUS_PER_CONTRIBUTION, &note)?;
-
-        // 4. 개발자 기여 횟수 업데이트
-        self.conn.execute(
-            "UPDATE developers SET contributions = contributions + 1 WHERE dev_id = ?1",
-            params![dev_id],
-        ).ok(); // 개발자 테이블이 없어도 무시
 
         Ok(ContributionResult {
             id,
@@ -91,17 +78,31 @@ impl<'a> ContributeManager<'a> {
 
     /// 승인된 기여를 셀DB에 반영
     pub fn apply_to_celldb(&self, db: &CrownyDb) -> Result<u32> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, intent, target_lang, code, confidence FROM contributions
-             WHERE status = 'pending' ORDER BY id ASC LIMIT 20"
-        )?;
-        let rows: Vec<(i64, String, String, String, f32)> = stmt.query_map([], |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
-        })?.filter_map(|r| r.ok()).collect();
-
         let mut applied = 0u32;
-        for (cid, intent, lang, code, confidence) in rows {
-            // 기존 셀보다 신뢰도가 높거나 없을 때만 적용
+        let dir = std::path::Path::new(&self.dir);
+        if !dir.exists() { return Ok(0); }
+
+        let mut entries: Vec<_> = std::fs::read_dir(dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().map(|x| x == "contrib").unwrap_or(false))
+            .collect();
+        entries.sort_by_key(|e| e.path());
+
+        for entry in entries.iter().take(20) {
+            let data = std::fs::read_to_string(entry.path())?;
+            let vals = parse_kv(&data);
+
+            let status = vals.get("status").map(|s| s.as_str()).unwrap_or("");
+            if status != "pending" { continue; }
+
+            let intent = vals.get("intent").cloned().unwrap_or_default();
+            let lang = vals.get("target_lang").cloned().unwrap_or_default();
+            let code = vals.get("code").cloned().unwrap_or_default()
+                .replace("\\n", "\n");
+            let confidence: f32 = vals.get("confidence")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0.5);
+
             let should_apply = {
                 let net = db.cell_net();
                 match net.find_by_intent(&intent) {
@@ -113,16 +114,13 @@ impl<'a> ContributeManager<'a> {
             if should_apply {
                 db.cell_net_mut().upsert_pattern(&intent, &lang, &code, confidence);
                 let _ = db.save_net();
-                self.conn.execute(
-                    "UPDATE contributions SET status='applied', reviewed_at=?1 WHERE id=?2",
-                    params![Utc::now().to_rfc3339(), cid],
-                )?;
+                // Update status
+                let updated = data.replace("status=pending", "status=applied");
+                std::fs::write(entry.path(), updated)?;
                 applied += 1;
             } else {
-                self.conn.execute(
-                    "UPDATE contributions SET status='skipped', review_note='lower confidence' WHERE id=?1",
-                    params![cid],
-                )?;
+                let updated = data.replace("status=pending", "status=skipped");
+                std::fs::write(entry.path(), updated)?;
             }
         }
         Ok(applied)
@@ -130,41 +128,55 @@ impl<'a> ContributeManager<'a> {
 
     /// 기여 내역 조회
     pub fn my_contributions(&self, dev_id: &str) -> Result<Vec<ContribRecord>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, intent, target_lang, status, confidence, submitted_at
-             FROM contributions WHERE dev_id=?1 ORDER BY id DESC LIMIT 20"
-        )?;
-        let records = stmt.query_map(params![dev_id], |r| {
-            Ok(ContribRecord {
-                id: r.get(0)?,
-                intent: r.get(1)?,
-                target_lang: r.get(2)?,
-                status: r.get(3)?,
-                confidence: r.get(4)?,
-                submitted_at: r.get(5)?,
-            })
-        })?.filter_map(|r| r.ok()).collect();
-        Ok(records)
+        let dir = std::path::Path::new(&self.dir);
+        if !dir.exists() { return Ok(Vec::new()); }
+
+        let mut records = Vec::new();
+        for entry in std::fs::read_dir(dir)?.filter_map(|e| e.ok()) {
+            if !entry.path().extension().map(|x| x == "contrib").unwrap_or(false) { continue; }
+            let data = std::fs::read_to_string(entry.path())?;
+            let vals = parse_kv(&data);
+            if vals.get("dev_id").map(|s| s.as_str()) != Some(dev_id) { continue; }
+
+            records.push(ContribRecord {
+                id: vals.get("id").and_then(|v| v.parse().ok()).unwrap_or(0),
+                intent: vals.get("intent").cloned().unwrap_or_default(),
+                target_lang: vals.get("target_lang").cloned().unwrap_or_default(),
+                status: vals.get("status").cloned().unwrap_or_default(),
+                confidence: vals.get("confidence").and_then(|v| v.parse().ok()).unwrap_or(0.5),
+                submitted_at: vals.get("submitted_at").cloned().unwrap_or_default(),
+            });
+        }
+        records.sort_by(|a, b| b.id.cmp(&a.id));
+        Ok(records.into_iter().take(20).collect())
     }
 
     /// 기여 통계
     pub fn stats(&self) -> Result<ContribStats> {
-        let total: i64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM contributions", [], |r| r.get(0)
-        ).unwrap_or(0);
-        let applied: i64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM contributions WHERE status='applied'", [], |r| r.get(0)
-        ).unwrap_or(0);
-        let pending: i64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM contributions WHERE status='pending'", [], |r| r.get(0)
-        ).unwrap_or(0);
+        let dir = std::path::Path::new(&self.dir);
+        if !dir.exists() { return Ok(ContribStats { total: 0, applied: 0, pending: 0 }); }
+
+        let mut total = 0i64;
+        let mut applied = 0i64;
+        let mut pending = 0i64;
+
+        for entry in std::fs::read_dir(dir)?.filter_map(|e| e.ok()) {
+            if !entry.path().extension().map(|x| x == "contrib").unwrap_or(false) { continue; }
+            let data = std::fs::read_to_string(entry.path())?;
+            let vals = parse_kv(&data);
+            total += 1;
+            match vals.get("status").map(|s| s.as_str()) {
+                Some("applied") => applied += 1,
+                Some("pending") => pending += 1,
+                _ => {}
+            }
+        }
         Ok(ContribStats { total, applied, pending })
     }
 
     // ── 내부 검증 ──────────────────────────────────────────────
 
     fn validate(&self, intent: &str, target_lang: &str, code: &str) -> Validation {
-        // 1. 필수 필드 검증
         if intent.trim().is_empty() {
             return Validation::fail("의도(intent)가 비어있습니다");
         }
@@ -175,13 +187,11 @@ impl<'a> ContributeManager<'a> {
             return Validation::fail("코드가 너무 깁니다 (최대 50KB)");
         }
 
-        // 2. 지원 언어 확인
         let supported = ["python", "rust", "javascript", "typescript", "go", "c", "crowny"];
         if !supported.contains(&target_lang) {
             return Validation::fail(&format!("지원하지 않는 언어: {target_lang}"));
         }
 
-        // 3. 기본 코드 패턴 검증 (언어별)
         let confidence = match target_lang {
             "python" => {
                 let has_def = code.contains("def ") || code.contains("class ");
@@ -192,12 +202,37 @@ impl<'a> ContributeManager<'a> {
                 let has_fn = code.contains("fn ") || code.contains("impl ");
                 if has_fn { 0.75 } else { 0.55 }
             }
-            "crowny" => 0.65, // 크라우니어는 자동 승인
+            "crowny" => 0.65,
             _ => 0.60,
         };
 
         Validation { passed: true, confidence, reason: String::new() }
     }
+
+    fn next_id(&self) -> Result<u32> {
+        let dir = std::path::Path::new(&self.dir);
+        if !dir.exists() { return Ok(1); }
+        let max = std::fs::read_dir(dir)?
+            .filter_map(|e| e.ok())
+            .filter_map(|e| {
+                e.path().file_stem()
+                    .and_then(|s| s.to_str())
+                    .and_then(|s| s.parse::<u32>().ok())
+            })
+            .max()
+            .unwrap_or(0);
+        Ok(max + 1)
+    }
+}
+
+fn parse_kv(data: &str) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    for line in data.lines() {
+        if let Some((key, val)) = line.split_once('=') {
+            map.insert(key.to_string(), val.to_string());
+        }
+    }
+    map
 }
 
 struct Validation {
@@ -243,24 +278,35 @@ pub struct ContribStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rusqlite::Connection;
     use crate::cell::store::CrownyDb;
 
-    fn temp_conn() -> Connection {
-        let conn = Connection::open_in_memory().unwrap();
-        QuotaManager::new(&conn).init_schema().unwrap();
-        ContributeManager::new(&conn).init_schema().unwrap();
-        conn
+    static CONTRIB_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+    fn unique_dir() -> String {
+        let n = CONTRIB_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        format!("/tmp/contrib_test_{}_{}", ts, n)
+    }
+
+    fn temp_managers() -> (ContributeManager, QuotaManager) {
+        let dir = unique_dir();
+        let contrib_dir = format!("{}_contributions", dir);
+        let quota_dir = format!("{}_quotas", dir);
+        let cm = ContributeManager { dir: contrib_dir };
+        cm.init_schema().unwrap();
+        let qm = QuotaManager::new(&quota_dir);
+        qm.init_schema().unwrap();
+        (cm, qm)
     }
 
     fn temp_db() -> CrownyDb {
-        CrownyDb::open(&format!("/tmp/contrib_{}.db", uuid::Uuid::new_v4())).unwrap()
+        let dir = unique_dir();
+        CrownyDb::open(&format!("{}/cells.db", dir)).unwrap()
     }
 
     #[test]
     fn test_submit_valid_python() {
-        let conn = temp_conn();
-        let cm = ContributeManager::new(&conn);
+        let (cm, _qm) = temp_managers();
         let result = cm.submit(
             "dev_ke", "http_server", "python",
             "from flask import Flask\napp = Flask(__name__)\n@app.route('/')\ndef index(): return 'ok'"
@@ -271,33 +317,28 @@ mod tests {
 
     #[test]
     fn test_submit_too_short_rejected() {
-        let conn = temp_conn();
-        let cm = ContributeManager::new(&conn);
+        let (cm, _qm) = temp_managers();
         let result = cm.submit("dev1", "http_server", "python", "short").unwrap();
         assert_eq!(result.status, ContribStatus::Rejected);
     }
 
     #[test]
     fn test_submit_empty_intent_rejected() {
-        let conn = temp_conn();
-        let cm = ContributeManager::new(&conn);
+        let (cm, _qm) = temp_managers();
         let result = cm.submit("dev1", "", "python", "def long_enough_code(): pass  # padding").unwrap();
         assert_eq!(result.status, ContribStatus::Rejected);
     }
 
     #[test]
     fn test_submit_unsupported_lang_rejected() {
-        let conn = temp_conn();
-        let cm = ContributeManager::new(&conn);
+        let (cm, _qm) = temp_managers();
         let result = cm.submit("dev1", "server", "brainfuck", "+-><[].,+-><[].,+-><[].,+-><").unwrap();
         assert_eq!(result.status, ContribStatus::Rejected);
     }
 
     #[test]
     fn test_quota_bonus_on_submit() {
-        let conn = temp_conn();
-        let cm = ContributeManager::new(&conn);
-        let qm = QuotaManager::new(&conn);
+        let (cm, qm) = temp_managers();
 
         let before = qm.status("dev_tz").unwrap().bonus_quota;
         cm.submit("dev_tz", "sort_fn", "rust",
@@ -308,8 +349,7 @@ mod tests {
 
     #[test]
     fn test_apply_to_celldb() {
-        let conn = temp_conn();
-        let cm = ContributeManager::new(&conn);
+        let (cm, _qm) = temp_managers();
         let db = temp_db();
 
         cm.submit("dev_ng", "cli_tool", "rust",
@@ -322,14 +362,11 @@ mod tests {
 
     #[test]
     fn test_apply_skips_lower_confidence() {
-        let conn = temp_conn();
-        let cm = ContributeManager::new(&conn);
+        let (cm, _qm) = temp_managers();
         let db = temp_db();
 
-        // 이미 높은 신뢰도 셀 존재
         db.cell_net_mut().upsert_pattern("http_server", "python", "high_quality", 0.99);
 
-        // 낮은 신뢰도 기여 제출
         cm.submit("dev1", "http_server", "python",
             "from flask import Flask  # basic version that is long enough to pass").unwrap();
 
@@ -339,8 +376,7 @@ mod tests {
 
     #[test]
     fn test_my_contributions() {
-        let conn = temp_conn();
-        let cm = ContributeManager::new(&conn);
+        let (cm, _qm) = temp_managers();
 
         cm.submit("dev_bd", "json_parser", "python",
             "import json\ndef parse(s): return json.loads(s)  # simple but valid").unwrap();
@@ -353,8 +389,7 @@ mod tests {
 
     #[test]
     fn test_stats() {
-        let conn = temp_conn();
-        let cm = ContributeManager::new(&conn);
+        let (cm, _qm) = temp_managers();
         let db = temp_db();
 
         cm.submit("dev1", "sort_fn", "python",
@@ -369,9 +404,7 @@ mod tests {
 
     #[test]
     fn test_multiple_contributors_independent_quota() {
-        let conn = temp_conn();
-        let cm = ContributeManager::new(&conn);
-        let qm = QuotaManager::new(&conn);
+        let (cm, qm) = temp_managers();
 
         cm.submit("dev_ke", "http_server", "python",
             "from flask import Flask\napp=Flask(__name__)\n@app.route('/')\ndef i(): return 'hi'").unwrap();

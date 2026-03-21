@@ -1,46 +1,53 @@
 #![allow(dead_code)]
 // crownycode/src/offline/snapshot.rs
-// 셀DB 스냅샷 — JSON 직렬화 (오프라인 배포용)
+// 셀DB 스냅샷 — 텍스트 직렬화 (오프라인 배포용)
 // RPi4 같은 저사양 장비에서 Claude API 없이 패턴 공유
 //
-// 포맷: JSON Lines — 한 줄 = 하나의 셀 레코드
-// 압축: gzip (std::io만 사용, 외부 크레이트 최소화)
+// 포맷: 자체 텍스트 형식 (serde 불필요)
+// 헤더 줄 + 셀 레코드 (key=value 줄)
 
-use anyhow::{Result, Context};
+use crate::error::{Result, err};
 use std::io::{BufRead, BufReader, Write, BufWriter};
 use std::fs::{File, create_dir_all};
 use std::path::Path;
 
 use crate::cell::store::CrownyDb;
-use crate::cell::CrownyCell;
 
-/// 셀DB → 스냅샷 파일 (JSON Lines)
+/// 셀DB → 스냅샷 파일
 pub fn export(db: &CrownyDb, path: &str) -> Result<()> {
-    // 디렉터리 보장
     if let Some(parent) = Path::new(path).parent() {
         create_dir_all(parent)?;
     }
 
     let file = File::create(path)
-        .with_context(|| format!("스냅샷 파일 생성 실패: {path}"))?;
+        .map_err(|e| err!("스냅샷 파일 생성 실패: {}: {}", path, e))?;
     let mut writer = BufWriter::new(file);
 
     let net = db.cell_net();
 
     // 헤더
-    let header = SnapshotHeader {
-        version: "crownycode-snapshot-v1".to_string(),
-        exported_at: chrono::Utc::now().to_rfc3339(),
-        cell_count: net.len() as i64,
-    };
-    writeln!(writer, "{}", serde_json::to_string(&header)?)?;
+    writeln!(writer, "VERSION=crownycode-snapshot-v1")?;
+    writeln!(writer, "EXPORTED_AT={}", crate::time_util::now_rfc3339())?;
+    writeln!(writer, "CELL_COUNT={}", net.len())?;
+    writeln!(writer, "---")?;
 
     // 셀 레코드
     let cells = net.search("");
     let mut written = 0u64;
     for cell in &cells {
-        let record = CellRecord::from_crowny(cell);
-        writeln!(writer, "{}", serde_json::to_string(&record)?)?;
+        let (target_lang, code) = cell.best_pattern()
+            .map(|p| (p.target_lang.clone(), p.code.clone()))
+            .unwrap_or_default();
+        // Encode code as base64-ish to handle newlines: escape newlines
+        let code_escaped = code.replace('\\', "\\\\").replace('\n', "\\n");
+        writeln!(writer, "CELL")?;
+        writeln!(writer, "intent={}", cell.intent)?;
+        writeln!(writer, "target_lang={}", target_lang)?;
+        writeln!(writer, "code={}", code_escaped)?;
+        writeln!(writer, "confidence={}", cell.energy)?;
+        writeln!(writer, "refutation_count={}", cell.refutation_count)?;
+        writeln!(writer, "use_count={}", cell.activation_count)?;
+        writeln!(writer, "END")?;
         written += 1;
     }
 
@@ -50,64 +57,93 @@ pub fn export(db: &CrownyDb, path: &str) -> Result<()> {
 }
 
 /// 스냅샷 파일 → 셀DB 복원
-/// 반환값: 실제로 임포트된 셀 수
 pub fn import(db: &CrownyDb, path: &str) -> Result<u64> {
     let file = File::open(path)
-        .with_context(|| format!("스냅샷 파일 없음: {path}"))?;
+        .map_err(|e| err!("스냅샷 파일 없음: {}: {}", path, e))?;
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
 
     // 헤더 검증
-    let header_line = lines.next()
-        .ok_or_else(|| anyhow::anyhow!("빈 스냅샷 파일"))??;
-    let header: SnapshotHeader = serde_json::from_str(&header_line)
-        .with_context(|| "스냅샷 헤더 파싱 실패")?;
+    let mut version = String::new();
+    let mut exported_at = String::new();
 
-    if !header.version.starts_with("crownycode-snapshot") {
-        anyhow::bail!("알 수 없는 스냅샷 버전: {}", header.version);
+    // Parse header lines until ---
+    for line in lines.by_ref() {
+        let line = line?;
+        let line = line.trim().to_string();
+        if line == "---" { break; }
+        if let Some(val) = line.strip_prefix("VERSION=") {
+            version = val.to_string();
+        } else if let Some(val) = line.strip_prefix("EXPORTED_AT=") {
+            exported_at = val.to_string();
+        }
     }
 
-    println!("  스냅샷 헤더: {} ({})", header.version, header.exported_at);
+    if version.is_empty() {
+        // Try JSON format (backward compat)
+        return import_json_compat(db, path);
+    }
+
+    if !version.starts_with("crownycode-snapshot") {
+        return Err(err!("알 수 없는 스냅샷 버전: {}", version));
+    }
+
+    println!("  스냅샷 헤더: {} ({})", version, exported_at);
 
     // 셀 레코드 임포트
     let mut imported = 0u64;
     let mut skipped = 0u64;
 
+    let mut current_record: Option<CellRecord> = None;
+
     for line in lines {
         let line = line?;
-        if line.trim().is_empty() { continue; }
+        let line = line.trim().to_string();
+        if line.is_empty() { continue; }
 
-        let record: CellRecord = match serde_json::from_str(&line) {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("  경고: 레코드 파싱 실패 — {e}");
-                skipped += 1;
-                continue;
-            }
-        };
+        if line == "CELL" {
+            current_record = Some(CellRecord::default());
+            continue;
+        }
+        if line == "END" {
+            if let Some(record) = current_record.take() {
+                // 기존 셀보다 신뢰도가 낮으면 덮어쓰지 않음
+                let should_import = {
+                    let net = db.cell_net();
+                    match net.find_by_intent(&record.intent) {
+                        Some(existing) => existing.energy < record.confidence,
+                        None => true,
+                    }
+                };
 
-        // 기존 셀보다 신뢰도가 낮으면 덮어쓰지 않음
-        {
-            let net = db.cell_net();
-            if let Some(existing) = net.find_by_intent(&record.intent) {
-                if existing.energy >= record.confidence {
+                if should_import && !record.intent.is_empty() {
+                    let code = record.code.replace("\\n", "\n").replace("\\\\", "\\");
+                    db.cell_net_mut().upsert_pattern(
+                        &record.intent,
+                        &record.target_lang,
+                        &code,
+                        record.confidence,
+                    );
+                    db.save_net()?;
+                    imported += 1;
+                } else {
                     skipped += 1;
-                    continue;
                 }
             }
+            continue;
         }
 
-        {
-            let mut net = db.cell_net_mut();
-            net.upsert_pattern(
-                &record.intent,
-                &record.target_lang,
-                &record.code,
-                record.confidence,
-            );
+        if let Some(ref mut record) = current_record {
+            if let Some(val) = line.strip_prefix("intent=") {
+                record.intent = val.to_string();
+            } else if let Some(val) = line.strip_prefix("target_lang=") {
+                record.target_lang = val.to_string();
+            } else if let Some(val) = line.strip_prefix("code=") {
+                record.code = val.to_string();
+            } else if let Some(val) = line.strip_prefix("confidence=") {
+                record.confidence = val.parse().unwrap_or(0.5);
+            }
         }
-        db.save_net()?;
-        imported += 1;
     }
 
     if skipped > 0 {
@@ -117,7 +153,71 @@ pub fn import(db: &CrownyDb, path: &str) -> Result<u64> {
     Ok(imported)
 }
 
-/// 여러 스냅샷 파일을 병합 (커뮤니티 패턴 합산용)
+/// JSON Lines 형식 호환 임포트 (기존 스냅샷 파일 지원)
+fn import_json_compat(db: &CrownyDb, path: &str) -> Result<u64> {
+    #[cfg(feature = "claude")]
+    {
+        let file = File::open(path)
+            .map_err(|e| err!("스냅샷 파일 없음: {}: {}", path, e))?;
+        let reader = BufReader::new(file);
+        let mut lines = reader.lines();
+
+        // 첫 줄: 헤더
+        let header_line = lines.next()
+            .ok_or_else(|| err!("빈 스냅샷 파일"))??;
+        let header: serde_json::Value = serde_json::from_str(&header_line)
+            .map_err(|e| err!("스냅샷 헤더 파싱 실패: {}", e))?;
+
+        let version = header["version"].as_str().unwrap_or("");
+        if !version.starts_with("crownycode-snapshot") {
+            return Err(err!("알 수 없는 스냅샷 버전: {}", version));
+        }
+
+        let mut imported = 0u64;
+
+        for line in lines {
+            let line = line?;
+            if line.trim().is_empty() { continue; }
+
+            let record: serde_json::Value = match serde_json::from_str(&line) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("  경고: 레코드 파싱 실패 — {e}");
+                    continue;
+                }
+            };
+
+            let intent = record["intent"].as_str().unwrap_or("").to_string();
+            let target_lang = record["target_lang"].as_str().unwrap_or("").to_string();
+            let code = record["code"].as_str().unwrap_or("").to_string();
+            let confidence = record["confidence"].as_f64().unwrap_or(0.5) as f32;
+
+            let should_import = {
+                let net = db.cell_net();
+                match net.find_by_intent(&intent) {
+                    Some(existing) => existing.energy < confidence,
+                    None => true,
+                }
+            };
+
+            if should_import && !intent.is_empty() {
+                db.cell_net_mut().upsert_pattern(&intent, &target_lang, &code, confidence);
+                db.save_net()?;
+                imported += 1;
+            }
+        }
+        Ok(imported)
+    }
+
+    #[cfg(not(feature = "claude"))]
+    {
+        let _ = db;
+        let _ = path;
+        Err(err!("JSON 스냅샷 임포트는 --features claude 필요"))
+    }
+}
+
+/// 여러 스냅샷 파일을 병합
 pub fn merge(db: &CrownyDb, paths: &[&str]) -> Result<u64> {
     let mut total = 0u64;
     for path in paths {
@@ -134,14 +234,7 @@ pub fn merge(db: &CrownyDb, paths: &[&str]) -> Result<u64> {
 
 // ── 직렬화 구조체 ─────────────────────────────────────────────
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct SnapshotHeader {
-    version: String,
-    exported_at: String,
-    cell_count: i64,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default)]
 struct CellRecord {
     intent: String,
     target_lang: String,
@@ -151,33 +244,25 @@ struct CellRecord {
     use_count: u32,
 }
 
-impl CellRecord {
-    fn from_crowny(cell: &CrownyCell) -> Self {
-        let (target_lang, code) = cell.best_pattern()
-            .map(|p| (p.target_lang.clone(), p.code.clone()))
-            .unwrap_or_default();
-        Self {
-            intent: cell.intent.clone(),
-            target_lang,
-            code,
-            confidence: cell.energy,
-            refutation_count: cell.refutation_count,
-            use_count: cell.activation_count,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::cell::store::CrownyDb;
+    use std::io::Write;
+
+    static TEST_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    fn unique_id() -> String {
+        let n = TEST_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        format!("{}_{}", ts, n)
+    }
 
     fn temp_db() -> CrownyDb {
-        CrownyDb::open(&format!("/tmp/snap_test_{}.db", uuid::Uuid::new_v4())).unwrap()
+        CrownyDb::open(&format!("/tmp/snap_test_{}.db", unique_id())).unwrap()
     }
 
     fn temp_path() -> String {
-        format!("/tmp/snap_{}.jsonl", uuid::Uuid::new_v4())
+        format!("/tmp/snap_{}.snap", unique_id())
     }
 
     #[test]
@@ -214,18 +299,24 @@ mod tests {
         let db = temp_db();
         db.cell_net_mut().upsert_pattern("http_server", "python", "good_code", 0.95);
 
-        // 낮은 신뢰도 스냅샷
         let path = temp_path();
         {
             let mut f = std::fs::File::create(&path).unwrap();
-            writeln!(f, r#"{{"version":"crownycode-snapshot-v1","exported_at":"2024-01-01T00:00:00Z","cell_count":1}}"#).unwrap();
-            writeln!(f, r#"{{"intent":"http_server","target_lang":"python","code":"bad_code","confidence":0.5,"refutation_count":0,"use_count":0}}"#).unwrap();
+            writeln!(f, "VERSION=crownycode-snapshot-v1").unwrap();
+            writeln!(f, "EXPORTED_AT=2024-01-01T00:00:00Z").unwrap();
+            writeln!(f, "CELL_COUNT=1").unwrap();
+            writeln!(f, "---").unwrap();
+            writeln!(f, "CELL").unwrap();
+            writeln!(f, "intent=http_server").unwrap();
+            writeln!(f, "target_lang=python").unwrap();
+            writeln!(f, "code=bad_code").unwrap();
+            writeln!(f, "confidence=0.5").unwrap();
+            writeln!(f, "END").unwrap();
         }
 
         let imported = import(&db, &path).unwrap();
         assert_eq!(imported, 0, "낮은 신뢰도는 건너뜀");
 
-        // 기존 코드 유지됨
         let net = db.cell_net();
         let cell = net.find_by_intent("http_server").unwrap();
         assert_eq!(cell.best_pattern().unwrap().code, "good_code");
@@ -239,8 +330,16 @@ mod tests {
         let path = temp_path();
         {
             let mut f = std::fs::File::create(&path).unwrap();
-            writeln!(f, r#"{{"version":"crownycode-snapshot-v1","exported_at":"2024-01-01T00:00:00Z","cell_count":1}}"#).unwrap();
-            writeln!(f, r#"{{"intent":"sort_fn","target_lang":"python","code":"new_better_code","confidence":0.95,"refutation_count":0,"use_count":10}}"#).unwrap();
+            writeln!(f, "VERSION=crownycode-snapshot-v1").unwrap();
+            writeln!(f, "EXPORTED_AT=2024-01-01T00:00:00Z").unwrap();
+            writeln!(f, "CELL_COUNT=1").unwrap();
+            writeln!(f, "---").unwrap();
+            writeln!(f, "CELL").unwrap();
+            writeln!(f, "intent=sort_fn").unwrap();
+            writeln!(f, "target_lang=python").unwrap();
+            writeln!(f, "code=new_better_code").unwrap();
+            writeln!(f, "confidence=0.95").unwrap();
+            writeln!(f, "END").unwrap();
         }
 
         let imported = import(&db, &path).unwrap();
@@ -256,13 +355,29 @@ mod tests {
 
         {
             let mut f = std::fs::File::create(&p1).unwrap();
-            writeln!(f, r#"{{"version":"crownycode-snapshot-v1","exported_at":"2024-01-01T00:00:00Z","cell_count":1}}"#).unwrap();
-            writeln!(f, r#"{{"intent":"intent_a","target_lang":"python","code":"a","confidence":0.9,"refutation_count":0,"use_count":0}}"#).unwrap();
+            writeln!(f, "VERSION=crownycode-snapshot-v1").unwrap();
+            writeln!(f, "EXPORTED_AT=2024-01-01T00:00:00Z").unwrap();
+            writeln!(f, "CELL_COUNT=1").unwrap();
+            writeln!(f, "---").unwrap();
+            writeln!(f, "CELL").unwrap();
+            writeln!(f, "intent=intent_a").unwrap();
+            writeln!(f, "target_lang=python").unwrap();
+            writeln!(f, "code=a").unwrap();
+            writeln!(f, "confidence=0.9").unwrap();
+            writeln!(f, "END").unwrap();
         }
         {
             let mut f = std::fs::File::create(&p2).unwrap();
-            writeln!(f, r#"{{"version":"crownycode-snapshot-v1","exported_at":"2024-01-01T00:00:00Z","cell_count":1}}"#).unwrap();
-            writeln!(f, r#"{{"intent":"intent_b","target_lang":"rust","code":"b","confidence":0.8,"refutation_count":0,"use_count":0}}"#).unwrap();
+            writeln!(f, "VERSION=crownycode-snapshot-v1").unwrap();
+            writeln!(f, "EXPORTED_AT=2024-01-01T00:00:00Z").unwrap();
+            writeln!(f, "CELL_COUNT=1").unwrap();
+            writeln!(f, "---").unwrap();
+            writeln!(f, "CELL").unwrap();
+            writeln!(f, "intent=intent_b").unwrap();
+            writeln!(f, "target_lang=rust").unwrap();
+            writeln!(f, "code=b").unwrap();
+            writeln!(f, "confidence=0.8").unwrap();
+            writeln!(f, "END").unwrap();
         }
 
         let total = merge(&db, &[p1.as_str(), p2.as_str()]).unwrap();
@@ -286,7 +401,8 @@ mod tests {
         let path = temp_path();
         {
             let mut f = std::fs::File::create(&path).unwrap();
-            writeln!(f, r#"{{"version":"other-tool-v99","exported_at":"now","cell_count":0}}"#).unwrap();
+            writeln!(f, "VERSION=other-tool-v99").unwrap();
+            writeln!(f, "---").unwrap();
         }
         let result = import(&db, &path);
         assert!(result.is_err());

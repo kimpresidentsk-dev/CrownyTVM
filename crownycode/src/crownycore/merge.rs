@@ -9,7 +9,7 @@
 // - 오해 셀은 제외 (명확화 질문으로 대체)
 // - 미인지 셀은 폴백 IR 또는 제외
 
-use anyhow::Result;
+use crate::error::Result;
 use crate::pipeline::ir::{IrTree, IrNode};
 use super::reason::ReasonedCel;
 use super::CelAction;

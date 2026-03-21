@@ -7,7 +7,7 @@
 // 지금: 모든 IR 노드가 실제 ISA729 명령으로 변환.
 //       VM에서 실행하면 결과가 나온다.
 
-use anyhow::Result;
+use crate::error::Result;
 use crate::pipeline::ir::{IrTree, IrNode, TypeHint, HttpMethod};
 use super::instr::Instr;
 use super::regalloc::{RegAllocator, AllocResult};

@@ -8,7 +8,7 @@ use crownycode::developer::level::DevLevel;
 use crownycode::cell::store::CrownyDb;
 
 fn temp_db() -> CrownyDb {
-    CrownyDb::open(&format!("/tmp/p2_{}.db", uuid::Uuid::new_v4())).unwrap()
+    CrownyDb::open(&format!("/tmp/p2_{}.db", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos())).unwrap()
 }
 
 // ── use_count 분리 ────────────────────────────────────────────
@@ -171,7 +171,7 @@ fn test_not_free_gateway() {
 #[test]
 fn test_devstore_create_and_load() {
     let db = temp_db();
-    let dev_store = DevStore::new(db.connection());
+    let dev_store = DevStore::new(db.db_path());
     dev_store.init_schema().unwrap();
 
     let mut profile = DeveloperProfile::new("dev_test", "크라우니");
@@ -188,7 +188,7 @@ fn test_devstore_create_and_load() {
 #[test]
 fn test_devstore_get_or_create_default() {
     let db = temp_db();
-    let dev_store = DevStore::new(db.connection());
+    let dev_store = DevStore::new(db.db_path());
     dev_store.init_schema().unwrap();
 
     let p1 = dev_store.get_or_create_default().unwrap();
@@ -199,7 +199,7 @@ fn test_devstore_get_or_create_default() {
 #[test]
 fn test_devstore_record_request() {
     let db = temp_db();
-    let dev_store = DevStore::new(db.connection());
+    let dev_store = DevStore::new(db.db_path());
     dev_store.init_schema().unwrap();
 
     let profile = DeveloperProfile::new("req_test", "테스터");
@@ -217,7 +217,7 @@ fn test_devstore_record_request() {
 #[test]
 fn test_devstore_developer_count() {
     let db = temp_db();
-    let dev_store = DevStore::new(db.connection());
+    let dev_store = DevStore::new(db.db_path());
     dev_store.init_schema().unwrap();
 
     assert_eq!(dev_store.developer_count().unwrap(), 0);
@@ -229,7 +229,7 @@ fn test_devstore_developer_count() {
 #[test]
 fn test_devstore_total_learned_intents() {
     let db = temp_db();
-    let dev_store = DevStore::new(db.connection());
+    let dev_store = DevStore::new(db.db_path());
     dev_store.init_schema().unwrap();
 
     let mut p = DeveloperProfile::new("stats_dev", "통계");

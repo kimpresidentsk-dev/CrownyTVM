@@ -2,7 +2,7 @@
 // ISA729 VM — 균형3진 가상머신
 // 크라우니어셈블리 텍스트를 파싱하고 실행
 
-use anyhow::{Result, bail};
+use crate::error::{Result, bail};
 use std::collections::HashMap;
 use super::{Reg, TriWord};
 use super::instr::Instr;
@@ -236,12 +236,12 @@ impl Vm {
                 // ── 제어 흐름 ──────────────────────────────────────
                 Instr::Jmp(label) => {
                     self.pc = *labels.get(label)
-                        .ok_or_else(|| anyhow::anyhow!("레이블 없음: {label}"))?;
+                        .ok_or_else(|| crate::error::err!("레이블 없음: {label}"))?;
                 }
                 Instr::Jt(label, rs) => {
                     if self.get_reg(*rs).to_int() > 0 {
                         self.pc = *labels.get(label)
-                            .ok_or_else(|| anyhow::anyhow!("레이블 없음: {label}"))?;
+                            .ok_or_else(|| crate::error::err!("레이블 없음: {label}"))?;
                     } else {
                         self.pc += 1;
                     }
@@ -249,7 +249,7 @@ impl Vm {
                 Instr::Jz(label, rs) => {
                     if self.get_reg(*rs).to_int() == 0 {
                         self.pc = *labels.get(label)
-                            .ok_or_else(|| anyhow::anyhow!("레이블 없음: {label}"))?;
+                            .ok_or_else(|| crate::error::err!("레이블 없음: {label}"))?;
                     } else {
                         self.pc += 1;
                     }
@@ -257,7 +257,7 @@ impl Vm {
                 Instr::Jn(label, rs) => {
                     if self.get_reg(*rs).to_int() < 0 {
                         self.pc = *labels.get(label)
-                            .ok_or_else(|| anyhow::anyhow!("레이블 없음: {label}"))?;
+                            .ok_or_else(|| crate::error::err!("레이블 없음: {label}"))?;
                     } else {
                         self.pc += 1;
                     }
@@ -270,7 +270,7 @@ impl Vm {
                         self.sp += 1;
                     }
                     self.pc = *labels.get(label)
-                        .ok_or_else(|| anyhow::anyhow!("레이블 없음: {label}"))?;
+                        .ok_or_else(|| crate::error::err!("레이블 없음: {label}"))?;
                 }
                 Instr::Ret => {
                     if self.sp > 0 {
@@ -287,7 +287,7 @@ impl Vm {
                     self.set_reg(*rd, TriWord::from_int(v));
                     if v != 0 {
                         self.pc = *labels.get(label)
-                            .ok_or_else(|| anyhow::anyhow!("레이블 없음: {label}"))?;
+                            .ok_or_else(|| crate::error::err!("레이블 없음: {label}"))?;
                     } else {
                         self.pc += 1;
                     }

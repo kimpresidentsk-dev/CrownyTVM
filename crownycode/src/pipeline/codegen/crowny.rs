@@ -1,7 +1,7 @@
 // crownycode/src/pipeline/codegen/crowny.rs
 // 한선씨 IR → 크라우니어(ISA729) 코드 생성기 — Phase 5 완성
 
-use anyhow::Result;
+use crate::error::Result;
 use crate::pipeline::ir::IrTree;
 use crate::isa729::codegen::{generate as isa729_generate, CrownyGenOptions};
 use super::GenOptions;

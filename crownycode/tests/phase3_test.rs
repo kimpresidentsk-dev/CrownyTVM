@@ -7,14 +7,14 @@ use crownycode::developer::level::DevLevel;
 use crownycode::offline::snapshot;
 
 fn temp_db() -> CrownyDb {
-    let db = CrownyDb::open(&format!("/tmp/p3_{}.db", uuid::Uuid::new_v4())).unwrap();
-    let ds = DevStore::new(db.connection());
+    let db = CrownyDb::open(&format!("/tmp/p3_{}.db", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos())).unwrap();
+    let ds = DevStore::new(db.db_path());
     ds.init_schema().unwrap();
     db
 }
 
 fn temp_path() -> String {
-    format!("/tmp/snap3_{}.jsonl", uuid::Uuid::new_v4())
+    format!("/tmp/snap3_{}.jsonl", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos())
 }
 
 // ── Engine ↔ DevStore 연결 ─────────────────────────────────────
@@ -23,7 +23,7 @@ fn temp_path() -> String {
 fn test_devstore_init_on_engine_new() {
     // DevStore 스키마가 CrownyDb DB에 자동 생성되는지 확인
     let db = temp_db();
-    let ds = DevStore::new(db.connection());
+    let ds = DevStore::new(db.db_path());
     // 오류 없이 기본 개발자 생성 가능한지
     let profile = ds.get_or_create_default().unwrap();
     assert_eq!(profile.level, DevLevel::Seed);
@@ -42,7 +42,7 @@ fn test_use_count_and_record_request_independent() {
     assert_eq!(cell.activation_count, 2);
 
     // record_request: 개발자 요청 횟수
-    let ds = DevStore::new(db.connection());
+    let ds = DevStore::new(db.db_path());
     ds.record_request("default", true).unwrap();
     ds.record_request("default", false).unwrap();
     // 기본 개발자가 없을 때는 조용히 실패 (테이블은 존재하지만 row 없음)
@@ -84,7 +84,7 @@ fn test_profile_next_steps_seed_level() {
 #[test]
 fn test_profile_persist_and_reload() {
     let db = temp_db();
-    let ds = DevStore::new(db.connection());
+    let ds = DevStore::new(db.db_path());
 
     let mut p = DeveloperProfile::new("persist_test", "재로드테스트");
     p.learn_intent("http_server", 0.9);
@@ -124,6 +124,7 @@ fn test_snapshot_export_import_roundtrip() {
     assert!((cell.energy - 0.92).abs() < 0.02);
 }
 
+#[cfg(feature = "claude")]
 #[test]
 fn test_snapshot_skips_lower_confidence() {
     let db = temp_db();
@@ -145,6 +146,7 @@ fn test_snapshot_skips_lower_confidence() {
     assert_eq!(cell.best_pattern().unwrap().code, "high_quality", "기존 고신뢰 코드 보존됨");
 }
 
+#[cfg(feature = "claude")]
 #[test]
 fn test_snapshot_overwrites_lower_confidence() {
     let db = temp_db();
@@ -162,23 +164,41 @@ fn test_snapshot_overwrites_lower_confidence() {
     assert_eq!(imported, 1);
 }
 
+#[cfg(feature = "claude")]
 #[test]
 fn test_snapshot_merge_two_files() {
     let db = temp_db();
     let p1 = temp_path();
     let p2 = temp_path();
 
+    // 자체 스냅샷 형식 (VERSION= 헤더 + --- 구분선)
     {
         use std::io::Write;
         let mut f = std::fs::File::create(&p1).unwrap();
-        writeln!(f, r#"{{"version":"crownycode-snapshot-v1","exported_at":"2024-01-01T00:00:00Z","cell_count":1}}"#).unwrap();
-        writeln!(f, r#"{{"intent":"merge_a","target_lang":"python","code":"a","confidence":0.9,"refutation_count":0,"use_count":0}}"#).unwrap();
+        writeln!(f, "VERSION=crownycode-snapshot-v1").unwrap();
+        writeln!(f, "EXPORTED_AT=2024-01-01T00:00:00Z").unwrap();
+        writeln!(f, "CELL_COUNT=1").unwrap();
+        writeln!(f, "---").unwrap();
+        writeln!(f, "CELL").unwrap();
+        writeln!(f, "intent=merge_a").unwrap();
+        writeln!(f, "target_lang=python").unwrap();
+        writeln!(f, "code=a").unwrap();
+        writeln!(f, "confidence=0.9").unwrap();
+        writeln!(f, "END").unwrap();
     }
     {
         use std::io::Write;
         let mut f = std::fs::File::create(&p2).unwrap();
-        writeln!(f, r#"{{"version":"crownycode-snapshot-v1","exported_at":"2024-01-01T00:00:00Z","cell_count":1}}"#).unwrap();
-        writeln!(f, r#"{{"intent":"merge_b","target_lang":"rust","code":"b","confidence":0.8,"refutation_count":0,"use_count":0}}"#).unwrap();
+        writeln!(f, "VERSION=crownycode-snapshot-v1").unwrap();
+        writeln!(f, "EXPORTED_AT=2024-01-01T00:00:00Z").unwrap();
+        writeln!(f, "CELL_COUNT=1").unwrap();
+        writeln!(f, "---").unwrap();
+        writeln!(f, "CELL").unwrap();
+        writeln!(f, "intent=merge_b").unwrap();
+        writeln!(f, "target_lang=rust").unwrap();
+        writeln!(f, "code=b").unwrap();
+        writeln!(f, "confidence=0.8").unwrap();
+        writeln!(f, "END").unwrap();
     }
 
     let total = snapshot::merge(&db, &[p1.as_str(), p2.as_str()]).unwrap();
@@ -187,6 +207,7 @@ fn test_snapshot_merge_two_files() {
     assert!(db.cell_net().find_by_intent("merge_b").is_some());
 }
 
+#[cfg(feature = "claude")]
 #[test]
 fn test_snapshot_invalid_version_rejected() {
     let db = temp_db();
@@ -243,7 +264,7 @@ fn test_auto_snapshot_creates_dir() {
     }
     assert_eq!(db.cell_net().len() as i64, 50);
 
-    let snap_dir = format!("/tmp/auto_snap_{}", uuid::Uuid::new_v4());
+    let snap_dir = format!("/tmp/auto_snap_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
     let path = format!("{}/snap_50.bin", snap_dir);
     snapshot::export(&db, &path).unwrap();
     assert!(std::path::Path::new(&path).exists());

@@ -11,11 +11,11 @@
 // 이것이 크라우니셀로직이 "관계형 DB 위의 그래프 흉내"가 아니라
 // "셀이 곧 관계망"인 이유다.
 
-use serde::{Deserialize, Serialize};
 use super::CellId;
 
 /// 신호 종류
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "claude", derive(serde::Serialize, serde::Deserialize))]
 pub enum SignalKind {
     /// 신뢰 강화 (사용 확인, 테스트 통과 등)
     Reinforce,
@@ -47,7 +47,8 @@ impl SignalKind {
 /// 2. A의 edges를 따라 이웃 셀들에게 감쇠된 신호 전달
 /// 3. 각 이웃이 자기 energy를 자율적으로 갱신
 /// 4. 깊이(depth)까지 반복
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "claude", derive(serde::Serialize, serde::Deserialize))]
 pub struct TrustSignal {
     /// 신호 종류
     pub kind: SignalKind,

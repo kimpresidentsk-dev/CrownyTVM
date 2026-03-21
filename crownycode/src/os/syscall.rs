@@ -13,7 +13,7 @@
 //   SYS_CROWNYCODE_STATUS = 0x103  상태 조회
 //   SYS_CROWNYCODE_SYNC   = 0x104  Life Graph 동기화
 
-use anyhow::Result;
+use crate::error::Result;
 use crate::cell::net::CellNet;
 use crate::cell::TritState;
 

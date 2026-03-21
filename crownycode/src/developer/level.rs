@@ -4,7 +4,8 @@
 // 레벨은 학습 셀 수 + 성공 생성 수 + 직접 기여 수로 결정
 
 /// 개발자 레벨
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "claude", derive(serde::Serialize, serde::Deserialize))]
 pub enum DevLevel {
     /// 씨앗 — 코딩 경험 없음 (0~9 학습셀)
     Seed,

@@ -10,30 +10,11 @@ name = "crownycode"
 path = "src/main.rs"
 
 [dependencies]
-# CLI
-clap = { version = "4", features = ["derive"] }
-# Async runtime
-tokio = { version = "1", features = ["full"] }
-# HTTP (Claude API)
-reqwest = { version = "0.11", features = ["json"] }
-# JSON
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-# SQLite (CellDB)
-rusqlite = { version = "0.31", features = ["bundled"] }
-# Error handling
-anyhow = "1"
-thiserror = "1"
-# Color terminal output
-colored = "2"
-# Config file
-toml = "0.8"
-# UUID for cell IDs
-uuid = { version = "1", features = ["v4"] }
-# Timestamp
-chrono = { version = "0.4", features = ["serde"] }
-# Binary serialization (CellNet persistence — SQLite replacement)
-bincode = "1"
+# Claude API (optional — only for learning mode)
+tokio = { version = "1", features = ["full"], optional = true }
+reqwest = { version = "0.11", features = ["json"], optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
 
 [profile.release]
 opt-level = 3
@@ -52,10 +33,6 @@ lto = true               # 링크 타임 최적화
 codegen-units = 1        # 단일 코드 유닛 (더 작은 바이너리)
 panic = "abort"          # 패닉 시 즉시 종료 (unwinding 코드 제거)
 
-# 의존성 feature 플래그 — 저사양 모드
 [features]
-default = []
-# low_power: Claude API 관련 코드 제외 (reqwest 포함 안 함)
-low_power = []
-# full: 모든 기능 포함 (데스크탑/서버용)
-full = ["low_power"]
+default = ["claude"]
+claude = ["dep:tokio", "dep:reqwest", "dep:serde", "dep:serde_json"]

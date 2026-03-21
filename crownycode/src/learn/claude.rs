@@ -2,7 +2,7 @@
 // Claude 학습채널 — 미인지(-2) 패턴 발생 시 Claude API 호출
 // 응답을 한선씨IR로 분해 후 셀로직DB에 저장
 
-use anyhow::Result;
+use crate::error::Result;
 use reqwest::Client;
 use serde_json::{json, Value};
 
@@ -30,9 +30,8 @@ impl ClaudeLearner {
         db: &CrownyDb,
     ) -> Result<IrTree> {
         let api_key = std::env::var("ANTHROPIC_API_KEY")
-            .map_err(|_| anyhow::anyhow!("ANTHROPIC_API_KEY 환경변수가 없습니다"))?;
+            .map_err(|_| crate::error::err!("ANTHROPIC_API_KEY 환경변수가 없습니다"))?;
 
-        // Claude에게 코드 생성 요청 (JSON 구조화 출력)
         let system = r#"
 당신은 크라우니코드의 학습 채널입니다.
 사용자의 자연어 요청을 받아 다음 JSON 형식으로만 응답하세요:
@@ -62,9 +61,8 @@ JSON 외에 어떤 텍스트도 출력하지 마세요.
 
         let body: Value = response.json().await?;
         let text = body["content"][0]["text"].as_str()
-            .ok_or_else(|| anyhow::anyhow!("Claude 응답 파싱 실패"))?;
+            .ok_or_else(|| crate::error::err!("Claude 응답 파싱 실패"))?;
 
-        // JSON 파싱
         let clean = text.trim().trim_start_matches("```json")
             .trim_end_matches("```").trim();
         let parsed: Value = serde_json::from_str(clean)?;
@@ -74,7 +72,6 @@ JSON 외에 어떤 텍스트도 출력하지 마세요.
         let rust_code = parsed["rust_code"].as_str().unwrap_or("").to_string();
         let confidence = parsed["confidence"].as_f64().unwrap_or(0.7) as f32;
 
-        // 셀DB에 저장
         if !python_code.is_empty() {
             let mut net = db.cell_net_mut();
             net.upsert_pattern(&intent, "python", &python_code, confidence);
@@ -90,7 +87,6 @@ JSON 외에 어떤 텍스트도 출력하지 마세요.
             println!("  셀 저장: {} [rust] 신뢰도 {:.0}%", intent, confidence * 100.0);
         }
 
-        // 학습된 내용으로 간단한 IR 트리 구성 (재시도용)
         let ir = IrTree {
             intent: intent.clone(),
             sub_intents: vec![],

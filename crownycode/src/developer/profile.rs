@@ -2,12 +2,11 @@
 // crownycode/src/developer/profile.rs
 // 개발자 프로필 — 학습 셀 그래프 + 레벨 + 추천
 
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 use super::level::DevLevel;
 
 /// 개발자 프로필
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "claude", derive(serde::Serialize, serde::Deserialize))]
 pub struct DeveloperProfile {
     /// 개발자 식별자 (로컬 UUID 또는 사용자 지정 ID)
     pub dev_id: String,
@@ -27,10 +26,10 @@ pub struct DeveloperProfile {
     pub successful_generations: u32,
     /// 커뮤니티 기여 수 (새 패턴 제안)
     pub contributions: u32,
-    /// 첫 사용 일시
-    pub first_seen: DateTime<Utc>,
-    /// 마지막 활동 일시
-    pub last_active: DateTime<Utc>,
+    /// 첫 사용 일시 (RFC3339 문자열)
+    pub first_seen: String,
+    /// 마지막 활동 일시 (RFC3339 문자열)
+    pub last_active: String,
     /// 선호 언어
     pub preferred_lang: Option<String>,
     /// 국가 코드 (무상 게이트웨이 판단용)
@@ -38,17 +37,18 @@ pub struct DeveloperProfile {
 }
 
 /// 학습된 의도 항목
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "claude", derive(serde::Serialize, serde::Deserialize))]
 pub struct LearnedIntent {
     pub intent: String,
     pub confidence: f32,
-    pub learned_at: DateTime<Utc>,
+    pub learned_at: String,
     pub use_count: u32,
 }
 
 impl DeveloperProfile {
     pub fn new(dev_id: &str, name: &str) -> Self {
-        let now = Utc::now();
+        let now = crate::time_util::now_rfc3339();
         Self {
             dev_id: dev_id.to_string(),
             name: name.to_string(),
@@ -59,7 +59,7 @@ impl DeveloperProfile {
             total_requests: 0,
             successful_generations: 0,
             contributions: 0,
-            first_seen: now,
+            first_seen: now.clone(),
             last_active: now,
             preferred_lang: None,
             country_code: None,
@@ -86,7 +86,7 @@ impl DeveloperProfile {
         self.known_intents.push(LearnedIntent {
             intent: intent.to_string(),
             confidence,
-            learned_at: Utc::now(),
+            learned_at: crate::time_util::now_rfc3339(),
             use_count: 1,
         });
         self.recalculate_level();

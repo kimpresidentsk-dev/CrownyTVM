@@ -6,7 +6,7 @@ use crownycode::phase::judge::{PhaseJudge, Phase};
 use crownycode::cell::store::CrownyDb;
 
 fn temp_db() -> CrownyDb {
-    let path = format!("/tmp/crownycode_test_{}.db", uuid::Uuid::new_v4());
+    let path = format!("/tmp/crownycode_test_{}.db", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
     CrownyDb::open(&path).unwrap()
 }
 

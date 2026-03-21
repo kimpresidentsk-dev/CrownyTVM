@@ -19,7 +19,7 @@ pub mod split;
 pub mod reason;
 pub mod merge;
 
-use anyhow::Result;
+use crate::error::Result;
 use crate::pipeline::ir::IrTree;
 use crate::cell::net::CellNet;
 use crate::cell::TritState;

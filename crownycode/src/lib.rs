@@ -1,11 +1,14 @@
 // crownycode/src/lib.rs
 // 통합 테스트에서 crownycode::* 경로로 접근하기 위한 라이브러리 진입점
 
+pub mod error;
+pub mod serial;
 pub mod cli;
 pub mod pipeline;
 #[allow(dead_code)]
 pub mod phase;
 pub mod cell;
+#[cfg(feature = "claude")]
 pub mod learn;
 pub mod developer;
 pub mod offline;
@@ -17,3 +20,7 @@ pub mod crownycore;
 #[allow(dead_code)]
 pub mod os;
 pub mod seed;
+pub mod color;
+pub mod time_util;
+pub mod config_parser;
+pub mod i18n;

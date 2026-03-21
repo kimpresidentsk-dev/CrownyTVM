@@ -3,13 +3,12 @@
 // CellNet — 셀 네트워크 (SQLite CellStore 완전 대체)
 // ═══════════════════════════════════════════════════════════════
 //
-// 셀들의 인메모리 그래프. 영속성은 bincode 직렬화.
+// 셀들의 인메모리 그래프. 영속성은 자체 바이너리 직렬화.
 // 모든 조회는 HashMap O(1), 퍼지 검색은 토큰 매칭.
 // 신뢰 전파는 signal.rs의 메시지 패싱으로 처리.
 
 use std::collections::HashMap;
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use crate::error::Result;
 
 use super::{
     CellId, CrownyCell, TritState, CellEdge, Pattern, PatternSource, Relation,
@@ -21,9 +20,9 @@ use super::{
 /// 핵심 원칙:
 /// 1. 모든 셀은 인메모리 HashMap에 저장
 /// 2. intent → 셀 역인덱스로 O(1) 조회
-/// 3. 영속성은 bincode 직렬화 (SQLite 아님)
+/// 3. 영속성은 자체 바이너리 직렬화 (SQLite/bincode 아님)
 /// 4. 신뢰 전파는 셀 간 메시지 패싱
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct CellNet {
     /// 셀 저장소 (CellId → CrownyCell)
     cells: HashMap<CellId, CrownyCell>,
@@ -120,9 +119,6 @@ impl CellNet {
     }
 
     /// 퍼지 검색 — 토큰 분리 후 매칭
-    ///
-    /// "http_server_auth" → ["http", "server", "auth"]
-    /// → "http_server" 셀도 매칭 (2/3 토큰 일치)
     pub fn fuzzy_search(&self, query: &str) -> Vec<&CrownyCell> {
         let query_tokens = tokenize(query);
         if query_tokens.is_empty() {
@@ -200,10 +196,10 @@ impl CellNet {
     ) -> Result<()> {
         let to_id = self.find_by_intent(to_intent)
             .map(|c| c.id)
-            .ok_or_else(|| anyhow::anyhow!("대상 셀 없음: {}", to_intent))?;
+            .ok_or_else(|| crate::error::err!("대상 셀 없음: {}", to_intent))?;
 
         let from_cell = self.find_by_intent_mut(from_intent)
-            .ok_or_else(|| anyhow::anyhow!("출발 셀 없음: {}", from_intent))?;
+            .ok_or_else(|| crate::error::err!("출발 셀 없음: {}", from_intent))?;
 
         from_cell.add_edge(CellEdge::new(to_id, relation, weight));
         Ok(())
@@ -212,9 +208,6 @@ impl CellNet {
     // ── 신뢰 전파 — 메시지 패싱 ──────────────────────────────
 
     /// 셀에 신뢰 신호를 보내고 깊이 N까지 전파
-    ///
-    /// 이것이 크라우니셀로직의 핵심: DB 쿼리가 아니라
-    /// 셀이 이웃에게 직접 감쇠 신호를 보낸다.
     pub fn propagate_trust(
         &mut self,
         start_id: CellId,
@@ -231,14 +224,12 @@ impl CellNet {
             }
             visited.insert(cell_id);
 
-            // 셀의 에너지/상태 갱신
             if let Some(cell) = self.cells.get_mut(&cell_id) {
                 let factor = sig.kind.factor();
                 cell.energy = (cell.energy + sig.strength * factor).clamp(0.0, 1.0);
                 cell.trit_state = TritState::from_energy(cell.energy);
                 affected += 1;
 
-                // 이웃에게 감쇠 전파
                 if sig.depth < max_depth {
                     let propagated: Vec<(CellId, TrustSignal)> = cell.edges.iter()
                         .map(|edge| {
@@ -282,26 +273,20 @@ impl CellNet {
             .unwrap_or(TritState::Unknown)
     }
 
-    // ── 영속성 — bincode 직렬화 ──────────────────────────────
+    // ── 영속성 — 자체 바이너리 직렬화 ──────────────────────────
 
-    /// 디스크에 저장 (bincode)
+    /// 디스크에 저장 (자체 바이너리)
     pub fn save(&self, path: &str) -> Result<()> {
-        if let Some(parent) = std::path::Path::new(path).parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let encoded = bincode::serialize(self)?;
-        std::fs::write(path, encoded)?;
-        Ok(())
+        crate::serial::save_cellnet(self, path)
     }
 
-    /// 디스크에서 로드 (bincode)
+    /// 디스크에서 로드 (자체 바이너리)
     pub fn load(path: &str) -> Result<Self> {
-        let data = std::fs::read(path)?;
-        let net: CellNet = bincode::deserialize(&data)?;
-        Ok(net)
+        crate::serial::load_cellnet(path)
     }
 
     /// JSON Lines 내보내기 (기존 snapshot.rs 호환)
+    #[cfg(feature = "claude")]
     pub fn export_jsonl(&self, path: &str) -> Result<usize> {
         use std::io::Write;
         let mut file = std::io::BufWriter::new(std::fs::File::create(path)?);
@@ -315,6 +300,7 @@ impl CellNet {
     }
 
     /// JSON Lines 가져오기
+    #[cfg(feature = "claude")]
     pub fn import_jsonl(&mut self, path: &str) -> Result<usize> {
         use std::io::BufRead;
         let file = std::io::BufReader::new(std::fs::File::open(path)?);
@@ -523,7 +509,6 @@ mod tests {
         let http_id = net.find_by_intent("http_server").unwrap().id;
         let api_id = net.find_by_intent("api_server").unwrap().id;
 
-        // http_server → api_server 엣지 추가
         net.get_mut(http_id).unwrap().add_edge(CellEdge::new(api_id, Relation::Related, 1));
 
         let signal = TrustSignal::new(SignalKind::Reinforce, 0.3, http_id);
@@ -553,17 +538,16 @@ mod tests {
         let b = net.insert(CrownyCell::with_energy("b", 0.5));
         let c = net.insert(CrownyCell::with_energy("c", 0.5));
 
-        // a → b → c 체인
         net.get_mut(a).unwrap().add_edge(CellEdge::new(b, Relation::Related, 1));
         net.get_mut(b).unwrap().add_edge(CellEdge::new(c, Relation::Related, 1));
 
         let signal = TrustSignal::new(SignalKind::Reinforce, 0.3, a);
-        let affected = net.propagate_trust(a, signal, 1); // depth 1 → a, b만
-        assert!(affected <= 2); // c는 영향 안 받음
+        let affected = net.propagate_trust(a, signal, 1);
+        assert!(affected <= 2);
     }
 
     #[test]
-    fn test_bincode_save_load() {
+    fn test_save_load() {
         let net = make_test_net();
         let path = "/tmp/crownycode_test_cellnet.bin";
         net.save(path).unwrap();
@@ -580,6 +564,7 @@ mod tests {
         std::fs::remove_file(path).ok();
     }
 
+    #[cfg(feature = "claude")]
     #[test]
     fn test_jsonl_export_import() {
         let net = make_test_net();
@@ -608,11 +593,11 @@ mod tests {
         let a = tokenize("http_server");
         let b = tokenize("http_server_auth");
         let sim = token_similarity(&a, &b);
-        assert!(sim > 0.5); // "http"와 "server" 둘 다 매칭
+        assert!(sim > 0.5);
 
         let c = tokenize("database_client");
         let sim2 = token_similarity(&a, &c);
-        assert!(sim2 < 0.1); // 매칭 없음
+        assert!(sim2 < 0.1);
     }
 
     #[test]
@@ -624,7 +609,7 @@ mod tests {
 
         net.remove(b);
         let cell_a = net.get(a).unwrap();
-        assert!(cell_a.edges.is_empty()); // b를 가리키던 엣지 제거됨
+        assert!(cell_a.edges.is_empty());
     }
 
     #[test]
