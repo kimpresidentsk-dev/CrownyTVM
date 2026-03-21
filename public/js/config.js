@@ -1,9 +1,51 @@
 // ===== config.js - 전역변수, 토큰설정, 슬롯/리스크 =====
-// Cache Buster - Version 5.4 - Copy Trading + Fee Display + Trading Tier
+// Cache Buster - Version 5.5 - Developing Country Optimization
 // Global State
+
+// I2: Client error reporting
+window.onerror = function(msg, src, line, col) {
+    try { navigator.sendBeacon('/api/client-error', JSON.stringify({ message: msg, source: src, line: line, col: col })); } catch(e) {}
+};
+window.addEventListener('unhandledrejection', function(e) {
+    try { navigator.sendBeacon('/api/client-error', JSON.stringify({ message: 'Promise: ' + String(e.reason).substring(0, 300) })); } catch(ex) {}
+});
+
+// I3: Performance metrics — send after page load
+window.addEventListener('load', function() {
+    setTimeout(function() {
+        var perf = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+        var paint = performance.getEntriesByType && performance.getEntriesByType('paint');
+        var fcp = 0;
+        if (paint) paint.forEach(function(p) { if (p.name === 'first-contentful-paint') fcp = Math.round(p.startTime); });
+        var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        try {
+            navigator.sendBeacon('/api/metrics', JSON.stringify({
+                lang: typeof currentLang !== 'undefined' ? currentLang : 'unknown',
+                connection: conn ? conn.effectiveType : 'unknown',
+                loadTime: perf ? Math.round(perf.loadEventEnd - perf.startTime) : 0,
+                fcp: fcp,
+                dataSaver: typeof dataSaverMode !== 'undefined' ? dataSaverMode : false
+            }));
+        } catch(e) {}
+    }, 3000);
+});
 var currentUser = null;
 var userWallet = null;
 var useIndependentDB = true; // CrownyTVM 독립 서버 모드 (Firebase 실패 시 자동 활성화)
+
+// Data Saver & connection detection for developing countries
+var dataSaverMode = false;
+(function detectConnection() {
+    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (conn) {
+        dataSaverMode = !!(conn.saveData) || conn.effectiveType === '2g' || conn.effectiveType === 'slow-2g';
+        conn.addEventListener('change', function() {
+            dataSaverMode = !!(conn.saveData) || conn.effectiveType === '2g' || conn.effectiveType === 'slow-2g';
+            document.documentElement.classList.toggle('data-saver', dataSaverMode);
+        });
+    }
+    document.documentElement.classList.toggle('data-saver', dataSaverMode);
+})();
 
 // currentUser 설정 시 window/auth에도 동기화
 function syncCurrentUser(user) {

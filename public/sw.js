@@ -1,15 +1,17 @@
 // CrownyTVM Service Worker v2.0
 // Handles: push notifications, offline cache, network-first strategy
 
-const CACHE_NAME = 'crowny-v2';
+const CACHE_NAME = 'crowny-v3';
 const OFFLINE_URL = '/offline.html';
 
 // Precache critical assets
 const PRECACHE = [
   '/',
   '/offline.html',
-  '/css/base.css',
-  '/css/home.css',
+  '/css/bundle.css?v=25.1',
+  '/js/config.js?v=25.0',
+  '/js/ui.js?v=24.4',
+  '/js/auth.js?v=25.0',
   '/img/icons/icon-192x192.png',
 ];
 

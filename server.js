@@ -1839,7 +1839,10 @@ const ALLOWED_ORIGINS = new Set([
     'http://localhost:7730', 'http://127.0.0.1:7730',
 ]);
 
+var _activeConnections = 0;
 const server = http.createServer(async (req, res) => {
+    _activeConnections++;
+    res.on('finish', () => { _activeConnections--; });
     // CORS: 화이트리스트 기반 (#7)
     const origin = req.headers.origin || '';
     if (ALLOWED_ORIGINS.has(origin)) {
@@ -1941,11 +1944,15 @@ const server = http.createServer(async (req, res) => {
         if (safe && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
             const ext = pathModule.extname(filePath);
             res.setHeader('Content-Type', MIME[ext] || 'application/octet-stream');
-            // 캐시: 이미지/폰트는 장기 캐시, JS/CSS/HTML은 no-cache (개발)
-            if (['.js', '.css', '.html', '.json'].includes(ext)) {
-                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            // 캐시: ?v= 쿼리스트링으로 버스팅, 장기 캐시 적용
+            if (['.js', '.css'].includes(ext)) {
+                res.setHeader('Cache-Control', 'public, max-age=2592000'); // 30 days (busted by ?v=)
+            } else if (ext === '.html') {
+                res.setHeader('Cache-Control', 'no-cache'); // always revalidate HTML
+            } else if (ext === '.json' && filePath.includes('/lang/')) {
+                res.setHeader('Cache-Control', 'public, max-age=86400'); // lang files 1 day
             } else if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.woff2', '.woff', '.ttf'].includes(ext)) {
-                res.setHeader('Cache-Control', 'public, max-age=604800');
+                res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // 1 year
             }
             // gzip compression for text-based files
             const compressible = ['.js', '.css', '.html', '.json', '.svg'];
@@ -1990,7 +1997,25 @@ const server = http.createServer(async (req, res) => {
     try {
         // ── Health check ──
         if (path === '/api/health') {
-            res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), memory: Math.round(process.memoryUsage().rss / 1024 / 1024) + 'MB', timestamp: Date.now() }));
+            res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), memory: Math.round(process.memoryUsage().rss / 1024 / 1024) + 'MB', connections: _activeConnections || 0, timestamp: Date.now() }));
+            return;
+        }
+
+        // I2: Client error reporting — collect browser errors for monitoring
+        if (path === '/api/client-error' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'client-error', 30)) { res.statusCode = 429; res.end('{}'); return; }
+            const errLog = { ts: new Date().toISOString(), ip: clientIp, ua: (req.headers['user-agent'] || '').substring(0, 200), msg: String(body.message || '').substring(0, 500), src: String(body.source || '').substring(0, 200), line: body.line, col: body.col };
+            try { fs.appendFileSync('logs/client-errors.log', JSON.stringify(errLog) + '\n'); } catch(e) {}
+            res.end('{"ok":true}');
+            return;
+        }
+
+        // I3: Performance metrics from clients
+        if (path === '/api/metrics' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'metrics', 10)) { res.statusCode = 429; res.end('{}'); return; }
+            const m = { ts: new Date().toISOString(), lang: String(body.lang || '').substring(0, 5), conn: String(body.connection || '').substring(0, 20), loadTime: Number(body.loadTime) || 0, fcp: Number(body.fcp) || 0, dataSaver: !!body.dataSaver };
+            try { fs.appendFileSync('logs/perf-metrics.log', JSON.stringify(m) + '\n'); } catch(e) {}
+            res.end('{"ok":true}');
             return;
         }
 

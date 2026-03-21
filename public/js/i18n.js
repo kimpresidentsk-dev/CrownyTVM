@@ -36,7 +36,10 @@ const SUPPORTED_LANGS = {
     cs: { name: 'Čeština', flag: '🇨🇿' },
     el: { name: 'Ελληνικά', flag: '🇬🇷' },
     he: { name: 'עברית', flag: '🇮🇱' },
-    ms: { name: 'Bahasa Melayu', flag: '🇲🇾' }
+    ms: { name: 'Bahasa Melayu', flag: '🇲🇾' },
+    sw: { name: 'Kiswahili', flag: '🇰🇪' },
+    am: { name: 'አማርኛ', flag: '🇪🇹' },
+    tl: { name: 'Filipino', flag: '🇵🇭' }
 };
 
 // 지원하지 않는 언어면 ko로 폴백
@@ -176,6 +179,55 @@ function createLanguageSelector() {
     }
 }
 
+// L2: Locale-aware formatting helpers
+const LANG_LOCALES = {
+    ko:'ko-KR', en:'en-US', bn:'bn-BD', zh:'zh-CN', ja:'ja-JP', es:'es-ES',
+    fr:'fr-FR', de:'de-DE', pt:'pt-BR', ru:'ru-RU', ar:'ar-SA', hi:'hi-IN',
+    th:'th-TH', vi:'vi-VN', id:'id-ID', tr:'tr-TR', it:'it-IT', nl:'nl-NL',
+    pl:'pl-PL', sv:'sv-SE', da:'da-DK', fi:'fi-FI', no:'nb-NO', uk:'uk-UA',
+    ro:'ro-RO', hu:'hu-HU', cs:'cs-CZ', el:'el-GR', he:'he-IL', ms:'ms-MY',
+    sw:'sw-KE', am:'am-ET', tl:'tl-PH'
+};
+
+function getLocale() { return LANG_LOCALES[currentLang] || 'en-US'; }
+
+// Format number: fmtNum(12345.6) → "12,345.6" (locale-aware)
+function fmtNum(n, decimals) {
+    if (n == null || isNaN(n)) return '0';
+    var opts = decimals !== undefined ? { minimumFractionDigits: decimals, maximumFractionDigits: decimals } : {};
+    try { return new Intl.NumberFormat(getLocale(), opts).format(n); }
+    catch(e) { return String(n); }
+}
+
+// Format currency: fmtCurrency(100, 'USD') → "$100.00"
+function fmtCurrency(amount, currency) {
+    if (amount == null || isNaN(amount)) return '';
+    currency = currency || 'USD';
+    try { return new Intl.NumberFormat(getLocale(), { style: 'currency', currency: currency }).format(amount); }
+    catch(e) { return currency + ' ' + fmtNum(amount, 2); }
+}
+
+// Format date: fmtDate(date) → "Mar 21, 2026" (locale-aware)
+function fmtDate(d, opts) {
+    if (!d) return '';
+    if (typeof d === 'string' || typeof d === 'number') d = new Date(d);
+    opts = opts || { year: 'numeric', month: 'short', day: 'numeric' };
+    try { return new Intl.DateTimeFormat(getLocale(), opts).format(d); }
+    catch(e) { return d.toLocaleDateString(); }
+}
+
+// Format relative time: fmtRelative(-5, 'minutes') → "5 minutes ago"
+function fmtRelative(value, unit) {
+    try { return new Intl.RelativeTimeFormat(getLocale(), { numeric: 'auto' }).format(value, unit); }
+    catch(e) { return Math.abs(value) + ' ' + unit + (value < 0 ? ' ago' : ''); }
+}
+
+window.fmtNum = fmtNum;
+window.fmtCurrency = fmtCurrency;
+window.fmtDate = fmtDate;
+window.fmtRelative = fmtRelative;
+window.getLocale = getLocale;
+
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
     loadLanguage(currentLang).then(() => {
@@ -184,4 +236,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-console.log('🌐 js/i18n.js v1.0 loaded');
+console.log('[i18n] v2.0 loaded');

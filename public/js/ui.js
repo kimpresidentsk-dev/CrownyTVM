@@ -56,6 +56,18 @@ function showPage(pageId) {
         if (landing) { landing.classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
         return;
     }
+    // D2: Memory cleanup — clear heavy content on inactive pages (low-end device optimization)
+    var prevPage = document.querySelector('.page.active');
+    if (prevPage && prevPage.id !== pageId) {
+        var heavySelectors = ['video:not([preload="none"])', 'canvas', 'iframe'];
+        heavySelectors.forEach(function(sel) {
+            prevPage.querySelectorAll(sel).forEach(function(el) {
+                if (el.tagName === 'VIDEO') { el.pause(); el.removeAttribute('src'); el.load(); }
+                if (el.tagName === 'CANVAS') { var ctx = el.getContext('2d'); if (ctx) ctx.clearRect(0, 0, el.width, el.height); }
+                if (el.tagName === 'IFRAME') { el.src = 'about:blank'; }
+            });
+        });
+    }
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
