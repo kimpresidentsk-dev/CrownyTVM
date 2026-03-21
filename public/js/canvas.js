@@ -174,11 +174,47 @@ const CANVAS = (function() {
                 left.innerHTML = '<div class="cv-mono">AI agents list</div>';
                 right.innerHTML = '<div class="cv-mono">Memory bank</div>';
                 break;
+            case 'docs':
+                leftTitle.textContent = 'Notes';
+                centerTitle.textContent = 'Editor';
+                rightTitle.textContent = 'Info';
+                loadDocsWorkspace(left, center, right);
+                break;
+            case 'project':
+                leftTitle.textContent = 'Projects';
+                centerTitle.textContent = 'Tasks';
+                rightTitle.textContent = 'Timeline';
+                loadProjectWorkspace(left, center, right);
+                break;
+            case 'bible':
+                leftTitle.textContent = 'Progress';
+                centerTitle.textContent = 'Quiz';
+                rightTitle.textContent = 'Reference';
+                loadBibleWorkspace(left, center, right);
+                break;
+            case 'content':
+                leftTitle.textContent = 'Gallery';
+                centerTitle.textContent = 'Create';
+                rightTitle.textContent = 'Analytics';
+                loadContentWorkspace(left, center, right);
+                break;
+            case 'life':
+                leftTitle.textContent = 'Metrics';
+                centerTitle.textContent = 'Today';
+                rightTitle.textContent = 'History';
+                loadLifeWorkspace(left, center, right);
+                break;
+            case 'work':
+                leftTitle.textContent = 'Files';
+                centerTitle.textContent = 'HanSeon-C IDE';
+                rightTitle.textContent = 'Output';
+                loadWorkbenchWorkspace(left, center, right);
+                break;
             default:
                 leftTitle.textContent = ws ? ws.label : id;
                 centerTitle.textContent = 'Content';
                 rightTitle.textContent = 'Details';
-                center.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--text-secondary)"><i data-lucide="${ws?.icon || 'box'}" style="width:48px;height:48px;display:block;margin:0 auto 1rem;opacity:0.3"></i><h3>${ws?.label || id}</h3><p style="font-size:0.8rem;margin-top:0.5rem">Cell-based workspace — coming soon</p><button class="cv-btn" onclick="CANVAS.loadCells('${id}')" style="margin-top:1rem">Load Cells</button></div>`;
+                center.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--text-secondary)"><i data-lucide="${ws?.icon || 'box'}" style="width:48px;height:48px;display:block;margin:0 auto 1rem;opacity:0.3"></i><h3>${ws?.label || id}</h3><p style="font-size:0.8rem;margin-top:0.5rem">Cell-based workspace</p><button class="cv-btn" onclick="CANVAS.loadCells('${id}')" style="margin-top:1rem">Load Cells</button></div>`;
                 left.innerHTML = '';
                 right.innerHTML = '';
                 if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -279,6 +315,209 @@ const CANVAS = (function() {
             }
             series.setData(data);
         }, 100);
+    }
+
+    // ── 워크스페이스: Notes ──
+    async function loadDocsWorkspace(left, center, right) {
+        const token = localStorage.getItem('crowny_token');
+        // 셀에서 DOCUMENT(5) 타입 로드
+        try {
+            const r = await fetch('/api/cell/query?type=5&limit=20', { headers: { 'Authorization': 'Bearer ' + token } });
+            const docs = await r.json();
+            left.innerHTML = `<button class="cv-btn" onclick="CANVAS.createNote()" style="width:100%;margin-bottom:8px">+ New Note</button>` +
+                (docs.length > 0 ? docs.map(d => `<div class="cv-list-item" onclick="CANVAS.openNote(${d.id})">${escHtml(d.data?.[0] || 'Untitled')}<div style="font-size:0.6rem;color:var(--text-secondary)">${new Date(d.timestamp*1000).toLocaleDateString()}</div></div>`).join('') : '<div class="cv-mono">No notes</div>');
+        } catch { left.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        center.innerHTML = '<div class="cv-mono" style="padding:2rem;text-align:center">Select or create a note</div>';
+        right.innerHTML = '';
+    }
+
+    async function createNote() {
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 5, name: 'New Note', content: '' }) });
+        const cell = await r.json();
+        openNote(cell.id);
+        openWs('docs'); // 목록 새로고침
+    }
+
+    async function openNote(id) {
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch(`/api/cell/get?id=${id}`, { headers: { 'Authorization': 'Bearer ' + token } });
+        const cell = await r.json();
+        const center = document.getElementById('cv-center-content');
+        const centerTitle = document.getElementById('cv-center-title');
+        if (centerTitle) centerTitle.textContent = cell.data?.[0] || 'Note';
+        if (center) {
+            center.innerHTML = `<input class="cv-input" id="cv-note-title" value="${escHtml(cell.data?.[0] || '')}" placeholder="Title" style="margin-bottom:6px;font-weight:700">
+                <textarea class="cv-textarea" id="cv-note-body" style="flex:1" placeholder="Write here...">${escHtml(cell.data?.[1] || '')}</textarea>
+                <button class="cv-btn" onclick="CANVAS.saveNote(${id})" style="margin-top:6px">Save</button>`;
+        }
+    }
+
+    async function saveNote(id) {
+        const title = document.getElementById('cv-note-title')?.value || '';
+        const body = document.getElementById('cv-note-body')?.value || '';
+        const token = localStorage.getItem('crowny_token');
+        await fetch('/api/cell/update', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ id, updates: { '16': title, '17': body } }) });
+        if (typeof showToast === 'function') showToast('Saved', 'success');
+    }
+
+    // ── 워크스페이스: Project ──
+    async function loadProjectWorkspace(left, center, right) {
+        const token = localStorage.getItem('crowny_token');
+        try {
+            const r = await fetch('/api/cell/query?type=6&limit=20', { headers: { 'Authorization': 'Bearer ' + token } });
+            const projects = await r.json();
+            left.innerHTML = `<button class="cv-btn" onclick="CANVAS.createProject()" style="width:100%;margin-bottom:8px">+ New Project</button>` +
+                (projects.length > 0 ? projects.map(p => `<div class="cv-list-item" onclick="CANVAS.openProject(${p.id})"><strong>${escHtml(p.data?.[0] || 'Project')}</strong><div style="font-size:0.6rem;color:var(--text-secondary)">Layer ${p.layer || 0}</div></div>`).join('') : '<div class="cv-mono">No projects</div>');
+        } catch { left.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        center.innerHTML = '<div class="cv-mono" style="padding:2rem;text-align:center">Select a project</div>';
+        right.innerHTML = '<div class="cv-mono">Timeline view</div>';
+    }
+
+    async function createProject() {
+        const name = prompt('Project name:');
+        if (!name) return;
+        const token = localStorage.getItem('crowny_token');
+        await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 6, name }) });
+        openWs('project');
+    }
+
+    async function openProject(id) {
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch(`/api/cell/get?id=${id}`, { headers: { 'Authorization': 'Bearer ' + token } });
+        const p = await r.json();
+        const center = document.getElementById('cv-center-content');
+        if (center) {
+            center.innerHTML = `<h3 style="margin-bottom:0.5rem">${escHtml(p.data?.[0] || 'Project')}</h3>
+                <div class="cv-mono" style="margin-bottom:8px">Status: ${p.epistemic === 3 ? 'Complete' : 'Active'} | Trust: ${p.trust}</div>
+                <button class="cv-btn" onclick="CANVAS.addTask(${id})">+ Add Task</button>
+                <div id="cv-project-tasks" style="margin-top:8px"></div>`;
+        }
+    }
+
+    async function addTask(projectId) {
+        const name = prompt('Task:');
+        if (!name) return;
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 6, name, category: 'task', layer: 1 }) });
+        const task = await r.json();
+        await fetch('/api/cell/link', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: projectId, to: task.id, direction: 'ta' }) });
+        openProject(projectId);
+    }
+
+    // ── 워크스페이스: Bible ──
+    async function loadBibleWorkspace(left, center, right) {
+        const token = localStorage.getItem('crowny_token');
+        left.innerHTML = '<div class="cv-mono">Quiz progress</div>';
+        try {
+            const r = await fetch('/api/bible/quiz', { headers: { 'Authorization': 'Bearer ' + token } });
+            const q = await r.json();
+            if (q.complete) {
+                center.innerHTML = `<div style="padding:2rem;text-align:center"><h3>All Complete!</h3><p>${q.correct}/${q.total} correct</p></div>`;
+            } else if (q.question) {
+                const opts = (q.options || []).map((o, i) => `<button class="cv-list-item" style="text-align:left;width:100%;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;cursor:pointer" onclick="CANVAS.answerQuiz('${q.quizId}',${i})">${String.fromCharCode(65+i)}. ${escHtml(o)}</button>`).join('');
+                center.innerHTML = `<div style="padding:1rem"><div style="font-size:0.7rem;color:var(--gold);margin-bottom:4px">${escHtml(q.reference || '')}</div><div style="font-size:0.9rem;font-weight:600;margin-bottom:1rem;line-height:1.5">${escHtml(q.question)}</div>${opts}<div id="cv-quiz-result"></div></div>`;
+            }
+        } catch { center.innerHTML = '<div class="cv-mono">Quiz load failed</div>'; }
+        right.innerHTML = '<div class="cv-mono">Reference</div>';
+    }
+
+    async function answerQuiz(quizId, idx) {
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch('/api/bible/answer', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ quizId, selectedIndex: idx }) });
+        const result = await r.json();
+        const el = document.getElementById('cv-quiz-result');
+        if (el) el.innerHTML = `<div style="padding:8px;margin-top:8px;border-radius:6px;background:${result.correct ? 'rgba(91,123,140,0.1)' : 'rgba(181,69,52,0.1)'};color:${result.correct ? 'var(--info)' : 'var(--error)'}">${result.correct ? 'Correct!' : result.message || 'Wrong'}</div>`;
+        setTimeout(() => loadBibleWorkspace(document.getElementById('cv-left-content'), document.getElementById('cv-center-content'), document.getElementById('cv-right-content')), 2000);
+    }
+
+    // ── 워크스페이스: Content ──
+    async function loadContentWorkspace(left, center, right) {
+        left.innerHTML = '<div class="cv-mono">Gallery categories</div>';
+        center.innerHTML = `<div style="padding:2rem;text-align:center"><h3>Content Studio</h3><p style="font-size:0.8rem;color:var(--text-secondary)">Create art, music, and media</p>
+            <button class="cv-btn" onclick="CANVAS.createCell(7)" style="margin-top:1rem">+ New Creation</button></div>`;
+        right.innerHTML = '<div class="cv-mono">Analytics</div>';
+    }
+
+    // ── 워크스페이스: Life ──
+    async function loadLifeWorkspace(left, center, right) {
+        const token = localStorage.getItem('crowny_token');
+        left.innerHTML = '<div class="cv-list-item">Weight</div><div class="cv-list-item">Sleep</div><div class="cv-list-item">Exercise</div><div class="cv-list-item">Mood</div>';
+        center.innerHTML = `<div style="padding:1rem"><h4>Record Today</h4>
+            <div style="margin-top:0.5rem"><label style="font-size:0.75rem;color:var(--text-secondary)">Category</label>
+            <select class="cv-select" id="cv-life-cat" style="width:100%"><option>Weight</option><option>Sleep</option><option>Exercise</option><option>Mood</option></select></div>
+            <div style="margin-top:0.5rem"><label style="font-size:0.75rem;color:var(--text-secondary)">Value</label>
+            <input class="cv-input" id="cv-life-val" placeholder="e.g., 72.5" style="width:100%"></div>
+            <div style="margin-top:0.5rem"><label style="font-size:0.75rem;color:var(--text-secondary)">Note</label>
+            <input class="cv-input" id="cv-life-note" placeholder="Optional note" style="width:100%"></div>
+            <button class="cv-btn" onclick="CANVAS.recordLife()" style="width:100%;margin-top:0.5rem">Record</button></div>`;
+        right.innerHTML = '<div class="cv-mono">History</div>';
+    }
+
+    async function recordLife() {
+        const cat = document.getElementById('cv-life-cat')?.value || 'Weight';
+        const val = parseFloat(document.getElementById('cv-life-val')?.value) || 0;
+        const note = document.getElementById('cv-life-note')?.value || '';
+        const token = localStorage.getItem('crowny_token');
+        await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 11, name: cat, value: val, memo: note, category: cat.toLowerCase() }) });
+        if (typeof showToast === 'function') showToast('Recorded', 'success');
+        document.getElementById('cv-life-val').value = '';
+        document.getElementById('cv-life-note').value = '';
+    }
+
+    // ── 워크스페이스: Workbench (HanSeon-C IDE) ──
+    function loadWorkbenchWorkspace(left, center, right) {
+        left.innerHTML = '<div class="cv-list-item" onclick="CANVAS.loadExample(\'hello\')">Hello World</div><div class="cv-list-item" onclick="CANVAS.loadExample(\'calc\')">Calculator</div><div class="cv-list-item" onclick="CANVAS.loadExample(\'fib\')">Fibonacci</div>';
+        center.innerHTML = `<textarea class="cv-textarea" id="cv-code" style="flex:1;font-family:monospace" placeholder="// HanSeon-C code here&#10;출력(&quot;안녕 크라우니&quot;)"></textarea>
+            <div class="cv-input-row" style="gap:4px"><button class="cv-btn" onclick="CANVAS.runCode()">▶ Run</button><button class="cv-btn" style="background:var(--text-secondary)" onclick="CANVAS.deployCode()">Deploy</button></div>`;
+        right.innerHTML = '<div class="cv-mono" id="cv-code-output">Output will appear here...</div>';
+    }
+
+    async function runCode() {
+        const code = document.getElementById('cv-code')?.value || '';
+        if (!code.trim()) return;
+        const out = document.getElementById('cv-code-output');
+        if (out) out.textContent = 'Running...';
+        const token = localStorage.getItem('crowny_token');
+        try {
+            const r = await fetch('/api/chain/contract/execute', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+            const data = await r.json();
+            if (out) out.textContent = data.success ? (data.output?.join('\n') || '(no output)') : 'Error: ' + (data.error || '');
+        } catch (e) { if (out) out.textContent = 'Error: ' + e.message; }
+    }
+
+    async function deployCode() {
+        const code = document.getElementById('cv-code')?.value || '';
+        if (!code.trim()) return;
+        const name = prompt('Contract name:');
+        if (!name) return;
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch('/api/chain/contract/deploy', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ code, name }) });
+        const data = await r.json();
+        if (typeof showToast === 'function') showToast(data.contractId ? 'Deployed: ' + data.contractId : data.error || 'Failed', data.contractId ? 'success' : 'error');
+    }
+
+    function loadExample(name) {
+        const examples = {
+            hello: '출력("안녕 크라우니셀 체인!")',
+            calc: '변수 가 = 42\n변수 나 = 27\n변수 합 = 가 + 나\n출력(합)',
+            fib: '변수 가 = 0\n변수 나 = 1\n반복 10:\n  변수 다 = 가 + 나\n  출력(다)\n  가 = 나\n  나 = 다',
+        };
+        const el = document.getElementById('cv-code');
+        if (el) el.value = examples[name] || '';
+    }
+
+    // ── DEX 스왑 실행 ──
+    async function execSwap() {
+        const from = document.getElementById('cv-swap-from')?.value || 'CRM';
+        const to = document.getElementById('cv-swap-to')?.value || 'FNC';
+        const amt = parseFloat(document.getElementById('cv-swap-amt')?.value) || 0;
+        if (amt <= 0) return;
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch('/api/wallet/swap', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to, amount: amt }) });
+        const data = await r.json();
+        if (typeof showToast === 'function') showToast(data.success ? `Swapped ${data.sent} ${data.sentCurrency} → ${data.received} ${data.receivedCurrency}` : data.error || 'Failed', data.success ? 'success' : 'error');
+        if (data.success) openWs('dex');
     }
 
     // ── CellCore 로드 ──
@@ -432,17 +671,27 @@ const CANVAS = (function() {
 
     // ── Public API ──
     return {
-        init,
-        openWs,
-        openChat,
-        sendChat,
+        init, openWs, isCrownyBus, WORKSPACES,
+        // Chat
+        openChat, sendChat,
+        // Note
+        createNote, openNote, saveNote,
+        // Project
+        createProject, openProject, addTask,
+        // Bible
+        answerQuiz,
+        // Life
+        recordLife,
+        // Workbench
+        runCode, deployCode, loadExample,
+        // DEX
+        execSwap,
+        // Mind
         sendMind,
+        // Canvas
         runNL,
-        setDock,
-        loadCells,
-        createCell,
-        isCrownyBus,
-        WORKSPACES,
+        // Core
+        setDock, loadCells, createCell,
     };
 })();
 
