@@ -493,12 +493,12 @@ function applyNavScope() {
   const scope = localStorage.getItem('crownyScope');
   if (!scope) return; // 전체 보기
   const scopeNavMap = {
-    '0': ['home','dashboard','life','graph','search','stats'],           // 개인
-    '1': ['home','dashboard','life','family','graph','search','stats'],  // 가정
-    '2': ['home','dashboard','startup','graph','decide','search','stats'], // 스타트업
-    '3': ['home','dashboard','church','graph','decide','search','stats'],  // 비영리
-    '4': ['home','dashboard','enterprise','startup','graph','decide','causal','search','stats'], // 기업
-    '5': ['home','dashboard','city','enterprise','graph','decide','causal','tmpl','search','stats'], // 관제
+    '0': ['home','dashboard','life','graph','security','search','stats'],
+    '1': ['home','dashboard','life','family','graph','security','search','stats'],
+    '2': ['home','dashboard','startup','graph','decide','security','search','stats'],
+    '3': ['home','dashboard','church','graph','decide','security','search','stats'],
+    '4': ['home','dashboard','enterprise','startup','graph','decide','causal','security','map','search','stats'],
+    '5': ['home','dashboard','city','enterprise','graph','decide','causal','security','map','tmpl','search','stats'],
   };
   const allowed = scopeNavMap[scope] || null;
   if (!allowed) return;
