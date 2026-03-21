@@ -9,11 +9,9 @@ function _bookHeaders() {
 }
 
 const BOOK_SOUNDS = {
-    rain_ambient: 'https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3',
-    ocean: 'https://assets.mixkit.co/active_storage/sfx/189/189-preview.mp3',
-    forest: 'https://assets.mixkit.co/active_storage/sfx/178/178-preview.mp3',
-    piano: 'https://assets.mixkit.co/active_storage/sfx/146/146-preview.mp3',
-    fire_crackling: 'https://assets.mixkit.co/active_storage/sfx/185/185-preview.mp3'
+    rain_ambient: '/sounds/rain.mp3',
+    ocean: '/sounds/ocean.mp3',
+    forest: '/sounds/forest.mp3'
 };
 
 function _getBookEffects() {
