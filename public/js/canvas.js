@@ -158,11 +158,8 @@ const CANVAS = (function() {
             case 'trading':
                 leftTitle.textContent = 'Positions';
                 centerTitle.textContent = 'Chart';
-                rightTitle.textContent = 'Orders';
-                center.innerHTML = '<div id="cv-chart" style="width:100%;height:100%;min-height:300px"></div>';
-                loadTradingChart();
-                left.innerHTML = '<div class="cv-mono">No positions</div>';
-                right.innerHTML = '<div class="cv-mono">No orders</div>';
+                rightTitle.textContent = 'Trade';
+                loadTradingWorkspace(left, center, right);
                 break;
             case 'mind':
                 leftTitle.textContent = 'Agents';
@@ -410,30 +407,160 @@ const CANVAS = (function() {
     }
 
     // ── 워크스페이스: Trading ──
-    function loadTradingChart() {
+    let _tradingChart = null;
+    let _tradingSeries = null;
+    let _tradingData = [];
+    let _tradingPrice = 21000;
+    let _tradingTimer = null;
+
+    function loadTradingWorkspace(left, center, right) {
+        // 좌측: 포지션 + 잔액
+        const token = localStorage.getItem('crowny_token');
+        fetch('/api/wallet', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(r => r.json()).then(w => {
+                const b = w.balances || {};
+                left.innerHTML = `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
+                        <div style="font-size:0.65rem;color:var(--text-secondary)">BALANCE</div>
+                        <div style="font-size:0.8rem;font-weight:700">${(b.CRN||0)} CRN</div>
+                        <div style="font-size:0.7rem;color:var(--text-secondary)">${(b.FNC||0)} FNC · ${(b.CRM||0)} CRM</div>
+                    </div>
+                    <div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);padding:8px 0 4px">POSITIONS</div>
+                    <div id="cv-trading-positions" class="cv-mono">No open positions</div>
+                    <button class="cv-btn" onclick="CANVAS.openPosition('long')" style="width:100%;margin-top:8px">Long</button>
+                    <button class="cv-btn" onclick="CANVAS.openPosition('short')" style="width:100%;margin-top:4px;background:var(--error)">Short</button>`;
+            }).catch(() => { left.innerHTML = '<div class="cv-mono">Load failed</div>'; });
+
+        // 중앙: 차트
+        center.innerHTML = `<div style="display:flex;gap:4px;padding:4px;border-bottom:1px solid var(--border)">
+                <button class="cv-btn" style="font-size:0.6rem;padding:3px 8px" onclick="CANVAS.setTimeframe('1m')">1m</button>
+                <button class="cv-btn" style="font-size:0.6rem;padding:3px 8px;background:var(--text-secondary)" onclick="CANVAS.setTimeframe('5m')">5m</button>
+                <button class="cv-btn" style="font-size:0.6rem;padding:3px 8px;background:var(--text-secondary)" onclick="CANVAS.setTimeframe('1h')">1h</button>
+                <div style="flex:1"></div>
+                <span id="cv-trading-price" style="font-family:monospace;font-size:0.85rem;font-weight:700;color:var(--gold)">--</span>
+            </div>
+            <div id="cv-chart" style="width:100%;flex:1;min-height:250px"></div>`;
+        _initTradingChart();
+
+        // 우측: 주문 + 거래내역
+        right.innerHTML = `<div style="padding:6px 0">
+                <div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">QUICK ORDER</div>
+                <select id="cv-trade-side" class="cv-select" style="width:100%;margin-bottom:4px"><option value="long">Long (Buy)</option><option value="short">Short (Sell)</option></select>
+                <input id="cv-trade-size" class="cv-input" type="number" placeholder="Size (CRM)" style="width:100%;margin-bottom:4px">
+                <input id="cv-trade-sl" class="cv-input" type="number" placeholder="Stop Loss" style="width:100%;margin-bottom:4px">
+                <input id="cv-trade-tp" class="cv-input" type="number" placeholder="Take Profit" style="width:100%;margin-bottom:4px">
+                <button class="cv-btn" onclick="CANVAS.placeOrder()" style="width:100%">Place Order</button>
+            </div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);padding:8px 0 4px;border-top:1px solid var(--border);margin-top:8px">TRADE LOG</div>
+            <div id="cv-trade-log" class="cv-mono" style="max-height:150px;overflow-y:auto">No trades</div>`;
+    }
+
+    function _initTradingChart() {
         if (typeof LightweightCharts === 'undefined') return;
         setTimeout(() => {
             const container = document.getElementById('cv-chart');
             if (!container) return;
-            const chart = LightweightCharts.createChart(container, {
-                width: container.clientWidth, height: container.clientHeight || 400,
+            _tradingChart = LightweightCharts.createChart(container, {
+                width: container.clientWidth, height: container.clientHeight || 300,
                 layout: { background: { color: '#1A1410' }, textColor: '#E8D5C4' },
                 grid: { vertLines: { color: '#2A201A' }, horzLines: { color: '#2A201A' } },
-                timeScale: { timeVisible: true },
+                timeScale: { timeVisible: true, secondsVisible: false },
+                crosshair: { mode: 0 },
             });
-            const series = chart.addCandlestickSeries({ upColor: '#5B7B8C', downColor: '#B54534' });
-            // 샘플 데이터
+            _tradingSeries = _tradingChart.addCandlestickSeries({
+                upColor: '#5B7B8C', downColor: '#B54534',
+                borderUpColor: '#5B7B8C', borderDownColor: '#B54534',
+                wickUpColor: '#5B7B8C', wickDownColor: '#B54534',
+            });
+            // 초기 데이터 로드
+            _tradingData = [];
+            _tradingPrice = 21000 + Math.random() * 500;
             const now = Math.floor(Date.now() / 1000);
-            const data = [];
-            let price = 21000;
-            for (let i = 100; i >= 0; i--) {
-                const o = price + (Math.random() - 0.5) * 50;
-                const c = o + (Math.random() - 0.5) * 40;
-                data.push({ time: now - i * 60, open: o, high: Math.max(o, c) + Math.random() * 20, low: Math.min(o, c) - Math.random() * 20, close: c });
-                price = c;
+            for (let i = 200; i >= 0; i--) {
+                const candle = _generateCandle(now - i * 60);
+                _tradingData.push(candle);
             }
-            series.setData(data);
+            _tradingSeries.setData(_tradingData);
+            _updatePriceDisplay();
+
+            // 실시간 업데이트 (1초마다 새 틱)
+            if (_tradingTimer) clearInterval(_tradingTimer);
+            _tradingTimer = setInterval(() => {
+                if (currentWs !== 'trading') { clearInterval(_tradingTimer); return; }
+                const lastCandle = _tradingData[_tradingData.length - 1];
+                const now = Math.floor(Date.now() / 1000);
+                const candleTime = Math.floor(now / 60) * 60;
+
+                if (lastCandle && lastCandle.time === candleTime) {
+                    // 기존 캔들 업데이트
+                    const tick = _tradingPrice + (Math.random() - 0.5) * 10;
+                    _tradingPrice = tick;
+                    lastCandle.close = tick;
+                    lastCandle.high = Math.max(lastCandle.high, tick);
+                    lastCandle.low = Math.min(lastCandle.low, tick);
+                    _tradingSeries.update(lastCandle);
+                } else {
+                    // 새 캔들
+                    const candle = _generateCandle(candleTime);
+                    _tradingData.push(candle);
+                    _tradingSeries.update(candle);
+                }
+                _updatePriceDisplay();
+            }, 1000);
+
+            // 리사이즈
+            new ResizeObserver(() => {
+                if (_tradingChart && container.clientWidth > 0) {
+                    _tradingChart.applyOptions({ width: container.clientWidth, height: container.clientHeight || 300 });
+                }
+            }).observe(container);
         }, 100);
+    }
+
+    function _generateCandle(time) {
+        const move = (Math.random() - 0.48) * 30; // slight upward bias
+        const open = _tradingPrice;
+        _tradingPrice += move;
+        const close = _tradingPrice;
+        const high = Math.max(open, close) + Math.random() * 15;
+        const low = Math.min(open, close) - Math.random() * 15;
+        return { time, open: Math.round(open * 100) / 100, high: Math.round(high * 100) / 100, low: Math.round(low * 100) / 100, close: Math.round(close * 100) / 100 };
+    }
+
+    function _updatePriceDisplay() {
+        const el = document.getElementById('cv-trading-price');
+        if (el) {
+            el.textContent = _tradingPrice.toFixed(2);
+            el.style.color = _tradingData.length > 1 && _tradingData[_tradingData.length-1].close >= _tradingData[_tradingData.length-1].open ? 'var(--info)' : 'var(--error)';
+        }
+    }
+
+    function setTimeframe(tf) { if (typeof showToast === 'function') showToast('Timeframe: ' + tf, 'info'); }
+
+    async function openPosition(side) {
+        const token = localStorage.getItem('crowny_token');
+        const price = _tradingPrice.toFixed(2);
+        await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 4, name: side.toUpperCase() + ' @ ' + price, value: parseFloat(price), category: side }) });
+        if (typeof showToast === 'function') showToast(side.toUpperCase() + ' @ ' + price, 'success');
+        // 포지션 목록 갱신
+        const posEl = document.getElementById('cv-trading-positions');
+        if (posEl) {
+            const r = await fetch('/api/cell/query?type=4&limit=5', { headers: { 'Authorization': 'Bearer ' + token } });
+            const positions = await r.json();
+            posEl.innerHTML = positions.map(p => `<div style="padding:3px 0;border-bottom:1px solid var(--border);font-size:0.7rem"><span style="color:${p.category === 'long' ? 'var(--info)' : 'var(--error)'}">${p.category?.toUpperCase()}</span> ${p.value}</div>`).join('') || 'No positions';
+        }
+    }
+
+    async function placeOrder() {
+        const side = document.getElementById('cv-trade-side')?.value || 'long';
+        const size = parseFloat(document.getElementById('cv-trade-size')?.value) || 100;
+        const sl = document.getElementById('cv-trade-sl')?.value || '';
+        const tp = document.getElementById('cv-trade-tp')?.value || '';
+        await openPosition(side);
+        const log = document.getElementById('cv-trade-log');
+        if (log) {
+            const entry = `${new Date().toLocaleTimeString()} ${side.toUpperCase()} ${size} CRM @ ${_tradingPrice.toFixed(2)}${sl ? ' SL:'+sl : ''}${tp ? ' TP:'+tp : ''}`;
+            log.innerHTML = `<div style="padding:2px 0;border-bottom:1px solid var(--border)">${entry}</div>` + log.innerHTML;
+        }
     }
 
     // ── 워크스페이스: Notes ──
@@ -989,9 +1116,38 @@ const CANVAS = (function() {
     function openGame(id) {
         const center = document.getElementById('cv-center-content');
         if (id === 'quiz-battle') {
-            openWs('bible'); // 퀴즈 게임은 Bible 워크스페이스로
+            openWs('bible');
+        } else if (id === 'trit-chess' && center) {
+            // 간단한 삼진 게임
+            let board = Array(9).fill(0); // 0=empty, 1=T, -1=N
+            let turn = 1;
+            function renderBoard() {
+                const symbols = { '1': '▲', '-1': '▼', '0': '·' };
+                const colors = { '1': 'var(--gold)', '-1': 'var(--error)', '0': 'var(--text-secondary)' };
+                center.innerHTML = `<div style="padding:1rem;text-align:center"><h4>Trit Tic-Tac-Toe</h4><p style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:1rem">Turn: ${turn > 0 ? '▲ Ti' : '▼ Ta'}</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;max-width:180px;margin:0 auto">${board.map((v, i) => `<button onclick="CANVAS._tritMove(${i})" style="width:56px;height:56px;font-size:1.5rem;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:${colors[v]};cursor:pointer">${symbols[v]}</button>`).join('')}</div>
+                    <button class="cv-btn" onclick="CANVAS.openGame('trit-chess')" style="margin-top:1rem;background:var(--text-secondary)">Reset</button></div>`;
+            }
+            window._tritBoard = board; window._tritTurn = turn;
+            renderBoard();
+            // _tritMove는 아래에서 정의
         } else if (center) {
-            center.innerHTML = `<div style="padding:2rem;text-align:center"><h3>${id}</h3><p style="color:var(--text-secondary)">Launch with CrownyEngine</p><p style="font-size:0.7rem;margin-top:1rem">Powered by ISA729 VM + CrownyFrame</p></div>`;
+            center.innerHTML = `<div style="padding:2rem;text-align:center"><h3>${id}</h3><p style="color:var(--text-secondary)">Powered by ISA729 VM + CrownyFrame</p></div>`;
+        }
+    }
+
+    function _tritMove(i) {
+        const board = window._tritBoard;
+        let turn = window._tritTurn;
+        if (!board || board[i] !== 0) return;
+        board[i] = turn;
+        // 승리 체크
+        const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+        const winner = wins.find(([a,b,c]) => board[a] !== 0 && board[a] === board[b] && board[b] === board[c]);
+        window._tritTurn = -turn;
+        openGame('trit-chess'); // re-render
+        if (winner) {
+            setTimeout(() => { if (typeof showToast === 'function') showToast((turn > 0 ? '▲ Ti' : '▼ Ta') + ' wins!', 'success'); }, 100);
         }
     }
 
@@ -1261,12 +1417,14 @@ const CANVAS = (function() {
         recordLife,
         // Workbench
         runCode, deployCode, loadExample,
+        // Trading
+        openPosition, placeOrder, setTimeframe,
         // DEX
         execSwap,
         // Mind
         sendMind, selectAgent, clearMind,
         // Game
-        openGame,
+        openGame, _tritMove,
         // Shop
         createShopItem, shopFilter,
         // Admin
