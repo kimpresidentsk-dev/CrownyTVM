@@ -124,6 +124,18 @@ async function refresh() {
   await health();
   await graph?.로드();
   await updateWorkspace();
+  await updateNotifBadge();
+}
+
+async function updateNotifBadge() {
+  try {
+    const r = await fetch(`${API}/notifications?unread=true`);
+    const d = await r.json();
+    const el = document.getElementById('notifBadge');
+    if (!el) return;
+    if (d.unread > 0) { el.style.display = 'inline'; el.textContent = d.unread; el.className = 'badge 오류'; }
+    else { el.style.display = 'none'; }
+  } catch {}
 }
 
 // ── Workspace: 셀 리스트 + 컨텍스트 + 가이드 ──
@@ -424,6 +436,7 @@ function init() {
   document.getElementById('sampleBtn')?.addEventListener('click', loadSample);
   document.getElementById('refreshBtn')?.addEventListener('click', refresh);
   initWorkspaceActions();
+  document.getElementById('notifBadge')?.addEventListener('click', () => go('dashboard'));
 
   // Welcome shortcuts
   document.getElementById('w_sample')?.addEventListener('click', loadSample);

@@ -214,7 +214,9 @@ class 도시앱 {
         const events = (eventsMap[type]||[]).map(e => ({ ...e, buildingId: bld.id }));
         await fetch(`${API}/city/scenario`, { method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ name: type, events }) });
-        document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${card.querySelector('div').textContent} 시나리오 실행!`, type: '오류' } }));
+        const scenName = card.querySelector('div').textContent;
+        document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${scenName} 시나리오 실행!`, type: '오류' } }));
+        fetch(`${API}/notify`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type:'city',title:'긴급경보',message:`${scenName}: ${result.alertsTriggered}건 경보`,severity:'critical'}) });
         this.tab = 'alerts';
         this.렌더();
       });

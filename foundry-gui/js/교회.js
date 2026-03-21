@@ -208,6 +208,7 @@ class 교회앱 {
         body: JSON.stringify({ subject: f.name.value, predicate: '헌금', object: obj, layer: 1 }) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '헌금 기록 완료', type: '확정' } }));
+      fetch(`${API}/notify`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type:'church',title:'헌금',message:`${f.name.value}: ${obj}`,severity:'normal'}) });
       this.렌더();
     });
   }

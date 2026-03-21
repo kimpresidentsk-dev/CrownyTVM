@@ -380,6 +380,126 @@ route('GET', '/api/foundry/covenant/slots', async (req, res) => {
     json(res, 200, { slots: SLOT_META, rings: RING, protocol: PROTOCOL });
 });
 
+// ═══ 주간 리포트 API ═══
+
+route('GET', '/api/foundry/report/weekly', async (req, res) => {
+    const now = Date.now();
+    const weekMs = 7 * 86400000;
+    const dayMs = 86400000;
+
+    // 전체 Claim
+    const allClaims = memory.queryClaimsFull({});
+    const weekClaims = allClaims.filter(c => c.createdAt && (now - c.createdAt) < weekMs);
+    const todayClaims = allClaims.filter(c => c.createdAt && (now - c.createdAt) < dayMs);
+
+    // 카테고리별
+    const offerings = weekClaims.filter(c => c.claim?.predicate === '헌금');
+    const prayers = weekClaims.filter(c => c.claim?.predicate === '기도제목' || c.claim?.predicate === '기도');
+    const notices = weekClaims.filter(c => c.claim?.subject === '공지');
+    const answered = prayers.filter(c => (c.claim?.object||'').includes('응답'));
+
+    // 헌금 합계
+    const totalOffering = offerings.reduce((s, c) => {
+      const m = (c.claim?.object||'').match(/(\d[\d,]*)/);
+      return s + (m ? parseInt(m[1].replace(/,/g,'')) : 0);
+    }, 0);
+
+    // 셀 통계
+    const cellStats = memory.stats();
+    const byStatus = cellStats.byStatus || {};
+
+    // 습관 (라이프)
+    const allCells = memory.listCells(0, 500).cells || [];
+    const habits = allCells.filter(c => c.name && c.name.includes(':'));
+    const habitsConfirmed = habits.filter(c => c.status === 2).length;
+
+    // 경보
+    const cityStats = city.stats();
+
+    // 의사결정
+    const covStats = covenant.stats();
+
+    // 일별 활동 (최근 7일)
+    const daily = [];
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = now - (i + 1) * dayMs;
+      const dayEnd = now - i * dayMs;
+      const count = allClaims.filter(c => c.createdAt >= dayStart && c.createdAt < dayEnd).length;
+      const date = new Date(dayEnd);
+      daily.push({ date: `${date.getMonth()+1}/${date.getDate()}`, count });
+    }
+
+    json(res, 200, {
+      period: { from: new Date(now - weekMs).toLocaleDateString('ko'), to: new Date(now).toLocaleDateString('ko') },
+      summary: {
+        totalRecords: weekClaims.length,
+        todayRecords: todayClaims.length,
+        totalCells: cellStats.totalCells,
+        confirmed: byStatus['2'] || 0,
+        pending: byStatus['0'] || 0,
+      },
+      life: { totalHabits: habits.length, confirmed: habitsConfirmed, rate: habits.length > 0 ? Math.round(habitsConfirmed / habits.length * 100) : 0 },
+      church: { offerings: offerings.length, totalOffering, prayers: prayers.length, answered: answered.length, notices: notices.length },
+      city: { activeAlerts: cityStats.activeAlerts, totalAlerts: cityStats.totalAlerts, resolved: cityStats.resolvedAlerts },
+      decisions: { total: covStats.totalDecisions, ti: covStats.ti, om: covStats.om, principles: covStats.principles, growth: covStats.growthLevel },
+      daily,
+    });
+});
+
+// ═══ 알림 API ═══
+
+const notifications = [];
+
+route('POST', '/api/foundry/notify', async (req, res) => {
+    const { type, title, message, severity } = await parseBody(req);
+    const n = { id: notifications.length + 1, type: type || 'info', title, message, severity: severity || 'normal', timestamp: Date.now(), read: false };
+    notifications.push(n);
+    json(res, 201, n);
+});
+
+route('GET', '/api/foundry/notifications', async (req, res) => {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const unreadOnly = url.searchParams.get('unread') === 'true';
+    const list = unreadOnly ? notifications.filter(n => !n.read) : notifications;
+    json(res, 200, { total: list.length, unread: notifications.filter(n => !n.read).length, notifications: list.slice(-50).reverse() });
+});
+
+route('POST', '/api/foundry/notifications/read', async (req, res) => {
+    const { id } = await parseBody(req);
+    if (id === 'all') { notifications.forEach(n => n.read = true); }
+    else { const n = notifications.find(n => n.id === id); if (n) n.read = true; }
+    json(res, 200, { unread: notifications.filter(n => !n.read).length });
+});
+
+// ═══ 앱 간 연결 API ═══
+
+route('POST', '/api/foundry/link-person', async (req, res) => {
+    const { personName } = await parseBody(req);
+    if (!personName) return err(res, 400, 'personName 필수');
+
+    // 이름으로 모든 관련 셀 검색
+    const results = memory.search(personName);
+    const claims = memory.queryClaimsFull({ subject: personName });
+
+    // 관련 셀들 시냅스 연결
+    const ids = results.map(c => c.id);
+    for (let i = 0; i < ids.length - 1; i++) {
+      memory.connectBidirectional(ids[i], ids[i + 1]);
+    }
+
+    json(res, 200, {
+      person: personName,
+      cells: results.length,
+      claims: claims.length,
+      linked: Math.max(0, ids.length - 1),
+      apps: {
+        life: results.filter(c => c.name?.includes(':')).length > 0,
+        church: results.filter(c => c.layer === 0 && c.type === 3).length > 0,
+        city: false,
+      },
+    });
+});
+
 // ═══ 라이프스타일 API ═══
 
 route('POST', '/api/foundry/life/create', async (req, res) => {

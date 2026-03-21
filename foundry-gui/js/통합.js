@@ -130,6 +130,86 @@ class 통합대시보드 {
         document.dispatchEvent(new CustomEvent('화면이동', { detail: btn.dataset.v }));
       });
     });
+
+    // 주간 리포트 + 알림
+    await this._loadReport();
+    await this._loadNotifications();
+    this._bindActions();
+  }
+
+  async _loadReport() {
+    try {
+      const r = await fetch(`${API}/report/weekly`);
+      const rpt = await r.json();
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.style.marginBottom = '16px';
+
+      // 일별 활동 미니 차트 (텍스트 기반)
+      const maxCount = Math.max(...(rpt.daily||[]).map(d=>d.count), 1);
+      const bars = (rpt.daily||[]).map(d => {
+        const h = Math.round(d.count / maxCount * 40);
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1">
+          <div style="width:100%;background:var(--확정-bg);height:${h}px;border-radius:2px;position:relative">
+            <div style="position:absolute;bottom:0;width:100%;background:var(--확정);height:${h}px;border-radius:2px;opacity:.6"></div>
+          </div>
+          <span style="font-size:8px;color:var(--text-3)">${d.date}</span>
+          <span style="font-size:8px;font-weight:600">${d.count}</span>
+        </div>`;
+      }).join('');
+
+      el.innerHTML = `
+        <div class="card-h"><span class="card-t">주간 리포트 (${rpt.period?.from} ~ ${rpt.period?.to})</span></div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;height:60px;align-items:end">${bars}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10px;color:var(--text-2)">
+          <div>습관 달성률: <b style="color:var(--확정)">${rpt.life?.rate||0}%</b> (${rpt.life?.confirmed||0}/${rpt.life?.totalHabits||0})</div>
+          <div>헌금: <b>${(rpt.church?.totalOffering||0).toLocaleString()}</b>원 (${rpt.church?.offerings||0}건)</div>
+          <div>기도: ${rpt.church?.prayers||0}건 (응답 ${rpt.church?.answered||0})</div>
+          <div>경보: ${rpt.city?.activeAlerts||0}건 활성 / ${rpt.city?.totalAlerts||0}건 누적</div>
+          <div>의사결정: ${rpt.decisions?.total||0}건 (원칙 ${rpt.decisions?.principles||0}개)</div>
+          <div>성장단위: ${rpt.decisions?.growth||3}</div>
+        </div>
+      `;
+      this.el.insertBefore(el, this.el.children[2]); // 3앱 카드 아래에 삽입
+    } catch {}
+  }
+
+  async _loadNotifications() {
+    try {
+      const r = await fetch(`${API}/notifications`);
+      const data = await r.json();
+      if (data.unread === 0 && data.total === 0) return;
+
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.style.marginBottom = '16px';
+      el.innerHTML = `
+        <div class="card-h">
+          <span class="card-t">알림 (${data.unread}개 읽지 않음)</span>
+          ${data.unread > 0 ? '<button class="btn" id="_readAll" style="font-size:9px;padding:1px 6px">모두 읽음</button>' : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;max-height:120px;overflow-y:auto">
+          ${(data.notifications||[]).slice(0,10).map(n => `
+            <div class="pipe" style="${n.read?'opacity:.5':''}">
+              <div class="dot ${n.severity==='critical'?'오류':n.severity==='warning'?'미확인':'확정'}"></div>
+              <span style="font-weight:${n.read?'400':'600'}">${n.title||''}</span>
+              <span style="color:var(--text-3);font-size:10px;flex:1">${n.message||''}</span>
+              <span style="font-size:8px;color:var(--text-3)">${n.timestamp ? new Date(n.timestamp).toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'}) : ''}</span>
+            </div>`).join('')}
+        </div>
+      `;
+      this.el.insertBefore(el, this.el.children[1]); // 통계 아래에
+
+      document.getElementById('_readAll')?.addEventListener('click', async () => {
+        await fetch(`${API}/notifications/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:'all'}) });
+        this.초기화();
+      });
+    } catch {}
+  }
+
+  _bindActions() {
+    // 앱 간 연결 버튼을 3앱 카드에 추가
+    // (이미 _goto 버튼이 바인딩되어 있으므로 추가 없음)
   }
 }
 
