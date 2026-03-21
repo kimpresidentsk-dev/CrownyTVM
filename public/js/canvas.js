@@ -226,6 +226,7 @@ const CANVAS = (function() {
                 centerTitle.textContent = 'Today';
                 rightTitle.textContent = 'History';
                 loadLifeWorkspace(left, center, right);
+                setTimeout(_loadLifeHistory, 100);
                 break;
             case 'work':
                 leftTitle.textContent = 'Files';
@@ -745,6 +746,26 @@ const CANVAS = (function() {
         if (typeof showToast === 'function') showToast('Recorded', 'success');
         document.getElementById('cv-life-val').value = '';
         document.getElementById('cv-life-note').value = '';
+        _loadLifeHistory();
+    }
+
+    async function _loadLifeHistory() {
+        const right = document.getElementById('cv-right-content');
+        if (!right) return;
+        const token = localStorage.getItem('crowny_token');
+        try {
+            const r = await fetch('/api/cell/query?type=11&limit=20', { headers: { 'Authorization': 'Bearer ' + token } });
+            const records = await r.json();
+            if (records.length === 0) { right.innerHTML = '<div class="cv-mono" style="padding:8px">No records</div>'; return; }
+            // 카테고리별 그룹
+            const groups = {};
+            records.forEach(r => { const c = r.data?.[0] || 'Other'; if (!groups[c]) groups[c] = []; groups[c].push(r); });
+            right.innerHTML = `<div style="padding:4px">${Object.entries(groups).map(([cat, items]) =>
+                `<div style="margin-bottom:8px"><div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);margin-bottom:2px">${cat.toUpperCase()}</div>
+                ${items.slice(0, 5).map(i => `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:0.7rem;border-bottom:1px solid var(--border)"><span>${new Date(i.timestamp * 1000).toLocaleDateString()}</span><strong>${i.value}</strong></div>`).join('')}
+                ${items.length > 1 ? `<div style="font-size:0.6rem;color:var(--text-secondary);margin-top:2px">Avg: ${(items.reduce((s, i) => s + (i.value || 0), 0) / items.length).toFixed(1)} · ${items.length} records</div>` : ''}</div>`
+            ).join('')}</div>`;
+        } catch {}
     }
 
     // ── 워크스페이스: Workbench (HanSeon-C IDE) ──
@@ -1317,38 +1338,146 @@ const CANVAS = (function() {
         right.innerHTML = '<div class="cv-mono" style="padding:8px">System logs</div>';
     }
 
-    function adminSection(section) {
+    async function adminSection(section) {
         const center = document.getElementById('cv-center-content');
+        const right = document.getElementById('cv-right-content');
+        const token = localStorage.getItem('crowny_token');
         if (!center) return;
-        if (section === 'backup') {
-            center.innerHTML = `<div style="padding:1rem"><h4>Backup</h4><button class="cv-btn" onclick="window.open('/api/backup','_blank')" style="margin-top:0.5rem">Download Backup</button></div>`;
+
+        if (section === 'users') {
+            try {
+                const r = await fetch('/api/admin/users', { headers: { 'Authorization': 'Bearer ' + token } });
+                const data = await r.json();
+                const users = data.users || data || [];
+                center.innerHTML = `<div style="padding:0.5rem"><h4>Users (${users.length})</h4>
+                    ${users.map(u => `<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.75rem">
+                        <div style="flex:1"><strong>${escHtml(u.username)}</strong><div style="font-size:0.6rem;color:var(--text-secondary)">${u.email || ''} · Level ${u.level || 0}</div></div>
+                        <span style="font-size:0.6rem;color:var(--text-secondary)">${u.walletAddress?.slice(0,12) || ''}...</span>
+                    </div>`).join('')}</div>`;
+            } catch { center.innerHTML = '<div class="cv-mono">Access denied or load failed</div>'; }
+        } else if (section === 'chain') {
+            try {
+                const r = await fetch('/api/chain/status', { headers: { 'Authorization': 'Bearer ' + token } });
+                const s = await r.json();
+                center.innerHTML = `<div style="padding:0.5rem"><h4>Chain Status</h4>
+                    <div class="cv-mono" style="line-height:1.8">Running: ${s.chain?.running ? 'YES' : 'NO'}
+Height: ${s.chain?.height}
+Accounts: ${s.chain?.accounts}
+Mempool: ${s.chain?.mempoolSize}
+State Root: ${s.chain?.stateRoot?.slice(0, 32)}...
+Latest Hash: ${s.chain?.latestHash?.slice(0, 32)}...</div></div>`;
+            } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        } else if (section === 'cells') {
+            try {
+                const r = await fetch('/api/cell/stats', { headers: { 'Authorization': 'Bearer ' + token } });
+                const stats = await r.json();
+                center.innerHTML = `<div style="padding:0.5rem"><h4>Cell Database</h4>
+                    <div style="font-size:1.5rem;font-weight:800;margin:0.5rem 0">${stats.totalCells} cells</div>
+                    ${Object.entries(stats.byType || {}).map(([n, c]) => `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-size:0.75rem"><span>${n}</span><strong>${c}</strong></div>`).join('')}</div>`;
+            } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        } else if (section === 'backup') {
+            center.innerHTML = `<div style="padding:1rem"><h4>Backup & Restore</h4>
+                <button class="cv-btn" onclick="window.open('/api/backup','_blank')" style="width:100%;margin-top:0.5rem">Download Full Backup</button>
+                <div style="margin-top:1rem;font-size:0.7rem;color:var(--text-secondary)">Includes: users, cells, chat data, chain state</div></div>`;
+        } else if (section === 'system') {
+            center.innerHTML = `<div style="padding:0.5rem"><h4>System</h4>
+                <div class="cv-mono" style="line-height:1.8">Server: CrownyTVM
+Port: 7730
+Node.js: ${typeof process !== 'undefined' ? 'active' : 'browser'}
+Canvas: v1.0 (1,500+ lines)
+CellCore: 27-slot radial
+Chain: CrownyCell (9s blocks)
+VM: ISA729 (43 opcodes)</div></div>`;
         }
     }
 
-    // ── 워크스페이스: Om ──
+    // ── 워크스페이스: Om (옴 — 관조/명상/일기) ──
     function loadOmWorkspace(left, center, right) {
         const now = new Date();
         const omYear = now.getFullYear() + 3760;
-        left.innerHTML = `<div style="padding:8px"><div class="cv-mono" style="font-size:0.7rem">Balanced Ternary</div>
-            <div style="font-size:2rem;text-align:center;margin:1rem 0;letter-spacing:4px;color:var(--gold)">▲ ■ ▼</div>
-            <div class="cv-mono" style="text-align:center">Ti · Om · Ta</div></div>`;
-        center.innerHTML = `<div style="padding:2rem;text-align:center">
-            <div style="font-size:0.7rem;color:var(--text-secondary)">Om Calendar</div>
-            <div style="font-size:2.5rem;font-weight:800;color:var(--primary);margin:0.5rem 0">${omYear}</div>
-            <div style="font-size:0.8rem;color:var(--text-secondary)">${now.toLocaleDateString('en', { weekday:'long', month:'long', day:'numeric', year:'numeric' })}</div>
-            <div style="margin-top:2rem;padding:1rem;background:var(--bg-card);border-radius:8px;text-align:left">
-                <div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">FOUR PHASES</div>
-                <div style="font-size:0.8rem;line-height:1.8">
-                    <span style="color:var(--gold)">Confirmed (+2)</span> — Known with certainty<br>
-                    <span style="color:var(--text-secondary)">Unconfirmed (0)</span> — Information present, unverified<br>
-                    <span style="color:var(--error)">Misunderstood (-2)</span> — Incorrectly known<br>
-                    <span style="color:var(--text-muted-light)">Unaware (-1)</span> — Existence unknown
-                </div>
+        const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+        const tritDay = _toBalancedTernary(dayOfYear);
+
+        left.innerHTML = `<div style="padding:8px">
+            <div style="font-size:2rem;text-align:center;margin:0.5rem 0;letter-spacing:4px;color:var(--gold)">▲ ■ ▼</div>
+            <div class="cv-mono" style="text-align:center;margin-bottom:1rem">Ti · Om · Ta</div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">FOUR PHASES</div>
+            <div style="font-size:0.7rem;line-height:1.8">
+                <span style="color:var(--gold)">Confirmed</span> — certainty<br>
+                <span style="color:var(--text-secondary)">Unconfirmed</span> — pending<br>
+                <span style="color:var(--error)">Misunderstood</span> — error<br>
+                <span style="color:var(--text-muted-light)">Unaware</span> — unknown
             </div>
-            <div style="margin-top:1rem;font-size:0.7rem;color:var(--text-secondary)">CrownyOS · ISA729 · 27-Slot Cell</div>
+            <div style="margin-top:1rem;font-size:0.65rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">CELL</div>
+            <div class="cv-mono" style="font-size:0.65rem;line-height:1.5">27 slots (3³)<br>729 opcodes (3⁶)<br>189B compact<br>▲ti ●om ▼ta ◆synapse</div>
         </div>`;
-        right.innerHTML = `<div style="padding:8px"><div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:8px">CELL ARCHITECTURE</div>
-            <div class="cv-mono" style="line-height:1.6">27 slots = 3<sup>3</sup><br>729 opcodes = 3<sup>6</sup><br>189 bytes = 27 × 7B<br><br>▲ Ti-link (up)<br>● Om-link (sibling)<br>▼ Ta-link (down)<br>◆ Synapse (connect)</div></div>`;
+
+        center.innerHTML = `<div style="padding:1.5rem;text-align:center">
+            <div style="font-size:0.65rem;color:var(--text-secondary)">OM CALENDAR</div>
+            <div style="font-size:2.5rem;font-weight:800;color:var(--primary);margin:0.3rem 0">${omYear}</div>
+            <div style="font-size:0.8rem;color:var(--text-secondary)">${now.toLocaleDateString('en', { weekday:'long', month:'long', day:'numeric' })}</div>
+            <div style="font-family:monospace;font-size:0.7rem;color:var(--gold);margin:0.3rem 0">Day ${dayOfYear} = ${tritDay} (ternary)</div>
+        </div>
+        <div style="padding:0 1rem">
+            <div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">TODAY'S REFLECTION</div>
+            <textarea id="cv-om-journal" class="cv-textarea" style="min-height:80px" placeholder="What did you observe today?&#10;What became clearer? What remains unknown?"></textarea>
+            <div style="display:flex;gap:4px;margin-top:4px">
+                <select id="cv-om-phase" class="cv-select" style="flex:1">
+                    <option value="3">Confirmed — I know clearly</option>
+                    <option value="2" selected>Probable — becoming clear</option>
+                    <option value="1">Possible — uncertain</option>
+                    <option value="0">Unknown — seeking</option>
+                </select>
+                <button class="cv-btn" onclick="CANVAS.saveReflection()">Save</button>
+            </div>
+        </div>`;
+
+        // 우측: 과거 성찰 기록
+        _loadReflections(right);
+    }
+
+    async function _loadReflections(el) {
+        if (!el) el = document.getElementById('cv-right-content');
+        if (!el) return;
+        const token = localStorage.getItem('crowny_token');
+        try {
+            const r = await fetch('/api/cell/query?type=16&limit=10', { headers: { 'Authorization': 'Bearer ' + token } });
+            const items = await r.json();
+            el.innerHTML = `<div style="padding:4px"><div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);margin-bottom:6px">REFLECTIONS</div>
+                ${items.length > 0 ? items.map(i => {
+                    const phases = ['Unknown', 'Possible', 'Probable', 'Confirmed'];
+                    const phaseColors = ['var(--text-muted-light)', 'var(--text-secondary)', 'var(--info)', 'var(--gold)'];
+                    const ep = i.epistemic || 0;
+                    return `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
+                        <div style="font-size:0.65rem;display:flex;justify-content:space-between"><span style="color:${phaseColors[ep]}">${phases[ep]}</span><span style="color:var(--text-secondary)">${new Date(i.timestamp*1000).toLocaleDateString()}</span></div>
+                        <div style="font-size:0.75rem;margin-top:2px;line-height:1.4">${escHtml((i.data?.[1] || '').slice(0, 80))}</div>
+                    </div>`;
+                }).join('') : '<div class="cv-mono">No reflections yet</div>'}</div>`;
+        } catch {}
+    }
+
+    async function saveReflection() {
+        const text = document.getElementById('cv-om-journal')?.value?.trim();
+        if (!text) return;
+        const phase = parseInt(document.getElementById('cv-om-phase')?.value) || 1;
+        const token = localStorage.getItem('crowny_token');
+        await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 16, name: new Date().toLocaleDateString(), content: text, epistemic: phase }) });
+        document.getElementById('cv-om-journal').value = '';
+        if (typeof showToast === 'function') showToast('Reflection saved', 'success');
+        _loadReflections();
+    }
+
+    function _toBalancedTernary(n) {
+        if (n === 0) return '■';
+        let s = '';
+        let v = Math.abs(n);
+        while (v > 0) {
+            const r = ((v + 1) % 3) - 1;
+            s = (r > 0 ? '▲' : r < 0 ? '▼' : '■') + s;
+            v = Math.floor((v + 1) / 3);
+        }
+        if (n < 0) s = s.split('').map(c => c === '▲' ? '▼' : c === '▼' ? '▲' : c).join('');
+        return s;
     }
 
     // ── CellCore 로드 ──
@@ -1537,6 +1666,8 @@ const CANVAS = (function() {
         canvasToWorkbench, canvasToNote,
         crossLink,
         _nlCount: _nlCount,
+        // Om
+        saveReflection,
         // Core
         setDock, loadCells, createCell,
     };
