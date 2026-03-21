@@ -188,7 +188,7 @@ async function searchFriends() {
                     <div style="font-weight:600;font-size:0.9rem;">${u.displayName}</div>
                     <div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">${u.statusMessage || ''}</div>
                 </div>
-                ${isFriend ? `<span style="font-size:0.75rem;color:#6B8F3C;"><i data-lucide="check-circle"></i> ${t('friends.friend', 'Friend')}</span>` :
+                ${isFriend ? `<span style="font-size:0.75rem;color:#5A9A6E;"><i data-lucide="check-circle"></i> ${t('friends.friend', 'Friend')}</span>` :
                 `<button onclick="sendFriendRequest('${u.username}');this.textContent='${t('friends.requested', 'Requested')}';this.disabled=true;" class="btn-primary" style="padding:0.3rem 0.8rem;font-size:0.8rem;border-radius:6px;">${t('friends.add_friend', 'Add Friend')}</button>`}
             </div>`;
         }
@@ -276,7 +276,7 @@ async function showUserProfile(uid) {
             ${!isMe ? `
             <div style="display:flex;gap:0.5rem;">
                 <button onclick="followUser('${uid}');document.getElementById('user-profile-modal')?.remove();" class="btn-primary" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;">${profile.isFollowing ? '<i data-lucide="check"></i> ' + t('friends.following', 'Following') : t('friends.follow', 'Follow')}</button>
-                ${!profile.isFriend ? `<button onclick="sendFriendRequest('${uid}');document.getElementById('user-profile-modal')?.remove();" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;">${t('friends.add_friend', 'Add Friend')}</button>` : `<span style="flex:1;display:flex;align-items:center;justify-content:center;font-size:0.85rem;color:#6B8F3C;"><i data-lucide="check-circle"></i> ${t('friends.friend', 'Friend')}</span>`}
+                ${!profile.isFriend ? `<button onclick="sendFriendRequest('${uid}');document.getElementById('user-profile-modal')?.remove();" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;">${t('friends.add_friend', 'Add Friend')}</button>` : `<span style="flex:1;display:flex;align-items:center;justify-content:center;font-size:0.85rem;color:#5A9A6E;"><i data-lucide="check-circle"></i> ${t('friends.friend', 'Friend')}</span>`}
                 <button onclick="startChatFromProfile('${uid}');document.getElementById('user-profile-modal')?.remove();" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;"><i data-lucide="message-circle"></i> ${t('friends.message', 'Message')}</button>
             </div>
             ` : ''}

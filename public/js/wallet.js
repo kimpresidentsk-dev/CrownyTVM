@@ -56,7 +56,7 @@ async function ctvmLoadWallet() {
             balances: { crny: bal.CRN || 0, fnc: bal.FNC || 0, crm: bal.CRM || 0 }
         };
     } catch (e) {
-        console.error('[WALLET] 로드 실패:', e);
+        console.error('[WALLET] load failed:', e);
     }
     _walletLoading = false;
 }
@@ -99,11 +99,11 @@ async function ctvmSendToken() {
     if (!amount || amount <= 0) { showToast(t('wallet.enter_amount','수량을 입력하세요'), 'warning'); return; }
 
     const bal = _walletData?.balances?.[currency] || 0;
-    if (amount > bal) { showToast(`${currency} ${t('wallet.insufficient','잔액 부족')} (보유: ${bal})`, 'error'); return; }
+    if (amount > bal) { showToast(`${currency} ${t('wallet.insufficient','Insufficient balance')} (${t('wallet.held','Balance')}: ${bal})`, 'error'); return; }
 
     const confirmed = typeof showConfirmModal === 'function'
-        ? await showConfirmModal(t('wallet.confirm_send','송금 확인'), `${toUser}에게 ${amount} ${currency} 전송\n${memo ? '메모: ' + memo : ''}`)
-        : confirm(`${toUser}에게 ${amount} ${currency} 전송하시겠습니까?`);
+        ? await showConfirmModal(t('wallet.confirm_send','Confirm Transfer'), `${t('wallet.send_to','Send to')} ${toUser}: ${amount} ${currency}\n${memo ? t('wallet.memo','Memo') + ': ' + memo : ''}`)
+        : confirm(`${t('wallet.send_to','Send to')} ${toUser}: ${amount} ${currency}?`);
     if (!confirmed) return;
 
     try {
@@ -137,8 +137,8 @@ async function ctvmSwapToken() {
     if (!amount || amount <= 0) { showToast(t('wallet.enter_amount','수량을 입력하세요'), 'warning'); return; }
 
     const confirmed = typeof showConfirmModal === 'function'
-        ? await showConfirmModal(t('wallet.confirm_swap','스왑 확인'), `${amount} ${from} → ${to} 스왑`)
-        : confirm(`${amount} ${from} → ${to} 스왑하시겠습니까?`);
+        ? await showConfirmModal(t('wallet.confirm_swap','Confirm Swap'), `${amount} ${from} → ${to} ${t('wallet.swap','Swap')}`)
+        : confirm(`${amount} ${from} → ${to} ${t('wallet.swap','Swap')}?`);
     if (!confirmed) return;
 
     try {
@@ -171,7 +171,7 @@ function renderTransactions(txns) {
     container.innerHTML = txns.map(tx => {
         const isIn = tx.txType === 'receive' || tx.txType === 'deposit' || tx.txType === 'swap_in';
         const icon = isIn ? 'arrow-down-left' : 'arrow-up-right';
-        const color = isIn ? '#6B8F3C' : '#B54534';
+        const color = isIn ? '#5A9A6E' : '#B54534';
         const sign = isIn ? '+' : '-';
         const currency = tx.currency || 'CRN';
         const date = new Date(tx.created).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });

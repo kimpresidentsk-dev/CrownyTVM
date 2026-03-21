@@ -41,11 +41,11 @@ async function loadDashboard() {
             if (profile && !profile.error) {
                 currentUser = { uid: profile.username, email: profile.username + '@crowny.org', displayName: profile.displayName || profile.username };
             }
-        } catch (e) { console.warn('[Dashboard] CrownyTVM 프로필 로드 실패:', e.message); }
+        } catch (e) { console.warn('[Dashboard] ' + t('dashboard.profile_load_fail','CrownyTVM profile load failed') + ':', e.message); }
     }
 
     if (!currentUser) {
-        console.warn('[Dashboard] currentUser 없음 - 로그인 필요');
+        console.warn('[Dashboard] ' + t('dashboard.no_user','currentUser missing - login required'));
         const container = document.getElementById('dashboard-content');
         if (container) {
             container.innerHTML = `<div style="text-align:center;padding:2rem;color:#3D2B1F;">
@@ -58,7 +58,7 @@ async function loadDashboard() {
     
     const container = document.getElementById('dashboard-content');
     if (!container) {
-        console.error('[Dashboard] dashboard-content 컨테이너 없음');
+        console.error('[Dashboard] ' + t('dashboard.container_missing','dashboard-content container not found'));
         return;
     }
     
@@ -96,11 +96,11 @@ async function loadDashboard() {
                 nickname = currentUser.email?.split('@')[0] || 'Guest';
             }
         } else {
-            console.warn('[Dashboard] Firestore DB 없음 - 기본 닉네임 사용');
+            console.warn('[Dashboard] ' + t('dashboard.no_db_nickname','Firestore DB missing - using default nickname'));
             nickname = currentUser.email?.split('@')[0] || 'Guest';
         }
     } catch (e) {
-        console.warn('[Dashboard] 사용자 데이터 로드 실패 (계속 진행):', e.message);
+        console.warn('[Dashboard] ' + t('dashboard.user_data_fail','User data load failed (continuing)') + ':', e.message);
         nickname = currentUser.email?.split('@')[0] || 'Guest';
         photoURL = '';
     }
@@ -117,7 +117,7 @@ async function loadDashboard() {
                     .limit(5).get()
                     .then(snap => ({ type: 'tx', data: snap.docs.map(d => ({ id: d.id, ...d.data() })) }))
                     .catch(e => {
-                        console.warn('[Dashboard] 거래 내역 쿼리 실패:', e.message);
+                        console.warn('[Dashboard] ' + t('dashboard.tx_query_fail','Transaction query failed') + ':', e.message);
                         return { type: 'tx', data: [] };
                     }),
                 5000
@@ -132,7 +132,7 @@ async function loadDashboard() {
                     .limit(3).get()
                     .then(snap => ({ type: 'orders', data: snap.docs.map(d => ({ id: d.id, ...d.data() })) }))
                     .catch(e => {
-                        console.warn('[Dashboard] 주문 내역 쿼리 실패:', e.message);
+                        console.warn('[Dashboard] ' + t('dashboard.order_query_fail','Order query failed') + ':', e.message);
                         return { type: 'orders', data: [] };
                     }),
                 5000
@@ -147,7 +147,7 @@ async function loadDashboard() {
                     .limit(5).get()
                     .then(snap => ({ type: 'social', data: snap.docs.map(d => ({ id: d.id, ...d.data() })) }))
                     .catch(e => {
-                        console.warn('[Dashboard] 소셜 알림 쿼리 실패:', e.message);
+                        console.warn('[Dashboard] ' + t('dashboard.social_query_fail','Social notification query failed') + ':', e.message);
                         return { type: 'social', data: [] };
                     }),
                 5000
@@ -167,7 +167,7 @@ async function loadDashboard() {
                         }
                     })
                     .catch(e => {
-                        console.warn('[Dashboard] 통계 쿼리 실패:', e.message);
+                        console.warn('[Dashboard] ' + t('dashboard.stats_query_fail','Stats query failed') + ':', e.message);
                         return { type: 'stats', data: { totalUsers: '—', totalTx: '—' } };
                     }),
                 5000
@@ -196,14 +196,14 @@ async function loadDashboard() {
                             break;
                     }
                 } else {
-                    console.warn('[Dashboard] 쿼리 실패:', result.reason?.message || 'Unknown error');
+                    console.warn('[Dashboard] ' + t('dashboard.query_fail','Query failed') + ':', result.reason?.message || 'Unknown error');
                 }
             });
         } catch (e) {
-            console.warn('[Dashboard] 병렬 쿼리 처리 중 에러:', e.message);
+            console.warn('[Dashboard] ' + t('dashboard.parallel_query_fail','Parallel query processing error') + ':', e.message);
         }
     } else {
-        console.warn('[Dashboard] Firestore DB 없음 - 활동 데이터 스킵');
+        console.warn('[Dashboard] ' + t('dashboard.no_db_skip','Firestore DB missing - skipping activity data'));
     }
     
     // 3. 알림 데이터 (로컬)
@@ -218,7 +218,7 @@ async function loadDashboard() {
             <div style="background:#FFF8F0;padding:1.2rem;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #E8E0D8;">
                 <h4 style="margin-bottom:0.8rem;font-size:0.95rem;color:#3D2B1F;"><i data-lucide="bar-chart-3" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> ${t('dashboard.trading_position','트레이딩 포지션')}</h4>
                 <p style="color:#3D2B1F;margin:0.5rem 0;">${t('dashboard.balance','잔고')}: <strong style="color:#3D2B1F;">$${(pos.balance || 0).toLocaleString()}</strong></p>
-                <p style="color:#3D2B1F;margin:0.5rem 0;">${t('dashboard.profit','수익')}: <strong style="color:${(pos.totalPnl || 0) >= 0 ? '#6B8F3C' : '#B54534'}">$${(pos.totalPnl || 0).toFixed(2)}</strong></p>
+                <p style="color:#3D2B1F;margin:0.5rem 0;">${t('dashboard.profit','수익')}: <strong style="color:${(pos.totalPnl || 0) >= 0 ? '#5A9A6E' : '#B54534'}">$${(pos.totalPnl || 0).toFixed(2)}</strong></p>
                 <button onclick="showPage('prop-trading')" style="padding:0.5rem 1rem;border:1px solid #E8E0D8;border-radius:8px;background:#F7F3ED;cursor:pointer;font-size:0.85rem;transition:background 0.15s;color:#3D2B1F;margin-top:0.5rem;">→ ${t('dashboard.go_trading','트레이딩으로')}</button>
             </div>`;
     } else {
@@ -275,7 +275,7 @@ async function loadDashboard() {
                     <span>${Number(tx.amount || 0).toLocaleString()}</span>
                 </div>`).join('')}
                 ${recentOrders.map(o => `<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid #E8E0D8;font-size:0.85rem;color:#3D2B1F;">
-                    <span><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${o.productTitle || '주문'}</span>
+                    <span><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${o.productTitle || t('dashboard.order','Order')}</span>
                     <span>${o.status || ''}</span>
                 </div>`).join('')}
             </div>
@@ -291,7 +291,7 @@ async function loadDashboard() {
             <div style="background:#FFF8F0;padding:1.2rem;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #E8E0D8;">
                 <h4 style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;font-size:0.95rem;color:#3D2B1F;">
                     <span>⚡ ${t('dashboard.shortcuts','빠른 바로가기')}</span>
-                    <button onclick="editShortcuts()" style="background:none;border:none;cursor:pointer;font-size:1rem;opacity:0.6;color:#3D2B1F;" title="편집"><i data-lucide="pencil" style="width:14px;height:14px;"></i></button>
+                    <button onclick="editShortcuts()" style="background:none;border:none;cursor:pointer;font-size:1rem;opacity:0.6;color:#3D2B1F;" title="${t('dashboard.edit','Edit')}"><i data-lucide="pencil" style="width:14px;height:14px;"></i></button>
                 </h4>
                 <div style="display:flex;flex-wrap:wrap;gap:0.5rem;" id="dash-shortcuts-container">
                     ${renderShortcuts()}
@@ -352,7 +352,7 @@ async function loadDashboard() {
     // Lucide 아이콘 렌더링
     if (window.lucide) lucide.createIcons();
     } catch(e) {
-        console.error('[Dashboard] 로딩 중 치명적 에러:', e);
+        console.error('[Dashboard] ' + t('dashboard.fatal_error','Fatal error during loading') + ':', e);
         
         // 개선된 fallback UI - 토큰 잔고와 기본 기능은 제공
         container.innerHTML = `<div style="text-align:center;padding:2rem;">
@@ -440,7 +440,7 @@ async function loadDashboard() {
         
         // Lucide 아이콘 렌더링 (fallback UI용)
         if (window.lucide) lucide.createIcons();
-        console.log('[Dashboard] 에러 발생 - 개선된 fallback UI 표시 (토큰 잔고 포함)');
+        console.log('[Dashboard] ' + t('dashboard.fallback_shown','Error occurred - showing improved fallback UI (with token balance)'));
     }
 }
 

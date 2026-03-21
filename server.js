@@ -2066,7 +2066,13 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/contacts' && req.method === 'GET') {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
-            res.end(JSON.stringify(getContacts(user.username)));
+            const contacts = getContacts(user.username);
+            // v2 호환: CrownyOS는 { contacts: [...] } 형식 기대
+            if (isV2) {
+                res.end(JSON.stringify({ contacts }));
+            } else {
+                res.end(JSON.stringify(contacts));
+            }
             return;
         }
 
@@ -4275,6 +4281,158 @@ const server = http.createServer(async (req, res) => {
             else comment.likes.push(user.username);
             fs.writeFileSync(commFile, JSON.stringify(comments, null, 1));
             res.end(JSON.stringify({ ok: true, liked: idx < 0, count: comment.likes.length }));
+            return;
+        }
+
+        // POST /api/social/share — 공유 카운트 증가
+        if (path === '/api/social/share' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const postId = body.postId;
+            if (!postId) { res.statusCode = 400; res.end('{"error":"missing postId"}'); return; }
+            const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
+            let posts = [];
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+            const post = posts.find(p => p.id === postId);
+            if (!post) { res.statusCode = 404; res.end('{"error":"post not found"}'); return; }
+            post.shareCount = (post.shareCount || 0) + 1;
+            fs.writeFileSync(postsFile, JSON.stringify(posts, null, 1));
+            res.end(JSON.stringify({ ok: true, shareCount: post.shareCount }));
+            return;
+        }
+
+        // GET /api/social/user-posts?uid=&tab= — 사용자별 게시물 조회
+        if (path === '/api/social/user-posts' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const uid = url.searchParams.get('uid') || user.username;
+            const tab = url.searchParams.get('tab') || 'posts';
+            const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
+            let posts = [];
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+
+            let result = [];
+            if (tab === 'posts') {
+                result = posts.filter(p => p.author === uid).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+            } else if (tab === 'media') {
+                result = posts.filter(p => p.author === uid && (p.image || p.youtube || p.videoUrl)).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+            } else if (tab === 'saved') {
+                const saved = loadJSON('saved_posts.json', {});
+                const savedIds = saved[uid] || [];
+                result = posts.filter(p => savedIds.includes(p.id)).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+            }
+            const enriched = result.map(p => ({
+                ...p,
+                authorName: users[p.author]?.displayName || p.author,
+                authorPhotoURL: users[p.author]?.photoURL || '',
+            }));
+            res.end(JSON.stringify({ posts: enriched }));
+            return;
+        }
+
+        // PATCH /api/social/post — 게시물 수정
+        if (path === '/api/social/post' && req.method === 'PATCH') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { postId, text } = body;
+            if (!postId || !text) { res.statusCode = 400; res.end('{"error":"missing postId or text"}'); return; }
+            const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
+            let posts = [];
+            try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) {}
+            const post = posts.find(p => p.id === postId);
+            if (!post) { res.statusCode = 404; res.end('{"error":"post not found"}'); return; }
+            if (post.author !== user.username) { res.statusCode = 403; res.end('{"error":"not your post"}'); return; }
+            post.text = text;
+            post.editedAt = Date.now();
+            fs.writeFileSync(postsFile, JSON.stringify(posts, null, 1));
+            res.end(JSON.stringify({ ok: true, post }));
+            return;
+        }
+
+        // ═══ 채널 (Channels) ═══
+
+        // GET /api/channels — 채널 목록
+        if (path === '/api/channels' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const channels = loadJSON('channels.json', []);
+            res.end(JSON.stringify(channels.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))));
+            return;
+        }
+
+        // POST /api/channels — 채널 생성
+        if (path === '/api/channels' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { name, description } = body;
+            if (!name) { res.statusCode = 400; res.end('{"error":"missing name"}'); return; }
+            const channels = loadJSON('channels.json', []);
+            const channel = {
+                id: `ch_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+                name: name.trim(),
+                description: description || '',
+                ownerId: user.username,
+                subscribers: [user.username],
+                createdAt: Date.now()
+            };
+            channels.push(channel);
+            saveJSON('channels.json', channels);
+            res.end(JSON.stringify({ ok: true, channel }));
+            return;
+        }
+
+        // GET /api/channels/:id/messages — 채널 메시지 조회
+        if (/^\/api\/channels\/[^/]+\/messages$/.test(path) && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const chId = path.split('/')[3];
+            const msgFile = pathModule.join(DATA_DIR, `channel_msgs_${chId}.json`);
+            let msgs = [];
+            try { msgs = JSON.parse(fs.readFileSync(msgFile, 'utf8')); } catch(e) {}
+            res.end(JSON.stringify(msgs));
+            return;
+        }
+
+        // POST /api/channels/:id/messages — 채널 메시지 보내기
+        if (/^\/api\/channels\/[^/]+\/messages$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const chId = path.split('/')[3];
+            const channels = loadJSON('channels.json', []);
+            const channel = channels.find(c => c.id === chId);
+            if (!channel) { res.statusCode = 404; res.end('{"error":"channel not found"}'); return; }
+            if (channel.ownerId !== user.username) { res.statusCode = 403; res.end('{"error":"only owner can post"}'); return; }
+            const msgFile = pathModule.join(DATA_DIR, `channel_msgs_${chId}.json`);
+            let msgs = [];
+            try { msgs = JSON.parse(fs.readFileSync(msgFile, 'utf8')); } catch(e) {}
+            const msg = {
+                id: `cm_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+                senderId: user.username,
+                text: body.text || '',
+                type: body.type || 'text',
+                timestamp: Date.now()
+            };
+            msgs.push(msg);
+            fs.writeFileSync(msgFile, JSON.stringify(msgs, null, 1));
+            res.end(JSON.stringify({ ok: true, message: msg }));
+            return;
+        }
+
+        // POST /api/channels/:id/subscribe — 구독/구독취소 토글
+        if (/^\/api\/channels\/[^/]+\/subscribe$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const chId = path.split('/')[3];
+            const channels = loadJSON('channels.json', []);
+            const channel = channels.find(c => c.id === chId);
+            if (!channel) { res.statusCode = 404; res.end('{"error":"channel not found"}'); return; }
+            if (!channel.subscribers) channel.subscribers = [];
+            const idx = channel.subscribers.indexOf(user.username);
+            let subscribed;
+            if (idx >= 0) { channel.subscribers.splice(idx, 1); subscribed = false; }
+            else { channel.subscribers.push(user.username); subscribed = true; }
+            saveJSON('channels.json', channels);
+            res.end(JSON.stringify({ ok: true, subscribed, subscriberCount: channel.subscribers.length }));
             return;
         }
 

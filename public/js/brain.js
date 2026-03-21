@@ -297,7 +297,7 @@ const BRAIN = (() => {
         const container = document.getElementById('brain-content');
         container.innerHTML = `
             <div style="text-align:center;margin-bottom:1.5rem;">
-                <div style="font-size:4rem;margin-bottom:0.5rem;">${primary === 'blue' ? '<span style="color:var(--info)">●</span>' : primary === 'yellow' ? '<span style="color:#C4841D">●</span>' : primary === 'red' ? '<span style="color:var(--error)">●</span>' : '<span style="color:#6B8F3C">●</span>'}</div>
+                <div style="font-size:4rem;margin-bottom:0.5rem;">${primary === 'blue' ? '<span style="color:var(--info)">●</span>' : primary === 'yellow' ? '<span style="color:#C4841D">●</span>' : primary === 'red' ? '<span style="color:var(--error)">●</span>' : '<span style="color:#5A9A6E">●</span>'}</div>
                 <h2 style="margin:0;">${t('brain.you_are','You are')} ${temp.name}!</h2>
                 <p style="font-size:0.85rem;color:var(--accent);margin-top:0.5rem;">${temp.desc}</p>
             </div>
@@ -494,7 +494,7 @@ JSON만 출력.`;
         if (result.stage === 1) {
             const temp = TEMPERAMENTS[result.primary];
             return `<div style="display:flex;align-items:center;gap:1rem;">
-                <div style="font-size:2.5rem;">${result.primary === 'blue' ? '<span style="color:var(--info)">●</span>' : result.primary === 'yellow' ? '<span style="color:#C4841D">●</span>' : result.primary === 'red' ? '<span style="color:var(--error)">●</span>' : '<span style="color:#6B8F3C">●</span>'}</div>
+                <div style="font-size:2.5rem;">${result.primary === 'blue' ? '<span style="color:var(--info)">●</span>' : result.primary === 'yellow' ? '<span style="color:#C4841D">●</span>' : result.primary === 'red' ? '<span style="color:var(--error)">●</span>' : '<span style="color:#5A9A6E">●</span>'}</div>
                 <div><div style="font-weight:700;">${temp?.name || result.primary}</div><div style="font-size:0.8rem;color:var(--accent);">${temp?.desc?.substring(0, 50) || ''}...</div></div>
             </div>`;
         }

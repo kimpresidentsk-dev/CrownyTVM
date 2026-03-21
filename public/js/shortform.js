@@ -16,7 +16,7 @@
 
     const CTA_MAP = {
         artist:   { label: `<i data-lucide="heart" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_donate','후원하기')}`, color: '#B54534', page: 'artist' },
-        campaign: { label: `<i data-lucide="heart-handshake" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_join','참여하기')}`, color: '#6B8F3C', page: 'fundraise' },
+        campaign: { label: `<i data-lucide="heart-handshake" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_join','참여하기')}`, color: '#5A9A6E', page: 'fundraise' },
         business: { label: `<i data-lucide="wallet" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_invest','투자하기')}`, color: '#3D2B1F', page: 'business' },
         art:      { label: `<i data-lucide="palette" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_buy','구매하기')}`, color: '#8B6914', page: 'art' },
         book:     { label: `<i data-lucide="book-open" style="width:14px;height:14px;margin-right:4px;"></i>${t('shortform.cta_read','읽기')}`, color: '#FF9800', page: 'books' },
@@ -40,7 +40,7 @@
             <!-- YouTube URL 입력 -->
             <div style="margin-bottom:1rem;">
                 <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.4rem;"><i data-lucide="link" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>YouTube / Shorts URL</label>
-                <input type="text" id="sf-youtube-url" class="crny-input" placeholder="https://youtube.com/shorts/... 또는 https://youtu.be/...">
+                <input type="text" id="sf-youtube-url" class="crny-input" placeholder="${t('shortform.youtube_placeholder', 'https://youtube.com/shorts/... or https://youtu.be/...')}">
                 <div id="sf-yt-preview" style="display:none;margin-top:0.5rem;border-radius:8px;overflow:hidden;"></div>
             </div>
 
@@ -547,7 +547,7 @@
         let ctaHTML = '';
         if (sl) {
             const cta = CTA_MAP[sl.type] || {};
-            ctaHTML = `<button onclick="SHORTFORM._navigateCTA('${sl.type}','${sl.id}')" style="position:absolute;bottom:90px;left:50%;transform:translateX(-50%);padding:0.7rem 1.5rem;border:none;border-radius:24px;background:${cta.color||'#3D2B1F'};color:#FFF8F0;font-weight:700;font-size:0.95rem;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);z-index:10;white-space:nowrap;">${cta.label || '보기'}</button>`;
+            ctaHTML = `<button onclick="SHORTFORM._navigateCTA('${sl.type}','${sl.id}')" style="position:absolute;bottom:90px;left:50%;transform:translateX(-50%);padding:0.7rem 1.5rem;border:none;border-radius:24px;background:${cta.color||'#3D2B1F'};color:#FFF8F0;font-weight:700;font-size:0.95rem;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);z-index:10;white-space:nowrap;">${cta.label || t('shortform.cta_view','View')}</button>`;
         }
 
         const filterStyle = reel.filter ? `filter:${reel.filter};` : '';

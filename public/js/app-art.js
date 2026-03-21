@@ -651,7 +651,7 @@ async function viewArtwork(artId) {
                         <span style="color:var(--accent)">${pct}% ${t('art.sold','Sold')}</span>
                     </div>
                     <div style="background:#e0e0e0;border-radius:4px;height:6px;overflow:hidden">
-                        <div style="background:${isSoldOut ? '#B54534' : '#6B8F3C'};height:100%;width:${pct}%;border-radius:4px;transition:width .3s"></div>
+                        <div style="background:${isSoldOut ? '#B54534' : '#5A9A6E'};height:100%;width:${pct}%;border-radius:4px;transition:width .3s"></div>
                     </div>
                 </div>`;
         }
@@ -1420,7 +1420,7 @@ async function _loadMyReservations(container) {
                     </div>
                     <div style="display:flex;flex-direction:column;gap:.3rem">
                         ${r.status === 'reserved' && !isExpired ? `
-                            <button onclick="completeReservation('${doc.id}')" style="background:#6B8F3C;color:#E8D5C4;border:none;padding:.4rem .6rem;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:600"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.pay_balance_short','Balance')}</button>
+                            <button onclick="completeReservation('${doc.id}')" style="background:#5A9A6E;color:#E8D5C4;border:none;padding:.4rem .6rem;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:600"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.pay_balance_short','Balance')}</button>
                             <button onclick="cancelReservation('${doc.id}')" style="background:none;border:1px solid #E8E0D8;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-size:.7rem;color:#6B5744">${t('art.cancel','Cancel')}</button>
                         ` : ''}
                     </div>
@@ -1480,7 +1480,7 @@ async function _loadMyTransactions(container) {
                 'art_reservation_complete': '\u2705 ' + t('art.reservation_complete_label','Reservation complete')
             }[tx.type] || tx.type;
             const dirIcon = tx.direction === 'in' ? '📥' : '📤';
-            const dirColor = tx.direction === 'in' ? '#6B8F3C' : '#e53935';
+            const dirColor = tx.direction === 'in' ? '#5A9A6E' : '#e53935';
 
             html += `
                 <div style="background:#FFF8F0;padding:.6rem .8rem;border-radius:8px;display:flex;justify-content:space-between;align-items:center;font-size:.8rem">

@@ -158,7 +158,7 @@ async function loadSettings() {
                 <button onclick="resetPassword()" class="settings-btn">${getText('settings.change_password', '🔑 Change password')}</button>
                 <p style="font-size:0.8rem; color:var(--accent); margin-top:0.5rem;">
                     ${getText('settings.wallet_encryption', 'Wallet encryption')}: 
-                    <strong style="color:#6B8F3C;">AES-GCM ✅</strong>
+                    <strong style="color:#5A9A6E;">AES-GCM ✅</strong>
                 </p>
             </div>
         </div>

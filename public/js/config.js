@@ -14,9 +14,9 @@ function syncCurrentUser(user) {
 
 // ========== Crowny Network 토큰 설정 ==========
 const CROWNY_TOKENS = {
-    CRN: { name: '크라우니', symbol: 'CRN', priceKRW: 25500 },
-    FNC: { name: '포네', symbol: 'FNC', priceKRW: 2550 },
-    CRM: { name: '맘', symbol: 'CRM', priceKRW: 25.5 }
+    CRN: { get name() { return t('config.token_crn','Crowny'); }, symbol: 'CRN', priceKRW: 25500 },
+    FNC: { get name() { return t('config.token_fnc','Phone'); }, symbol: 'FNC', priceKRW: 2550 },
+    CRM: { get name() { return t('config.token_crm','Mom'); }, symbol: 'CRM', priceKRW: 25.5 }
 };
 
 const RISK_CONFIG = {
@@ -47,7 +47,7 @@ function checkDailyReset() {
         // 서버 API 업데이트
         saveTradingState({ dailyPnL: 0, dailyLocked: false, lastDailyReset: todayUTC });
         
-        console.log('<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 일일 손실 리셋 (새로운 날)');
+        console.log('<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('config.daily_loss_reset','Daily loss reset (new day)'));
     }
 }
 
@@ -70,11 +70,11 @@ function updateRiskGaugeUI() {
     
     if (dailyBar) {
         dailyBar.style.width = dailyPercent + '%';
-        dailyBar.style.background = dailyPercent >= 100 ? '#B54534' : dailyPercent >= 80 ? '#C4841D' : '#6B8F3C';
+        dailyBar.style.background = dailyPercent >= 100 ? '#B54534' : dailyPercent >= 80 ? '#C4841D' : '#5A9A6E';
     }
     if (dailyText) {
         dailyText.textContent = `$${dailyPnL.toFixed(0)} / -$${actualDailyLimit}`;
-        dailyText.style.color = dailyPnL < 0 ? '#B54534' : '#6B8F3C';
+        dailyText.style.color = dailyPnL < 0 ? '#B54534' : '#5A9A6E';
     }
     
     // 누적 손실 게이지 (참가자별 한도 사용)
@@ -84,11 +84,11 @@ function updateRiskGaugeUI() {
     
     if (cumulativeBar) {
         cumulativeBar.style.width = cumulativePercent + '%';
-        cumulativeBar.style.background = cumulativePercent >= 100 ? '#B54534' : cumulativePercent >= 80 ? '#C4841D' : '#6B8F3C';
+        cumulativeBar.style.background = cumulativePercent >= 100 ? '#B54534' : cumulativePercent >= 80 ? '#C4841D' : '#5A9A6E';
     }
     if (cumulativeText) {
         cumulativeText.textContent = `$${cumulativePnL.toFixed(0)} / -$${actualCumulativeLimit.toLocaleString()}`;
-        cumulativeText.style.color = cumulativePnL < 0 ? '#B54534' : '#6B8F3C';
+        cumulativeText.style.color = cumulativePnL < 0 ? '#B54534' : '#5A9A6E';
     }
     
     // 일일 한도 경고
@@ -166,7 +166,7 @@ async function checkDailyLossLimit() {
                 if (fresh.dailyLocked === false && fresh.adminSuspended === false) { myParticipation.dailyLocked = false; myParticipation.adminSuspended = false; }
             }
         }
-    } catch (e) { console.warn('동기화 실패:', e); }
+    } catch (e) { console.warn(t('config.sync_fail','Sync failed') + ':', e); }
     
     // 참가자별 일일 한도 사용 (없으면 전역 RISK_CONFIG 사용)
     // ⚠️ Math.abs 필수: 음수로 저장된 경우 이중부정 방지
@@ -237,7 +237,7 @@ auth.onAuthStateChanged(async (user) => {
         try {
             await loadUserLevel();
         } catch (e) {
-            console.error('[Config] 관리자 레벨 로드 실패 - 계속 진행:', e);
+            console.error('[Config] ' + t('config.admin_level_fail','Admin level load failed - continuing') + ':', e);
             window.currentUserLevel = -1;
         }
         
@@ -298,7 +298,7 @@ auth.onAuthStateChanged(async (user) => {
                     useIndependentDB = true;
                     // 메신저용 username 보장
                     localStorage.setItem('crowny_username', profile.username);
-                    console.log('[Config] CrownyTVM 독립 모드 활성화:', currentUser.email);
+                    console.log('[Config] ' + t('config.independent_mode','CrownyTVM independent mode activated') + ':', currentUser.email);
 
                     document.getElementById('user-email').textContent = currentUser.email;
                     document.getElementById('user-info').style.display = 'block';
@@ -315,7 +315,7 @@ auth.onAuthStateChanged(async (user) => {
                     if (typeof loadSearchCache === 'function') loadSearchCache();
                     return; // 독립 모드 초기화 완료
                 }
-            } catch (e) { console.warn('[Config] CrownyTVM 프로필 로드 실패:', e.message); }
+            } catch (e) { console.warn('[Config] ' + t('config.profile_load_fail','CrownyTVM profile load failed') + ':', e.message); }
         }
 
         // Jamie: Landing 페이지 활성화를 위해 자동 모달 팝업 제거
@@ -336,7 +336,7 @@ function ctvmShowAdminMenu() {
     const adminNav = document.getElementById('admin-nav-item');
     if (adminNav) adminNav.style.display = 'block';
     if (typeof applyMenuVisibility === 'function') applyMenuVisibility(2);
-    console.log('[Config] 관리자 메뉴 활성화');
+    console.log('[Config] ' + t('config.admin_menu_activated','Admin menu activated'));
 }
 
 async function ctvmCheckAdmin() {
@@ -347,7 +347,7 @@ async function ctvmCheckAdmin() {
         const p = await r.json();
         if (p && !p.error) window.ctvmMe = p;
         if (p && p.isAdmin) ctvmShowAdminMenu();
-    } catch(e) { console.warn('[Config] 관리자 체크 실패:', e.message); }
+    } catch(e) { console.warn('[Config] ' + t('config.admin_check_fail','Admin check failed') + ':', e.message); }
 }
 
 async function onLoginSuccess(data) {
@@ -357,7 +357,7 @@ async function onLoginSuccess(data) {
         syncCurrentUser({ uid: data.username, email: (data.email || data.username + '@crowny.org'), displayName: data.displayName || data.username, photoURL: data.photoURL || '' });
     }
     useIndependentDB = true;
-    console.log('[Config] onLoginSuccess → 독립 모드:', currentUser.email);
+    console.log('[Config] onLoginSuccess → ' + t('config.independent_mode_short','independent mode') + ':', currentUser.email);
 
     document.getElementById('user-email').textContent = currentUser.email;
     document.getElementById('user-info').style.display = 'block';

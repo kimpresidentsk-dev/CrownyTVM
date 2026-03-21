@@ -79,7 +79,7 @@ const ADMIN_LEVELS = {
     5: { name: t('admin.level.country','Country Admin'), icon: '<i data-lucide="globe" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#8B6914' },
     4: { name: t('admin.level.business','Business Admin'), icon: '<i data-lucide="briefcase" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#5B7B8C' },
     3: { name: t('admin.level.service','Service Admin'), icon: '<i data-lucide="wrench" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#C4841D' },
-    2: { name: t('admin.level.ops','Operations Admin'), icon: '<i data-lucide="file-text" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#6B8F3C' },
+    2: { name: t('admin.level.ops','Operations Admin'), icon: '<i data-lucide="file-text" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#5A9A6E' },
     1: { name: t('admin.level.cs','CS Admin'), icon: '<i data-lucide="message-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#6B5744' },
     0: { name: t('admin.level.member','Full Member'), icon: '<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#795548' },
     '-1': { name: t('admin.level.basic','Basic Member'), icon: '<i data-lucide="user" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#9E9E9E' }
@@ -1402,7 +1402,7 @@ async function adminLoadOffchainTxLog() {
             'swap_offchain': '<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>Swap'
         };
         const typeColors = {
-            'admin_mint': '#6B8F3C', 'admin_burn': '#B54534',
+            'admin_mint': '#5A9A6E', 'admin_burn': '#B54534',
             'earn': '#5B7B8C', 'spend': '#ff6f00',
             'transfer': '#455a64', 'swap_offchain': '#6a1b9a'
         };
@@ -1452,7 +1452,7 @@ async function adminLoadGivingPool() {
             infoEl.innerHTML = `
                 <div style="text-align:center;">
                     <div style="font-size:0.8rem; color:var(--accent);"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Global Giving Pool Balance</div>
-                    <div style="font-size:2rem; font-weight:800; color:#6B8F3C;">${(pool.totalAmount||0).toLocaleString()} <span style="font-size:0.9rem;">CRGC pt</span></div>
+                    <div style="font-size:2rem; font-weight:800; color:#5A9A6E;">${(pool.totalAmount||0).toLocaleString()} <span style="font-size:0.9rem;">CRGC pt</span></div>
                     <div style="font-size:0.75rem; color:var(--accent);">≈ ${((pool.totalAmount||0)/100).toFixed(2)} CRNY · Last updated: ${updated}</div>
                 </div>`;
         } else {
@@ -1470,7 +1470,7 @@ async function adminLoadGivingPool() {
             const log = doc.data();
             const time = log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString('ko-KR') : '--';
             html += `<div style="padding:0.4rem; border-bottom:1px solid #E8E0D8; font-size:0.78rem;">
-                <span style="color:#6B8F3C; font-weight:600;">+${(log.givingAmount||0).toLocaleString()}</span>
+                <span style="color:#5A9A6E; font-weight:600;">+${(log.givingAmount||0).toLocaleString()}</span>
                 <span style="color:var(--accent);"> from ${log.email||'--'}</span>
                 <span style="color:#6B5744; float:right;">${time}</span>
             </div>`;
@@ -1958,7 +1958,7 @@ async function adminLoadDeletedWallets() {
                             <div style="font-size:0.72rem;color:#6B5744;font-family:monospace;">${w.walletAddress || '--'}</div>
                             <div style="font-size:0.68rem;color:#B54534;">Deleted: ${deletedAt}</div>
                         </div>
-                        ${hasLevel(4) ? `<button onclick="adminRestoreWallet('${userDoc.id}','${wDoc.id}')" style="background:#6B8F3C;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;"><i data-lucide="rotate-ccw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Restore</button>` : ''}
+                        ${hasLevel(4) ? `<button onclick="adminRestoreWallet('${userDoc.id}','${wDoc.id}')" style="background:#5A9A6E;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;"><i data-lucide="rotate-ccw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Restore</button>` : ''}
                     </div>
                 </div>`;
             }
@@ -2042,7 +2042,7 @@ async function loadAdminWallet() {
                     <strong style="font-size:1.2rem;">${balances.fnc.toLocaleString(undefined, {maximumFractionDigits:2})}</strong>
                 </div>
                 <div style="background:#F7F3ED; padding:0.6rem 1rem; border-radius:6px; text-align:center; min-width:80px;">
-                    <div style="font-size:0.7rem; color:#6B8F3C;">CRFN</div>
+                    <div style="font-size:0.7rem; color:#5A9A6E;">CRFN</div>
                     <strong style="font-size:1.2rem;">${balances.crfn.toLocaleString(undefined, {maximumFractionDigits:2})}</strong>
                 </div>
                 <div style="background:#F7F3ED; padding:0.6rem 1rem; border-radius:6px; text-align:center; min-width:80px;">
@@ -2299,7 +2299,7 @@ async function loadAdminParticipants() {
                                         </button>
                                     ` : `
                                         <button onclick="adminResumeTrading('${participantId}', '${challengeId}')" 
-                                            style="background:#6B8F3C; color:#FFF8F0; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">
+                                            style="background:#5A9A6E; color:#FFF8F0; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">
                                             <i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Resume Trading
                                         </button>
                                     `}
@@ -2382,7 +2382,7 @@ async function loadAdminLog() {
                     break;
                 case 'resume_trading':
                     actionText = '<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Resume Trading';
-                    actionColor = '#6B8F3C';
+                    actionColor = '#5A9A6E';
                     break;
                 default:
                     actionText = log.action;
@@ -2951,7 +2951,7 @@ async function loadCouponList() {
             const c = doc.data();
             const expiry = c.expiresAt ? c.expiresAt.toDate().toLocaleDateString('en-US') : 'Unlimited';
             const usageText = c.maxUses > 0 ? `${c.usedCount}/${c.maxUses}` : `${c.usedCount}/∞`;
-            const statusColor = c.enabled ? '#6B8F3C' : '#B54534';
+            const statusColor = c.enabled ? '#5A9A6E' : '#B54534';
             const statusText = c.enabled ? 'Active' : 'Inactive';
             const couponName = c.name || c.code;
             html += `<tr style="border-bottom:1px solid #E8E0D8;">
@@ -2965,7 +2965,7 @@ async function loadCouponList() {
                 <td style="text-align:center; color:${statusColor}; font-weight:600;">${statusText}</td>
                 <td style="text-align:center;">
                     <div style="display:flex; flex-direction:column; gap:3px; align-items:center;">
-                        <button onclick="toggleCoupon('${doc.id}', ${!c.enabled})" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:${c.enabled ? '#F7F3ED' : '#F7F3ED'}; color:${c.enabled ? '#B54534' : '#6B8F3C'}; width:100%;">${c.enabled ? 'Disable' : 'Enable'}</button>
+                        <button onclick="toggleCoupon('${doc.id}', ${!c.enabled})" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:${c.enabled ? '#F7F3ED' : '#F7F3ED'}; color:${c.enabled ? '#B54534' : '#5A9A6E'}; width:100%;">${c.enabled ? 'Disable' : 'Enable'}</button>
                         <button onclick="viewCouponLog('${doc.id}','${c.code}')" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:#F7F3ED; color:#5B7B8C; width:100%;"><i data-lucide="scroll-text" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> Log</button>
                         <button onclick="deleteCoupon('${doc.id}','${c.code}')" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:#F7F3ED; color:#B54534; width:100%;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delete</button>
                     </div>
@@ -3523,7 +3523,7 @@ function renderDashboardStats(stats) {
     const sections = stats.sections || {};
     const sectionEl = el('dash-section-stats');
     if (sectionEl) {
-        const colors = { mall: '#6B8F3C', art: '#B54534', books: '#C4841D', trading: '#C4841D', social: '#5B7B8C' };
+        const colors = { mall: '#5A9A6E', art: '#B54534', books: '#C4841D', trading: '#C4841D', social: '#5B7B8C' };
         sectionEl.innerHTML = Object.entries(sections).map(([key, sec]) => {
             const color = colors[key] || '#6B5744';
             return `<div style="background:#FFF8F0; border:1px solid ${color}33; border-left:4px solid ${color}; padding:1rem; border-radius:10px;">
@@ -3561,7 +3561,7 @@ function renderDashboardStats(stats) {
             chartTokenEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;width:100%;color:#6B5744;font-size:0.85rem;">No transaction data</div>';
         } else {
             const maxVol = Math.max(...entries.map(([,v]) => v), 1);
-            const tokenColors = { CRTD: '#C4841D', CRAC: '#B54534', CRGC: '#6B8F3C', CREB: '#2E7D32' };
+            const tokenColors = { CRTD: '#C4841D', CRAC: '#B54534', CRGC: '#5A9A6E', CREB: '#2E7D32' };
             chartTokenEl.innerHTML = entries.map(([tk, vol]) => {
                 const pct = Math.max((vol / maxVol) * 100, 2);
                 const color = tokenColors[tk] || '#6B5744';
@@ -3608,7 +3608,7 @@ async function loadAdminPendingProducts() {
                     </div>
                 </div>
                 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-                    <button onclick="approveProduct('${d.id}')" style="flex:1;background:#6B8F3C;color:#FFF8F0;border:none;padding:0.5rem;border-radius:6px;cursor:pointer;font-weight:600;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Approve</button>
+                    <button onclick="approveProduct('${d.id}')" style="flex:1;background:#5A9A6E;color:#FFF8F0;border:none;padding:0.5rem;border-radius:6px;cursor:pointer;font-weight:600;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Approve</button>
                     <button onclick="rejectProduct('${d.id}')" style="flex:1;background:#B54534;color:#FFF8F0;border:none;padding:0.5rem;border-radius:6px;cursor:pointer;font-weight:600;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Reject</button>
                 </div>
             </div>`;

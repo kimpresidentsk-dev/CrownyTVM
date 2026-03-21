@@ -1583,7 +1583,7 @@
 .credit-info {
     font-size: 0.8rem;
     font-weight: 700;
-    color: #6B8F3C;
+    color: var(--success);
     display: flex;
     align-items: center;
     gap: 4px;
@@ -1665,7 +1665,7 @@
     margin: 0.5rem 0;
 }
 .credit-progress-bar {
-    background: #6B8F3C;
+    background: var(--success);
     height: 100%;
     border-radius: 3px;
     transition: width 0.3s;
@@ -1683,7 +1683,7 @@
     font-weight: 600;
     color: #FFF8F0;
 }
-.credit-action-btn--green { background: #6B8F3C; }
+.credit-action-btn--green { background: var(--success); }
 .credit-action-btn--orange { background: #FF9800; }
 .credit-action-btn--red { background: #B54534; }
 

@@ -70,7 +70,7 @@
     .chat-item:hover,.chat-item.active{background:#F7F3ED}
     .chat-item.unread{background:#FFF3E6}
     .chat-avatar{width:40px;height:40px;border-radius:50%;background:#8B6914;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;position:relative}
-    .chat-avatar.online::after{content:'';position:absolute;bottom:1px;right:1px;width:10px;height:10px;background:#6B8F3C;border:2px solid #fff;border-radius:50%}
+    .chat-avatar.online::after{content:'';position:absolute;bottom:1px;right:1px;width:10px;height:10px;background:var(--success);border:2px solid #fff;border-radius:50%}
     .chat-item-body{flex:1;min-width:0}
     .chat-item-top{display:flex;justify-content:space-between;align-items:center}
     .chat-item-name{font-size:0.9rem;font-weight:600;color:#3D2B1F;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -85,7 +85,7 @@
     .crny-btn-back{display:none;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#3D2B1F;padding:4px 8px}
     .crny-chat-header-name{font-size:0.95rem;color:#3D2B1F}
     .crny-chat-header-name strong{font-weight:700}
-    .chat-status{font-size:0.75rem;color:#6B8F3C;margin-left:8px}
+    .chat-status{font-size:0.75rem;color:var(--success);margin-left:8px}
     .crny-chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:4px}
     .chat-msg{max-width:75%;display:flex;flex-direction:column}
     .chat-msg.mine{align-self:flex-end;align-items:flex-end}
@@ -97,7 +97,7 @@
     .chat-msg-meta{display:flex;align-items:center;gap:6px;margin-top:2px;padding:0 4px}
     .chat-msg-time{font-size:0.65rem;color:#A08060}
     .chat-sent{font-size:0.6rem;color:#A08060}
-    .chat-read{font-size:0.6rem;color:#6B8F3C;font-weight:600}
+    .chat-read{font-size:0.6rem;color:var(--success);font-weight:600}
     .chat-reply-ref{font-size:0.75rem;color:#8B6914;padding:4px 8px;margin-bottom:4px;border-left:2px solid #8B6914;background:rgba(139,105,20,.06);border-radius:4px}
     .crny-chat-typing{padding:4px 20px;font-size:0.8rem;color:#7A5C47;font-style:italic}
     .crny-chat-input{display:flex;align-items:center;gap:8px;padding:8px 4px;border-top:1px solid #F0E8DC;background:#FFF8F0}
@@ -526,8 +526,8 @@
         window.OFFCHAIN_TOKENS = {
             CRTD: { name: '크라우니 트레이딩 달러', icon: 'trending-up', color: '#C4841D', category: '트레이딩', desc: '프럍 트레이딩 · 챌린지 전용' },
             CRAC: { name: '크라우니 아트 크레딧', icon: 'palette', color: '#B54534', category: '엔터테인먼트', desc: 'K-팝 · 굿즈 · 멤버 투표' },
-            CRGC: { name: '크라우니 굿즈 & 기빙', icon: 'shopping-bag', color: '#6B8F3C', category: '커머스', desc: 'H&B 결제 · 기부풀 자동 적립' },
-            CREB: { name: '크라우니 에코 바이오', icon: 'leaf', color: '#6B8F3C', category: '에코/바이오', desc: '태양광 · 나노봇 · PoV 크레딧' }
+            CRGC: { name: '크라우니 굿즈 & 기빙', icon: 'shopping-bag', color: 'var(--success)', category: '커머스', desc: 'H&B 결제 · 기부풀 자동 적립' },
+            CREB: { name: '크라우니 에코 바이오', icon: 'leaf', color: 'var(--success)', category: '에코/바이오', desc: '태양광 · 나노봇 · PoV 크레딧' }
         };
         window.OFFCHAIN_RATE = 100; // 100 offchain point = 1 CRNY
     </script>
@@ -2337,7 +2337,7 @@
         @keyframes slideIn { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
         @keyframes fadeOut { from { opacity:1; } to { opacity:0; transform:translateY(-10px); } }
         .toast { pointer-events:auto; padding:0.8rem 1.2rem; border-radius:8px; color:#FFF8F0; font-size:0.9rem; box-shadow:0 4px 12px rgba(61,43,31,0.15); animation: slideIn 0.3s ease; max-width:350px; }
-        .toast.success { background:#6B8F3C; }
+        .toast.success { background:var(--success); }
         .toast.error { background:#B54534; }
         .toast.info { background:#5B7B8C; }
         .toast.warning { background:#C4841D; }
@@ -2353,7 +2353,7 @@
         .toggle-switch input { opacity:0; width:0; height:0; }
         .toggle-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#E8E0D8; border-radius:24px; transition:0.3s; }
         .toggle-slider::before { content:''; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#FFF8F0; border-radius:50%; transition:0.3s; }
-        .toggle-switch input:checked + .toggle-slider { background:#6B8F3C; }
+        .toggle-switch input:checked + .toggle-slider { background:var(--success); }
         .toggle-switch input:checked + .toggle-slider::before { transform:translateX(20px); }
         .toggle-switch input:disabled + .toggle-slider { opacity:0.5; cursor:not-allowed; }
     </style>
@@ -2625,7 +2625,7 @@
     .ctvm-quiz-option{padding:14px 18px;background:#fff;border:2px solid rgba(139,105,20,.12);border-radius:10px;text-align:left;font-size:0.95rem;color:#3D2B1F;cursor:pointer;transition:all .15s;margin-bottom:8px;display:block;width:100%}
     .ctvm-quiz-option:hover{border-color:#C9A84C;background:#FFF8F0}
     .ctvm-quiz-option.selected{border-color:#8B6914;background:rgba(139,105,20,.06);font-weight:600}
-    .ctvm-quiz-option.correct-answer{border-color:#6B8F3C;background:rgba(107,143,60,.1);color:#6B8F3C}
+    .ctvm-quiz-option.correct-answer{border-color:var(--success);background:rgba(107,143,60,.1);color:var(--success)}
     .ctvm-quiz-option.wrong-answer{border-color:#B54534;background:rgba(181,69,52,.06);color:#B54534}
     /* CrownyTVM Mail */
     .ctvm-mail-item{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#fff;border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all .15s;border:1px solid rgba(139,105,20,.12)}
@@ -2896,7 +2896,7 @@
             document.querySelectorAll(`.quiz-opt[data-qidx="${qIdx}"]`).forEach((el,i) => {
                 el.style.pointerEvents = 'none';
                 if (r.correctAnswer && i === (questions[qIdx].options||[]).indexOf(r.correctAnswer)) {
-                    el.style.borderColor = '#6B8F3C';
+                    el.style.borderColor = 'var(--success)';
                     el.style.background = 'rgba(107,143,60,0.1)';
                 }
                 if (i === answer.optIdx && !r.correct) {
@@ -2972,7 +2972,7 @@
             </div>
             <div style="padding:8px 4px">
                 <div style="font-size:0.65rem;color:var(--text-secondary)">STATUS</div>
-                <div style="font-size:0.85rem;color:${s.chain.running ? '#6B8F3C' : '#B54534'}">${s.chain.running ? '● Running (solo)' : '○ Stopped'}</div>
+                <div style="font-size:0.85rem;color:${s.chain.running ? 'var(--success)' : '#B54534'}">${s.chain.running ? '● Running (solo)' : '○ Stopped'}</div>
             </div>`;
     }
 
@@ -3377,7 +3377,7 @@
         const [status,userList]=await Promise.all([ctvmApi('/admin/status'),ctvmApi('/admin/users')]);
         if(status.error){document.getElementById('ctvm-admin-area').innerHTML=`<p style="color:var(--error)">${ctvmEsc(status.error)}</p>`;return;}
         const svcs=status.services||{};const stats=status.stats||{};
-        let svcHtml=Object.entries(svcs).map(([k,s])=>`<div style="background:#fff;border-radius:10px;padding:14px;border:1px solid rgba(139,105,20,.12)"><div style="display:flex;align-items:center;gap:8px;font-size:0.9rem;font-weight:600;color:var(--primary);margin-bottom:4px"><div style="width:10px;height:10px;border-radius:50%;background:${s.status==='online'?'#6B8F3C':s.status==='standby'?'#D4AF37':'#B54534'}"></div>${ctvmEsc(s.name)}</div><div style="font-size:0.75rem;color:var(--text-secondary)">${ctvmEsc(s.info)}</div></div>`).join('');
+        let svcHtml=Object.entries(svcs).map(([k,s])=>`<div style="background:#fff;border-radius:10px;padding:14px;border:1px solid rgba(139,105,20,.12)"><div style="display:flex;align-items:center;gap:8px;font-size:0.9rem;font-weight:600;color:var(--primary);margin-bottom:4px"><div style="width:10px;height:10px;border-radius:50%;background:${s.status==='online'?'var(--success)':s.status==='standby'?'#D4AF37':'#B54534'}"></div>${ctvmEsc(s.name)}</div><div style="font-size:0.75rem;color:var(--text-secondary)">${ctvmEsc(s.info)}</div></div>`).join('');
         let statsHtml=[{n:stats.users,l:'사용자'},{n:stats.cells,l:'셀'},{n:stats.messages,l:'메시지'},{n:stats.contacts,l:'연락처'},{n:stats.transactions,l:'거래'},{n:stats.quizAnswered,l:'퀴즈'}].map(s=>`<div style="background:#fff;border-radius:10px;padding:12px 16px;border:1px solid rgba(139,105,20,.12);text-align:center;min-width:80px"><div style="font-size:1.3rem;font-weight:700;color:var(--gold)">${ctvmFmtNum(s.n)}</div><div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px">${s.l}</div></div>`).join('');
         document.getElementById('ctvm-admin-area').innerHTML=`<div style="margin-bottom:16px"><h4 style="font-size:0.95rem;font-weight:700;margin-bottom:8px;color:var(--primary)">서비스 상태</h4><div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:8px">업타임: ${ctvmEsc(status.uptimeStr)} | 메모리: ${ctvmEsc(status.memory?.heap)}</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">${svcHtml}</div></div><div style="margin-bottom:16px"><h4 style="font-size:0.95rem;font-weight:700;margin-bottom:8px;color:var(--primary)">통계</h4><div style="display:flex;gap:8px;flex-wrap:wrap">${statsHtml}</div></div>`;
     }

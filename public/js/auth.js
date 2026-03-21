@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (/[0-9]/.test(pw)) score++;
             if (/[^A-Za-z0-9]/.test(pw)) score++;
             const labels = [t('auth.pw_weak','Weak'), t('auth.pw_normal','Fair'), t('auth.pw_good','Good'), t('auth.pw_strong','Strong')];
-            const colors = ['#B54534', '#C4841D', '#6B8F3C', '#3D2B1F'];
+            const colors = ['#B54534', '#C4841D', '#5A9A6E', '#3D2B1F'];
             el.textContent = labels[Math.min(score, 3)];
             el.style.color = colors[Math.min(score, 3)];
         });
