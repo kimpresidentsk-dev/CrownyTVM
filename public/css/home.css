@@ -271,3 +271,33 @@ body {
     .landing-cta{position:static;background:none}
 }
 
+
+/* ===== Canvas Dashboard (crownybus.com 첫 화면) ===== */
+.cv-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--primary);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-align: center;
+    min-height: 56px;
+    justify-content: center;
+}
+.cv-btn:hover { background: var(--bg); border-color: var(--gold); }
+.cv-btn:active { transform: scale(0.95); }
+.cv-btn i { color: var(--primary); }
+
+/* Slogan rotator compact mode (canvas) */
+#today .slogan-rotator {
+    min-height: auto;
+    margin: 0;
+    padding: 0;
+}
