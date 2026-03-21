@@ -52,6 +52,26 @@
 [data-theme="dark"] .card { background: var(--surface); }
 [data-theme="dark"] .stat { background: var(--surface); }
 
+/* ── 알림 센터 (#56) ── */
+.notif-panel {
+  display: none; position: absolute; top: var(--header-h); right: 10px;
+  width: 280px; max-height: 320px; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  box-shadow: 0 4px 16px rgba(0,0,0,.1); z-index: 50; padding: 8px;
+}
+.notif-panel.open { display: block; }
+.notif-item { display: flex; align-items: start; gap: 6px; padding: 5px; border-bottom: 1px solid var(--border); font-size: 10px; }
+.notif-item:last-child { border-bottom: none; }
+.notif-item.unread { font-weight: 600; }
+
+/* ── 인쇄 (#60) ── */
+@media print {
+  .nav, .hdr, .toast, .loading, .notif-panel { display: none !important; }
+  body { display: block !important; }
+  .canvas { grid-area: auto; }
+  .card { break-inside: avoid; border: 1px solid #ccc !important; }
+}
+
 /* ── 로딩 인디케이터 (#53) ── */
 .loading { position: fixed; top: var(--header-h); left: 0; right: 0; height: 2px; z-index: 100; pointer-events: none; }
 .loading-bar { height: 100%; background: var(--확정); width: 0; transition: width .3s; }

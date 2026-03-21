@@ -422,10 +422,21 @@ async function createClaim(e) {
 }
 
 // ── Search ──
+// 검색 자동완성 (#57)
+let _searchTimer = null;
+function setupSearchAutocomplete() {
+  const input = document.getElementById('searchQ');
+  if (!input) return;
+  input.addEventListener('input', () => {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => search(), 300);
+  });
+}
+
 async function search(e) {
   e?.preventDefault();
   const q=document.getElementById('searchQ')?.value?.trim();
-  if(!q)return;
+  if(!q){ document.getElementById('searchR').innerHTML=''; return; }
   const r=await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
   const d=await r.json();
   document.getElementById('searchR').innerHTML = d.results?.length
@@ -473,7 +484,32 @@ function init() {
   document.getElementById('sampleBtn')?.addEventListener('click', loadSample);
   document.getElementById('refreshBtn')?.addEventListener('click', refresh);
   initWorkspaceActions();
-  document.getElementById('notifBadge')?.addEventListener('click', () => go('dashboard'));
+  setupSearchAutocomplete();
+  document.getElementById('notifBadge')?.addEventListener('click', async () => {
+    const panel = document.getElementById('notifPanel');
+    if (!panel) return;
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+      const r = await fetch(`${API}/notifications`);
+      const d = await r.json();
+      panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-weight:700;font-size:11px">알림 (${d.unread})</span>
+          <button class="btn" id="_readAllNotif" style="font-size:8px;padding:1px 4px">모두 읽음</button>
+        </div>
+        ${(d.notifications||[]).slice(0,15).map(n => `
+          <div class="notif-item ${n.read?'':'unread'}">
+            <div class="dot ${n.severity==='critical'?'오류':n.severity==='warning'?'미확인':'확정'}" style="margin-top:3px"></div>
+            <div><div>${n.title||''}</div><div style="color:var(--text-3);font-size:9px">${n.message||''}</div></div>
+          </div>`).join('')||'<div style="color:var(--text-3);font-size:10px">알림 없음</div>'}
+      `;
+      panel.querySelector('#_readAllNotif')?.addEventListener('click', async () => {
+        await fetch(`${API}/notifications/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:'all'}) });
+        panel.classList.remove('open');
+        updateNotifBadge();
+      });
+    }
+  });
 
   // 다크 모드 토글
   document.getElementById('themeToggle')?.addEventListener('click', () => {

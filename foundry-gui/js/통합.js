@@ -182,8 +182,9 @@ class 통합대시보드 {
           <div>의사결정: ${rpt.decisions?.total||0}건 (원칙 ${rpt.decisions?.principles||0}개)</div>
           <div>성장단위: ${rpt.decisions?.growth||3}</div>
         </div>
+        ${this._detectTrends(rpt)}
       `;
-      this.el.insertBefore(el, this.el.children[2]); // 3앱 카드 아래에 삽입
+      this.el.insertBefore(el, this.el.children[2]);
     } catch {}
   }
 
@@ -220,10 +221,43 @@ class 통합대시보드 {
     } catch {}
   }
 
-  _bindActions() {
-    // 앱 간 연결 버튼을 3앱 카드에 추가
-    // (이미 _goto 버튼이 바인딩되어 있으므로 추가 없음)
+  // #61 자동 트렌드 감지
+  _detectTrends(rpt) {
+    const alerts = [];
+    const daily = rpt.daily || [];
+
+    // 활동 감소 감지: 최근 3일 평균 < 전체 평균의 50%
+    if (daily.length >= 7) {
+      const recent3 = daily.slice(-3).reduce((s, d) => s + d.count, 0) / 3;
+      const avg = daily.reduce((s, d) => s + d.count, 0) / daily.length;
+      if (recent3 < avg * 0.5 && avg > 0) {
+        alerts.push({ type: '오류', msg: `활동 급감: 최근 3일 평균 ${recent3.toFixed(0)}건 (전체 ${avg.toFixed(0)}건 대비 ${Math.round(recent3/avg*100)}%)` });
+      }
+    }
+
+    // 습관 달성률 하락
+    if (rpt.life?.rate < 30 && rpt.life?.totalHabits > 0) {
+      alerts.push({ type: '미확인', msg: `습관 달성률 ${rpt.life.rate}% — 30% 미만` });
+    }
+
+    // 경보 미해결
+    if (rpt.city?.activeAlerts > 3) {
+      alerts.push({ type: '오류', msg: `활성 경보 ${rpt.city.activeAlerts}건 — 확인 필요` });
+    }
+
+    // 헌금 감소 (0건)
+    if (rpt.church?.offerings === 0 && rpt.summary?.totalRecords > 5) {
+      alerts.push({ type: '미확인', msg: '이번 주 헌금 0건' });
+    }
+
+    if (!alerts.length) return '';
+    return `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">
+      <div style="font-size:9px;font-weight:600;color:var(--오류)">트렌드 경고</div>
+      ${alerts.map(a => `<div class="pipe" style="padding:2px 6px;border-left:2px solid var(--${a.type})"><span style="font-size:9px;color:var(--${a.type})">${a.msg}</span></div>`).join('')}
+    </div>`;
   }
+
+  _bindActions() {}
 }
 
 export { 통합대시보드 };
