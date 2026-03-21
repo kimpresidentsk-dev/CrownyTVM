@@ -2,10 +2,10 @@
 // Crowny Network에서는 온체인/오프체인 구분 없이 CRN/FNC/CRM 3토큰 체계
 
 const DEFAULT_OFFCHAIN_TOKENS = {
-    crtd: { name: 'CRTD', get fullName() { return '트레이딩 달러'; }, icon: '📈', color: '#C4841D', isDefault: true },
-    crac: { name: 'CRAC', get fullName() { return '아트 크레딧'; }, icon: '🎭', color: '#8B6914', isDefault: true },
-    crgc: { name: 'CRGC', get fullName() { return '굿즈 & 기빙'; }, icon: '🛒', color: '#6B8F3C', isDefault: true },
-    creb: { name: 'CREB', get fullName() { return '에코 바이오'; }, icon: '🌱', color: '#5B7B8C', isDefault: true }
+    crtd: { name: 'CRTD', get fullName() { return t('token.crtd','Trading Dollar'); }, icon: '', color: '#C4841D', isDefault: true },
+    crac: { name: 'CRAC', get fullName() { return t('token.crac','Art Credit'); }, icon: '', color: '#8B6914', isDefault: true },
+    crgc: { name: 'CRGC', get fullName() { return t('token.crgc','Goods & Giving'); }, icon: '', color: '#6B8F3C', isDefault: true },
+    creb: { name: 'CREB', get fullName() { return t('token.creb','Eco Bio'); }, icon: '', color: '#5B7B8C', isDefault: true }
 };
 
 function getTokenRate(tokenKey) {
@@ -25,7 +25,7 @@ async function loadTokenRegistry() {
 }
 
 function getTokenInfo(tokenKey) {
-    return OFFCHAIN_TOKEN_REGISTRY[tokenKey] || { name: tokenKey.toUpperCase(), fullName: '', icon: '🪙', color: '#6B5744' };
+    return OFFCHAIN_TOKEN_REGISTRY[tokenKey] || { name: tokenKey.toUpperCase(), fullName: '', icon: '', color: '#6B5744' };
 }
 
 function isOffchainToken(tokenKey) {
@@ -36,7 +36,7 @@ function startOffchainListener() { /* no-op in independent mode */ }
 
 // 호환 함수들 — 독립 모드에서는 서버 API로 처리됨
 async function showOffchainSendModal() {
-    if (typeof showToast === 'function') showToast('Crowny Network에서는 송금 기능을 이용하세요', 'info');
+    if (typeof showToast === 'function') showToast(t('offchain.use_send','Please use the send feature on Crowny Network'), 'info');
 }
 
 async function sendOffchainPoints() { /* no-op */ }

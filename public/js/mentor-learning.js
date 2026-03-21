@@ -86,7 +86,7 @@ async function initMentorLearning() {
     // Start adaptation check (every 5 min)
     setInterval(checkAdaptation, 5 * 60 * 1000);
 
-    console.log('🧠 멘토 학습 시스템 초기화 완료');
+    console.log('[MentorLearning] initialized');
 }
 
 // ========== FIRESTORE PERSISTENCE ==========
@@ -112,9 +112,9 @@ async function loadMentorPerformance() {
             }
         }
         mentorLearning._lastFirestoreSync = Date.now();
-        console.log('🧠 Firestore에서 멘토 성과 데이터 로드 완료');
+        console.log('[MentorLearning] Performance data loaded from Firestore');
     } catch (e) {
-        console.warn('🧠 멘토 성과 로드 실패:', e.message);
+        console.warn('[MentorLearning] Performance load failed:', e.message);
     }
 }
 
@@ -128,7 +128,7 @@ async function saveMentorPerformance(mentorId) {
             updatedAt: new Date(),
         }, { merge: true });
     } catch (e) {
-        console.warn('🧠 멘토 성과 저장 실패:', e.message);
+        console.warn('[MentorLearning] Performance save failed:', e.message);
     }
 }
 
@@ -270,7 +270,7 @@ function adaptParameters(mentorId) {
     if (mode === 'keep') {
         stats.lastAdapted = Date.now();
         stats._lastAdaptCount = stats.totalSignals;
-        console.log(`🧠 ${mentorId}: 승률 ${(winRate * 100).toFixed(0)}% → 파라미터 유지`);
+        console.log(`[MentorLearning] ${mentorId}: winRate ${(winRate * 100).toFixed(0)}% → keep params`);
         return;
     }
 
@@ -293,7 +293,7 @@ function adaptParameters(mentorId) {
     stats.lastAdapted = Date.now();
     stats._lastAdaptCount = stats.totalSignals;
 
-    console.log(`🧠 ${mentorId}: 승률 ${(winRate * 100).toFixed(0)}% → ${mode} 모드 파라미터 조정`, params);
+    console.log(`[MentorLearning] ${mentorId}: winRate ${(winRate * 100).toFixed(0)}% → ${mode} mode param adjustment`, params);
 
     // Persist
     saveMentorPerformance(mentorId);
@@ -320,7 +320,7 @@ function renderMentorPerformanceUI(mentorId) {
     const history = getMentorHistory(mentorId);
 
     if (stats.totalSignals === 0) {
-        return `<div style="color:#6B5744; font-size:0.72rem; margin-top:6px;">📊 아직 평가된 시그널이 없습니다. 시그널이 쌓이면 성과가 표시됩니다.</div>`;
+        return `<div style="color:#6B5744; font-size:0.72rem; margin-top:6px;">${t('mentor.no_signals', 'No evaluated signals yet. Performance will appear as signals accumulate.')}</div>`;
     }
 
     const winPct = Math.round(stats.winRate * 100);
@@ -331,9 +331,9 @@ function renderMentorPerformanceUI(mentorId) {
     // Recent 10 dots
     const recent = history.slice(-10);
     const dots = recent.map(h => {
-        if (h.outcome === 'correct') return '🟢';
-        if (h.outcome === 'wrong') return '🔴';
-        return '⚪';
+        if (h.outcome === 'correct') return '<span style="color:#00cc66">●</span>';
+        if (h.outcome === 'wrong') return '<span style="color:var(--error)">●</span>';
+        return '<span style="color:#ccc">●</span>';
     }).join('');
 
     // Win rate gauge bar
@@ -343,23 +343,23 @@ function renderMentorPerformanceUI(mentorId) {
     let adaptedText = '';
     if (stats.lastAdapted) {
         const ago = Math.round((Date.now() - stats.lastAdapted) / 60000);
-        if (ago < 60) adaptedText = `${ago}분 전`;
-        else if (ago < 1440) adaptedText = `${Math.round(ago / 60)}시간 전`;
-        else adaptedText = `${Math.round(ago / 1440)}일 전`;
+        if (ago < 60) adaptedText = `${ago} ${t('common.minutes_ago', 'min ago')}`;
+        else if (ago < 1440) adaptedText = `${Math.round(ago / 60)} ${t('common.hours_ago', 'hr ago')}`;
+        else adaptedText = `${Math.round(ago / 1440)} ${t('common.days_ago', 'days ago')}`;
     }
 
     return `
         <div style="margin-top:8px; padding:8px; background:rgba(255,255,255,0.03); border-radius:6px; font-size:0.72rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span style="color:${winColor}; font-weight:700;">승률 ${winPct}%</span>
+                <span style="color:${winColor}; font-weight:700;">${t('mentor.win_rate', 'Win Rate')} ${winPct}%</span>
                 <span style="color:#6B5744;">(${stats.correctSignals}/${stats.totalSignals})</span>
-                <span style="color:${avgPnlColor};">평균 ${stats.avgPnl >= 0 ? '+' : ''}${avgPnl}pt</span>
+                <span style="color:${avgPnlColor};">${t('mentor.avg', 'Avg')} ${stats.avgPnl >= 0 ? '+' : ''}${avgPnl}pt</span>
             </div>
             <div style="background:rgba(255,255,255,0.1); height:4px; border-radius:2px; margin-bottom:4px;">
                 <div style="background:${winColor}; height:100%; border-radius:2px; width:${gaugeWidth}%; transition:width 0.5s;"></div>
             </div>
-            <div style="margin-bottom:4px;">최근: ${dots || '—'}</div>
-            ${adaptedText ? `<div style="color:#6B5744; font-size:0.65rem;">🔧 마지막 최적화: ${adaptedText}</div>` : ''}
+            <div style="margin-bottom:4px;">${t('mentor.recent', 'Recent')}: ${dots || '—'}</div>
+            ${adaptedText ? `<div style="color:#6B5744; font-size:0.65rem;">${t('mentor.last_optimized', 'Last optimized')}: ${adaptedText}</div>` : ''}
         </div>`;
 }
 
@@ -367,22 +367,22 @@ function renderMentorPerformanceUI(mentorId) {
 
 function renderMentorDashboard() {
     const mentorIds = ['kps', 'michael', 'matthew', 'hansun', 'crownygirl'];
-    const icons = { kps: '👑', michael: '🎯', matthew: '📊', hansun: '🧘', crownygirl: '🦸‍♀️' };
-    const names = { kps: 'KPS', michael: '마이클', matthew: '매튜', hansun: '한선', crownygirl: '크라우니걸' };
+    const icons = { kps: 'K', michael: 'M', matthew: 'T', hansun: 'H', crownygirl: 'C' };
+    const names = { kps: 'KPS', michael: t('mentor.name_michael', 'Michael'), matthew: t('mentor.name_matthew', 'Matthew'), hansun: t('mentor.name_hansun', 'Hansun'), crownygirl: t('mentor.name_crownygirl', 'CrownyGirl') };
 
     let html = '<div style="font-size:0.72rem; padding:6px;">';
     for (const mid of mentorIds) {
         const stats = getMentorStats(mid);
         const history = getMentorHistory(mid);
         const winPct = stats.totalSignals > 0 ? Math.round(stats.winRate * 100) : '—';
-        const dots = history.slice(-10).map(h => h.outcome === 'correct' ? '🟢' : h.outcome === 'wrong' ? '🔴' : '⚪').join('');
+        const dots = history.slice(-10).map(h => h.outcome === 'correct' ? '<span style="color:#00cc66">●</span>' : h.outcome === 'wrong' ? '<span style="color:var(--error)">●</span>' : '<span style="color:#ccc">●</span>').join('');
         const avgPnl = stats.totalSignals > 0 ? `${stats.avgPnl >= 0 ? '+' : ''}${stats.avgPnl.toFixed(1)}pt` : '—';
 
         html += `<div style="display:flex; gap:6px; align-items:center; margin-bottom:3px;">
             <span>${icons[mid]} ${names[mid]}</span>
-            <span style="color:${typeof winPct === 'number' && winPct >= 60 ? '#00cc66' : '#6B5744'};">승률: ${winPct}%</span>
+            <span style="color:${typeof winPct === 'number' && winPct >= 60 ? '#00cc66' : '#6B5744'};">${t('mentor.win_rate', 'Win Rate')}: ${winPct}%</span>
             <span style="color:#6B5744;">(${stats.correctSignals}/${stats.totalSignals})</span>
-            <span style="color:#6B5744;">평균: ${avgPnl}</span>
+            <span style="color:#6B5744;">${t('mentor.avg', 'Avg')}: ${avgPnl}</span>
             <span>${dots || '—'}</span>
         </div>`;
     }

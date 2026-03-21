@@ -1065,7 +1065,7 @@
                     <option value="popular" data-i18n="mall.sort.popular">인기순</option>
                     <option value="rating" data-i18n="mall.sort.rating">평점순</option>
                 </select>
-                <button onclick="toggleMallFilters()" style="padding:0.6rem 0.8rem; border:1px solid var(--border); border-radius:6px; background:#FFF8F0; cursor:pointer; font-size:0.85rem;">🔽 필터</button>
+                <button onclick="toggleMallFilters()" style="padding:0.6rem 0.8rem; border:1px solid var(--border); border-radius:6px; background:#FFF8F0; cursor:pointer; font-size:0.85rem;">▾ 필터</button>
             </div>
             
             <!-- 필터 패널 -->
@@ -1216,7 +1216,7 @@
                     <option value="environment" data-i18n="fundraise.filter.environment"><i data-lucide="leaf"></i> 환경</option>
                     <option value="startup" data-i18n="fundraise.filter.startup"><i data-lucide="rocket"></i> 창업</option>
                     <option value="community" data-i18n="fundraise.filter.community"><i data-lucide="users"></i> 커뮤니티</option>
-                    <option value="animal" data-i18n="fundraise.filter.animal">🐾 동물보호</option>
+                    <option value="animal" data-i18n="fundraise.filter.animal">동물보호</option>
                     <option value="disaster" data-i18n="fundraise.filter.disaster"><i data-lucide="alert-circle"></i> 재난구호</option>
                 </select>
                 <select id="fund-filter-country" onchange="loadCampaigns()" style="padding:0.5rem; border:1px solid var(--border); border-radius:6px;">
@@ -1397,15 +1397,15 @@
                                 <label data-i18n="credit.exchange_from">보내는 토큰</label>
                                 <select id="swap-from">
                                     <optgroup label="⛓ 온체인"><option value="crny">CRNY</option><option value="fnc">FNC</option><option value="crfn">CRFN</option></optgroup>
-                                    <optgroup label="🔥 오프체인"><option value="crtd">CRTD</option><option value="crac">CRAC</option><option value="crgc">CRGC</option><option value="creb">CREB</option></optgroup>
+                                    <optgroup label="오프체인"><option value="crtd">CRTD</option><option value="crac">CRAC</option><option value="crgc">CRGC</option><option value="creb">CREB</option></optgroup>
                                 </select>
                             </div>
                             <span class="swap-arrow"><i data-lucide="arrow-right"></i></span>
                             <div>
                                 <label data-i18n="credit.exchange_to">받는 토큰</label>
                                 <select id="swap-to">
-                                    <optgroup label="⛓ 온체인"><option value="fnc">FNC</option><option value="crny">CRNY</option><option value="crfn">CRFN</option></optgroup>
-                                    <optgroup label="🔥 오프체인"><option value="crtd">CRTD</option><option value="crac">CRAC</option><option value="crgc">CRGC</option><option value="creb">CREB</option></optgroup>
+                                    <optgroup label="온체인"><option value="fnc">FNC</option><option value="crny">CRNY</option><option value="crfn">CRFN</option></optgroup>
+                                    <optgroup label="오프체인"><option value="crtd">CRTD</option><option value="crac">CRAC</option><option value="crgc">CRGC</option><option value="creb">CREB</option></optgroup>
                                 </select>
                             </div>
                         </div>
@@ -1719,7 +1719,7 @@
                 
                 <!-- Trading Controls -->
                 <div id="trading-order-panel" style="background:#FFF8F0; padding:1.5rem; border-radius:12px; max-width:400px; margin-left:auto;">
-                    <h4 style="margin-bottom:0.5rem;" data-i18n="trading.order_title">💹 NQ100 Futures Trading</h4>
+                    <h4 style="margin-bottom:0.5rem;" data-i18n="trading.order_title">NQ100 Futures Trading</h4>
                     
                     <!-- ★ 거래 권한 배지 -->
                     <div id="trading-permission-badge" style="display:none; padding:0.5rem 0.8rem; background:linear-gradient(135deg,#3D2B1F,#6B5744); border-radius:8px; margin-bottom:1rem; font-size:0.75rem; color:#E8E0D8;">
@@ -1910,7 +1910,7 @@
         <section id="ai-assistant" class="page" data-feature="ai_assistant">
             <div class="section-header">
                 <h2><i data-lucide="crown"></i> <span data-i18n="nav.crowny_panel">크라우니 패널</span></h2>
-                <button onclick="AI_ASSISTANT.reset()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;" title="대화 초기화">🗑️</button>
+                <button onclick="AI_ASSISTANT.reset()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;" title="대화 초기화">✕</button>
             </div>
             <div id="ai-chat-messages" class="ai-chat-messages"></div>
             <div class="ai-input-bar">

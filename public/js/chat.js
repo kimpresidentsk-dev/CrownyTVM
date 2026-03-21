@@ -290,7 +290,7 @@ function chatRenderMsg(m) {
     const actionsHtml = `<div class="msg-actions-bar ${isMine ? 'left' : 'right'}">
         <button class="msg-action-btn" onclick="chatReplyTo('${m.id}','${chatEsc(m.senderId)}','${chatEsc((m.text || '').slice(0,40))}')" title="${t('messenger.reply','Reply')}">↩</button>
         ${isMine ? `<button class="msg-action-btn" onclick="chatEditMsg('${m.id}','${chatEsc(m.text || '')}')" title="${t('messenger.edit','Edit')}">✏</button>` : ''}
-        ${isMine ? `<button class="msg-action-btn" onclick="chatDeleteMsg('${m.id}')" title="${t('messenger.delete','Delete')}">🗑</button>` : ''}
+        ${isMine ? `<button class="msg-action-btn" onclick="chatDeleteMsg('${m.id}')" title="${t('messenger.delete','Delete')}">✕</button>` : ''}
     </div>`;
 
     return `<div class="chat-msg ${isMine ? 'mine' : 'theirs'}" data-id="${m.id}">
@@ -643,7 +643,7 @@ function chatOnMessage(msg) {
                 showBrowserNotification(senderName, preview, { chatId: msg.chatId, otherId: msg.senderId });
             }
             if (typeof addNotification === 'function') {
-                addNotification('messenger', `💬 ${senderName}: ${preview}`, { chatId: msg.chatId, otherId: msg.senderId });
+                addNotification('messenger', `${senderName}: ${preview}`, { chatId: msg.chatId, otherId: msg.senderId });
             }
             chatUpdateAppBadge();
         }

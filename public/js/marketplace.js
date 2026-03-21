@@ -774,12 +774,12 @@ async function loadEnergyProjects() {
                 ${rate > 0 ? `<div style="font-size:0.8rem; color:#6B8F3C; margin-top:0.3rem;"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('invest.per_100_creb','100 CREB invested')} → ${t('invest.monthly_short','monthly')} ${exMonthly} CREB (${t('invest.annual_short','annual')} ${rate}%)</div>` : ''}
                 ${itype === 'donation' ? `<div style="font-size:0.8rem; color:#6B8F3C; margin-top:0.3rem;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('energy.pure_donation','Pure donation - investing in the future without returns')}</div>` : ''}
                 ${itype === 'hybrid' ? `<div style="font-size:0.8rem; color:#5B7B8C; margin-top:0.3rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('energy.hybrid_desc','50% returns + 50% reinvestment')}</div>` : ''}
-                <div style="font-size:0.75rem; color:var(--accent);">👥 ${t('invest.investors','Investors')} ${xInvestors}${t('common.count_people','')}</div>
+                <div style="font-size:0.75rem; color:var(--accent);">${t('invest.investors','Investors')} ${xInvestors}${t('common.count_people','')}</div>
                 <div style="background:#e0e0e0; height:6px; border-radius:3px; margin:0.5rem 0;"><div style="background:${catInfo.color}; height:100%; border-radius:3px; width:${pct}%;"></div></div>
                 <div style="display:flex; justify-content:space-between; font-size:0.85rem;"><span>${xInvested}/${xGoal} CREB</span><span>${pct}%</span></div>
                 ${renderMilestones(x.milestones)}
                 <div style="display:flex; gap:0.5rem; margin-top:0.5rem;" onclick="event.stopPropagation();">
-                    <button onclick="investEnergy('${d.id}')" style="background:${catInfo.color}; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; flex:1;">${t('energy.invest_btn','☀️ Invest')}</button>
+                    <button onclick="investEnergy('${d.id}')" style="background:${catInfo.color}; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; flex:1;">${t('energy.invest_btn','Invest')}</button>
                     ${isAdmin ? `<button onclick="distributeEnergyReturns('${d.id}')" style="background:#8B6914; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; flex:1; font-size:0.8rem;">${t('energy.distribute','<i data-lucide="bar-chart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Distribute Returns')}</button>` : ''}
                 </div>
             </div>`; });
@@ -803,7 +803,7 @@ async function openProjectDetail(projectId) {
 
         let teamHtml = '';
         if (x.teamMembers && x.teamMembers.length) {
-            teamHtml = `<div style="margin-top:1rem;"><h4>👥 ${t('invest.team','Team')}</h4>${x.teamMembers.map(m => `<div style="padding:0.3rem 0; font-size:0.85rem;">${m.name} — ${m.role || ''}</div>`).join('')}</div>`;
+            teamHtml = `<div style="margin-top:1rem;"><h4>${t('invest.team','Team')}</h4>${x.teamMembers.map(m => `<div style="padding:0.3rem 0; font-size:0.85rem;">${m.name} — ${m.role || ''}</div>`).join('')}</div>`;
         }
 
         let milestonesHtml = '';
@@ -854,7 +854,7 @@ async function openProjectDetail(projectId) {
                 <div style="background:#e0e0e0; height:8px; border-radius:4px; margin:0.8rem 0;"><div style="background:${catInfo.color}; height:100%; border-radius:4px; width:${pct}%;"></div></div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:1rem;"><span>${xInvested}/${xGoal} CREB (${pct}%)</span><span>${t('energy.return_rate','Return rate')} ${rate}%</span></div>
                 ${teamHtml}${milestonesHtml}${investorsHtml}
-                <div style="margin-top:1rem;"><h4>💬 ${t('invest.comments','Comments')}</h4>
+                <div style="margin-top:1rem;"><h4>${t('invest.comments','Comments')}</h4>
                     <div style="display:flex; gap:0.5rem; margin-bottom:0.8rem;">
                         <input type="text" id="creb-comment-input" placeholder="${t('energy.comment_placeholder','Questions or comments...')}" style="flex:1; padding:0.5rem; border:1px solid var(--border); border-radius:6px;">
                         <button onclick="postCrebComment('${projectId}')" style="background:${catInfo.color}; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:6px; cursor:pointer;">${t('common.submit','Submit')}</button>
@@ -905,7 +905,7 @@ async function investEnergy(id) {
         const epData = doc.data();
         await db.collection('energy_projects').doc(id).update({ invested: (epData.invested || epData.currentAmount || 0) + amount, investors: (epData.investors || epData.investorCount || 0) + 1 });
         await db.collection('energy_investments').add({ projectId:id, userId:currentUser.uid, amount, token:tkName, timestamp:new Date() });
-        showToast(`☀️ ${amount} ${tkName} ${t('energy.invested','invested!')}`, 'success'); loadEnergyProjects(); loadUserWallet();
+        showToast(`${amount} ${tkName} ${t('energy.invested','invested!')}`, 'success'); loadEnergyProjects(); loadUserWallet();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
 
@@ -1968,7 +1968,7 @@ async function showCampaignDetail(id) {
             </div>
             <button onclick="donateCampaign('${id}')" style="background:#6B8F3C; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:0.8rem;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.donate_btn','Donate')}</button>
             ${isCreator && camp.status === 'active' ? `<button onclick="closeCampaign('${id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:1rem;">🔒 ${t('fund.close_and_receive','Close campaign & receive funds')}</button>` : ''}
-            <h4 style="margin-bottom:0.5rem;">👥 ${t('fund.donor_list','Donor list')} (${donorDocs.size}${t('common.count_people','')})</h4>
+            <h4 style="margin-bottom:0.5rem;">${t('fund.donor_list','Donor list')} (${donorDocs.size}${t('common.count_people','')})</h4>
             ${donorList}`;
         
         const modal = document.getElementById('campaign-detail-modal');
@@ -2285,7 +2285,7 @@ async function renderStorePage(sellerId) {
                         </div>
                     </div>
                 </div>
-                ${isOwner ? `<button onclick="showStoreSettingsModal()" style="margin-top:0.8rem; background:#C4841D; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600;">⚙️ ${t('mall.store_settings','Store settings')}</button>` : (currentUser ? `<button onclick="reportSeller('${sellerId}')" style="margin-top:0.8rem; background:none; color:#B54534; border:1px solid #B54534; padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer; font-size:0.8rem;"><i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.report_seller','Report Seller')}</button>` : '')}
+                ${isOwner ? `<button onclick="showStoreSettingsModal()" style="margin-top:0.8rem; background:#C4841D; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600;"><i data-lucide="settings" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.store_settings','Store settings')}</button>` : (currentUser ? `<button onclick="reportSeller('${sellerId}')" style="margin-top:0.8rem; background:none; color:#B54534; border:1px solid #B54534; padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer; font-size:0.8rem;"><i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.report_seller','Report Seller')}</button>` : '')}
             </div>
             <h3 style="margin-bottom:0.8rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.product_list','Product list')}</h3>
             <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:0.8rem;">
@@ -2304,7 +2304,7 @@ async function showStoreSettingsModal() {
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `<div style="background:#FFF8F0; border-radius:12px; max-width:450px; width:100%; max-height:90vh; overflow-y:auto; padding:1.5rem;">
-        <h3 style="margin-bottom:1rem;">⚙️ ${t('mall.store_settings','Store settings')}</h3>
+        <h3 style="margin-bottom:1rem;"><i data-lucide="settings" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.store_settings','Store settings')}</h3>
         <div style="display:grid; gap:0.8rem;">
             <div>
                 <label style="font-size:0.8rem; color:var(--accent);">${t('mall.store_name','Store name')}</label>
@@ -2337,7 +2337,7 @@ async function saveStoreSettings() {
             updateData.storeImage = await fileToBase64Resized(imageFile, 400);
         }
         await db.collection('users').doc(currentUser.uid).update(updateData);
-        showToast('⚙️ ' + t('mall.store_settings_saved','Store settings saved!'), 'success');
+        showToast(t('mall.store_settings_saved','Store settings saved!'), 'success');
         document.getElementById('store-settings-modal')?.remove();
         renderStorePage(currentUser.uid);
     } catch(e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -2427,7 +2427,7 @@ async function loadMyShopDashboard() {
             
             <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
                 <button onclick="viewStore('${currentUser.uid}')" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem;"><i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.view_my_store','View my store')}</button>
-                <button onclick="showStoreSettingsModal()" style="background:#C4841D; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem;">⚙️ ${t('mall.store_settings','Store settings')}</button>
+                <button onclick="showStoreSettingsModal()" style="background:#C4841D; color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-size:0.85rem;"><i data-lucide="settings" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.store_settings','Store settings')}</button>
             </div>
             
             <!-- 내 상품 -->

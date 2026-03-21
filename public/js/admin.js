@@ -116,7 +116,7 @@ async function loadUserLevel() {
             }
         }
     } catch (e) {
-        console.error('[Admin] 레벨 로드 실패:', e);
+        console.error('[Admin] ' + t('admin.level_load_fail','Level load failed') + ':', e);
     }
 
     currentUserLevel = -1;
@@ -423,7 +423,7 @@ async function checkAdminQuota(level) {
         }
         return true;
     } catch (e) {
-        console.warn('쿼터 체크 실패 (허용):', e);
+        console.warn(t('admin.quota_check_fail','Quota check failed (allowed)') + ':', e);
         return true;
     }
 }
@@ -450,7 +450,7 @@ async function checkPersonalQuota(level) {
         }
         return true;
     } catch (e) {
-        console.warn('개인 쿼터 체크 실패 (허용):', e);
+        console.warn(t('admin.personal_quota_fail','Personal quota check failed (allowed)') + ':', e);
         return true;
     }
 }
@@ -557,7 +557,7 @@ async function applyReferralCode(newUserId, referralCode) {
             .where('referralCode', '==', referralCode.toUpperCase()).get();
         
         if (referrers.empty) {
-            console.warn('유효하지 않은 소개 코드:', referralCode);
+            console.warn(t('admin.invalid_referral','Invalid referral code') + ':', referralCode);
             return;
         }
         
@@ -580,7 +580,7 @@ async function applyReferralCode(newUserId, referralCode) {
         await distributeSignupReferralReward(referrerId, newUserId, referrer.data().email);
         
     } catch (error) {
-        console.error('소개 코드 적용 실패:', error);
+        console.error(t('admin.referral_apply_fail','Referral code apply failed') + ':', error);
     }
 }
 
@@ -626,7 +626,7 @@ async function distributeSignupReferralReward(referrerId, newUserId, referrerEma
         }
         
     } catch (e) {
-        console.error('소개 가입 보상 지급 실패:', e);
+        console.error(t('admin.referral_reward_fail','Referral signup reward failed') + ':', e);
     }
 }
 
@@ -641,7 +641,7 @@ async function loadReferralRewardConfig() {
             if (el) el.value = rewards[tk] || 0;
         });
     } catch (e) {
-        console.error('소개자 보상 설정 로드 실패:', e);
+        console.error(t('admin.referral_settings_fail','Referral reward settings load failed') + ':', e);
     }
 }
 
@@ -754,7 +754,7 @@ async function distributeReferralReward_DISABLED(userId, amount, token) {
             timestamp: new Date()
         });
     } catch (error) {
-        console.error('소개 수수료 배분 실패:', error);
+        console.error(t('admin.referral_commission_fail','Referral commission distribution failed') + ':', error);
     }
 }
 
@@ -1565,7 +1565,7 @@ async function loadAdminUserList() {
         if (isSuperAdmin()) {
             quotaHTML = `
             <div style="background:#F7F3ED; padding:1rem; border-radius:8px; margin-bottom:1rem;">
-                <h4 style="font-size:0.85rem; margin-bottom:0.6rem;">⚙️ Admin Quota Settings</h4>
+                <h4 style="font-size:0.85rem; margin-bottom:0.6rem;">Admin Quota Settings</h4>
                 <table style="width:100%; border-collapse:collapse; font-size:0.78rem;">
                     <thead>
                         <tr style="background:var(--bg);">
@@ -1998,7 +1998,7 @@ async function loadAdminWallet() {
     if (!isAdmin()) return;
     
     const container = document.getElementById('admin-wallet-info');
-    if (!container) { console.error('admin-wallet-info 없음'); return; }
+    if (!container) { console.error(t('admin.wallet_info_missing','admin-wallet-info not found')); return; }
     
     container.innerHTML = '<p style="color:var(--accent);"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Loading on-chain balances... (v4.0)</p>';
     
@@ -2200,7 +2200,7 @@ async function adminSendToken() {
         loadAdminWallet();
         
     } catch (error) {
-        console.error('온체인 전송 실패:', error);
+        console.error(t('admin.onchain_transfer_fail','On-chain transfer failed') + ':', error);
         showToast('Transfer failed: ' + error.message, 'info');
     } finally {
         const sendBtn = document.querySelector('[onclick="adminSendToken()"]');
@@ -2476,7 +2476,7 @@ async function loadPropTrading() {
                 </div>
                 
                 <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--accent); padding-top:0.5rem; border-top:1px solid var(--border);">
-                    <span><i data-lucide="bar-chart-3" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${ch.allowedProduct || 'MNQ'} | 🔴 ${window.t ? window.t('challenge.daily_limit','Daily') : 'Daily'} -$${ch.dailyLossLimit || 500}</span>
+                    <span><i data-lucide="bar-chart-3" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${ch.allowedProduct || 'MNQ'} | <span style="color:var(--error)">●</span> ${window.t ? window.t('challenge.daily_limit','Daily') : 'Daily'} -$${ch.dailyLossLimit || 500}</span>
                     <span><i data-lucide="users" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${ch.participants || 0} ${window.t ? window.t('challenge.participants','participants') : 'participants'}</span>
                 </div>
             `;
@@ -2525,7 +2525,7 @@ async function showCreateChallenge() {
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td style="padding:0.4rem; font-weight:700;">🅰️ Tier A</td>
+                                    <td style="padding:0.4rem; font-weight:700;">A Tier A</td>
                                     <td><input type="number" id="tier-a-deposit" value="100" style="width:60px; padding:0.3rem; border:1px solid var(--border); border-radius:4px; text-align:center;"></td>
                                     <td><input type="number" id="tier-a-account" value="100000" style="width:75px; padding:0.3rem; border:1px solid var(--border); border-radius:4px; text-align:center;"></td>
                                     <td><input type="number" id="tier-a-liq" value="3000" style="width:65px; padding:0.3rem; border:1px solid var(--border); border-radius:4px; text-align:center;"></td>
@@ -2535,7 +2535,7 @@ async function showCreateChallenge() {
                                     <td><input type="number" id="tier-a-nq" value="0" min="0" style="width:45px; padding:0.3rem; border:1px solid var(--border); border-radius:4px; text-align:center;"></td>
                                 </tr>
                                 <tr style="background:var(--bg);">
-                                    <td style="padding:0.4rem; font-weight:700;">🅱️ Tier B</td>
+                                    <td style="padding:0.4rem; font-weight:700;">B Tier B</td>
                                     <td><input type="number" id="tier-b-deposit" value="200" style="width:60px; padding:0.3rem; border:1px solid var(--border); border-radius:4px; text-align:center;"></td>
                                     <td><input type="number" id="tier-b-account" value="150000" style="width:75px; padding:0.3rem; border:1px solid var(--border); border-radius:4px; text-align:center;"></td>
                                     <td><input type="number" id="tier-b-liq" value="5000" style="width:65px; padding:0.3rem; border:1px solid var(--border); border-radius:4px; text-align:center;"></td>
@@ -2576,7 +2576,7 @@ async function showCreateChallenge() {
                 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
                     <div>
-                        <label style="font-size:0.85rem; font-weight:600;">🔴 ${window.t ? window.t('challenge.daily_loss_limit','Daily Loss Limit') : 'Daily Loss Limit'} ($)</label>
+                        <label style="font-size:0.85rem; font-weight:600;"><span style="color:var(--error)">●</span> ${window.t ? window.t('challenge.daily_loss_limit','Daily Loss Limit') : 'Daily Loss Limit'} ($)</label>
                         <input type="number" id="ch-daily-limit" value="500" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; margin-top:0.3rem; box-sizing:border-box;">
                     </div>
                     <div>
@@ -2804,7 +2804,7 @@ async function loadExchangeRate() {
             }
         }
     } catch (e) {
-        console.warn('비율 로드 실패:', e);
+        console.warn(t('admin.ratio_load_fail','Ratio load failed') + ':', e);
     }
 }
 
@@ -3346,7 +3346,7 @@ async function loadAdminDashboardStats(forceRefresh = false) {
                     return;
                 }
             }
-        } catch (e) { console.warn('대시보드 캐시 로드 실패:', e); }
+        } catch (e) { console.warn(t('admin.dash_cache_load_fail','Dashboard cache load failed') + ':', e); }
     }
 
     // 데이터 수집
@@ -3483,14 +3483,14 @@ async function loadAdminDashboardStats(forceRefresh = false) {
                 ...stats,
                 cachedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-        } catch (e) { console.warn('대시보드 캐시 저장 실패:', e); }
+        } catch (e) { console.warn(t('admin.dash_cache_save_fail','Dashboard cache save failed') + ':', e); }
 
         _dashboardCache = stats;
         _dashboardCacheTime = Date.now();
         renderDashboardStats(stats);
 
     } catch (e) {
-        console.error('대시보드 통계 로드 실패:', e);
+        console.error(t('admin.dash_stats_load_fail','Dashboard stats load failed') + ':', e);
         if (cacheInfoEl) cacheInfoEl.textContent = 'Load failed: ' + e.message;
     }
 }

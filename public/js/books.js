@@ -13,21 +13,21 @@ const BOOK_SOUNDS = {
 function _getBookEffects() {
     return [
         { value: '', label: t('books.effect_none','None') },
-        { value: 'snow', label: '❄️ ' + t('books.effect_snow','Snow') },
-        { value: 'rain', label: '🌧️ ' + t('books.effect_rain','Rain') },
-        { value: 'cherry_blossom', label: '🌸 ' + t('books.effect_cherry','Cherry Blossom') },
+        { value: 'snow', label: t('books.effect_snow','Snow') },
+        { value: 'rain', label: t('books.effect_rain','Rain') },
+        { value: 'cherry_blossom', label: t('books.effect_cherry','Cherry Blossom') },
         { value: 'firefly', label: t('books.effect_firefly','Firefly') },
-        { value: 'stars', label: '⭐ ' + t('books.effect_stars','Stars') }
+        { value: 'stars', label: t('books.effect_stars','Stars') }
     ];
 }
 
 function _getBookSoundOptions() {
     return [
         { value: '', label: t('books.sound_none','None') },
-        { value: 'rain_ambient', label: '🌧️ ' + t('books.sound_rain','Rain') },
-        { value: 'ocean', label: '🌊 ' + t('books.sound_ocean','Ocean') },
-        { value: 'forest', label: '🌲 ' + t('books.sound_forest','Forest') },
-        { value: 'piano', label: '🎹 ' + t('books.sound_piano','Piano') },
+        { value: 'rain_ambient', label: t('books.sound_rain','Rain') },
+        { value: 'ocean', label: t('books.sound_ocean','Ocean') },
+        { value: 'forest', label: t('books.sound_forest','Forest') },
+        { value: 'piano', label: t('books.sound_piano','Piano') },
         { value: 'fire_crackling', label: t('books.sound_fire','Campfire') }
     ];
 }
@@ -35,18 +35,18 @@ function _getBookSoundOptions() {
 function _getBookGenres() {
     return {
         novel: '<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_novel','Novel'),
-        essay: '📗 ' + t('books.genre_essay','Essay'),
-        selfhelp: '📘 ' + t('books.genre_selfhelp','Self-help'),
-        business: '📙 ' + t('books.genre_business','Business'),
+        essay: t('books.genre_essay','Essay'),
+        selfhelp: t('books.genre_selfhelp','Self-help'),
+        business: t('books.genre_business','Business'),
         tech: '<i data-lucide="monitor" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_tech','Tech'),
-        poetry: '🖋️ ' + t('books.genre_poetry','Poetry'),
-        children: '🧒 ' + t('books.genre_children','Children'),
-        comic: '📒 ' + t('books.genre_comic','Comic'),
-        fantasy: '🧙 ' + t('books.genre_fantasy','Fantasy'),
-        romance: '💕 ' + t('books.genre_romance','Romance'),
-        horror: '👻 ' + t('books.genre_horror','Horror'),
-        mystery: '🔍 ' + t('books.genre_mystery','Mystery'),
-        other: '📚 ' + t('books.genre_other','Other')
+        poetry: t('books.genre_poetry','Poetry'),
+        children: t('books.genre_children','Children'),
+        comic: t('books.genre_comic','Comic'),
+        fantasy: t('books.genre_fantasy','Fantasy'),
+        romance: t('books.genre_romance','Romance'),
+        horror: t('books.genre_horror','Horror'),
+        mystery: t('books.genre_mystery','Mystery'),
+        other: t('books.genre_other','Other')
     };
 }
 
@@ -94,7 +94,7 @@ async function loadBooksGallery() {
         let html = '';
 
         if (limited.length) {
-            html += _renderBookRow('🏆 ' + t('books.limited_edition','Limited Edition'), limited);
+            html += _renderBookRow(t('books.limited_edition','Limited Edition'), limited);
         }
         html += _renderBookRow('🆕 ' + t('books.new_releases','New Releases'), recent);
         if (popular.length > 1) {
@@ -136,7 +136,7 @@ function _renderBookCard(b) {
     const isSoldOut = b.status === 'soldout' || (b.edition === 'limited' && supply > 0 && sold >= supply);
     const coverBg = b.coverImage || b.imageData
         ? `<img src="${b.coverImage || b.imageData}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`
-        : `<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:3rem;background:#f5f0e8;">${(_getBookGenres()[b.genre] || '📚').charAt(0)}</div>`;
+        : `<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:3rem;background:#f5f0e8;">${(_getBookGenres()[b.genre] || t('books.genre_other','Other')).charAt(0)}</div>`;
 
     return `<div onclick="viewBookDetailV2('${b.id}')" style="min-width:130px;max-width:150px;background:#FFF8F0;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.08);flex-shrink:0;position:relative;">
         ${isSoldOut ? '<div style="position:absolute;top:8px;right:8px;background:red;color:#FFF8F0;font-size:0.6rem;padding:2px 6px;border-radius:4px;font-weight:700;z-index:1;">SOLD OUT</div>' : ''}
@@ -216,32 +216,32 @@ async function viewBookDetailV2(id) {
 
     modal.innerHTML = `<div style="background:#FFF8F0;border-radius:16px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;">
         <div style="height:280px;background:#f5f0e8;display:flex;align-items:center;justify-content:center;position:relative;">
-            ${b.coverImage || b.imageData ? `<img src="${b.coverImage || b.imageData}" loading="lazy" style="max-width:100%;max-height:100%;object-fit:contain;">` : `<span style="font-size:5rem;">📚</span>`}
-            ${b.edition === 'limited' ? `<div style="position:absolute;top:12px;left:12px;background:gold;color:#3D2B1F;padding:4px 10px;border-radius:6px;font-weight:700;font-size:0.8rem;">🏆 ${t('books.limited_edition','Limited Edition')} ${sold}/${supply}</div>` : ''}
+            ${b.coverImage || b.imageData ? `<img src="${b.coverImage || b.imageData}" loading="lazy" style="max-width:100%;max-height:100%;object-fit:contain;">` : `<span style="font-size:5rem;"><i data-lucide="book-open" style="width:48px;height:48px;display:inline-block;vertical-align:middle"></i></span>`}
+            ${b.edition === 'limited' ? `<div style="position:absolute;top:12px;left:12px;background:gold;color:#3D2B1F;padding:4px 10px;border-radius:6px;font-weight:700;font-size:0.8rem;">${t('books.limited_edition','Limited Edition')} ${sold}/${supply}</div>` : ''}
             ${isSoldOut ? `<div style="position:absolute;top:12px;right:12px;background:red;color:#FFF8F0;padding:4px 10px;border-radius:6px;font-weight:700;font-size:0.8rem;">SOLD OUT</div>` : ''}
         </div>
         <div style="padding:1.5rem;">
             <h2 style="margin:0 0 0.3rem;">${b.title}</h2>
             <p style="color:var(--accent);font-size:0.9rem;margin:0 0 0.5rem;">${b.author || t('books.unknown_author','Unknown author')} · ${_getBookGenres()[b.genre] || ''} · ${chapterCount} ${t('books.chapters','chapters')}</p>
             <p style="font-size:1.2rem;font-weight:700;color:#3D2B1F;margin:0.5rem 0;">${price > 0 ? price + ' CRGC' : t('books.free','Free')}</p>
-            ${editionNumber ? `<p style="font-size:0.8rem;color:#6B5744;margin:0;">📖 ${t('books.my_edition','My Edition')}: #${editionNumber} of ${supply || '∞'}</p>` : ''}
+            ${editionNumber ? `<p style="font-size:0.8rem;color:#6B5744;margin:0;">${t('books.my_edition','My Edition')}: #${editionNumber} of ${supply || '∞'}</p>` : ''}
             ${b.description ? `<p style="font-size:0.9rem;margin:0.8rem 0;line-height:1.6;color:#6B5744;">${b.description}</p>` : ''}
             
-            ${translations.length > 1 ? `<div style="margin:0.5rem 0;font-size:0.8rem;">🌍 ${t('books.translations','Translations')}: ${translations.map(l => _langLabel(l)).join(', ')}</div>` : ''}
+            ${translations.length > 1 ? `<div style="margin:0.5rem 0;font-size:0.8rem;">${t('books.translations','Translations')}: ${translations.map(l => _langLabel(l)).join(', ')}</div>` : ''}
             
             <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.8rem;">
-                ${b.featureCodes?.ttsEnabled ? '<span style="background:#F7F3ED;padding:2px 8px;border-radius:12px;font-size:0.75rem;">🔊 TTS</span>' : ''}
-                ${b.featureCodes?.treasureHunt?.enabled ? '<span style="background:#F7F3ED;padding:2px 8px;border-radius:12px;font-size:0.75rem;">🎯 ' + t('books.treasure_hunt','Treasure Hunt') + '</span>' : ''}
-                ${(b.featureCodes?.effects || []).length ? '<span style="background:#f3e5f5;padding:2px 8px;border-radius:12px;font-size:0.75rem;">✨ ' + t('books.interactive','Interactive') + '</span>' : ''}
+                ${b.featureCodes?.ttsEnabled ? '<span style="background:#F7F3ED;padding:2px 8px;border-radius:12px;font-size:0.75rem;">TTS</span>' : ''}
+                ${b.featureCodes?.treasureHunt?.enabled ? '<span style="background:#F7F3ED;padding:2px 8px;border-radius:12px;font-size:0.75rem;">' + t('books.treasure_hunt','Treasure Hunt') + '</span>' : ''}
+                ${(b.featureCodes?.effects || []).length ? '<span style="background:#f3e5f5;padding:2px 8px;border-radius:12px;font-size:0.75rem;">' + t('books.interactive','Interactive') + '</span>' : ''}
             </div>
             
             <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-                ${userOwns || isOwner || price <= 0 ? `<button onclick="openBookReader('${id}');document.getElementById('book-detail-modal-v2')?.remove();" style="flex:1;background:#3D2B1F;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">📖 ${t('books.read_book','Read Book')}</button>` : ''}
-                ${!userOwns && !isOwner && price > 0 && !isSoldOut ? `<button onclick="buyBookV2('${id}');document.getElementById('book-detail-modal-v2')?.remove();" style="flex:1;background:#3D2B1F;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">🛒 ${t('books.buy_book','Buy Book')} (${price} CRGC)</button>` : ''}
+                ${userOwns || isOwner || price <= 0 ? `<button onclick="openBookReader('${id}');document.getElementById('book-detail-modal-v2')?.remove();" style="flex:1;background:#3D2B1F;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">${t('books.read_book','Read Book')}</button>` : ''}
+                ${!userOwns && !isOwner && price > 0 && !isSoldOut ? `<button onclick="buyBookV2('${id}');document.getElementById('book-detail-modal-v2')?.remove();" style="flex:1;background:#3D2B1F;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">${t('books.buy_book','Buy Book')} (${price} CRGC)</button>` : ''}
                 ${isSoldOut && !userOwns ? '<button disabled style="flex:1;background:#E8E0D8;color:#6B5744;border:none;padding:0.8rem;border-radius:8px;font-weight:700;">' + t('books.sold_out','Sold out (limited edition)') + '</button>' : ''}
-                <button onclick="addToReadingList('${id}')" style="background:#C4841D;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">📚</button>
+                <button onclick="addToReadingList('${id}')" style="background:#C4841D;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;"><i data-lucide="bookmark" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i></button>
             </div>
-            ${!userOwns && !isOwner && price > 0 ? `<button onclick="requestTranslation('${id}')" style="background:none;border:1px solid var(--border);padding:0.5rem;border-radius:8px;cursor:pointer;width:100%;margin-top:0.5rem;font-size:0.85rem;">🌍 ${t('books.request_translation','Request Translation')}</button>` : ''}
+            ${!userOwns && !isOwner && price > 0 ? `<button onclick="requestTranslation('${id}')" style="background:none;border:1px solid var(--border);padding:0.5rem;border-radius:8px;cursor:pointer;width:100%;margin-top:0.5rem;font-size:0.85rem;">${t('books.request_translation','Request Translation')}</button>` : ''}
             <button onclick="document.getElementById('book-detail-modal-v2')?.remove()" style="background:#E8E0D8;border:none;padding:0.6rem;border-radius:8px;cursor:pointer;width:100%;margin-top:0.5rem;">${t('common.close','Close')}</button>
         </div>
     </div>`;
@@ -249,7 +249,7 @@ async function viewBookDetailV2(id) {
 }
 
 function _langLabel(code) {
-    const map = { ko: '🇰🇷 한국어', en: '🇺🇸 English', ja: '🇯🇵 日本語', zh: '🇨🇳 中文', es: '🇪🇸 Español', fr: '🇫🇷 Français', de: '🇩🇪 Deutsch' };
+    const map = { ko: '🇰🇷 ' + t('books.lang_korean','Korean'), en: '🇺🇸 English', ja: '🇯🇵 日本語', zh: '🇨🇳 中文', es: '🇪🇸 Español', fr: '🇫🇷 Français', de: '🇩🇪 Deutsch' };
     return map[code] || code;
 }
 
@@ -333,7 +333,7 @@ async function _completePurchase(bookId, bookData, price) {
         });
     }
 
-    showToast(`📖 "${bookData.title}" ${t('books.purchase_done','Purchase complete!')}${bookData.edition === 'limited' ? ` #${editionNumber} of ${bookData.totalSupply}` : ''}`, 'success');
+    showToast(`"${bookData.title}" ${t('books.purchase_done','Purchase complete!')}${bookData.edition === 'limited' ? ` #${editionNumber} of ${bookData.totalSupply}` : ''}`, 'success');
 }
 
 // ========== BOOK CREATOR ==========
@@ -392,7 +392,7 @@ function _renderBookCreator() {
 
     modal.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem;border-bottom:1px solid #E8E0D8;">
-            <h2 style="margin:0;font-size:1.1rem;">✍️ ${d.editBookId ? t('books.edit_book','Edit Book') : t('books.create_book','Create New Book')}</h2>
+            <h2 style="margin:0;font-size:1.1rem;">${d.editBookId ? t('books.edit_book','Edit Book') : t('books.create_book','Create New Book')}</h2>
             <button onclick="document.getElementById('book-creator-modal')?.remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
         </div>
         ${stepBar}
@@ -451,7 +451,7 @@ function _renderCreatorStep1() {
         </div>` : ''}
         
         <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1rem;">
-            <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">💾 ${t('books.save_draft','Save Draft')}</button>
+            <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">${t('books.save_draft','Save Draft')}</button>
             <button onclick="_bookCreatorData.step=2;_renderBookCreator();" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;">${t('books.next','Next')} →</button>
         </div>
     </div>`;
@@ -465,8 +465,8 @@ function _renderCreatorStep2() {
         html += `<div style="background:#f9f9f9;border-radius:12px;padding:1rem;border:1px solid #E8E0D8;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
                 <div style="display:flex;align-items:center;gap:0.5rem;">
-                    ${ci > 0 ? `<button onclick="_moveChapter(${ci},-1)" style="background:none;border:none;cursor:pointer;">⬆️</button>` : ''}
-                    ${ci < d.chapters.length - 1 ? `<button onclick="_moveChapter(${ci},1)" style="background:none;border:none;cursor:pointer;">⬇️</button>` : ''}
+                    ${ci > 0 ? `<button onclick="_moveChapter(${ci},-1)" style="background:none;border:none;cursor:pointer;">▲</button>` : ''}
+                    ${ci < d.chapters.length - 1 ? `<button onclick="_moveChapter(${ci},1)" style="background:none;border:none;cursor:pointer;">▼</button>` : ''}
                     <input type="text" value="${_esc(ch.title)}" onchange="_bookCreatorData.chapters[${ci}].title=this.value" style="font-weight:700;font-size:1rem;border:none;background:transparent;width:150px;">
                 </div>
                 ${d.chapters.length > 1 ? `<button onclick="_bookCreatorData.chapters.splice(${ci},1);_renderBookCreator();" style="background:#ff5252;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:6px;cursor:pointer;font-size:0.75rem;">${t('common.delete','Delete')}</button>` : ''}
@@ -489,7 +489,7 @@ function _renderCreatorStep2() {
                 </div>
                 <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.3rem;">
                     <label style="font-size:0.75rem;display:flex;align-items:center;gap:0.3rem;">
-                        <input type="checkbox" ${sc.treasureCode ? 'checked' : ''} onchange="_bookCreatorData.chapters[${ci}].scenes[${si}].treasureCode=this.checked?'TREASURE_'+Date.now():'';"> 🎯 ${t('books.treasure','Treasure')}
+                        <input type="checkbox" ${sc.treasureCode ? 'checked' : ''} onchange="_bookCreatorData.chapters[${ci}].scenes[${si}].treasureCode=this.checked?'TREASURE_'+Date.now():'';"> ${t('books.treasure','Treasure')}
                  </label>
                     <label style="font-size:0.75rem;display:flex;align-items:center;gap:0.3rem;">${t('books.illustration','Illustration')}
                         <input type="file" accept="image/*" onchange="_handleSceneImage(this,${ci},${si})" style="font-size:0.7rem;width:120px;">
@@ -508,7 +508,7 @@ function _renderCreatorStep2() {
     html += `<div style="display:flex;justify-content:space-between;margin-top:1rem;">
         <button onclick="_bookCreatorData.step=1;_renderBookCreator();" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">← ${t('books.previous','Previous')}</button>
         <div style="display:flex;gap:0.5rem;">
-            <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">💾 ${t('books.save_draft','Save Draft')}</button>
+            <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">${t('books.save_draft','Save Draft')}</button>
             <button onclick="_bookCreatorData.step=3;_renderBookCreator();" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;">${t('books.step_preview','Preview')} →</button>
         </div>
     </div></div>`;
@@ -542,7 +542,7 @@ function _renderCreatorStep4() {
 
     return `<div style="display:grid;gap:1rem;">
         <div style="background:#f0f7ff;padding:1.5rem;border-radius:12px;">
-            <h3 style="margin:0 0 0.5rem;">📋 ${t('books.publish_summary','Publish Summary')}</h3>
+            <h3 style="margin:0 0 0.5rem;">${t('books.publish_summary','Publish Summary')}</h3>
             <p><strong>${d.title}</strong> — ${d.author}</p>
             <p style="font-size:0.85rem;color:var(--accent);">${d.chapters.length} ${t('books.chapters','chapters')} · ${totalScenes} ${t('books.scenes','scenes')} · ${treasures} ${t('books.treasures','treasures')}</p>
             <p style="font-size:0.85rem;color:var(--accent);">${d.edition === 'limited' ? `${t('books.limited_edition','Limited Edition')} ${d.totalSupply}` : t('books.unlimited_edition','Unlimited Edition')}</p>
@@ -555,8 +555,8 @@ function _renderCreatorStep4() {
         <div style="display:flex;justify-content:space-between;margin-top:1rem;">
             <button onclick="_bookCreatorData.step=3;_renderBookCreator();" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">← ${t('books.previous','Previous')}</button>
             <div style="display:flex;gap:0.5rem;">
-                <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">💾 ${t('books.save_draft','Save Draft')}</button>
-                <button onclick="_publishBook()" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;font-weight:700;">📚 ${t('books.publish','Publish')}</button>
+                <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">${t('books.save_draft','Save Draft')}</button>
+                <button onclick="_publishBook()" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;font-weight:700;">${t('books.publish','Publish')}</button>
             </div>
         </div>
     </div>`;
@@ -700,7 +700,7 @@ async function _saveBookDraft() {
             _bookCreatorData.editBookId = ref.id;
         }
         hideLoading();
-        showToast('💾 ' + t('books.draft_saved','Draft saved!'), 'success');
+        showToast(t('books.draft_saved','Draft saved!'), 'success');
     } catch (e) { hideLoading(); showToast(t('books.save_fail','Save failed') + ': ' + e.message, 'error'); }
 }
 
@@ -713,7 +713,7 @@ async function _publishBook() {
     d.chapters.forEach(ch => ch.scenes.forEach(sc => { if (sc.content.trim()) hasContent = true; }));
     if (!hasContent) { showToast(t('books.enter_content','Please enter content in at least one scene'), 'warning'); return; }
 
-    if (!await showConfirmModal('📚 ' + t('books.publish','Publish'), `"${d.title}"\n${t('books.confirm_publish','Publish this book?')}\n${d.basePrice > 0 ? d.basePrice + ' CRGC' : t('books.free','Free')}${d.edition === 'limited' ? ` · ${t('books.limited_edition','Limited Edition')} ${d.totalSupply}` : ''}`)) return;
+    if (!await showConfirmModal(t('books.publish','Publish'), `"${d.title}"\n${t('books.confirm_publish','Publish this book?')}\n${d.basePrice > 0 ? d.basePrice + ' CRGC' : t('books.free','Free')}${d.edition === 'limited' ? ` · ${t('books.limited_edition','Limited Edition')} ${d.totalSupply}` : ''}`)) return;
 
     d.basePrice = parseFloat(document.getElementById('bc-price')?.value) || d.basePrice;
     await _saveBookDraft();
@@ -722,7 +722,7 @@ async function _publishBook() {
         await db.collection('books').doc(_bookCreatorData.editBookId).update({
             status: 'published', publishedAt: new Date()
         });
-        showToast(`📚 "${d.title}" ${t('books.published','Published!')}`, 'success');
+        showToast(`"${d.title}" ${t('books.published','Published!')}`, 'success');
         document.getElementById('book-creator-modal')?.remove();
         loadBooksGallery();
     } catch (e) { showToast(t('books.publish_fail','Publish failed') + ': ' + e.message, 'error'); }
@@ -792,7 +792,7 @@ function _renderBookReader() {
         <div style="background:rgba(0,0,0,0.3);padding:0.5rem 1rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
             <button onclick="_closeReader()" style="background:none;border:none;color:#FFF8F0;font-size:1.2rem;cursor:pointer;">✕</button>
             <span style="color:#6B5744;font-size:0.8rem;">${s.book.title}</span>
-            <button onclick="_toggleReaderSettings()" style="background:none;border:none;color:#FFF8F0;font-size:1.2rem;cursor:pointer;">⚙️</button>
+            <button onclick="_toggleReaderSettings()" style="background:none;border:none;color:#FFF8F0;font-size:1.2rem;cursor:pointer;"><i data-lucide="settings" style="width:16px;height:16px;display:inline-block;vertical-align:middle"></i></button>
         </div>
         <div style="height:2px;background:#3D2B1F;flex-shrink:0;"><div style="height:100%;background:#8B6914;width:${progress}%;transition:width 0.3s;"></div></div>
         
@@ -800,9 +800,9 @@ function _renderBookReader() {
             <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
                 <button onclick="_adjustFontSize(-0.1)" style="background:#3D2B1F;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;">A-</button>
                 <button onclick="_adjustFontSize(0.1)" style="background:#3D2B1F;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;">A+</button>
-                <button onclick="_toggleEffects()" id="btn-effects-toggle" style="background:${s.effectsEnabled ? '#8B6914' : '#6B5744'};color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;">⚡</button>
-                <button onclick="_toggleSound()" id="btn-sound-toggle" style="background:${s.soundEnabled ? '#8B6914' : '#6B5744'};color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;">🔊</button>
-                ${s.book.featureCodes?.ttsEnabled ? `<button onclick="_toggleTTS()" id="btn-tts-toggle" style="background:${s.ttsActive ? '#C4841D' : '#6B5744'};color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;">🗣️ TTS</button>
+                <button onclick="_toggleEffects()" id="btn-effects-toggle" style="background:${s.effectsEnabled ? '#8B6914' : '#6B5744'};color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;"><i data-lucide="zap" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i></button>
+                <button onclick="_toggleSound()" id="btn-sound-toggle" style="background:${s.soundEnabled ? '#8B6914' : '#6B5744'};color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;"><i data-lucide="volume-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i></button>
+                ${s.book.featureCodes?.ttsEnabled ? `<button onclick="_toggleTTS()" id="btn-tts-toggle" style="background:${s.ttsActive ? '#C4841D' : '#6B5744'};color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;">TTS</button>
                 <select onchange="_bookReaderState.ttsRate=parseFloat(this.value)" style="background:#3D2B1F;color:#FFF8F0;border:none;padding:0.3rem;border-radius:4px;">
                     <option value="0.7">0.7x</option><option value="1" selected>1x</option><option value="1.3">1.3x</option><option value="1.5">1.5x</option><option value="2">2x</option>
                 </select>` : ''}
@@ -888,7 +888,7 @@ async function _claimTreasure(code, sceneId) {
         const existing = await db.collection('users').doc(currentUser.uid)
             .collection('foundTreasures').doc(treasureId).get();
         if (existing.exists) {
-            showToast(t('books.treasure_already_found','Treasure already found!') + ' 🎯', 'info');
+            showToast(t('books.treasure_already_found','Treasure already found!'), 'info');
             return;
         }
 
@@ -917,7 +917,7 @@ function _showTreasureModal(reward) {
     m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.8);z-index:10010;display:flex;align-items:center;justify-content:center;';
     m.onclick = () => m.remove();
     m.innerHTML = `<div style="background:#FFF8F0;border-radius:20px;padding:2rem;text-align:center;max-width:300px;animation:bounceIn 0.5s;">
-        <div style="font-size:4rem;">🎉</div>
+        <div style="font-size:4rem;"><i data-lucide="trophy" style="width:48px;height:48px;display:inline-block;vertical-align:middle"></i></div>
         <h2 style="margin:0.5rem 0;">${t('books.treasure_found','Treasure Found!')}</h2>
         <p style="color:#3D2B1F;font-size:1.5rem;font-weight:700;">${reward} CRGC ${t('books.earned','earned!')}!</p>
         <p style="color:var(--accent);font-size:0.85rem;">${t('books.treasure_found_desc','You found a hidden treasure!')}</p>
@@ -1153,14 +1153,14 @@ async function showMyLibrary() {
     modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#FFF8F0;z-index:10001;overflow-y:auto;';
 
     modal.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;padding:1rem;border-bottom:1px solid #E8E0D8;">
-        <h2 style="margin:0;font-size:1.1rem;">📚 ${t('books.my_library','My Library')}</h2>
+        <h2 style="margin:0;font-size:1.1rem;">${t('books.my_library','My Library')}</h2>
         <button onclick="document.getElementById('my-library-modal')?.remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
     </div>
     <div style="display:flex;border-bottom:1px solid #E8E0D8;">
-        <button onclick="_showLibraryTab('purchased')" class="lib-tab active" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;font-weight:700;border-bottom:2px solid #3D2B1F;">📖 ${t('books.purchased','Purchased')}</button>
+        <button onclick="_showLibraryTab('purchased')" class="lib-tab active" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;font-weight:700;border-bottom:2px solid #3D2B1F;">${t('books.purchased','Purchased')}</button>
         <button onclick="_showLibraryTab('wishlist')" class="lib-tab" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;"><i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('books.wishlist','Wishlist')}</button>
-        <button onclick="_showLibraryTab('treasures')" class="lib-tab" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;">🎯 ${t('books.treasures','Treasures')}</button>
-        <button onclick="_showLibraryTab('translations')" class="lib-tab" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;">🌍 ${t('books.translations','Translations')}</button>
+        <button onclick="_showLibraryTab('treasures')" class="lib-tab" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;">${t('books.treasures','Treasures')}</button>
+        <button onclick="_showLibraryTab('translations')" class="lib-tab" style="flex:1;padding:0.8rem;border:none;background:#FFF8F0;cursor:pointer;">${t('books.translations','Translations')}</button>
     </div>
     <div id="library-content" style="padding:1rem;">${t('books.loading','Loading...')}</div>`;
 
@@ -1204,7 +1204,7 @@ async function _loadLibraryPurchased() {
             } catch (e) { console.warn(e.message); }
 
             html += `<div onclick="openBookReader('${p.bookId}')" style="display:flex;gap:0.8rem;padding:0.8rem;background:#f9f9f9;border-radius:10px;cursor:pointer;align-items:center;">
-                <div style="flex-shrink:0;width:50px;height:65px;background:#e0e0e0;border-radius:6px;display:flex;align-items:center;justify-content:center;">📖</div>
+                <div style="flex-shrink:0;width:50px;height:65px;background:#e0e0e0;border-radius:6px;display:flex;align-items:center;justify-content:center;"><i data-lucide="book-open" style="width:20px;height:20px;display:inline-block;vertical-align:middle"></i></div>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:600;font-size:0.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.bookTitle}</div>
                     ${p.editionNumber ? `<div style="font-size:0.75rem;color:#6B5744;">#${p.editionNumber}</div>` : ''}
@@ -1231,7 +1231,7 @@ async function _loadLibraryWishlist() {
             const r = d.data();
             html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem;background:#f9f9f9;border-radius:8px;">
                 <div onclick="viewBookDetailV2('${r.bookId}')" style="cursor:pointer;"><strong>${r.bookTitle}</strong> <span style="color:var(--accent);font-size:0.8rem;">${r.bookAuthor}</span></div>
-                <button onclick="removeFromReadingList('${d.id}')" style="background:none;border:none;cursor:pointer;">🗑️</button>
+                <button onclick="removeFromReadingList('${d.id}')" style="background:none;border:none;cursor:pointer;">✕</button>
             </div>`;
         });
         c.innerHTML = html + '</div>';
@@ -1251,10 +1251,10 @@ async function _loadLibraryTreasures() {
             const t = d.data();
             total += t.reward || 0;
             html += `<div style="display:flex;justify-content:space-between;padding:0.6rem;background:#F7F3ED;border-radius:8px;">
-                <span>🎯 ${t.bookId}</span><span style="color:#C4841D;font-weight:700;">+${t.reward} CRGC</span>
+                <span>${t.bookId}</span><span style="color:#C4841D;font-weight:700;">+${t.reward} CRGC</span>
             </div>`;
         });
-        html = `<div style="background:#C4841D;color:#FFF8F0;padding:1rem;border-radius:10px;text-align:center;margin-bottom:1rem;"><h3 style="margin:0;">🏆 ${t('books.total_treasure_reward','Total Treasure Reward')}: ${total} CRGC</h3></div>` + html;
+        html = `<div style="background:#C4841D;color:#FFF8F0;padding:1rem;border-radius:10px;text-align:center;margin-bottom:1rem;"><h3 style="margin:0;">${t('books.total_treasure_reward','Total Treasure Reward')}: ${total} CRGC</h3></div>` + html;
         c.innerHTML = html + '</div>';
         if (window.lucide) setTimeout(() => lucide.createIcons(), 50);
     } catch (e) { c.innerHTML = `<p style="color:red;">${e.message}</p>`; }
@@ -1288,7 +1288,7 @@ async function requestTranslation(bookId) {
             createdAt: new Date()
         });
 
-        showToast(`🌍 ${_langLabel(lang)} ${t('books.translation_requested','translation requested!')}`, 'success');
+        showToast(`${_langLabel(lang)} ${t('books.translation_requested','translation requested!')}`, 'success');
     } catch (e) { showToast(t('books.request_fail','Request failed') + ': ' + e.message, 'error'); }
 }
 
@@ -1306,7 +1306,7 @@ function _selectLanguage() {
         const m = document.createElement('div');
         m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.5);z-index:10010;display:flex;align-items:center;justify-content:center;';
         m.innerHTML = `<div style="background:#FFF8F0;border-radius:12px;padding:1.5rem;max-width:300px;width:90%;">
-            <h3 style="margin:0 0 1rem;">🌍 ${t('books.select_language','Select Translation Language')}</h3>
+            <h3 style="margin:0 0 1rem;">${t('books.select_language','Select Translation Language')}</h3>
             <div style="display:grid;gap:0.5rem;">
                 ${langs.map(l => `<button onclick="this.closest('div').closest('div').closest('div')._resolve('${l.code}')" style="padding:0.7rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;text-align:left;font-size:1rem;">${l.label}</button>`).join('')}
             </div>

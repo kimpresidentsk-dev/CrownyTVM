@@ -44,15 +44,15 @@ const ART_CATEGORIES = {
     digital:      t('art.cat.digital','<i data-lucide="monitor" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Digital Art'),
     photo:        t('art.cat.photo','📷 Photography'),
     sculpture:    t('art.cat.sculpture','🗿 Sculpture/Installation'),
-    illustration: t('art.cat.illustration','✏️ Illustration'),
-    calligraphy:  t('art.cat.calligraphy','🖋️ Calligraphy'),
+    illustration: t('art.cat.illustration','Illustration'),
+    calligraphy:  t('art.cat.calligraphy','Calligraphy'),
     mixed:        t('art.cat.mixed','<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Mixed Media'),
     ai:           t('art.cat.ai','<i data-lucide="bot" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> AI Art'),
     music:        t('art.cat.music','<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Music/Sound'),
     video:        t('art.cat.video','🎬 Video Art'),
     generative:   t('art.cat.generative','🌀 Generative'),
     kpop:         t('art.cat.kpop','💜 K-Pop Goods'),
-    other:        t('art.cat.other','🎨 Other')
+    other:        t('art.cat.other','Other')
 };
 
 // ─── MODULE STATE ───
@@ -401,7 +401,7 @@ async function uploadArtwork() {
                 setStatus(t('art.mint_done','🎉 NFT minting complete!'));
             } catch (nftErr) {
                 console.error('🎨 [NFT] Mint failed:', nftErr);
-                setStatus('⚠️ 작품 등록됨 (NFT 민팅 실패: ' + nftErr.message + ')');
+                setStatus('\u26A0\uFE0F ' + t('art.status_registered','Artwork registered') + ' (' + t('art.minting_failed','Minting failed') + ': ' + nftErr.message + ')');
             }
         }
 
@@ -411,15 +411,15 @@ async function uploadArtwork() {
             lastUpload: new Date()
         });
 
-        showToast(`🎨 "${title}" 등록 완료!${mintNFT ? ' (NFT ✅)' : ''}`, 'success');
+        showToast('\uD83C\uDFA8 "' + title + '" ' + t('art.registration_complete','Registration complete!') + (mintNFT ? ' (NFT \u2705)' : ''), 'success');
         _resetArtForm();
         loadArtGallery();
         loadMyCollection('my-artworks');
 
     } catch (error) {
         console.error('🎨 [Upload] Error:', error);
-        setStatus('❌ 등록 실패: ' + error.message);
-        showToast('등록 실패: ' + error.message, 'error');
+        setStatus('\u274C ' + t('art.registration_failed','Registration failed') + ': ' + error.message);
+        showToast(t('art.registration_failed','Registration failed') + ': ' + error.message, 'error');
     }
 }
 
@@ -429,10 +429,10 @@ async function uploadArtwork() {
 // ============================================================
 
 async function mintArtworkNFT(artworkId, artwork, imageFile, nftType, editionCount, royaltyPercent) {
-    if (!tw5SDK) throw new Error('Thirdweb SDK 미초기화');
+    if (!tw5SDK) throw new Error(t('art.sdk_not_init','Thirdweb SDK not initialized'));
     const contract = nftType === 'erc721' ? erc721Contract : erc1155Contract;
-    if (!contract) throw new Error(`${nftType.toUpperCase()} 컨트랙트 미설정`);
-    if (!window.ethereum) throw new Error('MetaMask가 필요합니다');
+    if (!contract) throw new Error(nftType.toUpperCase() + ' ' + t('art.contract_not_set','contract not configured'));
+    if (!window.ethereum) throw new Error(t('art.metamask_required','MetaMask is required'));
     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
     const walletAddress = accounts[0];
     const ipfsImageUri = await uploadToIPFS(imageFile);
@@ -470,7 +470,7 @@ async function mintArtworkNFT(artworkId, artwork, imageFile, nftType, editionCou
 }
 
 async function mintExistingArtwork(artworkId) {
-    if (!currentUser) { showToast('로그인 필요', 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
     try {
         const artDoc = await db.collection('artworks').doc(artworkId).get();
         if (!artDoc.exists) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
@@ -504,12 +504,12 @@ async function mintExistingArtwork(artworkId) {
             ipfsImageUri: result.ipfsImageUri, ipfsMetadataUri: result.ipfsMetadataUri,
             editionCount: type === 'erc1155' ? editionCount : 1, mintTxHash: result.txHash
         });
-        showToast(`🎉 NFT 민팅 완료! Token #${result.tokenId}`, 'success');
+        showToast('\uD83C\uDF89 ' + t('art.nft_mint_complete','NFT minting complete!') + ' Token #' + result.tokenId, 'success');
         const modal = document.getElementById('art-modal');
         if (modal) modal.remove();
         viewArtwork(artworkId);
     } catch (error) {
-        showToast('NFT 민팅 실패: ' + error.message, 'error');
+        showToast(t('art.nft_mint_failed','NFT minting failed') + ': ' + error.message, 'error');
     }
 }
 
@@ -521,7 +521,7 @@ async function mintExistingArtwork(artworkId) {
 async function loadArtGallery() {
     const container = document.getElementById('art-gallery');
     if (!container) return;
-    container.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${createLucideIcon('palette')} 로딩 중...</p>`;
+    container.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${createLucideIcon('palette')} ${t('art.loading','Loading...')}</p>`;
 
     try {
         const filterCat  = document.getElementById('art-filter-category')?.value || 'all';
@@ -544,7 +544,7 @@ async function loadArtGallery() {
         }
 
         if (snapshot.empty) {
-            container.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">아직 등록된 작품이 없습니다. 첫 작품을 등록해보세요! ${createLucideIcon('palette')}</p>`;
+            container.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${t('art.no_artworks_yet','No artworks registered yet. Register your first artwork!')} ${createLucideIcon('palette')}</p>`;
             return;
         }
 
@@ -561,12 +561,12 @@ async function loadArtGallery() {
         container.innerHTML = items.map(art => _renderArtCard(art)).join('');
         if (window.lucide) setTimeout(() => lucide.createIcons(), 50);
     } catch (error) {
-        container.innerHTML = `<p style="color:red; grid-column:1/-1;">로드 실패: ${error.message}</p>`;
+        container.innerHTML = `<p style="color:red; grid-column:1/-1;">${t('art.load_failed','Load failed')}: ${error.message}</p>`;
     }
 }
 
 function _renderArtCard(art) {
-    const catLabel = ART_CATEGORIES[art.category] || '🎨';
+    const catLabel = ART_CATEGORIES[art.category] || 'Art';
     const imgSrc = art.thumbnailUrl || art.imageUrl || art.imageData || '';
 
     let badges = '';
@@ -596,10 +596,10 @@ function _renderArtCard(art) {
         const endMs = art.auctionEnd?.seconds ? art.auctionEnd.seconds * 1000 : art.auctionEnd;
         const ended = endMs && new Date(endMs) < new Date();
         priceLabel = ended
-            ? '<span style="color:#B54534">경매 종료</span>'
+            ? '<span style="color:#B54534">' + t('art.auction_ended','Auction ended') + '</span>'
             : `<span style="color:#C4841D">🔨 ${art.currentBid || art.startPrice} CRAC</span>`;
     } else {
-        priceLabel = '<span style="color:var(--accent)">전시 중</span>';
+        priceLabel = '<span style="color:var(--accent)">' + t('art.on_display','On display') + '</span>';
     }
 
     return `
@@ -632,7 +632,7 @@ async function viewArtwork(artId) {
 
         db.collection('artworks').doc(artId).update({ views: (art.views || 0) + 1 }).catch(e => console.warn(e.message));
 
-        const catLabel = ART_CATEGORIES[art.category] || '🎨';
+        const catLabel = ART_CATEGORIES[art.category] || 'Art';
         const isOwner  = currentUser && art.artistId === currentUser.uid;
         const imgSrc   = art.imageUrl || art.imageData || '';
         const artistWeight = art.artistWeight || 1;
@@ -647,8 +647,8 @@ async function viewArtwork(artId) {
             supplyHtml = `
                 <div style="background:#f8f9fa;padding:.6rem;border-radius:8px;margin-bottom:.8rem">
                     <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:.3rem">
-                        <span>${isSoldOut ? '🚫 매진' : `📦 잔여 ${remaining}/${art.totalSupply}`}</span>
-                        <span style="color:var(--accent)">${pct}% 판매됨</span>
+                        <span>${isSoldOut ? '\uD83D\uDEAB ' + t('art.sold_out','Sold out') : '\uD83D\uDCE6 ' + t('art.remaining','Remaining') + ' ' + remaining + '/' + art.totalSupply}</span>
+                        <span style="color:var(--accent)">${pct}% ${t('art.sold','Sold')}</span>
                     </div>
                     <div style="background:#e0e0e0;border-radius:4px;height:6px;overflow:hidden">
                         <div style="background:${isSoldOut ? '#B54534' : '#6B8F3C'};height:100%;width:${pct}%;border-radius:4px;transition:width .3s"></div>
@@ -663,7 +663,7 @@ async function viewArtwork(artId) {
                 priceInfoHtml = `
                     <div style="background:#f0f7ff;padding:.6rem;border-radius:8px;margin-bottom:.8rem;font-size:.82rem">
                         <div><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.base_price','Base Price')}: <strong>${art.basePrice} ${art.priceToken || 'CRAC'}</strong></div>
-                        <div>⭐ ${t('art.weight','Weight')}: <strong>${artistWeight}x</strong></div>
+                        <div>${t('art.weight','Weight')}: <strong>${artistWeight}x</strong></div>
                         <div style="font-size:.95rem;font-weight:700;margin-top:.3rem;color:#3D2B1F">= ${effectivePrice} ${art.priceToken || 'CRAC'}</div>
                     </div>`;
             } else {
@@ -683,14 +683,14 @@ async function viewArtwork(artId) {
             const ipfsUrl = art.ipfsImageUri ? ipfsToHttp(art.ipfsImageUri) : null;
             nftInfoHtml = `
                 <div style="background:linear-gradient(135deg,#8B6914,#6B5744);padding:.8rem;border-radius:8px;margin-bottom:1rem;color:#E8D5C4">
-                    <div style="font-weight:700;margin-bottom:.4rem">🔗 NFT 인증</div>
+                    <div style="font-weight:700;margin-bottom:.4rem">\uD83D\uDD17 ${t('art.nft_certified','NFT Certified')}</div>
                     <div style="font-size:.78rem;display:grid;gap:.2rem">
-                        <div>타입: ${typeLabel}</div>
+                        <div>${t('art.type','Type')}: ${typeLabel}</div>
                         <div>Token ID: #${art.nftTokenId}</div>
-                        <div>컨트랙트: <a href="${scanUrl}" target="_blank" style="color:#E8D5C4;text-decoration:underline">${cShort}</a></div>
-                        <div>로열티: ${art.royaltyPercent || 10}%</div>
-                        ${ipfsUrl ? `<div>IPFS: <a href="${ipfsUrl}" target="_blank" style="color:#E8D5C4;text-decoration:underline">원본 보기</a></div>` : ''}
-                        ${art.mintTxHash ? `<div>TX: <a href="https://polygonscan.com/tx/${art.mintTxHash}" target="_blank" style="color:#E8D5C4;text-decoration:underline">${art.mintTxHash.slice(0,10)}…</a></div>` : ''}
+                        <div>${t('art.contract','Contract')}: <a href="${scanUrl}" target="_blank" style="color:#E8D5C4;text-decoration:underline">${cShort}</a></div>
+                        <div>${t('art.royalty','Royalty')}: ${art.royaltyPercent || 10}%</div>
+                        ${ipfsUrl ? `<div>IPFS: <a href="${ipfsUrl}" target="_blank" style="color:#E8D5C4;text-decoration:underline">${t('art.view_original','View original')}</a></div>` : ''}
+                        ${art.mintTxHash ? `<div>TX: <a href="https://polygonscan.com/tx/${art.mintTxHash}" target="_blank" style="color:#E8D5C4;text-decoration:underline">${art.mintTxHash.slice(0,10)}\u2026</a></div>` : ''}
                     </div>
                 </div>`;
         }
@@ -701,14 +701,14 @@ async function viewArtwork(artId) {
 
         if ((art.saleType === 'fixed' || art.basePrice > 0) && !isOwner && art.status === 'active') {
             if (isSoldOut) {
-                actionHtml = `<button disabled style="background:#6B5744;color:#E8D5C4;border:none;padding:.8rem 2rem;border-radius:8px;width:100%;font-weight:700;cursor:not-allowed">🚫 SOLD OUT</button>`;
+                actionHtml = `<button disabled style="background:#6B5744;color:#E8D5C4;border:none;padding:.8rem 2rem;border-radius:8px;width:100%;font-weight:700;cursor:not-allowed">SOLD OUT</button>`;
             } else {
                 actionHtml = `
                     <div style="display:flex;gap:.5rem">
-                        <button onclick="buyArtwork('${artId}')" style="background:#3D2B1F;color:#E8D5C4;border:none;padding:.8rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:700;flex:1"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${effectivePrice} ${art.priceToken || 'CRAC'} 구매</button>
-                        <button onclick="reserveArtwork('${artId}')" style="background:#C4841D;color:#E8D5C4;border:none;padding:.8rem 1rem;border-radius:8px;cursor:pointer;font-weight:700">📅 예약</button>
+                        <button onclick="buyArtwork('${artId}')" style="background:#3D2B1F;color:#E8D5C4;border:none;padding:.8rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:700;flex:1"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${effectivePrice} ${art.priceToken || 'CRAC'} ${t('art.purchase','Purchase')}</button>
+                        <button onclick="reserveArtwork('${artId}')" style="background:#C4841D;color:#E8D5C4;border:none;padding:.8rem 1rem;border-radius:8px;cursor:pointer;font-weight:700">\uD83D\uDCC5 ${t('art.reserve','Reserve')}</button>
                     </div>
-                    <p style="font-size:.7rem;color:var(--accent);margin-top:.3rem;text-align:center">📅 예약: 보증금 ${Math.ceil(effectivePrice / 10)} ${art.priceToken || 'CRAC'} (1/10) · 1년 내 잔금 결제</p>`;
+                    <p style="font-size:.7rem;color:var(--accent);margin-top:.3rem;text-align:center">\uD83D\uDCC5 ${t('art.reserve','Reserve')}: ${t('art.deposit','Deposit')} ${Math.ceil(effectivePrice / 10)} ${art.priceToken || 'CRAC'} (1/10) \u00B7 ${t('art.pay_balance_within_year','Pay balance within 1 year')}</p>`;
             }
         } else if (art.saleType === 'auction' && !isOwner) {
             const curBid = art.currentBid || art.startPrice || 1;
@@ -716,17 +716,17 @@ async function viewArtwork(artId) {
             actionHtml = `
                 <div style="display:flex;gap:.5rem">
                     <input type="number" id="bid-amount-${artId}" value="${minBid}" min="${minBid}" style="flex:1;padding:.7rem;border:1px solid var(--border);border-radius:6px">
-                    <button onclick="placeBid('${artId}')" style="background:#C4841D;color:#E8D5C4;border:none;padding:.8rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:700">🔨 입찰</button>
+                    <button onclick="placeBid('${artId}')" style="background:#C4841D;color:#E8D5C4;border:none;padding:.8rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:700">\uD83D\uDD28 ${t('art.bid','Bid')}</button>
                 </div>
-                <p style="font-size:.75rem;color:var(--accent);margin-top:.3rem">현재 최고: ${curBid} CRAC${art.highestBidderNickname ? ' (' + art.highestBidderNickname + ')' : ''}</p>`;
+                <p style="font-size:.75rem;color:var(--accent);margin-top:.3rem">${t('art.current_highest','Current highest')}: ${curBid} CRAC${art.highestBidderNickname ? ' (' + art.highestBidderNickname + ')' : ''}</p>`;
         }
 
         if (isOwner) {
             actionHtml = '<div style="display:flex;gap:.5rem;flex-wrap:wrap">';
             if (!art.isNFT) {
-                actionHtml += `<button onclick="mintExistingArtwork('${artId}')" style="background:linear-gradient(135deg,#8B6914,#6B5744);color:#E8D5C4;border:none;padding:.6rem 1.2rem;border-radius:6px;cursor:pointer;font-size:.85rem;flex:1">🔗 NFT 민팅</button>`;
+                actionHtml += `<button onclick="mintExistingArtwork('${artId}')" style="background:linear-gradient(135deg,#8B6914,#6B5744);color:#E8D5C4;border:none;padding:.6rem 1.2rem;border-radius:6px;cursor:pointer;font-size:.85rem;flex:1">\uD83D\uDD17 ${t('art.nft_mint','NFT Mint')}</button>`;
             }
-            actionHtml += `<button onclick="deleteArtwork('${artId}')" style="background:#B54534;color:#E8D5C4;border:none;padding:.6rem 1.2rem;border-radius:6px;cursor:pointer;font-size:.85rem">삭제</button></div>`;
+            actionHtml += `<button onclick="deleteArtwork('${artId}')" style="background:#B54534;color:#E8D5C4;border:none;padding:.6rem 1.2rem;border-radius:6px;cursor:pointer;font-size:.85rem">${t('art.delete','Delete')}</button></div>`;
         }
 
         // Modal
@@ -742,15 +742,15 @@ async function viewArtwork(artId) {
                 <div style="padding:1.2rem">
                     <h3 style="margin-bottom:.5rem">${art.title}</h3>
                     <div style="font-size:.85rem;color:var(--accent);margin-bottom:.8rem">
-                        ${catLabel} · 🎨 <span onclick="viewArtistProfile('${art.artistId}')" style="cursor:pointer;text-decoration:underline">${art.artistNickname || t('art.anonymous','Anonymous')}</span> · 👁️ ${(art.views||0)+1} · <i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${art.likes||0}
+                        ${catLabel} · <span onclick="viewArtistProfile('${art.artistId}')" style="cursor:pointer;text-decoration:underline">${art.artistNickname || t('art.anonymous','Anonymous')}</span> · <i data-lucide="eye" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${(art.views||0)+1} · <i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${art.likes||0}
                     </div>
                     ${art.description ? `<p style="font-size:.9rem;line-height:1.6;margin-bottom:1rem;color:#3D2B1F">${art.description}</p>` : ''}
                     ${supplyHtml}
                     ${priceInfoHtml}
                     ${nftInfoHtml}
                     <div style="display:flex;gap:.5rem;margin-bottom:1rem">
-                        <button onclick="likeArtwork('${artId}')" style="background:var(--bg);border:1px solid var(--border);padding:.5rem 1rem;border-radius:6px;cursor:pointer"><i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 좋아요</button>
-                        <button onclick="shareArtwork('${artId}','${art.title.replace(/'/g, "\\'")}')" style="background:var(--bg);border:1px solid var(--border);padding:.5rem 1rem;border-radius:6px;cursor:pointer">🔗 공유</button>
+                        <button onclick="likeArtwork('${artId}')" style="background:var(--bg);border:1px solid var(--border);padding:.5rem 1rem;border-radius:6px;cursor:pointer"><i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.like','Like')}</button>
+                        <button onclick="shareArtwork('${artId}','${art.title.replace(/'/g, "\\'")}')" style="background:var(--bg);border:1px solid var(--border);padding:.5rem 1rem;border-radius:6px;cursor:pointer">\uD83D\uDD17 ${t('art.share','Share')}</button>
                     </div>
                     ${actionHtml}
                 </div>
@@ -758,7 +758,7 @@ async function viewArtwork(artId) {
 
         document.body.appendChild(modal);
     } catch (error) {
-        showToast('작품 로드 실패: ' + error.message, 'error');
+        showToast(t('art.artwork_load_failed','Artwork load failed') + ': ' + error.message, 'error');
     }
 }
 
@@ -768,13 +768,13 @@ async function viewArtwork(artId) {
 // ============================================================
 
 async function likeArtwork(artId) {
-    if (!currentUser) { showToast('로그인이 필요합니다', 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
     try {
         const likeRef = db.collection('artworks').doc(artId).collection('likes').doc(currentUser.uid);
-        if ((await likeRef.get()).exists) { showToast('이미 좋아요 한 작품입니다', 'info'); return; }
+        if ((await likeRef.get()).exists) { showToast(t('art.already_liked','You already liked this artwork'), 'info'); return; }
         await likeRef.set({ userId: currentUser.uid, timestamp: new Date() });
         await db.collection('artworks').doc(artId).update({ likes: firebase.firestore.FieldValue.increment(1) });
-        showToast('<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 좋아요!', 'success');
+        showToast('<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('art.liked','Liked!'), 'success');
     } catch (e) { console.error('🎨 [Like]', e); }
 }
 
@@ -783,7 +783,7 @@ function shareArtwork(artId, title) {
     if (navigator.share) {
         navigator.share({ title: `CROWNY ART: ${title}`, url });
     } else {
-        navigator.clipboard.writeText(url).then(() => showToast('🔗 링크 복사됨!', 'success')).catch(e => console.warn(e.message));
+        navigator.clipboard.writeText(url).then(() => showToast('\uD83D\uDD17 ' + t('art.link_copied','Link copied!'), 'success')).catch(e => console.warn(e.message));
     }
 }
 
@@ -792,11 +792,11 @@ async function deleteArtwork(artId) {
     if (!confirmed) return;
     try {
         await db.collection('artworks').doc(artId).update({ status: 'deleted' });
-        showToast('🗑️ 삭제 완료', 'success');
+        showToast('\uD83D\uDDD1\uFE0F ' + t('art.delete_complete','Deletion complete'), 'success');
         const modal = document.getElementById('art-modal');
         if (modal) modal.remove();
         loadArtGallery();
-    } catch (e) { showToast('삭제 실패: ' + e.message, 'error'); }
+    } catch (e) { showToast(t('art.delete_failed','Deletion failed') + ': ' + e.message, 'error'); }
 }
 
 
@@ -805,17 +805,17 @@ async function deleteArtwork(artId) {
 // ============================================================
 
 async function buyArtwork(artId) {
-    if (!currentUser) { showToast('로그인 필요', 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
 
     try {
         const artDoc = await db.collection('artworks').doc(artId).get();
         const art = artDoc.data();
-        if (art.status !== 'active') { showToast('이미 판매된 작품', 'warning'); return; }
+        if (art.status !== 'active') { showToast(t('art.already_sold','Already sold'), 'warning'); return; }
 
         // Supply check
         if (art.totalSupply > 0) {
             const remaining = art.totalSupply - (art.soldCount || 0);
-            if (remaining <= 0) { showToast('🚫 매진된 작품입니다', 'warning'); return; }
+            if (remaining <= 0) { showToast('\uD83D\uDEAB ' + t('art.sold_out_artwork','This artwork is sold out'), 'warning'); return; }
         }
 
         const effectivePrice = art.price || _calcEffectivePrice(art.basePrice || 0, art.artistWeight || 1);
@@ -827,7 +827,7 @@ async function buyArtwork(artId) {
             const userDoc = await db.collection('users').doc(currentUser.uid).get();
             const offBal = userDoc.data()?.offchainBalances?.[tokenKey] || 0;
             if (offBal < effectivePrice) {
-                showToast(`CRAC 잔액 부족. 보유: ${offBal}, 필요: ${effectivePrice}`, 'warning');
+                showToast(t('art.insufficient_crac','Insufficient CRAC balance') + '. ' + t('art.balance_held','Held') + ': ' + offBal + ', ' + t('art.balance_needed','Needed') + ': ' + effectivePrice, 'warning');
                 return;
             }
         }
@@ -837,20 +837,20 @@ async function buyArtwork(artId) {
         const artistReceive = Math.round((effectivePrice - platformFee) * 100) / 100;
 
         const confirmMsg = `"${art.title}"\n\n` +
-            `<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 가격: ${effectivePrice} ${art.priceToken || 'CRAC'}\n` +
-            (art.basePrice && art.artistWeight > 1 ? `   (기본가 ${art.basePrice} × 가중치 ${art.artistWeight}x)\n` : '') +
-            `📊 수수료: ${platformFee} (${ART_CONFIG.platformFeePercent}%)\n` +
-            `🎨 아티스트 수령: ${artistReceive}\n` +
-            (art.totalSupply > 0 ? `📦 잔여: ${art.totalSupply - (art.soldCount || 0) - 1}/${art.totalSupply}\n` : '') +
-            (art.isNFT ? '\n🔗 NFT 소유권이 이전됩니다' : '') +
-            `\n\n구매하시겠습니까?`;
+            `<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.price','Price')}: ${effectivePrice} ${art.priceToken || 'CRAC'}\n` +
+            (art.basePrice && art.artistWeight > 1 ? `   (${t('art.base_price','Base price')} ${art.basePrice} \u00D7 ${t('art.weight','Weight')} ${art.artistWeight}x)\n` : '') +
+            `\uD83D\uDCCA ${t('art.fee','Fee')}: ${platformFee} (${ART_CONFIG.platformFeePercent}%)\n` +
+            `\uD83C\uDFA8 ${t('art.artist_receives','Artist receives')}: ${artistReceive}\n` +
+            (art.totalSupply > 0 ? `\uD83D\uDCE6 ${t('art.remaining','Remaining')}: ${art.totalSupply - (art.soldCount || 0) - 1}/${art.totalSupply}\n` : '') +
+            (art.isNFT ? '\n\uD83D\uDD17 ' + t('art.nft_ownership_transfer','NFT ownership will be transferred') : '') +
+            `\n\n${t('art.proceed_purchase','Proceed with purchase?')}`;
 
         const confirmBuy = await showConfirmModal(t('art.buy_confirm','Confirm Purchase'), confirmMsg);
         if (!confirmBuy) return;
 
         // Execute payment
         if (isOffchain) {
-            const spent = await spendOffchainPoints(tokenKey, effectivePrice, `아트 구매: ${art.title}`);
+            const spent = await spendOffchainPoints(tokenKey, effectivePrice, t('art.art_purchase','Art purchase') + ': ' + art.title);
             if (!spent) return;
             const sellerDoc = await db.collection('users').doc(art.artistId).get();
             const sellerOff = sellerDoc.data()?.offchainBalances || {};
@@ -922,7 +922,7 @@ async function buyArtwork(artId) {
         });
         await _recalculateArtistWeight(art.artistId);
 
-        showToast(`🎉 "${art.title}" 구매 완료!${art.isNFT ? ' 🔗 NFT 소유권 이전됨' : ''}`, 'success');
+        showToast('\uD83C\uDF89 "' + art.title + '" ' + t('art.purchase_complete','Purchase complete!') + (art.isNFT ? ' \uD83D\uDD17 ' + t('art.nft_ownership_transferred','NFT ownership transferred') : ''), 'success');
 
         const modal = document.getElementById('art-modal');
         if (modal) modal.remove();
@@ -931,22 +931,22 @@ async function buyArtwork(artId) {
         if (typeof loadUserWallet === 'function') loadUserWallet();
 
     } catch (error) {
-        showToast('구매 실패: ' + error.message, 'error');
+        showToast(t('art.purchase_failed','Purchase failed') + ': ' + error.message, 'error');
     }
 }
 
 async function placeBid(artId) {
-    if (!currentUser) { showToast('로그인 필요', 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
     const bidInput = document.getElementById(`bid-amount-${artId}`);
     const bidAmount = parseFloat(bidInput?.value);
     try {
         const artDoc = await db.collection('artworks').doc(artId).get();
         const art = artDoc.data();
         const minBid = (art.currentBid || art.startPrice || 1) + 1;
-        if (bidAmount < minBid) { showToast(`최소 입찰가: ${minBid} CRAC`, 'warning'); return; }
+        if (bidAmount < minBid) { showToast(t('art.minimum_bid','Minimum bid') + ': ' + minBid + ' CRAC', 'warning'); return; }
         const userDocBid = await db.collection('users').doc(currentUser.uid).get();
         const cracBal = userDocBid.data()?.offchainBalances?.crac || 0;
-        if (cracBal < bidAmount) { showToast(`CRAC 잔액 부족. 보유: ${cracBal}`, 'warning'); return; }
+        if (cracBal < bidAmount) { showToast(t('art.insufficient_crac','Insufficient CRAC balance') + '. ' + t('art.balance_held','Held') + ': ' + cracBal, 'warning'); return; }
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const nickname = userDoc.data()?.nickname || currentUser.email;
         await db.collection('artworks').doc(artId).update({
@@ -957,11 +957,11 @@ async function placeBid(artId) {
             bidderId: currentUser.uid, bidderEmail: currentUser.email,
             bidderNickname: nickname, amount: bidAmount, timestamp: new Date()
         });
-        showToast(`🔨 ${bidAmount} CRAC 입찰 완료!`, 'success');
+        showToast('\uD83D\uDD28 ' + bidAmount + ' CRAC ' + t('art.bid_complete','Bid placed!'), 'success');
         const modal = document.getElementById('art-modal');
         if (modal) modal.remove();
         loadArtGallery();
-    } catch (error) { showToast('입찰 실패: ' + error.message, 'error'); }
+    } catch (error) { showToast(t('art.bid_failed','Bid failed') + ': ' + error.message, 'error'); }
 }
 
 
@@ -970,16 +970,16 @@ async function placeBid(artId) {
 // ============================================================
 
 async function reserveArtwork(artId) {
-    if (!currentUser) { showToast('로그인 필요', 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
 
     try {
         const artDoc = await db.collection('artworks').doc(artId).get();
-        if (!artDoc.exists) { showToast('작품을 찾을 수 없습니다', 'warning'); return; }
+        if (!artDoc.exists) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
         const art = artDoc.data();
 
-        if (art.status !== 'active') { showToast('구매 불가능한 작품입니다', 'warning'); return; }
+        if (art.status !== 'active') { showToast(t('art.not_available','This artwork is not available for purchase'), 'warning'); return; }
         if (art.totalSupply > 0 && (art.totalSupply - (art.soldCount || 0)) <= 0) {
-            showToast('🚫 매진된 작품입니다', 'warning'); return;
+            showToast('\uD83D\uDEAB ' + t('art.sold_out_artwork','This artwork is sold out'), 'warning'); return;
         }
 
         const effectivePrice = art.price || _calcEffectivePrice(art.basePrice || 0, art.artistWeight || 1);
@@ -987,14 +987,14 @@ async function reserveArtwork(artId) {
         const remainingAmount = effectivePrice - depositAmount;
         const tokenKey = (art.priceToken || 'CRAC').toLowerCase();
 
-        const confirmMsg = `📅 예약 구매\n\n"${art.title}"\n\n` +
-            `<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 총 가격: ${effectivePrice} ${art.priceToken || 'CRAC'}\n` +
-            `💵 보증금 (1/10): ${depositAmount} ${art.priceToken || 'CRAC'}\n` +
-            `📋 잔금: ${remainingAmount} ${art.priceToken || 'CRAC'}\n` +
-            `⏰ 잔금 결제 기한: 1년\n\n` +
-            `⚠️ 예약 취소 시 보증금은 환불되지 않습니다.\n\n진행하시겠습니까?`;
+        const confirmMsg = `\uD83D\uDCC5 ${t('art.reserve_purchase','Reserve Purchase')}\n\n"${art.title}"\n\n` +
+            `<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.total_price','Total price')}: ${effectivePrice} ${art.priceToken || 'CRAC'}\n` +
+            `\uD83D\uDCB5 ${t('art.deposit','Deposit')} (1/10): ${depositAmount} ${art.priceToken || 'CRAC'}\n` +
+            `\uD83D\uDCCB ${t('art.balance_due','Balance due')}: ${remainingAmount} ${art.priceToken || 'CRAC'}\n` +
+            `\u23F0 ${t('art.payment_deadline','Payment deadline')}: ${t('art.one_year','1 year')}\n\n` +
+            `\u26A0\uFE0F ${t('art.deposit_no_refund','Deposit is non-refundable if reservation is cancelled.')}\n\n${t('art.proceed_question','Proceed?')}`;
 
-        const confirmed = await showConfirmModal('📅 예약 구매', confirmMsg);
+        const confirmed = await showConfirmModal('\uD83D\uDCC5 ' + t('art.reserve_purchase','Reserve Purchase'), confirmMsg);
         if (!confirmed) return;
 
         // Check balance for deposit
@@ -1003,9 +1003,9 @@ async function reserveArtwork(artId) {
             const userDoc = await db.collection('users').doc(currentUser.uid).get();
             const offBal = userDoc.data()?.offchainBalances?.[tokenKey] || 0;
             if (offBal < depositAmount) {
-                showToast(`보증금 부족. 보유: ${offBal}, 필요: ${depositAmount}`, 'warning'); return;
+                showToast(t('art.insufficient_deposit','Insufficient deposit') + '. ' + t('art.balance_held','Held') + ': ' + offBal + ', ' + t('art.balance_needed','Needed') + ': ' + depositAmount, 'warning'); return;
             }
-            const spent = await spendOffchainPoints(tokenKey, depositAmount, `아트 예약 보증금: ${art.title}`);
+            const spent = await spendOffchainPoints(tokenKey, depositAmount, t('art.reservation_deposit','Art reservation deposit') + ': ' + art.title);
             if (!spent) return;
             // Pay deposit to artist
             const sellerDoc = await db.collection('users').doc(art.artistId).get();
@@ -1015,11 +1015,11 @@ async function reserveArtwork(artId) {
             });
         } else {
             const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-            if (wallets.empty) { showToast('지갑이 없습니다', 'warning'); return; }
+            if (wallets.empty) { showToast(t('art.no_wallet','No wallet found'), 'warning'); return; }
             const walletDoc = wallets.docs[0];
             const balances = walletDoc.data().balances || {};
             if ((balances[tokenKey] || 0) < depositAmount) {
-                showToast(`보증금 부족`, 'warning'); return;
+                showToast(t('art.insufficient_deposit','Insufficient deposit'), 'warning'); return;
             }
             await walletDoc.ref.update({ [`balances.${tokenKey}`]: balances[tokenKey] - depositAmount });
             const sellerWallets = await db.collection('users').doc(art.artistId).collection('wallets').limit(1).get();
@@ -1061,39 +1061,39 @@ async function reserveArtwork(artId) {
             type: 'art_reservation_deposit', timestamp: new Date()
         });
 
-        showToast(`📅 "${art.title}" 예약 완료! 보증금 ${depositAmount} ${art.priceToken || 'CRAC'} 결제됨`, 'success');
+        showToast('\uD83D\uDCC5 "' + art.title + '" ' + t('art.reservation_complete','Reservation complete!') + ' ' + t('art.deposit','Deposit') + ' ' + depositAmount + ' ' + (art.priceToken || 'CRAC') + ' ' + t('art.paid','paid'), 'success');
 
         const modal = document.getElementById('art-modal');
         if (modal) modal.remove();
         if (typeof loadUserWallet === 'function') loadUserWallet();
 
     } catch (error) {
-        showToast('예약 실패: ' + error.message, 'error');
+        showToast(t('art.reservation_failed','Reservation failed') + ': ' + error.message, 'error');
     }
 }
 
 async function completeReservation(reservationId) {
-    if (!currentUser) { showToast('로그인 필요', 'warning'); return; }
+    if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
 
     try {
         const resDoc = await db.collection('art_reservations').doc(reservationId).get();
-        if (!resDoc.exists) { showToast('예약을 찾을 수 없습니다', 'warning'); return; }
+        if (!resDoc.exists) { showToast(t('art.reservation_not_found','Reservation not found'), 'warning'); return; }
         const res = resDoc.data();
 
-        if (res.buyerId !== currentUser.uid) { showToast('본인의 예약만 결제 가능합니다', 'warning'); return; }
-        if (res.status !== 'reserved') { showToast('이미 처리된 예약입니다', 'info'); return; }
+        if (res.buyerId !== currentUser.uid) { showToast(t('art.own_reservation_only','Only your own reservations can be paid'), 'warning'); return; }
+        if (res.status !== 'reserved') { showToast(t('art.reservation_already_processed','This reservation has already been processed'), 'info'); return; }
 
         const expiresAt = res.expiresAt?.toDate ? res.expiresAt.toDate() : new Date(res.expiresAt);
         if (new Date() > expiresAt) {
             await db.collection('art_reservations').doc(reservationId).update({ status: 'expired' });
-            showToast('⏰ 예약 기한이 만료되었습니다', 'warning');
+            showToast('\u23F0 ' + t('art.reservation_expired','Reservation has expired'), 'warning');
             return;
         }
 
         const remainingAmount = res.remainingAmount;
         const tokenKey = (res.depositToken || 'CRAC').toLowerCase();
 
-        const confirmed = await showConfirmModal('잔금 결제', `"${res.artworkTitle}"\n\n잔금: ${remainingAmount} ${res.depositToken || 'CRAC'}\n\n결제하시겠습니까?`);
+        const confirmed = await showConfirmModal(t('art.pay_balance','Pay Balance'), '"' + res.artworkTitle + '"\n\n' + t('art.balance_due','Balance due') + ': ' + remainingAmount + ' ' + (res.depositToken || 'CRAC') + '\n\n' + t('art.proceed_payment','Proceed with payment?'));
         if (!confirmed) return;
 
         // Pay remaining
@@ -1105,9 +1105,9 @@ async function completeReservation(reservationId) {
             const userDoc = await db.collection('users').doc(currentUser.uid).get();
             const offBal = userDoc.data()?.offchainBalances?.[tokenKey] || 0;
             if (offBal < remainingAmount) {
-                showToast(`잔액 부족. 보유: ${offBal}, 필요: ${remainingAmount}`, 'warning'); return;
+                showToast(t('art.insufficient_balance','Insufficient balance') + '. ' + t('art.balance_held','Held') + ': ' + offBal + ', ' + t('art.balance_needed','Needed') + ': ' + remainingAmount, 'warning'); return;
             }
-            const spent = await spendOffchainPoints(tokenKey, remainingAmount, `아트 예약 잔금: ${res.artworkTitle}`);
+            const spent = await spendOffchainPoints(tokenKey, remainingAmount, t('art.reservation_balance','Art reservation balance') + ': ' + res.artworkTitle);
             if (!spent) return;
             const sellerDoc = await db.collection('users').doc(res.artistId).get();
             const sellerOff = sellerDoc.data()?.offchainBalances || {};
@@ -1116,10 +1116,10 @@ async function completeReservation(reservationId) {
             });
         } else {
             const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-            if (wallets.empty) { showToast('지갑이 없습니다', 'warning'); return; }
+            if (wallets.empty) { showToast(t('art.no_wallet','No wallet found'), 'warning'); return; }
             const walletDoc = wallets.docs[0];
             const balances = walletDoc.data().balances || {};
-            if ((balances[tokenKey] || 0) < remainingAmount) { showToast('잔액 부족', 'warning'); return; }
+            if ((balances[tokenKey] || 0) < remainingAmount) { showToast(t('art.insufficient_balance','Insufficient balance'), 'warning'); return; }
             await walletDoc.ref.update({ [`balances.${tokenKey}`]: balances[tokenKey] - remainingAmount });
             const sellerWallets = await db.collection('users').doc(res.artistId).collection('wallets').limit(1).get();
             if (!sellerWallets.empty) {
@@ -1167,29 +1167,29 @@ async function completeReservation(reservationId) {
         });
         await _recalculateArtistWeight(res.artistId);
 
-        showToast(`🎉 "${res.artworkTitle}" 잔금 결제 완료!`, 'success');
+        showToast('\uD83C\uDF89 "' + res.artworkTitle + '" ' + t('art.balance_payment_complete','Balance payment complete!'), 'success');
         loadMyCollection('my-reservations');
         if (typeof loadUserWallet === 'function') loadUserWallet();
 
     } catch (error) {
-        showToast('잔금 결제 실패: ' + error.message, 'error');
+        showToast(t('art.balance_payment_failed','Balance payment failed') + ': ' + error.message, 'error');
     }
 }
 
 async function cancelReservation(reservationId) {
     if (!currentUser) return;
     try {
-        const confirmed = await showConfirmModal('⚠️ 예약 취소',
-            '예약을 취소하시겠습니까?\n\n⚠️ 보증금은 환불되지 않습니다.');
+        const confirmed = await showConfirmModal('\u26A0\uFE0F ' + t('art.cancel_reservation','Cancel Reservation'),
+            t('art.cancel_reservation_confirm','Cancel this reservation?') + '\n\n\u26A0\uFE0F ' + t('art.deposit_no_refund','Deposit is non-refundable if reservation is cancelled.'));
         if (!confirmed) return;
         await db.collection('art_reservations').doc(reservationId).update({
             status: 'cancelled',
             cancelledAt: new Date()
         });
-        showToast('예약이 취소되었습니다 (보증금 환불 없음)', 'info');
+        showToast(t('art.reservation_cancelled','Reservation cancelled (deposit non-refundable)'), 'info');
         loadMyCollection('my-reservations');
     } catch (error) {
-        showToast('취소 실패: ' + error.message, 'error');
+        showToast(t('art.cancel_failed','Cancellation failed') + ': ' + error.message, 'error');
     }
 }
 
@@ -1210,7 +1210,7 @@ async function _artDonationAuto(userId, amount, token) {
             });
             await db.collection('giving_pool_logs').add({
                 userId, amount: donationAmount, token: 'CRAC',
-                source: 'art_trade', note: `아트 거래 자동 기부 (${amount} ${token})`,
+                source: 'art_trade', note: t('art.auto_donation','Art trade auto donation') + ' (' + amount + ' ' + token + ')',
                 timestamp: new Date()
             });
             // Update artist donation contribution for weight
@@ -1229,7 +1229,7 @@ async function _artDonationAuto(userId, amount, token) {
 async function loadMyCollection(tab) {
     if (!currentUser) {
         const container = document.getElementById('my-collection-content');
-        if (container) container.innerHTML = '<div class="art-empty-state"><span class="icon">🔒</span><p>로그인하면 내 컬렉션을 확인할 수 있습니다</p></div>';
+        if (container) container.innerHTML = '<div class="art-empty-state"><span class="icon">\uD83D\uDD12</span><p>' + t('art.login_to_view_collection','Log in to view your collection') + '</p></div>';
         return;
     }
 
@@ -1252,7 +1252,7 @@ async function loadMyCollection(tab) {
 }
 
 async function _loadMyArtworks(container) {
-    container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">로딩 중...</p>';
+    container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">' + t('art.loading','Loading...') + '</p>';
     try {
         let arts;
         try {
@@ -1266,7 +1266,7 @@ async function _loadMyArtworks(container) {
         }
 
         if (arts.empty) {
-            container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('palette')}</span><p>등록한 작품이 없습니다<br><small>작품 등록 버튼을 눌러 첫 작품을 올려보세요!</small></p></div>`;
+            container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('palette')}</span><p>${t('art.no_registered_works','No registered artworks')}<br><small>${t('art.upload_first_work','Press the upload button to register your first artwork!')}</small></p></div>`;
             return;
         }
 
@@ -1274,7 +1274,7 @@ async function _loadMyArtworks(container) {
         arts.forEach(doc => {
             const art = { id: doc.id, ...doc.data() };
             const img = art.thumbnailUrl || art.imageUrl || art.imageData || '';
-            const status = art.status === 'sold' ? '✅ 판매됨' : art.status === 'active' ? '🟢 판매 중' : '⬜';
+            const status = art.status === 'sold' ? '\u2705 ' + t('art.sold','Sold') : art.status === 'active' ? '\uD83D\uDFE2 ' + t('art.on_sale','On sale') : '\u2B1C';
             html += `
                 <div onclick="viewArtwork('${art.id}')" class="collection-card">
                     ${art.isNFT ? `<div class="collection-nft-badge">${createLucideIcon('link', 12)} NFT</div>` : ''}
@@ -1288,12 +1288,12 @@ async function _loadMyArtworks(container) {
         container.innerHTML = html + '</div>';
         if (window.lucide) setTimeout(() => lucide.createIcons(), 50);
     } catch (e) {
-        container.innerHTML = `<div class="art-empty-state"><span class="icon">⚠️</span><p>로드 실패: ${e.message}</p></div>`;
+        container.innerHTML = `<div class="art-empty-state"><span class="icon">\u26A0\uFE0F</span><p>${t('art.load_failed','Load failed')}: ${e.message}</p></div>`;
     }
 }
 
 async function _loadMyPurchases(container) {
-    container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">로딩 중...</p>';
+    container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">' + t('art.loading','Loading...') + '</p>';
     try {
         let arts;
         try {
@@ -1307,7 +1307,7 @@ async function _loadMyPurchases(container) {
         }
 
         if (arts.empty) {
-            container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('shopping-cart')}</span><p>구매한 작품이 없습니다<br><small>갤러리에서 마음에 드는 작품을 찾아보세요!</small></p></div>`;
+            container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('shopping-cart')}</span><p>${t('art.no_purchases','No purchased artworks')}<br><small>${t('art.browse_gallery','Browse the gallery to find artworks you love!')}</small></p></div>`;
             return;
         }
 
@@ -1320,19 +1320,19 @@ async function _loadMyPurchases(container) {
                     <img src="${img}" loading="lazy">
                     <div class="collection-card-info">
                         <div class="collection-card-title">${art.title}</div>
-                        <div class="collection-card-meta">🎨 ${art.artistNickname || '익명'} ${art.isNFT ? createLucideIcon('link', 12) : ''}</div>
+                        <div class="collection-card-meta">\uD83C\uDFA8 ${art.artistNickname || t('art.anonymous','Anonymous')} ${art.isNFT ? createLucideIcon('link', 12) : ''}</div>
                     </div>
                 </div>`;
         });
         container.innerHTML = html + '</div>';
         if (window.lucide) setTimeout(() => lucide.createIcons(), 50);
     } catch (e) {
-        container.innerHTML = `<div class="art-empty-state"><span class="icon">⚠️</span><p>로드 실패: ${e.message}</p></div>`;
+        container.innerHTML = `<div class="art-empty-state"><span class="icon">\u26A0\uFE0F</span><p>${t('art.load_failed','Load failed')}: ${e.message}</p></div>`;
     }
 }
 
 async function _loadMyNFTs(container) {
-    container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">로딩 중...</p>';
+    container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">' + t('art.loading','Loading...') + '</p>';
     try {
         let minted, bought;
         try {
@@ -1356,7 +1356,7 @@ async function _loadMyNFTs(container) {
 
         const items = Array.from(nfts.values());
         if (!items.length) {
-            container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('link')}</span><p>보유한 NFT가 없습니다<br><small>작품을 NFT로 민팅하거나 NFT를 구매해보세요!</small></p></div>`;
+            container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('link')}</span><p>${t('art.no_nfts','No NFTs owned')}<br><small>${t('art.mint_or_buy_nft','Mint your artwork as an NFT or purchase one!')}</small></p></div>`;
             return;
         }
 
@@ -1376,12 +1376,12 @@ async function _loadMyNFTs(container) {
         container.innerHTML = html + '</div>';
         if (window.lucide) setTimeout(() => lucide.createIcons(), 50);
     } catch (e) {
-        container.innerHTML = `<div class="art-empty-state"><span class="icon">⚠️</span><p>로드 실패: ${e.message}</p></div>`;
+        container.innerHTML = `<div class="art-empty-state"><span class="icon">\u26A0\uFE0F</span><p>${t('art.load_failed','Load failed')}: ${e.message}</p></div>`;
     }
 }
 
 async function _loadMyReservations(container) {
-    container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">로딩 중...</p>';
+    container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">' + t('art.loading','Loading...') + '</p>';
     try {
         let snap;
         try {
@@ -1395,7 +1395,7 @@ async function _loadMyReservations(container) {
         }
 
         if (snap.empty) {
-            container.innerHTML = '<div class="art-empty-state"><span class="icon">📅</span><p>예약 내역이 없습니다</p></div>';
+            container.innerHTML = '<div class="art-empty-state"><span class="icon">\uD83D\uDCC5</span><p>' + t('art.no_reservations','No reservations') + '</p></div>';
             return;
         }
 
@@ -1404,9 +1404,9 @@ async function _loadMyReservations(container) {
             const r = doc.data();
             const expiresAt = r.expiresAt?.toDate ? r.expiresAt.toDate() : new Date(r.expiresAt);
             const isExpired = new Date() > expiresAt;
-            const statusLabel = r.status === 'completed' ? '✅ 완료' :
-                r.status === 'cancelled' ? '❌ 취소됨' :
-                isExpired ? '⏰ 만료' : '📅 예약 중';
+            const statusLabel = r.status === 'completed' ? '\u2705 ' + t('art.completed','Completed') :
+                r.status === 'cancelled' ? '\u274C ' + t('art.cancelled','Cancelled') :
+                isExpired ? '\u23F0 ' + t('art.expired','Expired') : '\uD83D\uDCC5 ' + t('art.reserved','Reserved');
             const img = r.artworkImage || '';
 
             html += `
@@ -1414,26 +1414,26 @@ async function _loadMyReservations(container) {
                     ${img ? `<img src="${img}" style="width:60px;height:60px;object-fit:cover;border-radius:8px">` : ''}
                     <div style="flex:1;min-width:0">
                         <div style="font-weight:600;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.artworkTitle}</div>
-                        <div style="font-size:.75rem;color:var(--accent)">${statusLabel} · 총 ${r.totalPrice} ${r.depositToken || 'CRAC'}</div>
-                        <div style="font-size:.7rem;color:var(--accent)">보증금: ${r.depositAmount} · 잔금: ${r.remainingAmount}</div>
-                        ${r.status === 'reserved' && !isExpired ? `<div style="font-size:.7rem;color:#C4841D">만료: ${expiresAt.toLocaleDateString()}</div>` : ''}
+                        <div style="font-size:.75rem;color:var(--accent)">${statusLabel} \u00B7 ${t('art.total','Total')} ${r.totalPrice} ${r.depositToken || 'CRAC'}</div>
+                        <div style="font-size:.7rem;color:var(--accent)">${t('art.deposit','Deposit')}: ${r.depositAmount} \u00B7 ${t('art.balance_due','Balance due')}: ${r.remainingAmount}</div>
+                        ${r.status === 'reserved' && !isExpired ? `<div style="font-size:.7rem;color:#C4841D">${t('art.expires','Expires')}: ${expiresAt.toLocaleDateString()}</div>` : ''}
                     </div>
                     <div style="display:flex;flex-direction:column;gap:.3rem">
                         ${r.status === 'reserved' && !isExpired ? `
-                            <button onclick="completeReservation('${doc.id}')" style="background:#6B8F3C;color:#E8D5C4;border:none;padding:.4rem .6rem;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:600"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> 잔금</button>
-                            <button onclick="cancelReservation('${doc.id}')" style="background:none;border:1px solid #E8E0D8;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-size:.7rem;color:#6B5744">취소</button>
+                            <button onclick="completeReservation('${doc.id}')" style="background:#6B8F3C;color:#E8D5C4;border:none;padding:.4rem .6rem;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:600"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.pay_balance_short','Balance')}</button>
+                            <button onclick="cancelReservation('${doc.id}')" style="background:none;border:1px solid #E8E0D8;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-size:.7rem;color:#6B5744">${t('art.cancel','Cancel')}</button>
                         ` : ''}
                     </div>
                 </div>`;
         });
         container.innerHTML = html + '</div>';
     } catch (e) {
-        container.innerHTML = `<div class="art-empty-state"><span class="icon">⚠️</span><p>로드 실패: ${e.message}</p></div>`;
+        container.innerHTML = `<div class="art-empty-state"><span class="icon">\u26A0\uFE0F</span><p>${t('art.load_failed','Load failed')}: ${e.message}</p></div>`;
     }
 }
 
 async function _loadMyTransactions(container) {
-    container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">로딩 중...</p>';
+    container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">' + t('art.loading','Loading...') + '</p>';
     try {
         let snap;
         try {
@@ -1467,7 +1467,7 @@ async function _loadMyTransactions(container) {
         });
 
         if (!txs.length) {
-            container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('clipboard')}</span><p>거래 내역이 없습니다</p></div>`;
+            container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('clipboard')}</span><p>${t('art.no_transactions','No transaction history')}</p></div>`;
             return;
         }
 
@@ -1475,9 +1475,9 @@ async function _loadMyTransactions(container) {
         txs.slice(0, 30).forEach(tx => {
             const date = tx.timestamp?.toDate ? tx.timestamp.toDate() : new Date(tx.timestamp);
             const typeLabel = {
-                'art_purchase': '🛒 구매',
-                'art_reservation_deposit': '📅 예약 보증금',
-                'art_reservation_complete': '✅ 예약 완료'
+                'art_purchase': '\uD83D\uDED2 ' + t('art.purchase','Purchase'),
+                'art_reservation_deposit': '\uD83D\uDCC5 ' + t('art.reservation_deposit','Reservation deposit'),
+                'art_reservation_complete': '\u2705 ' + t('art.reservation_complete_label','Reservation complete')
             }[tx.type] || tx.type;
             const dirIcon = tx.direction === 'in' ? '📥' : '📤';
             const dirColor = tx.direction === 'in' ? '#6B8F3C' : '#e53935';
@@ -1493,7 +1493,7 @@ async function _loadMyTransactions(container) {
         });
         container.innerHTML = html + '</div>';
     } catch (e) {
-        container.innerHTML = `<div class="art-empty-state"><span class="icon">⚠️</span><p>로드 실패: ${e.message}</p></div>`;
+        container.innerHTML = `<div class="art-empty-state"><span class="icon">\u26A0\uFE0F</span><p>${t('art.load_failed','Load failed')}: ${e.message}</p></div>`;
     }
 }
 
@@ -1540,7 +1540,7 @@ async function viewArtistProfile(artistId) {
         ]);
         const profile = profileDoc.exists ? profileDoc.data() : {};
         const user = userDoc.exists ? userDoc.data() : {};
-        const nickname = profile.nickname || user.nickname || '익명 아티스트';
+        const nickname = profile.nickname || user.nickname || t('art.anonymous_artist','Anonymous artist');
         const weight = profile.weightMultiplier || 1.0;
 
         const worksSnap = await db.collection('artworks')
@@ -1557,16 +1557,16 @@ async function viewArtistProfile(artistId) {
                 <div style="text-align:center;margin-bottom:1rem">
                     <div style="width:60px;height:60px;background:linear-gradient(135deg,#8B6914,#6B5744);border-radius:50%;margin:0 auto .5rem;display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#E8D5C4">${nickname.charAt(0).toUpperCase()}</div>
                     <h3>${nickname} ${profile.verified ? '✅' : ''}</h3>
-                    <div style="font-size:.85rem;color:#8B2BE2;margin-top:.3rem">⭐ 아티스트 가중치: ${weight}x</div>
+                    <div style="font-size:.85rem;color:#8B2BE2;margin-top:.3rem">\u2B50 ${t('art.artist_weight','Artist weight')}: ${weight}x</div>
                     ${profile.bio ? `<p style="font-size:.85rem;color:var(--accent);margin-top:.3rem">${profile.bio}</p>` : ''}
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem;text-align:center;margin-bottom:1rem">
-                    <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700">${worksSnap.size}</div><div style="font-size:.7rem;color:var(--accent)">작품</div></div>
-                    <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700">${profile.totalSales || 0}</div><div style="font-size:.7rem;color:var(--accent)">판매</div></div>
-                    <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700">${profile.totalLikes || 0}</div><div style="font-size:.7rem;color:var(--accent)">좋아요</div></div>
-                    <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700;color:#8B2BE2">${weight}x</div><div style="font-size:.7rem;color:var(--accent)">가중치</div></div>
+                    <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700">${worksSnap.size}</div><div style="font-size:.7rem;color:var(--accent)">${t('art.works','Works')}</div></div>
+                    <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700">${profile.totalSales || 0}</div><div style="font-size:.7rem;color:var(--accent)">${t('art.sales','Sales')}</div></div>
+                    <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700">${profile.totalLikes || 0}</div><div style="font-size:.7rem;color:var(--accent)">${t('art.likes','Likes')}</div></div>
+                    <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700;color:#8B2BE2">${weight}x</div><div style="font-size:.7rem;color:var(--accent)">${t('art.weight','Weight')}</div></div>
                 </div>
-                <button onclick="this.closest('#artist-profile-modal').remove()" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:.6rem;border-radius:6px;cursor:pointer">닫기</button>
+                <button onclick="this.closest('#artist-profile-modal').remove()" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:.6rem;border-radius:6px;cursor:pointer">${t('art.close','Close')}</button>
             </div>`;
         document.body.appendChild(modal);
     } catch (e) { console.error('🎨 [Profile] View failed:', e); }

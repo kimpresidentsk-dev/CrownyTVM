@@ -37,13 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const el = document.getElementById('password-strength');
             if (!el) return;
             if (pw.length === 0) { el.textContent = ''; return; }
-            if (pw.length < 6) { el.textContent = t('auth.min_6chars', '⚠️ Minimum 6 characters'); el.style.color = '#B54534'; return; }
+            if (pw.length < 6) { el.textContent = t('auth.min_6chars', 'Minimum 6 characters'); el.style.color = '#B54534'; return; }
             let score = 0;
             if (pw.length >= 8) score++;
             if (/[A-Z]/.test(pw)) score++;
             if (/[0-9]/.test(pw)) score++;
             if (/[^A-Za-z0-9]/.test(pw)) score++;
-            const labels = [t('auth.pw_weak','Weak 🔴'), t('auth.pw_normal','Fair 🟡'), t('auth.pw_good','Good 🟢'), t('auth.pw_strong','Strong 💪')];
+            const labels = [t('auth.pw_weak','Weak'), t('auth.pw_normal','Fair'), t('auth.pw_good','Good'), t('auth.pw_strong','Strong')];
             const colors = ['#B54534', '#C4841D', '#6B8F3C', '#3D2B1F'];
             el.textContent = labels[Math.min(score, 3)];
             el.style.color = colors[Math.min(score, 3)];
@@ -63,7 +63,7 @@ async function signup() {
     }
 
     if (!/^[a-z0-9._-]{2,30}$/.test(username)) {
-        showToast('아이디: 영문 소문자, 숫자, ._- 만 가능 (2~30자)', 'warning');
+        showToast(t('auth.id_format','ID: lowercase, numbers, ._- only (2-30 chars)'), 'warning');
         return;
     }
 
@@ -82,12 +82,12 @@ async function signup() {
         const data = await res.json();
 
         if (data.error) {
-            showToast('가입 실패: ' + data.error, 'error');
+            showToast(t('auth.register_fail','Registration failed: ') + data.error, 'error');
             return;
         }
 
         const email = username + '@crowny.org';
-        showToast(`<i data-lucide="check-circle"></i> 가입 완료! ${displayName || username} · <i data-lucide="mail"></i> ${email}`, 'success');
+        showToast(`<i data-lucide="check-circle"></i> ${t('auth.register_done','Registered!')} ${displayName || username} · <i data-lucide="mail"></i> ${email}`, 'success');
 
         // 자동 로그인
         localStorage.setItem('crowny_token', data.token);
@@ -104,7 +104,7 @@ async function signup() {
 
     } catch (error) {
         console.error(error);
-        showToast('가입 실패: ' + error.message, 'error');
+        showToast(t('auth.register_fail','Registration failed: ') + error.message, 'error');
     }
 }
 
@@ -144,7 +144,7 @@ async function login() {
         }
 
         // 로그인 실패
-        const errorMsg = data.error || '아이디 또는 비밀번호가 올바르지 않습니다';
+        const errorMsg = data.error || t('auth.invalid_credentials','Invalid ID or password');
         showToast(t('auth.login_failed','Login failed: ') + errorMsg, 'error');
     } catch (error) {
         console.error('[AUTH] login error:', error);
@@ -154,33 +154,33 @@ async function login() {
 
 // Google 로그인 — 비활성화 (crowny.org 자체 인증 사용)
 async function loginWithGoogle() {
-    showToast('Google 로그인은 더 이상 지원되지 않습니다. 아이디/비밀번호로 로그인하세요.', 'info');
+    showToast(t('auth.google_unsupported','Google login is no longer supported. Please use ID/password.'), 'info');
 }
 
 // 비밀번호 재설정 — CrownyTVM에서는 관리자 문의
 async function resetPassword() {
-    showToast('비밀번호 재설정은 관리자에게 문의하세요.', 'info');
+    showToast(t('auth.reset_pw_contact','Contact admin to reset password.'), 'info');
 }
 
 // 이메일 인증 확인 — CrownyTVM에서는 불필요
 async function checkEmailVerified() {
-    showToast('CrownyTVM에서는 이메일 인증이 필요하지 않습니다', 'info');
+    showToast(t('auth.no_email_verify','Email verification is not required'), 'info');
 }
 
 // 인증 메일 재발송 — CrownyTVM에서는 불필요
 async function resendVerification() {
-    showToast('CrownyTVM에서는 이메일 인증이 필요하지 않습니다', 'info');
+    showToast(t('auth.no_email_verify','Email verification is not required'), 'info');
 }
 
 // Google 계정 연동 — 비활성화
 async function linkGoogleAccount() {
-    showToast('Google 계정 연동은 더 이상 지원되지 않습니다.', 'info');
+    showToast(t('auth.google_link_unsupported','Google account linking is no longer supported.'), 'info');
 }
 
 // 비밀번호 설정 (프로필에서 비밀번호 변경) — CrownyTVM API 사용
 async function setupPasswordFromProfile() {
     const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
-    if (!token) { showToast('로그인이 필요합니다', 'warning'); return; }
+    if (!token) { showToast(t('common.login_required','Login required'), 'warning'); return; }
 
     if (typeof showPromptModal !== 'function') { showToast(t('auth.ui_fail','UI module failed to load'), 'error'); return; }
 
@@ -215,11 +215,11 @@ async function setupPasswordFromProfile() {
 // 비밀번호 변경 — CrownyTVM API: POST /api/change-password
 async function changePasswordFromProfile() {
     const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
-    if (!token) { showToast('로그인이 필요합니다', 'warning'); return; }
+    if (!token) { showToast(t('common.login_required','Login required'), 'warning'); return; }
 
     if (typeof showPromptModal !== 'function') { showToast(t('auth.ui_fail','UI module failed to load'), 'error'); return; }
 
-    const oldPw = await showPromptModal('현재 비밀번호', '현재 비밀번호를 입력하세요', '', true);
+    const oldPw = await showPromptModal(t('auth.current_pw','Current Password'), t('auth.enter_current_pw','Enter your current password'), '', true);
     if (!oldPw) return;
 
     const newPw = await showPromptModal(t('auth.change_pw','<i data-lucide="key"></i> Change Password'), t('auth.new_pw_hint','New password (6+ characters)'), '', true);

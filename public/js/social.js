@@ -119,11 +119,11 @@ async function showProfileEdit() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
     <div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:420px;width:100%;">
-        <h3 style="margin-bottom:1rem;"><i data-lucide="pencil" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('social.edit_profile','✏️ Edit Profile')}</h3>
+        <h3 style="margin-bottom:1rem;"><i data-lucide="pencil" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>${t('social.edit_profile','Edit Profile')}</h3>
         <div style="text-align:center; margin-bottom:1rem;">
             <div id="profile-preview-avatar" style="display:inline-block;">${avatarHTML(data.photoURL, data.nickname, 80)}</div>
             <div style="margin-top:0.5rem;">
-                <label for="profile-photo-input" style="color:#3D2B1F; cursor:pointer; font-size:0.85rem; font-weight:600;"><i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.change_photo','📷 Change Photo')}</label>
+                <label for="profile-photo-input" style="color:#3D2B1F; cursor:pointer; font-size:0.85rem; font-weight:600;"><i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.change_photo','Change Photo')}</label>
                 <input type="file" id="profile-photo-input" accept="image/*" style="display:none;" onchange="previewProfilePhoto(this)">
             </div>
         </div>
@@ -138,10 +138,10 @@ async function showProfileEdit() {
             </div>
             <p style="font-size:0.75rem; color:var(--text-muted,#6B5744);">${t('auth.email','Email')}: ${data.email}</p>
             <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid #E8E0D8; display:grid; gap:0.5rem;">
-                <p style="font-size:0.8rem; font-weight:600; color:var(--text,#3D2B1F); margin-bottom:0.2rem;"><i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.login_method','🔐 Login Method')}</p>
+                <p style="font-size:0.8rem; font-weight:600; color:var(--text,#3D2B1F); margin-bottom:0.2rem;"><i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.login_method','Login Method')}</p>
                 ${typeof useIndependentDB !== 'undefined' && useIndependentDB ? `
                 <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.pw_login_set','✅ CrownyTVM Account')}</p>
-                <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','🔑 Change Password')}</button>` : `
+                <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','Change Password')}</button>` : `
                 ${currentUser && currentUser.providerData && currentUser.providerData.some(p => p.providerId === 'google.com') ? `
                 <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.google_linked','✅ Google Account Linked')}</p>` : `
                 <button onclick="linkGoogleAccount(); document.getElementById('profile-edit-modal').remove();" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
@@ -149,8 +149,8 @@ async function showProfileEdit() {
                 </button>`}
                 ${currentUser && currentUser.providerData && currentUser.providerData.some(p => p.providerId === 'password') ? `
                 <p style="font-size:0.75rem; color:#6B8F3C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.pw_login_set','✅ Email/Password Login Set')}</p>
-                <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','🔑 Change Password')}</button>` : `
-                <button onclick="setupPasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.setup_pw','🔑 Set Password (Add Email Login)')}</button>`}`}
+                <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','Change Password')}</button>` : `
+                <button onclick="setupPasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.setup_pw','Set Password (Add Email Login)')}</button>`}`}
             </div>
         </div>
         <div style="display:flex;gap:0.5rem;margin-top:1rem;">
@@ -724,7 +724,7 @@ async function loadMessages() {
             </div>
             <div class="chat-preview" style="flex:1;min-width:0;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <strong>${chat.secret ? '🔒 ' : ''}${info.nickname}${secIndicators.length ? ' <span style="font-size:0.7rem;opacity:0.5;">' + secIndicators.join('') + '</span>' : ''}</strong>
+                    <strong>${chat.secret ? '' : ''}${info.nickname}${secIndicators.length ? ' <span style="font-size:0.7rem;opacity:0.5;">' + secIndicators.join('') + '</span>' : ''}</strong>
                     ${lastTime ? `<span class="chat-time">${getTimeAgo(lastTime)}</span>` : ''}
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -819,7 +819,7 @@ async function openChat(chatId, otherId) {
     const secIcons = [];
     if (_chatSettings.e2eEnabled === true) secIcons.push('<i data-lucide="lock" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i>');
     if (_chatSettings.autoDeleteAfter > 0) secIcons.push('<i data-lucide="hourglass" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i>');
-    if (_chatSettings.secret) secIcons.push('🤫');
+    if (_chatSettings.secret) secIcons.push('');
     if (secIcons.length > 0) {
         const headerEl = document.getElementById('chat-username');
         const secBadge = document.createElement('span');
@@ -928,7 +928,7 @@ async function openChat(chatId, otherId) {
                     }
                     if (msgType === 'voice') {
                         content += `<div class="voice-msg-player" style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem;">
-                            <button onclick="toggleVoicePlay(this,'${msg.mediaUrl}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">▶️</button>
+                            <button onclick="toggleVoicePlay(this,'${msg.mediaUrl}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">▶</button>
                             <div style="flex:1;height:4px;background:#E8E0D8;border-radius:2px;"><div class="voice-progress" style="width:0%;height:100%;background:#3D2B1F;border-radius:2px;transition:width 0.1s;"></div></div>
                             <span style="font-size:0.7rem;color:var(--text-muted,#6B5744);">${msg.duration ? msg.duration + 's' : ''}</span>
                         </div>`;
@@ -955,7 +955,7 @@ async function openChat(chatId, otherId) {
                         // Signature warning
                         let sigWarning = '';
                         if (msg._decryptedText && (msg._decryptedText.endsWith('⚠️ 서명 검증 실패') || msg._decryptedText.endsWith('Signature verification failed'))) {
-                            sigWarning = `<div style="font-size:0.7rem;color:#C4841D;margin-top:0.2rem;">⚠️ ${t('social.sig_verify_fail','Signature verification failed')}</div>`;
+                            sigWarning = `<div style="font-size:0.7rem;color:#C4841D;margin-top:0.2rem;">${t('social.sig_verify_fail','Signature verification failed')}</div>`;
                         }
                         // Link preview
                         if (typeof parseLinkPreviews === 'function') {
@@ -1280,7 +1280,7 @@ async function uploadToStorage(path, file) {
     const task = ref.put(file);
     return new Promise((resolve, reject) => {
         task.on('state_changed',
-            (snap) => { const p = Math.round((snap.bytesTransferred / snap.totalBytes) * 100); showLoading(`📤 ${t('social.upload','Upload')} ${p}%`); },
+            (snap) => { const p = Math.round((snap.bytesTransferred / snap.totalBytes) * 100); showLoading(`${t('social.upload','Upload')} ${p}%`); },
             reject,
             async () => { resolve(await task.snapshot.ref.getDownloadURL()); }
         );
@@ -1322,9 +1322,9 @@ function startVoiceRecord() {
             const blob = new Blob(voiceChunks, { type: 'audio/webm' });
             const duration = Math.round((Date.now() - voiceRecordStart) / 1000);
             try {
-                showLoading(`🎤 ${t('social.voice_sending','Sending voice...')}`);
+                showLoading(`${t('social.voice_sending','Sending voice...')}`);
                 const url = await uploadToStorage(`voice/${currentChat}/${Date.now()}.webm`, blob);
-                await sendMediaMessage({ type: 'voice', mediaUrl: url, duration, text: '' }, `🎤 ${t('social.voice','Voice')} ${duration}s`);
+                await sendMediaMessage({ type: 'voice', mediaUrl: url, duration, text: '' }, `${t('social.voice','Voice')} ${duration}s`);
                 hideLoading();
             } catch (e) { hideLoading(); showToast(t('social.voice_send_fail','Voice send failed'), 'error'); }
         };
@@ -1384,7 +1384,7 @@ async function forwardMessage(msgId) {
         listHTML += `<div style="padding:0.6rem;border-bottom:1px solid var(--border,#E8E0D8);cursor:pointer;" onmouseover="this.style.background='#F7F3ED'" onmouseout="this.style.background=''" onclick="executeForward('${doc.id}',${JSON.stringify(JSON.stringify(msg.text||''))},${JSON.stringify(JSON.stringify(msg.senderId||''))});this.closest('[style*=position]').remove();">${name}</div>`;
     }
     overlay.innerHTML = `<div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:400px;width:100%;max-height:60vh;overflow-y:auto;">
-        <h3 style="margin-bottom:1rem;">↗️ ${t('social.select_forward_chat','Select chat to forward')}</h3>
+        <h3 style="margin-bottom:1rem;">↗ ${t('social.select_forward_chat','Select chat to forward')}</h3>
         ${listHTML || `<p style="color:var(--text-muted,#6B5744);text-align:center;">${t('social.no_forward_chats','No chats available for forwarding')}</p>`}
         <button onclick="this.closest('[style*=position]').remove()" style="width:100%;margin-top:1rem;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('common.cancel','Cancel')}</button>
     </div>`;
@@ -1399,7 +1399,7 @@ async function executeForward(targetChatId, text, originalSenderId) {
             timestamp: new Date(), readBy: [currentUser.uid]
         });
         await db.collection('chats').doc(targetChatId).update({
-            lastMessage: '↗️ ' + t('social.forwarded_msg','Forwarded message'), lastMessageTime: new Date()
+            lastMessage: '↗ ' + t('social.forwarded_msg','Forwarded message'), lastMessageTime: new Date()
         });
         showToast('✅ ' + t('social.forward_done','Message forwarded'), 'success');
     } catch (e) { showToast(t('social.forward_fail','Forward failed'), 'error'); }
@@ -1412,7 +1412,7 @@ async function pinMessage(msgId, text) {
         await db.collection('chats').doc(currentChat).update({
             pinnedMessage: { messageId: msgId, text: (text || '').substring(0, 100), pinnedAt: new Date() }
         });
-        showToast('📌 ' + t('social.pin_done','Message pinned'), 'success');
+        showToast(t('social.pin_done','Message pinned'), 'success');
     } catch (e) { showToast(t('social.pin_fail','Pin failed'), 'error'); }
 }
 
@@ -1527,12 +1527,12 @@ async function showShareItemModal() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
     <div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:420px;width:100%;">
-        <h3 style="margin-bottom:1rem;">🔗 ${t('common.share','Share')}</h3>
+        <h3 style="margin-bottom:1rem;">${t('common.share','Share')}</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('product')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">🛒 ${t('social.product','Product')}</button>
-            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('artist')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">💖 ${t('social.artist','Artist')}</button>
+            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('product')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">${t('social.product','Product')}</button>
+            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('artist')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">${t('social.artist','Artist')}</button>
             <button onclick="this.closest('[style*=position]').remove();shareServiceItem('campaign')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="heart" style="width:14px;height:14px;display:inline;"></i> ${t('social.campaign','Campaign')}</button>
-            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('art')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">🎨 ${t('social.artwork','Artwork')}</button>
+            <button onclick="this.closest('[style*=position]').remove();shareServiceItem('art')" style="padding:0.8rem;border:2px solid var(--border,#E8E0D8);border-radius:12px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;">${t('social.artwork','Artwork')}</button>
         </div>
         <button onclick="this.closest('[style*=position]').remove()" style="width:100%;margin-top:1rem;padding:0.5rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);">${t('common.cancel','Cancel')}</button>
     </div>`;
@@ -1556,7 +1556,7 @@ async function shareServiceItem(type) {
             const price = d.price ? ` — ${d.price}` : '';
             const img = d.imageUrl || d.imageData || d.thumbnailUrl || '';
             listHTML += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.6rem;border-bottom:1px solid var(--border,#E8E0D8);cursor:pointer;" onclick="sendShareCard('${type}','${doc.id}',${JSON.stringify(name)},${JSON.stringify(img)},${JSON.stringify(d.price||'')});this.closest('[style*=position]').remove();">
-                ${img ? `<img src="${img}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;">` : '<div style="width:40px;height:40px;border-radius:6px;background:#E8E0D8;display:flex;align-items:center;justify-content:center;">📦</div>'}
+                ${img ? `<img src="${img}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;">` : '<div style="width:40px;height:40px;border-radius:6px;background:#E8E0D8;display:flex;align-items:center;justify-content:center;"><i data-lucide="package" style="width:20px;height:20px;display:inline-block;vertical-align:middle"></i></div>'}
                 <div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:600;">${name}</div><div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">${price}</div></div>
             </div>`;
         });
@@ -1573,7 +1573,7 @@ async function sendShareCard(type, id, name, imageUrl, price) {
     await sendMediaMessage({
         type: 'share_card', text: '',
         shareCard: { itemType: type, itemId: id, name, imageUrl: imageUrl || '', price: price || '' }
-    }, `🔗 ${name}`);
+    }, `${name}`);
 }
 
 // ===== Token transfer in chat (improved with offchain) =====
@@ -1635,7 +1635,7 @@ async function sendTokenWithMessage() {
             senderId: currentUser.uid, text: message, tokenAmount: amountNum, tokenType: tokenName, timestamp: new Date(), readBy: [currentUser.uid]
         });
         await db.collection('chats').doc(currentChat).update({
-            lastMessage: `💰 ${amountNum} ${tokenName} ${t('social.transfer','transfer')}`,
+            lastMessage: `${amountNum} ${tokenName} ${t('social.transfer','transfer')}`,
             lastMessageTime: new Date(),
             [`unreadCount.${currentChatOtherId}`]: firebase.firestore.FieldValue.increment(1)
         });
@@ -1833,7 +1833,7 @@ async function leaveChat() {
         document.getElementById('chat-messages').innerHTML = '';
         document.getElementById('chat-header-actions').style.display = 'none';
         document.getElementById('chat-input-area').style.display = 'none';
-        document.getElementById('chat-username').innerHTML = `<div class="chat-empty-state"><div style="font-size:3rem;margin-bottom:1rem;">💬</div><p>${t('social.select_chat','Please select a chat')}</p></div>`;
+        document.getElementById('chat-username').innerHTML = `<div class="chat-empty-state"><p>${t('social.select_chat','Please select a chat')}</p></div>`;
         showToast(t('social.left_chat','You left the chat'), 'info');
         loadMessages();
     } catch (e) {
@@ -1861,7 +1861,7 @@ async function loadSocialFeed() {
 
         if (sortedPosts.length === 0) {
             feed.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--accent);">
-                <p style="font-size:3rem; margin-bottom:1rem;">📝</p>
+                <p style="font-size:3rem; margin-bottom:1rem;"><i data-lucide="pencil" style="width:32px;height:32px;display:inline-block;vertical-align:middle"></i></p>
                 <p style="font-size:1.1rem;">${t('social.no_posts','No posts yet')}</p>
                 <p style="font-size:0.85rem;">${t('social.write_first','Write your first post!')}</p></div>`;
             return;
@@ -1933,11 +1933,11 @@ async function loadSocialFeed() {
                 </div>
                 ${mediaHTML}
                 <div class="post-actions-bar" style="display:flex;align-items:center;gap:16px;padding:8px 14px;">
-                    <button onclick="toggleLike('${doc.id}', ${likedByMe})" style="background:none;border:none;cursor:pointer;font-size:1.4rem;padding:0;transition:transform 0.15s;" onmousedown="this.style.transform='scale(1.2)'" onmouseup="this.style.transform='scale(1)'">${likedByMe ? '❤️' : '🤍'}</button>
+                    <button onclick="toggleLike('${doc.id}', ${likedByMe})" style="background:none;border:none;cursor:pointer;font-size:1.4rem;padding:0;transition:transform 0.15s;" onmousedown="this.style.transform='scale(1.2)'" onmouseup="this.style.transform='scale(1)'">${likedByMe ? '♥' : '♡'}</button>
                     <button onclick="toggleComments('${doc.id}')" style="background:none;border:none;cursor:pointer;padding:0;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
-                    <button onclick="sharePostWebAPI('${doc.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:0;">↗️</button>
+                    <button onclick="sharePostWebAPI('${doc.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:0;">↗</button>
                     <span style="flex:1;"></span>
-                    <button onclick="toggleSavePost('${doc.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:0;">🔖</button>
+                    <button onclick="toggleSavePost('${doc.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:0;"><i data-lucide="bookmark" style="width:16px;height:16px;display:inline-block;vertical-align:middle"></i></button>
                 </div>
                 ${likeCount > 0 ? `<div style="padding:0 14px;font-weight:700;font-size:0.85rem;margin-bottom:4px;cursor:pointer;" onclick="showLikedUsers('${doc.id}')">${t('social.likes','Likes')} ${likeCount}${t('social.count','')}</div>` : ''}
                 ${captionText ? `<div style="padding:0 14px 4px;font-size:0.9rem;line-height:1.5;"><strong style="margin-right:4px;">${userInfo.nickname}</strong>${captionDisplay}${captionTruncated ? ` <span style="color:var(--text-muted,#6B5744);cursor:pointer;" onclick="this.parentElement.textContent=\'\'" >${t('common.more','More')}</span>` : ''}</div>` : ''}
@@ -1958,13 +1958,13 @@ async function loadSocialFeed() {
         const isPermission = (error.message || '').includes('permission') || (error.message || '').includes('Permission') || (typeof useIndependentDB !== 'undefined' && useIndependentDB);
         if (isPermission) {
             feed.innerHTML = `<div style="text-align:center; padding:3rem;">
-                <p style="font-size:2.5rem; margin-bottom:1rem;">📝</p>
+                <p style="font-size:2.5rem; margin-bottom:1rem;"><i data-lucide="pencil" style="width:28px;height:28px;display:inline-block;vertical-align:middle"></i></p>
                 <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;margin-bottom:8px;">${t('social.feed_preparing','Social feed loading')}</p>
                 <p style="font-size:0.85rem;color:#7A5C47;line-height:1.6;">${t('social.feed_preparing_desc','The social feed will be available soon.<br>Use the input field above to write a post.')}</p>
             </div>`;
         } else {
             feed.innerHTML = `<div style="text-align:center; padding:3rem;">
-                <p style="font-size:2rem; margin-bottom:1rem;">⚠️</p>
+                <p style="font-size:2rem; margin-bottom:1rem;"><i data-lucide="alert-triangle" style="width:32px;height:32px;display:inline-block;vertical-align:middle"></i></p>
                 <p style="color:#B54534;">${error.message}</p>
                 <button onclick="loadSocialFeed()" class="btn-primary" style="margin-top:1rem;">${t('common.refresh','Refresh')}</button></div>`;
         }
@@ -2065,7 +2065,7 @@ async function editPost(postId) {
         overlay.className = 'modal-overlay active';
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
         overlay.innerHTML = `<div class="modal-content" style="max-width:500px;width:90%;padding:1.5rem;">
-            <h3 style="margin-bottom:1rem;">✏️ ${t('social.edit_post','Edit Post')}</h3>
+            <h3 style="margin-bottom:1rem;">✏ ${t('social.edit_post','Edit Post')}</h3>
             <textarea id="edit-post-text" style="width:100%;min-height:120px;padding:0.8rem;border:1px solid var(--border,#E8E0D8);border-radius:10px;font-size:0.95rem;resize:vertical;background:var(--card-bg,#3D2B1F);color:var(--text,#FFF8F0);box-sizing:border-box;">${data.text || ''}</textarea>
             <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
                 <button onclick="this.closest('.modal-overlay').remove();" style="padding:0.6rem 1.2rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;background:none;color:var(--text,#3D2B1F);cursor:pointer;">${t('common.cancel','Cancel')}</button>
@@ -2113,12 +2113,12 @@ let _pendingServiceLink = null;
 
 // ========== SERVICE LINK CONFIG ==========
 const SERVICE_LINK_CONFIG = {
-    artist:   { action: '💖 ' + t('social.support_artist','Support'), color: '#B54534', collection: 'artists', nameField: 'name', nav: (id) => { showPage('artist'); viewArtistDetail(id); } },
+    artist:   { action: t('social.support_artist','Support'), color: '#B54534', collection: 'artists', nameField: 'name', nav: (id) => { showPage('artist'); viewArtistDetail(id); } },
     campaign: { action: '<i data-lucide="heart" style="width:14px;height:14px;display:inline;"></i> ' + t('social.donate','Donate'), color: '#6B8F3C', collection: 'campaigns', nameField: 'title', nav: (id) => { showPage('fundraise'); showCampaignDetail(id); } },
     business: { action: '<i data-lucide="coins" style="width:14px;height:14px;display:inline;"></i> ' + t('social.invest','Invest'), color: '#3D2B1F', collection: 'businesses', nameField: 'name', nav: (id) => { showPage('business'); viewBusinessDetail(id); } },
-    art:      { action: '🎨 ' + t('social.buy_artwork','Buy Artwork'), color: '#8B6914', collection: 'artworks', nameField: 'title', nav: (id) => showPage('art') },
-    book:     { action: '📚 ' + t('social.buy_book','Buy Book'), color: '#FF9800', collection: 'books', nameField: 'title', nav: (id) => showPage('books') },
-    product:  { action: '🛒 ' + t('social.buy_product','Buy Product'), color: '#5B7B8C', collection: 'products', nameField: 'name', nav: (id) => { showPage('product-detail'); renderProductDetail(id); } }
+    art:      { action: t('social.buy_artwork','Buy Artwork'), color: '#8B6914', collection: 'artworks', nameField: 'title', nav: (id) => showPage('art') },
+    book:     { action: t('social.buy_book','Buy Book'), color: '#FF9800', collection: 'books', nameField: 'title', nav: (id) => showPage('books') },
+    product:  { action: t('social.buy_product','Buy Product'), color: '#5B7B8C', collection: 'products', nameField: 'name', nav: (id) => { showPage('product-detail'); renderProductDetail(id); } }
 };
 
 // ========== SERVICE LINK MODAL ==========
@@ -2129,7 +2129,7 @@ async function showServiceLinkModal() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
     <div style="background:var(--bg-card,#3D2B1F);padding:1.5rem;border-radius:16px;max-width:480px;width:100%;max-height:80vh;overflow-y:auto;">
-        <h3 style="margin-bottom:1rem;">🔗 ${t('social.service_link','Service Link')}</h3>
+        <h3 style="margin-bottom:1rem;">${t('social.service_link','Service Link')}</h3>
         <p style="font-size:0.85rem;color:var(--text-muted,#6B5744);margin-bottom:1rem;">${t('social.select_service','Select a service to link to your post')}</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:1rem;">
             ${Object.entries(SERVICE_LINK_CONFIG).map(([type, cfg]) => `
@@ -2226,7 +2226,7 @@ function openVideoEditor() {
             <div id="editor-text-overlay" style="position:absolute;left:0;right:0;text-align:center;font-size:1.2rem;font-weight:700;text-shadow:0 2px 4px rgba(61,43,31,0.8);pointer-events:none;"></div>
         </div>
         <div style="background:var(--bg-card,#3D2B1F);border-radius:12px;padding:1rem;">
-            <h4 style="margin:0 0 0.8rem;">✂️ ${t('social.video_edit','Video Edit')}</h4>
+            <h4 style="margin:0 0 0.8rem;">${t('social.video_edit','Video Edit')}</h4>
             <!-- Trim -->
             <div style="margin-bottom:0.8rem;">
                 <label style="font-size:0.8rem;color:var(--text-muted,#6B5744);">${t('social.trim','Trim')} (${t('social.range_select','range selection')})</label>
@@ -2389,7 +2389,7 @@ async function createPost() {
                 uploadTask.on('state_changed',
                     (snapshot) => {
                         const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                        showLoading(`📤 ${t('social.video_uploading','Video uploading...')} ${progress}%`);
+                        showLoading(`${t('social.video_uploading','Video uploading...')} ${progress}%`);
                     },
                     reject,
                     async () => {
@@ -2477,13 +2477,13 @@ async function sharePost(postId) {
             await navigator.share({ title: 'Crowny', text: t('social.shared_post','A post shared from Crowny'), url: shareUrl });
         } else {
             await navigator.clipboard.writeText(shareUrl);
-            showToast('📋 ' + t('social.link_copied','Link copied'), 'success');
+            showToast(t('social.link_copied','Link copied'), 'success');
         }
         // Increment share count
         await db.collection('posts').doc(postId).update({ shareCount: firebase.firestore.FieldValue.increment(1) });
     } catch (e) {
         if (e.name !== 'AbortError') {
-            try { await navigator.clipboard.writeText(shareUrl); showToast('📋 ' + t('social.link_copied','Link copied'), 'success'); } catch (_) { console.warn(_.message); }
+            try { await navigator.clipboard.writeText(shareUrl); showToast(t('social.link_copied','Link copied'), 'success'); } catch (_) { console.warn(_.message); }
         }
     }
 }
@@ -2541,15 +2541,15 @@ function renderShortsViewer() {
         <!-- Side actions -->
         <div style="position:absolute;right:12px;bottom:100px;display:flex;flex-direction:column;gap:1rem;align-items:center;z-index:5;">
             <button onclick="event.stopPropagation();toggleLike('${post.id}',${(post.data.likedBy||[]).includes(currentUser?.uid)})" style="background:none;border:none;cursor:pointer;color:#FFF8F0;text-align:center;">
-                <div style="font-size:1.5rem;">${(post.data.likedBy||[]).includes(currentUser?.uid) ? '❤️' : '🤍'}</div>
+                <div style="font-size:1.5rem;">${(post.data.likedBy||[]).includes(currentUser?.uid) ? '♥' : '♡'}</div>
                 <div style="font-size:0.75rem;">${post.data.likes || 0}</div>
             </button>
             <button onclick="event.stopPropagation();closeShortsViewer();toggleComments('${post.id}')" style="background:none;border:none;cursor:pointer;color:#FFF8F0;text-align:center;">
-                <div style="font-size:1.5rem;">💬</div>
+                <div style="font-size:1.5rem;"><i data-lucide="message-circle" style="width:20px;height:20px;display:inline-block;vertical-align:middle"></i></div>
                 <div style="font-size:0.75rem;">${post.data.commentCount || 0}</div>
             </button>
             <button onclick="event.stopPropagation();sharePost('${post.id}')" style="background:none;border:none;cursor:pointer;color:#FFF8F0;text-align:center;">
-                <div style="font-size:1.5rem;">📤</div>
+                <div style="font-size:1.5rem;">↗</div>
                 <div style="font-size:0.75rem;">${post.data.shareCount || 0}</div>
             </button>
         </div>
@@ -2678,16 +2678,16 @@ function toggleVoicePlay(btn, url) {
     if (currentVoiceAudio && !currentVoiceAudio.paused) {
         currentVoiceAudio.pause();
         currentVoiceAudio = null;
-        btn.textContent = '▶️';
+        btn.textContent = '▶';
         return;
     }
     const audio = new Audio(url);
     currentVoiceAudio = audio;
-    btn.textContent = '⏸️';
+    btn.textContent = '⏸';
     const progress = btn.parentElement.querySelector('.voice-progress');
     audio.ontimeupdate = () => { if (progress && audio.duration) progress.style.width = (audio.currentTime / audio.duration * 100) + '%'; };
-    audio.onended = () => { btn.textContent = '▶️'; if (progress) progress.style.width = '0%'; currentVoiceAudio = null; };
-    audio.play().catch(() => { btn.textContent = '▶️'; });
+    audio.onended = () => { btn.textContent = '▶'; if (progress) progress.style.width = '0%'; currentVoiceAudio = null; };
+    audio.play().catch(() => { btn.textContent = '▶'; });
 }
 
 // ========== CHANNELS (BROADCAST) ==========
@@ -2715,7 +2715,7 @@ async function loadChannelList() {
             el.className = 'chat-item';
             el.onclick = () => openChannel(doc.id);
             el.innerHTML = `
-                <div style="width:44px;height:44px;border-radius:50%;background:#F7F3ED;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">📢</div>
+                <div style="width:44px;height:44px;border-radius:50%;background:#F7F3ED;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i data-lucide="megaphone" style="width:20px;height:20px;display:inline-block;vertical-align:middle"></i></div>
                 <div class="chat-preview" style="flex:1;min-width:0;">
                     <strong>${ch.name}</strong>
                     <p style="font-size:0.75rem;color:var(--accent);">${ch.subscribers?.length || 0} ${t('social.subscribers','subscribers')}${isSub ? ' · ✅ ' + t('social.subscribed','Subscribed') : ''}</p>
@@ -2726,9 +2726,9 @@ async function loadChannelList() {
 }
 
 async function showCreateChannelModal() {
-    const name = await showPromptModal('📢 ' + t('social.create_channel','Create Channel'), t('social.enter_channel_name','Enter channel name'), '');
+    const name = await showPromptModal(t('social.create_channel','Create Channel'), t('social.enter_channel_name','Enter channel name'), '');
     if (!name?.trim()) return;
-    const desc = await showPromptModal('📢 ' + t('social.channel_desc','Channel Description'), t('social.channel_desc_optional','Channel description (optional)'), '');
+    const desc = await showPromptModal(t('social.channel_desc','Channel Description'), t('social.channel_desc_optional','Channel description (optional)'), '');
     try {
         showLoading(t('social.creating_channel','Creating channel...'));
         await db.collection('channels').add({
@@ -2760,7 +2760,7 @@ async function openChannel(channelId) {
 
     document.getElementById('chat-username').innerHTML = `
         <div style="display:flex;align-items:center;gap:0.5rem;">
-            <div style="width:32px;height:32px;border-radius:50%;background:#F7F3ED;display:flex;align-items:center;justify-content:center;">📢</div>
+            <div style="width:32px;height:32px;border-radius:50%;background:#F7F3ED;display:flex;align-items:center;justify-content:center;"><i data-lucide="megaphone" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i></div>
             <div><strong>${ch.name}</strong><div style="font-size:0.7rem;color:var(--accent);">${ch.subscribers?.length || 0} ${t('social.subscribers','subscribers')}</div></div>
             ${!isSub ? `<button onclick="subscribeChannel('${channelId}')" style="margin-left:0.5rem;padding:0.3rem 0.6rem;border:none;border-radius:6px;background:#3D2B1F;color:#FFF8F0;font-size:0.75rem;cursor:pointer;">${t('social.subscribe','Subscribe')}</button>` :
                 `<button onclick="unsubscribeChannel('${channelId}')" style="margin-left:0.5rem;padding:0.3rem 0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:6px;background:var(--bg-card,#3D2B1F);font-size:0.75rem;cursor:pointer;">${t('social.unsubscribe','Unsubscribe')}</button>`}
@@ -2855,14 +2855,14 @@ async function showSocialNotifications() {
     const btn = document.querySelector('.social-filter-tab[data-filter="notifications"]');
     if (btn) { btn.classList.add('active'); btn.style.color = 'var(--text)'; btn.style.borderBottomColor = 'var(--text)'; }
 
-    notifContent.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent);">🔔 ${t('social.notif_loading','Loading notifications...')}</p>`;
+    notifContent.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent);">${t('social.notif_loading','Loading notifications...')}</p>`;
 
     try {
         const snap = await db.collection('social_notifications').doc(currentUser.uid).collection('items')
             .orderBy('createdAt', 'desc').limit(50).get();
 
         if (snap.empty) {
-            notifContent.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--accent);"><p style="font-size:2rem;">🔔</p><p>${t('social.no_notifications','No notifications yet')}</p></div>`;
+            notifContent.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--accent);"><p style="font-size:2rem;"><i data-lucide="bell" style="width:28px;height:28px;display:inline-block;vertical-align:middle"></i></p><p>${t('social.no_notifications','No notifications yet')}</p></div>`;
             return;
         }
 
@@ -2872,8 +2872,8 @@ async function showSocialNotifications() {
             const isRead = n.read;
             const info = n.fromUid ? await getUserDisplayInfo(n.fromUid) : { nickname: t('social.system','System'), photoURL: '' };
             const timeAgo = getTimeAgo(n.createdAt?.toDate?.() || new Date());
-            const icons = { like: '❤️', comment: '💬', follow: '👤', mention: '📢', story_reply: '📸' };
-            const icon = icons[n.notifType] || '🔔';
+            const icons = { like: '♥', comment: '', follow: '', mention: '', story_reply: '' };
+            const icon = icons[n.notifType] || '';
 
             html += `<div onclick="handleSocialNotifClick('${doc.id}','${n.notifType}','${n.targetId || ''}','${n.fromUid || ''}')" style="display:flex;gap:0.6rem;padding:0.7rem;border-bottom:1px solid rgba(0,0,0,0.04);cursor:pointer;background:${isRead ? 'white' : 'rgba(33,150,243,0.04)'};">
                 ${avatarHTML(info.photoURL, info.nickname, 40)}
@@ -3004,9 +3004,9 @@ async function showFullProfile(uid) {
             </div>`;
         // Profile tabs (Instagram-style)
         html += `<div class="insta-profile-tabs">
-            <button class="insta-profile-tab active" onclick="switchProfileTab('posts','${uid}')">📷</button>
-            <button class="insta-profile-tab" onclick="switchProfileTab('shorts','${uid}')">🎬</button>
-            <button class="insta-profile-tab" onclick="switchProfileTab('saved','${uid}')">🔖</button>
+            <button class="insta-profile-tab active" onclick="switchProfileTab('posts','${uid}')"><i data-lucide="grid-3x3" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i></button>
+            <button class="insta-profile-tab" onclick="switchProfileTab('shorts','${uid}')"><i data-lucide="film" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i></button>
+            <button class="insta-profile-tab" onclick="switchProfileTab('saved','${uid}')"><i data-lucide="bookmark" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i></button>
         </div>`;
 
         // Posts grid (Instagram 3-col)
@@ -3057,7 +3057,7 @@ async function switchProfileTab(tab, uid) {
             grid.innerHTML = '';
             grid.className = 'insta-grid';
             for (const post of videos) {
-                grid.innerHTML += `<div class="insta-grid-item" onclick="openShortsViewer('${post.id}')"><video src="${post.videoUrl}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video><span style="position:absolute;top:4px;right:4px;color:#FFF8F0;font-size:0.8rem;text-shadow:0 1px 3px rgba(61,43,31,0.8);">🎬</span></div>`;
+                grid.innerHTML += `<div class="insta-grid-item" onclick="openShortsViewer('${post.id}')"><video src="${post.videoUrl}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video><span style="position:absolute;top:4px;right:4px;color:#FFF8F0;font-size:0.8rem;text-shadow:0 1px 3px rgba(61,43,31,0.8);"><i data-lucide="film" style="width:12px;height:12px;display:inline-block;vertical-align:middle"></i></span></div>`;
             }
             if (videos.length === 0) grid.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent);">${t('social.no_shorts','No shorts yet')}</p>`;
         } else if (tab === 'saved') {
@@ -3133,7 +3133,7 @@ async function doubleTapLike(postId, container) {
     if (container) {
         const heart = document.createElement('div');
         heart.className = 'double-tap-heart';
-        heart.textContent = '❤️';
+        heart.textContent = '♥';
         container.style.position = 'relative';
         container.appendChild(heart);
         setTimeout(() => heart.remove(), 900);
@@ -3343,7 +3343,7 @@ async function loadIndependentSocialFeed(feed) {
 
         if (!data.posts || data.posts.length === 0) {
             feed.innerHTML = `<div style="text-align:center;padding:3rem;">
-                <p style="font-size:2.5rem;margin-bottom:1rem;">📝</p>
+                <p style="font-size:2.5rem;margin-bottom:1rem;"><i data-lucide="pencil" style="width:28px;height:28px;display:inline-block;vertical-align:middle"></i></p>
                 <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;">${t('social.no_posts','No posts yet')}</p>
                 <p style="font-size:0.85rem;color:#7A5C47;">${t('social.write_first','Write your first post!')}</p></div>`;
             return;

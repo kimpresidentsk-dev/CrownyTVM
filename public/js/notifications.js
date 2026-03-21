@@ -319,24 +319,24 @@ function openNotifSettings() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     const items = [
-        { key: 'messenger', icon: '💬', label: t('notif.set.messenger','Messenger Messages') },
-        { key: 'social_comment', icon: '💬', label: t('notif.set.comment','Social Comments') },
-        { key: 'social_like', icon: '❤️', label: t('notif.set.like','Social Likes') },
-        { key: 'social_follow', icon: '👤', label: t('notif.set.follow','Follow') },
-        { key: 'social_mention', icon: '📢', label: t('notif.set.mention','Mention') },
-        { key: 'trading_signal', icon: '📊', label: t('notif.set.signal','Trading Signal') },
-        { key: 'trading_order', icon: '📈', label: t('notif.set.order','Order Fill/Close') },
-        { key: 'order_status', icon: '📦', label: t('notif.set.order_status','Order Status Change') },
-        { key: 'art_sold', icon: '🎨', label: t('notif.set.art_sold','Art Sale') },
-        { key: 'book_sold', icon: '📚', label: t('notif.set.book_sold','Book Sale') },
-        { key: 'donation', icon: '💝', label: t('notif.set.donation','Donation Alert') },
-        { key: 'friend_request', icon: '🤝', label: t('notif.set.friend','Friend Request') },
-        { key: 'system', icon: '🔔', label: t('notif.set.system','System Alert') },
+        { key: 'messenger', icon: '<i data-lucide="message-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.messenger','Messenger Messages') },
+        { key: 'social_comment', icon: '<i data-lucide="message-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.comment','Social Comments') },
+        { key: 'social_like', icon: '<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.like','Social Likes') },
+        { key: 'social_follow', icon: '<i data-lucide="user" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.follow','Follow') },
+        { key: 'social_mention', icon: '<i data-lucide="megaphone" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.mention','Mention') },
+        { key: 'trading_signal', icon: '<i data-lucide="bar-chart-3" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.signal','Trading Signal') },
+        { key: 'trading_order', icon: '<i data-lucide="trending-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.order','Order Fill/Close') },
+        { key: 'order_status', icon: '<i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.order_status','Order Status Change') },
+        { key: 'art_sold', icon: '<i data-lucide="palette" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.art_sold','Art Sale') },
+        { key: 'book_sold', icon: '<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.book_sold','Book Sale') },
+        { key: 'donation', icon: '<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.donation','Donation Alert') },
+        { key: 'friend_request', icon: '<i data-lucide="handshake" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.friend','Friend Request') },
+        { key: 'system', icon: '<i data-lucide="bell" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i>', label: t('notif.set.system','System Alert') },
     ];
 
     overlay.innerHTML = `
     <div style="background:#FFF8F0;padding:1.5rem;border-radius:16px;max-width:400px;width:100%;">
-        <h3 style="margin-bottom:1rem;">📢 ${t('notif.settings_title','Notification Settings')}</h3>
+        <h3 style="margin-bottom:1rem;">${t('notif.settings_title','Notification Settings')}</h3>
         <div style="display:grid; gap:0.6rem;">
             ${items.map(i => `
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0.8rem; background:var(--bg); border-radius:10px;">
@@ -390,7 +390,7 @@ if (_origShowToast) {
 // Called from mentors.js when signal changes
 function notifyTradingSignal(mentorName, oldSignal, newSignal) {
     const signalKo = { buy: t('mentor.buy','Buy'), sell: t('mentor.sell','Sell'), hold: t('mentor.hold','Hold'), wait: t('mentor.wait','Wait') };
-    addNotification(NOTIF_TYPES.TRADING_SIGNAL, `📊 ${mentorName}: ${signalKo[oldSignal] || oldSignal} → ${signalKo[newSignal] || newSignal}`, {});
+    addNotification(NOTIF_TYPES.TRADING_SIGNAL, `${mentorName}: ${signalKo[oldSignal] || oldSignal} → ${signalKo[newSignal] || newSignal}`, {});
 }
 
 function notifyTradingOrder(message) {

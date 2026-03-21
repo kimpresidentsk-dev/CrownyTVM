@@ -1,10 +1,7 @@
 // ===== ai-assistant.js — 크라우니 패널 5인 AI 캐릭터 채팅 + 라운지 v3.0 =====
 
 const AI_ASSISTANT = (() => {
-    const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
     const MAX_HISTORY = 50;
-
-    let apiKey = ''; // 기본 키 (DB에서 오버라이드 가능)
     let enabled = true;
     let isLoading = false;
     let currentCharId = null;
@@ -114,10 +111,10 @@ const AI_ASSISTANT = (() => {
         beauty: { icon: '💄', label: t('ai.tutor_beauty', 'Beauty/Skincare'), labelEn: 'Beauty/Skincare' },
         coding: { icon: '💻', label: t('ai.tutor_coding', 'Programming'), labelEn: 'Programming' },
         business: { icon: 'briefcase', label: t('ai.tutor_business', 'Business'), labelEn: 'Business' },
-        music: { icon: '🎵', label: t('ai.tutor_music', 'Music'), labelEn: 'Music' },
+        music: { icon: 'music', label: t('ai.tutor_music', 'Music'), labelEn: 'Music' },
         cooking: { icon: '🍳', label: t('ai.tutor_cooking', 'Cooking'), labelEn: 'Cooking' },
         fitness: { icon: '💪', label: t('ai.tutor_fitness', 'Fitness/Health'), labelEn: 'Fitness/Health' },
-        growth: { icon: '🌱', label: t('ai.tutor_growth', 'Self-development'), labelEn: 'Self-development' }
+        growth: { icon: 'sprout', label: t('ai.tutor_growth', 'Self-development'), labelEn: 'Self-development' }
     };
     const TUTOR_STYLES = {
         friendly: { label: t('ai.style_friendly', 'Friendly'), labelEn: 'Friendly' },
@@ -308,12 +305,12 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
             </div>
 
             <div class="tutor-section">
-                <h4>📊 ${t('ai.tutor_level_title', 'Current Level')}</h4>
+                <h4>${t('ai.tutor_level_title', 'Current Level')}</h4>
                 <div class="tutor-opt-row">${levelBtns}</div>
             </div>
 
             <div class="tutor-section">
-                <h4>🎭 ${t('ai.tutor_style_title', 'Preferred Style')}</h4>
+                <h4>${t('ai.tutor_style_title', 'Preferred Style')}</h4>
                 <div class="tutor-opt-row">${styleBtns}</div>
             </div>
 
@@ -348,16 +345,9 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         selectCharacter('tutor');
     }
 
-    // ── Settings Load ──
+    // ── Settings Load ── (API key managed server-side)
     async function loadSettings() {
-        try {
-            const doc = await db.collection('admin_config').doc('ai_settings').get();
-            if (doc.exists) {
-                const data = doc.data();
-                if (data.apiKey && data.apiKey.length > 10) apiKey = data.apiKey;
-                enabled = data.enabled !== false;
-            }
-        } catch (e) { console.error('AI settings load failed:', e); }
+        enabled = true;
     }
 
     // ── Context ──
@@ -397,7 +387,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
 
     // ── API Call (1:1) with retry ──
     async function sendToGemini(userMessage, char, retryCount = 0) {
-        if (!apiKey) return t('ai.err_no_key', '⚠️ AI API key is not configured. Please contact admin.');
+        // API key is managed server-side via /api/ai/gemini
 
         const history = chatHistories[char.id] || [];
         const contents = history.map(m => ({
@@ -412,9 +402,10 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
             generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
         };
 
-        const res = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const res = await fetch('/api/ai/gemini', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || '') },
             body: JSON.stringify(body)
         });
 
@@ -424,16 +415,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
                 return sendToGemini(userMessage, char, retryCount + 1);
             }
             if (res.status === 429) return t('ai.err_rate_limit', '⏳ Too many requests. Please try again shortly.');
-            if (res.status === 403 || res.status === 400) {
-                // DB 키가 잘못됐을 수 있으니 기본 키로 재시도
-                const DEFAULT_KEY = '';
-                if (apiKey !== DEFAULT_KEY && retryCount < 1) {
-                    console.warn('🔑 API 키 오류 → 기본 키로 재시도');
-                    apiKey = DEFAULT_KEY;
-                    return sendToGemini(userMessage, char, retryCount + 1);
-                }
-                return t('ai.err_invalid_key', '🔑 API key is invalid. Please contact admin.');
-            }
+            if (res.status === 403 || res.status === 400) return t('ai.err_invalid_key', '🔑 API key is invalid. Please contact admin.');
             return t('ai.err_response', '❌ AI response error occurred.');
         }
 
@@ -443,7 +425,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
 
     // ── API Call (Lounge — JSON mode) ──
     async function sendToGeminiLounge(userMessage) {
-        if (!apiKey) return null;
+        // API key is managed server-side
 
         // Build contents from lounge history
         const contents = [];
@@ -466,9 +448,10 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
             }
         };
 
-        const res = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
+        const token2 = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        const res = await fetch('/api/ai/gemini', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token2 || '') },
             body: JSON.stringify(body)
         });
 
@@ -612,7 +595,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
                         <div class="panel-chat-role">${t(char.roleI18n, char.role)}</div>
                     </div>
                 </div>
-                <button onclick="AI_ASSISTANT.reset()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;" title="${t('ai.clear_confirm','Clear chat')}">🗑️</button>`;
+                <button onclick="AI_ASSISTANT.reset()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;" title="${t('ai.clear_confirm','Clear chat')}">✕</button>`;
         }
 
         const history = chatHistories[currentCharId] || [];
@@ -712,8 +695,8 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
                     </div>
                 </div>
                 <div style="display:flex;gap:0.3rem;">
-                    <button onclick="AI_ASSISTANT.loungeInvite()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;" title="${t('panel.invite','Invite friend')}">👤+</button>
-                    <button onclick="AI_ASSISTANT.resetLounge()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;" title="${t('ai.clear_confirm','Clear chat')}">🗑️</button>
+                    <button onclick="AI_ASSISTANT.loungeInvite()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;" title="${t('panel.invite','Invite friend')}"><i data-lucide="user-plus" style="width:16px;height:16px;"></i></button>
+                    <button onclick="AI_ASSISTANT.resetLounge()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;" title="${t('ai.clear_confirm','Clear chat')}">✕</button>
                 </div>`;
         }
 
@@ -844,7 +827,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
     }
 
     async function resetLounge() {
-        const answer = await showPromptModal(t('ai.clear_title','🗑️ Clear Chat'), t('ai.clear_confirm','Delete all chat history?\nType "ok" to confirm'), '');
+        const answer = await showPromptModal(t('ai.clear_title','Clear Chat'), t('ai.clear_confirm','Delete all chat history?\nType "ok" to confirm'), '');
         if (answer === '확인' || answer === 'ok' || answer === 'yes') {
             loungeHistory = [];
             localStorage.removeItem('crowny_lounge_history');
@@ -921,7 +904,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
     async function reset() {
         if (loungeMode) { resetLounge(); return; }
         if (!currentCharId) return;
-        const answer = await showPromptModal(t('ai.clear_title','🗑️ Clear Chat'), t('ai.clear_confirm','Delete all chat history?\nType "ok" to confirm'), '');
+        const answer = await showPromptModal(t('ai.clear_title','Clear Chat'), t('ai.clear_confirm','Delete all chat history?\nType "ok" to confirm'), '');
         if (answer === '확인' || answer === 'ok' || answer === 'yes') {
             clearHistory(currentCharId);
             renderChat();
@@ -974,13 +957,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         const on = document.getElementById('ai-admin-toggle')?.checked !== false;
 
         try {
-            await db.collection('admin_config').doc('ai_settings').set({
-                apiKey: key,
-                systemPrompt: prompt,
-                enabled: on,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-            if (key) apiKey = key;
+            // API key is managed server-side via .env
             enabled = on;
             showToast(t('ai.admin_saved', 'Crowny Panel settings saved ✅'), 'success');
         } catch (e) {
@@ -989,16 +966,9 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
     }
 
     async function loadAdminSettings() {
-        try {
-            const doc = await db.collection('admin_config').doc('ai_settings').get();
-            const data = doc.exists ? doc.data() : {};
-            const keyEl = document.getElementById('ai-admin-apikey');
-            const promptEl = document.getElementById('ai-admin-prompt');
-            const toggleEl = document.getElementById('ai-admin-toggle');
-            if (keyEl) keyEl.value = data.apiKey || '';
-            if (promptEl) promptEl.value = data.systemPrompt || '';
-            if (toggleEl) toggleEl.checked = data.enabled !== false;
-        } catch (e) { console.warn('AI admin load fail:', e); }
+        // API key is managed server-side via .env
+        const toggleEl = document.getElementById('ai-admin-toggle');
+        if (toggleEl) toggleEl.checked = enabled;
     }
 
     return {

@@ -30,12 +30,12 @@ window.CARE = (function() {
     let sosLocationInterval = null;
 
     const QUICK_REPLIES = [
-        { emoji: 'smile', text: '좋아요' },
-        { emoji: 'hands-pressed', text: '고마워' },
-        { emoji: 'heart', text: '사랑해' },
-        { emoji: 'thumbs-up', text: '알겠어' },
-        { emoji: 'utensils', text: '밥먹었어' },
-        { emoji: 'pill', text: '약먹었어' }
+        { emoji: 'smile', text: t('care.quick_good', 'Good') },
+        { emoji: 'hands-pressed', text: t('care.quick_thanks', 'Thanks') },
+        { emoji: 'heart', text: t('care.quick_love', 'Love you') },
+        { emoji: 'thumbs-up', text: t('care.quick_ok', 'Got it') },
+        { emoji: 'utensils', text: t('care.quick_ate', 'I ate') },
+        { emoji: 'pill', text: t('care.quick_meds', 'Took meds') }
     ];
 
     // ========== INIT ==========
@@ -63,8 +63,8 @@ window.CARE = (function() {
 
         const dateEl = document.getElementById('care-date');
         if (dateEl) {
-            const days = ['일', '월', '화', '수', '목', '금', '토'];
-            dateEl.textContent = `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
+            const days = [t('care.sun','Sun'), t('care.mon','Mon'), t('care.tue','Tue'), t('care.wed','Wed'), t('care.thu','Thu'), t('care.fri','Fri'), t('care.sat','Sat')];
+            dateEl.textContent = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} (${days[now.getDay()]})`;
         }
     }
 
@@ -101,11 +101,11 @@ window.CARE = (function() {
         if (!c) return;
         c.innerHTML = `
             <div style="text-align:center; padding:3rem 1rem;">
-                <div style="font-size:4rem; margin-bottom:1rem;">❤️</div>
+                <div style="font-size:4rem; margin-bottom:1rem;"><i data-lucide="heart" style="width:48px;height:48px;display:inline-block;vertical-align:middle"></i></div>
                 <h2 style="font-size:1.8rem; margin-bottom:1rem;">${t('care.welcome','Welcome to CrownyCare')}</h2>
                 <p style="font-size:1.2rem; color:#6B5744; margin-bottom:2rem;">${t('care.no_group','Create a family group or get invited to start')}</p>
                 <button onclick="CARE.showCreateGroup()" class="care-btn care-btn-primary" style="font-size:1.2rem; padding:1rem 2rem;">
-                    👪 ${t('care.create_group','Create Family Group')}
+                    ${t('care.create_group','Create Family Group')}
                 </button>
             </div>`;
     }
@@ -137,7 +137,7 @@ window.CARE = (function() {
                 }]
             });
             careGroupId = ref.id;
-            showToast(t('care.group_created','Family group has been created! 🎉'));
+            showToast(t('care.group_created','Family group has been created!'));
             loadCareGroup();
         } catch(e) {
             console.error(e);
@@ -189,12 +189,12 @@ window.CARE = (function() {
             await db.collection('notifications').add({
                 userId: invitedUser.id,
                 type: 'care_invite',
-                message: `❤️ ${careGroup.name} 가족 그룹에 초대되었습니다`,
+                message: `${t('care.invited_to_group', 'You have been invited to')} ${careGroup.name}`,
                 read: false,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            showToast(t('care.invited','Invitation sent! ❤️'));
+            showToast(t('care.invited','Invitation sent!'));
             loadCareGroup();
         } catch(e) {
             console.error(e);
@@ -221,7 +221,7 @@ window.CARE = (function() {
             <!-- Group Info -->
             <div class="care-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-                    <h3 style="margin:0; font-size:1.4rem;">👪 ${careGroup.name}</h3>
+                    <h3 style="margin:0; font-size:1.4rem;">${careGroup.name}</h3>
                     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
                         ${careRole === 'guardian' ? `<button onclick="CARE.inviteMember()" class="care-btn care-btn-small">plus ${t('care.invite_short','Invite')}</button>` : ''}
                         ${careRole === 'guardian' ? `<button onclick="CARE.showEmergencyContacts()" class="care-btn care-btn-small">hospital ${t('care.emergency_contacts','Emergency Contacts')}</button>` : ''}
@@ -246,7 +246,7 @@ window.CARE = (function() {
             <div class="care-card">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h3 style="margin:0; font-size:1.3rem;">message-circle ${t('care.messages','Family Messages')}</h3>
-                    <button onclick="CARE.showSendMessage()" class="care-btn care-btn-small">✏️ ${t('care.write','Write')}</button>
+                    <button onclick="CARE.showSendMessage()" class="care-btn care-btn-small">✏ ${t('care.write','Write')}</button>
                 </div>
                 <div id="care-messages" style="margin-top:1rem;"></div>
                 <div class="care-quick-replies">
@@ -285,7 +285,7 @@ window.CARE = (function() {
             <div class="care-card">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h3 style="margin:0; font-size:1.3rem;">camera ${t('care.photos','Family Photos')}</h3>
-                    <button onclick="CARE.uploadPhoto()" class="care-btn care-btn-small">📷 ${t('care.upload','Upload')}</button>
+                    <button onclick="CARE.uploadPhoto()" class="care-btn care-btn-small">${t('care.upload','Upload')}</button>
                 </div>
                 <div id="care-slideshow" class="care-slideshow"></div>
             </div>
@@ -293,7 +293,7 @@ window.CARE = (function() {
             <!-- Smart Board Link -->
             <div style="text-align:center; margin:2rem 0 1rem;">
                 <a href="#page=care-board" onclick="CARE.openSmartBoard(); return false;" class="care-btn care-btn-primary" style="display:inline-block; text-decoration:none; font-size:1.1rem; padding:1rem 2rem;">
-                    🖥️ ${t('care.smartboard','Smart Board Mode')}
+                    ${t('care.smartboard','Smart Board Mode')}
                 </a>
             </div>
         `;
@@ -321,7 +321,7 @@ window.CARE = (function() {
                 const msg = d.data();
                 const time = msg.createdAt ? new Date(msg.createdAt.toDate()).toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : '';
                 return `<div class="care-message-card">
-                    <div style="font-weight:700; font-size:1.1rem;">${msg.senderName || '가족'}</div>
+                    <div style="font-weight:700; font-size:1.1rem;">${msg.senderName || t('care.family', 'Family')}</div>
                     <div style="font-size:1.3rem; margin:0.5rem 0;">${msg.text}</div>
                     <div style="color:#6B5744; font-size:0.9rem;">${time}</div>
                 </div>`;
@@ -355,14 +355,14 @@ window.CARE = (function() {
                     await db.collection('notifications').add({
                         userId: m.uid,
                         type: 'care_message',
-                        message: `❤️ ${nickname}: ${text}`,
+                        message: `${nickname}: ${text}`,
                         read: false,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
             }
 
-            showToast(t('care.message_sent','Message sent ❤️'));
+            showToast(t('care.message_sent','Message sent'));
             loadMessages();
         } catch(e) {
             console.error(e);
@@ -381,7 +381,7 @@ window.CARE = (function() {
                 senderName: nickname,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            showToast(`${text} 전송! ❤️`);
+            showToast(`${text} ${t('care.sent', 'sent')}!`);
             loadMessages();
         } catch(e) {
             console.error(e);
@@ -411,8 +411,8 @@ window.CARE = (function() {
                 const isPast = now > schedTime;
                 return `<div class="care-schedule-item ${isPast ? 'past' : ''}">
                     <span class="care-schedule-time">${s.time}</span>
-                    <span class="care-schedule-label">${s.icon || '📌'} ${s.title}</span>
-                    ${careRole === 'guardian' ? `<button onclick="CARE.deleteSchedule('${d.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">🗑️</button>` : ''}
+                    <span class="care-schedule-label">${s.icon || '•'} ${s.title}</span>
+                    ${careRole === 'guardian' ? `<button onclick="CARE.deleteSchedule('${d.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">✕</button>` : ''}
                 </div>`;
             }).join('');
         } catch(e) {
@@ -421,7 +421,7 @@ window.CARE = (function() {
     }
 
     async function showAddSchedule() {
-        const title = await showPromptModal(t('care.add_schedule','Add Schedule'), t('care.schedule_title_prompt','Schedule title (e.g. 🚶 Walk)'), '');
+        const title = await showPromptModal(t('care.add_schedule','Add Schedule'), t('care.schedule_title_prompt','Schedule title (e.g. Walk)'), '');
         if (!title) return;
         const time = await showPromptModal(t('care.schedule_time','Time'), t('care.time_prompt','Enter time (e.g. 09:00)'), '09:00');
         if (!time) return;
@@ -430,7 +430,7 @@ window.CARE = (function() {
             await db.collection('care_groups').doc(careGroupId).collection('schedules').add({
                 title: title,
                 time: time,
-                icon: title.match(/\p{Emoji}/u)?.[0] || '📌',
+                icon: title.match(/\p{Emoji}/u)?.[0] || '•',
                 createdBy: currentUser.uid,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -474,10 +474,10 @@ window.CARE = (function() {
                 return `<div class="care-med-item ${taken ? 'taken' : ''}">
                     <div>
                         <div style="font-weight:700; font-size:1.2rem;">pill ${med.name}</div>
-                        <div style="color:#6B5744; font-size:1rem;">⏰ ${med.time} · ${med.repeat || '매일'}</div>
+                        <div style="color:#6B5744; font-size:1rem;">⏰ ${med.time} · ${med.repeat || t('care.daily', 'Daily')}</div>
                     </div>
                     ${taken
-                        ? `<span class="care-med-done">✅ ${t('care.taken','Taken')}</span>`
+                        ? `<span class="care-med-done">${t('care.taken','Taken')}</span>`
                         : `<button onclick="CARE.confirmMedication('${d.id}')" class="care-btn care-btn-med">pill ${t('care.take','Confirm Taken')}</button>`
                     }
                 </div>`;
@@ -497,7 +497,7 @@ window.CARE = (function() {
             await db.collection('care_groups').doc(careGroupId).collection('medications').add({
                 name: name,
                 time: time,
-                repeat: '매일',
+                repeat: t('care.daily', 'Daily'),
                 takenDates: [],
                 createdBy: currentUser.uid,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -525,14 +525,14 @@ window.CARE = (function() {
                     await db.collection('notifications').add({
                         userId: m.uid,
                         type: 'care_medication',
-                        message: `pill ${nickname}님이 약을 복용했습니다`,
+                        message: `pill ${nickname} ${t('care.took_medication', 'took their medication')}`,
                         read: false,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
             }
 
-            showToast(t('care.med_confirmed','Medication confirmed! pill✅'));
+            showToast(t('care.med_confirmed','Medication confirmed!'));
             loadMedications();
         } catch(e) {
             console.error(e);
@@ -558,10 +558,10 @@ window.CARE = (function() {
                 const h = d.data();
                 const date = h.createdAt ? new Date(h.createdAt.toDate()).toLocaleDateString('ko-KR') : '';
                 const items = [];
-                if (h.bloodPressure) items.push(`🩸 혈압: ${h.bloodPressure}`);
-                if (h.temperature) items.push(`🌡️ 체온: ${h.temperature}°C`);
-                if (h.bloodSugar) items.push(`💉 혈당: ${h.bloodSugar}`);
-                if (h.weight) items.push(`⚖️ 체중: ${h.weight}kg`);
+                if (h.bloodPressure) items.push(`🩸 ${t('care.blood_pressure', 'BP')}: ${h.bloodPressure}`);
+                if (h.temperature) items.push(`${t('care.temperature', 'Temp')}: ${h.temperature}°C`);
+                if (h.bloodSugar) items.push(`${t('care.blood_sugar', 'Sugar')}: ${h.bloodSugar}`);
+                if (h.weight) items.push(`${t('care.weight', 'Weight')}: ${h.weight}kg`);
                 return `<div class="care-health-card">
                     <div style="font-weight:700;">${h.recorderName || ''} · ${date}</div>
                     <div style="margin-top:0.5rem; font-size:1.1rem;">${items.join(' &nbsp;|&nbsp; ')}</div>
@@ -573,10 +573,10 @@ window.CARE = (function() {
     }
 
     async function showAddHealthLog() {
-        const bp = await showPromptModal('🩸 혈압', '혈압을 입력하세요 (예: 120/80, 없으면 빈칸)', '');
-        const temp = await showPromptModal('🌡️ 체온', '체온을 입력하세요 (예: 36.5, 없으면 빈칸)', '');
-        const sugar = await showPromptModal('💉 혈당', '혈당을 입력하세요 (없으면 빈칸)', '');
-        const weight = await showPromptModal('⚖️ 체중', '체중을 입력하세요 (kg, 없으면 빈칸)', '');
+        const bp = await showPromptModal('🩸 ' + t('care.blood_pressure', 'Blood Pressure'), t('care.bp_prompt', 'Enter blood pressure (e.g. 120/80, leave blank to skip)'), '');
+        const temp = await showPromptModal(t('care.temperature', 'Temperature'), t('care.temp_prompt', 'Enter temperature (e.g. 36.5, leave blank to skip)'), '');
+        const sugar = await showPromptModal(t('care.blood_sugar', 'Blood Sugar'), t('care.sugar_prompt', 'Enter blood sugar (leave blank to skip)'), '');
+        const weight = await showPromptModal(t('care.weight', 'Weight'), t('care.weight_prompt', 'Enter weight in kg (leave blank to skip)'), '');
 
         if (!bp && !temp && !sugar && !weight) {
             showToast(t('care.no_data','No data entered'), 'error');
@@ -715,7 +715,7 @@ window.CARE = (function() {
                     await db.collection('notifications').add({
                         userId: m.uid,
                         type: 'care_sos',
-                        message: `sos 긴급! ${nickname}님이 SOS를 호출했습니다! (위치: ${locationStr})`,
+                        message: `sos ${t('care.sos_urgent', 'URGENT!')} ${nickname} ${t('care.sos_called', 'sent an SOS!')} (${t('care.sos_location', 'Location')}: ${locationStr})`,
                         read: false,
                         priority: 'urgent',
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -939,7 +939,7 @@ window.CARE = (function() {
                         await db.collection('notifications').add({
                             userId: neighbor.uid,
                             type: 'care_sos_neighbor',
-                            message: `sos 이웃 ${senderName}님이 긴급 호출을 보냈습니다! (${dist.toFixed(1)}km)`,
+                            message: `sos ${t('care.neighbor_sos', 'Neighbor')} ${senderName} ${t('care.sos_called', 'sent an SOS!')} (${dist.toFixed(1)}km)`,
                             read: false,
                             priority: 'urgent',
                             createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -968,10 +968,10 @@ window.CARE = (function() {
                 <div class="sos-ec-card">
                     <div>
                         <strong>hospital ${ec.hospitalName || ec.name || t('care.hospital','Hospital')}</strong>
-                        ${ec.doctorName ? `<div style="font-size:0.9rem; color:#6B5744;">👨‍⚕️ ${ec.doctorName}</div>` : ''}
-                        ${ec.address ? `<div style="font-size:0.85rem; color:#6B5744;">📍 ${ec.address}</div>` : ''}
+                        ${ec.doctorName ? `<div style="font-size:0.9rem; color:#6B5744;">${ec.doctorName}</div>` : ''}
+                        ${ec.address ? `<div style="font-size:0.85rem; color:#6B5744;">${ec.address}</div>` : ''}
                     </div>
-                    <a href="tel:${ec.phone}" class="sos-call-btn">📞 ${ec.phone}</a>
+                    <a href="tel:${ec.phone}" class="sos-call-btn">${ec.phone}</a>
                 </div>
             `).join('');
         } else {
@@ -992,21 +992,21 @@ window.CARE = (function() {
                 <!-- Location -->
                 <div class="sos-section">
                     <div class="sos-location-status">
-                        📍 ${t('care.location_sharing','Sharing location...')} (<span id="sos-location-timer">${sosLocationMinutesLeft}${t('care.minutes_left','min left')}</span>)
+                        ${t('care.location_sharing','Sharing location...')} (<span id="sos-location-timer">${sosLocationMinutesLeft}${t('care.minutes_left','min left')}</span>)
                     </div>
                     <div style="font-size:1rem; color:#6B5744; margin-top:0.3rem;">
                         ${t('care.latitude','Lat')}: <span id="sos-lat">${lat}</span> &nbsp; ${t('care.longitude','Lng')}: <span id="sos-lng">${lng}</span>
                     </div>
-                    <a id="sos-map-link" href="${mapsUrl}" target="_blank" class="sos-map-btn">🗺️ ${t('care.view_map','View Map')}</a>
+                    <a id="sos-map-link" href="${mapsUrl}" target="_blank" class="sos-map-btn">${t('care.view_map','View Map')}</a>
                 </div>
 
                 <!-- 119 / 112 -->
                 <div class="sos-emergency-btns">
                     <a href="tel:119" class="sos-emergency-btn sos-119">
-                        🚑 119<br><span>${t('care.emergency_call','Emergency')}</span>
+                        119<br><span>${t('care.emergency_call','Emergency')}</span>
                     </a>
                     <a href="tel:112" class="sos-emergency-btn sos-112">
-                        🚔 112<br><span>${t('care.police_call','Police')}</span>
+                        112<br><span>${t('care.police_call','Police')}</span>
                     </a>
                 </div>
 
@@ -1018,14 +1018,14 @@ window.CARE = (function() {
 
                 <!-- Status -->
                 <div class="sos-section sos-status-list">
-                    <div>✅ ${t('care.guardians_notified','Guardians')} ${guardianCount}${t('care.people_notified',' notified')}</div>
-                    <div>✅ ${t('care.neighbors_notified','Neighbors')} ${neighborCount}${t('care.people_notified',' notified')}</div>
-                    <div id="sos-recording-status">🎙️ ${t('care.recording','Recording...')} (30${t('care.seconds_left','s left')})</div>
+                    <div>${t('care.guardians_notified','Guardians')} ${guardianCount}${t('care.people_notified',' notified')}</div>
+                    <div>${t('care.neighbors_notified','Neighbors')} ${neighborCount}${t('care.people_notified',' notified')}</div>
+                    <div id="sos-recording-status">${t('care.recording','Recording...')} (30${t('care.seconds_left','s left')})</div>
                 </div>
 
                 <!-- Cancel SOS -->
                 <button onclick="CARE.deactivateSOS()" class="sos-deactivate-btn">
-                    🟢 ${t('care.sos_deactivate','Deactivate SOS')}
+                    ${t('care.sos_deactivate','Deactivate SOS')}
                 </button>
             </div>
         `;
@@ -1040,9 +1040,9 @@ window.CARE = (function() {
             recSec--;
             const recEl = document.getElementById('sos-recording-status');
             if (recEl && recSec > 0) {
-                recEl.textContent = `🎙️ ${t('care.recording','Recording...')} (${recSec}${t('care.seconds_left','s left')})`;
+                recEl.textContent = `${t('care.recording','Recording...')} (${recSec}${t('care.seconds_left','s left')})`;
             } else if (recEl) {
-                recEl.textContent = `🎙️ ${t('care.recording_done','Recording complete ✅')}`;
+                recEl.textContent = `${t('care.recording_done','Recording complete')}`;
                 clearInterval(recInterval);
             } else {
                 clearInterval(recInterval);
@@ -1075,7 +1075,7 @@ window.CARE = (function() {
         const mainBtn = document.getElementById('care-sos-main-btn');
         if (mainBtn) mainBtn.style.display = '';
 
-        showToast(t('care.sos_deactivated','SOS has been deactivated 🟢'));
+        showToast(t('care.sos_deactivated','SOS has been deactivated'));
     }
 
     // ========== EMERGENCY CONTACTS MANAGEMENT ==========
@@ -1094,17 +1094,17 @@ window.CARE = (function() {
             <div style="display:flex; justify-content:space-between; align-items:center; padding:0.8rem; background:#f9f9f9; border-radius:10px; margin-bottom:0.5rem;">
                 <div>
                     <strong>hospital ${c.hospitalName || ''}</strong>
-                    ${c.doctorName ? `<span style="color:#6B5744;"> · 👨‍⚕️ ${c.doctorName}</span>` : ''}
+                    ${c.doctorName ? `<span style="color:#6B5744;"> · ${c.doctorName}</span>` : ''}
                     <div style="font-size:0.85rem; color:#6B5744;">${c.phone || ''} · ${c.address || ''}</div>
                 </div>
-                <button onclick="CARE.deleteEmergencyContact('${c.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">🗑️</button>
+                <button onclick="CARE.deleteEmergencyContact('${c.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">✕</button>
             </div>
         `).join('') : `<p style="color:#6B5744;">${t('care.no_emergency_contacts','No contacts registered')}</p>`;
 
         // Use prompt-style modal (simple approach)
         const hospitalName = await showPromptModal(
             `hospital ${t('care.emergency_contacts','Emergency Contacts')}`,
-            `${t('care.add_hospital','Add new hospital/doctor — Enter hospital name (leave blank to view list)')}\n\n현재 등록: ${contacts.length}건`,
+            `${t('care.add_hospital','Add new hospital/doctor — Enter hospital name (leave blank to view list)')}\n\n${t('care.currently_registered', 'Currently registered')}: ${contacts.length}`,
             ''
         );
         if (!hospitalName) return; // just viewing
@@ -1246,7 +1246,7 @@ window.CARE = (function() {
             reader.onload = async (ev) => {
                 try {
                     const resized = await resizeImage(ev.target.result, 1200);
-                    const caption = await showPromptModal('camera 사진 설명', '사진에 대한 설명을 입력하세요 (선택)', '');
+                    const caption = await showPromptModal('camera ' + t('care.photo_caption', 'Photo Caption'), t('care.caption_prompt', 'Enter a description for the photo (optional)'), '');
 
                     await db.collection('care_groups').doc(careGroupId).collection('photos').add({
                         url: resized,
@@ -1329,8 +1329,8 @@ window.CARE = (function() {
         el.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
         const dateEl = document.getElementById('care-board-date');
         if (dateEl) {
-            const days = ['일','월','화','수','목','금','토'];
-            dateEl.textContent = `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
+            const days = [t('care.sun','Sun'), t('care.mon','Mon'), t('care.tue','Tue'), t('care.wed','Wed'), t('care.thu','Thu'), t('care.fri','Fri'), t('care.sat','Sat')];
+            dateEl.textContent = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} (${days[now.getDay()]})`;
         }
     }
 
@@ -1357,7 +1357,7 @@ window.CARE = (function() {
                 .collection('schedules').orderBy('time','asc').get();
             el.innerHTML = snap.docs.map(d => {
                 const s = d.data();
-                return `<div class="care-board-sched">${s.time} ${s.icon || '📌'} ${s.title}</div>`;
+                return `<div class="care-board-sched">${s.time} ${s.icon || '•'} ${s.title}</div>`;
             }).join('');
         } catch(e) { console.warn("[catch]", e); }
     }

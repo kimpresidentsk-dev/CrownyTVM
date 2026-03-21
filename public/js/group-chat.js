@@ -240,7 +240,7 @@ async function showGroupInfoPanel() {
 
         let actions = '';
         if (isAdmin && !isSelf && uid !== chat.createdBy) {
-            actions += `<button class="group-action-btn kick" onclick="kickMember('${uid}')" title="${t('group.kick', 'Kick')}">🚫</button>`;
+            actions += `<button class="group-action-btn kick" onclick="kickMember('${uid}')" title="${t('group.kick', 'Kick')}"><i data-lucide="x-circle" style="width:14px;height:14px;"></i></button>`;
         }
 
         membersHTML += `
@@ -264,7 +264,7 @@ async function showGroupInfoPanel() {
         </div>
         <div class="group-info-body">
             <div class="group-info-top">
-                <div class="group-avatar-large">👥</div>
+                <div class="group-avatar-large"><i data-lucide="users"></i></div>
                 <h3 id="group-info-name">${chat.groupName}</h3>
                 <p style="color:var(--accent);font-size:0.85rem;">${t('group.members', 'Members')} ${(chat.participants || []).length}${t('group.people', '')}</p>
             </div>
@@ -404,7 +404,7 @@ async function leaveGroup() {
 
         document.getElementById('chat-username').innerHTML = `
             <div class="chat-empty-state">
-                <div style="font-size:3rem;margin-bottom:1rem;">💬</div>
+                <div style="font-size:3rem;margin-bottom:1rem;"><i data-lucide="message-circle"></i></div>
                 <p style="font-size:1rem;color:var(--accent);">${t('social.select_chat', 'Select a chat')}</p>
             </div>`;
         document.getElementById('chat-messages').innerHTML = '';
@@ -442,7 +442,7 @@ async function deleteGroupChat() {
 
         document.getElementById('chat-username').innerHTML = `
             <div class="chat-empty-state">
-                <div style="font-size:3rem;margin-bottom:1rem;">💬</div>
+                <div style="font-size:3rem;margin-bottom:1rem;"><i data-lucide="message-circle"></i></div>
                 <p style="font-size:1rem;color:var(--accent);">${t('social.select_chat', 'Select a chat')}</p>
             </div>`;
         document.getElementById('chat-messages').innerHTML = '';
@@ -491,7 +491,7 @@ async function loadMessagesWithGroups() {
                 chatItem.innerHTML = `
                     <div class="group-avatar-icon chat-list-group-icon"><i data-lucide="users"></i></div>
                     <div class="chat-preview">
-                        <strong>👥 ${chat.groupName} <span class="group-member-count">(${memberCount})</span></strong>
+                        <strong>${chat.groupName} <span class="group-member-count">(${memberCount})</span></strong>
                         <p>${chat.lastMessage || t('social.no_messages', 'No messages')}</p>
                     </div>`;
             } else {
