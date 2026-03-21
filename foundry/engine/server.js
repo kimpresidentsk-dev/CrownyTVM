@@ -48,12 +48,14 @@ const { REL, REL_NAME, REL_SYMBOL, CausalEngine } = require('./causal');
 const { SLOT, SLOT_META, RING, PROTOCOL, CovenantEngine } = require('./covenant');
 const { LifeEngine } = require('./life');
 const { CityEngine } = require('./city');
+const { SCOPES, SCOPE_NAME, SCOPE_APP, PropagationEngine } = require('./scope');
 
 const memory = new Memory();
 const causal = new CausalEngine(memory);
 const covenant = new CovenantEngine();
 const life = new LifeEngine(memory);
 const city = new CityEngine(memory);
+const propagation = new PropagationEngine(memory);
 
 // ═══ 요청 파싱 헬퍼 ═══
 
@@ -378,6 +380,23 @@ route('GET', '/api/foundry/covenant/stats', async (req, res) => {
 // GET /api/foundry/covenant/slots — 27슬롯 언약 구조
 route('GET', '/api/foundry/covenant/slots', async (req, res) => {
     json(res, 200, { slots: SLOT_META, rings: RING, protocol: PROTOCOL });
+});
+
+// ═══ 스코프 + 전파 API ═══
+
+route('GET', '/api/foundry/scopes', async (req, res) => {
+    json(res, 200, Object.entries(SCOPE_NAME).map(([k,v]) => ({ id: +k, name: v, app: SCOPE_APP[+k] })));
+});
+
+route('GET', '/api/foundry/propagation/rules', async (req, res) => {
+    json(res, 200, propagation.getRules());
+});
+
+route('POST', '/api/foundry/propagation/test', async (req, res) => {
+    const { predicate, subject, object, sourceScope } = await parseBody(req);
+    const fakeClaim = { claim: { subject, predicate, object } };
+    const results = propagation.propagate(fakeClaim, sourceScope ?? 0);
+    json(res, 200, { propagated: results.length, results });
 });
 
 // ═══ 주간 리포트 API ═══
