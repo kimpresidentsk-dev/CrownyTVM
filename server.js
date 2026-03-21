@@ -1841,6 +1841,7 @@ const server = http.createServer(async (req, res) => {
     let path = url.pathname;
 
     // ── /v2/ → /api/ 호환 매핑 (CrownyOS 프론트엔드 지원) ──
+    const isV2 = path.startsWith('/v2/');
     if (path === '/v2/chat/list') path = '/api/chat/list';
     else if (path === '/v2/chat/create' && req.method === 'POST') {
         // CrownyOS: { name, chat_type, participants } → CrownyTVM: { to, type, groupName }
@@ -2149,13 +2150,23 @@ const server = http.createServer(async (req, res) => {
 
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             const chatList = chatServer ? chatServer.apiListChats(user.username) : [];
-            // 상대방 프로필 사진 첨부
             for (const c of chatList) {
                 if (c.type === 'dm' && c.displayName && users[c.displayName]) {
                     c.photoURL = users[c.displayName].photoURL || '';
                 }
             }
-            res.end(JSON.stringify(chatList));
+            // v2 호환: CrownyOS 형식으로 변환
+            if (isV2) {
+                const v2List = chatList.map(c => ({
+                    ...c,
+                    name: c.displayName || c.groupName || c.id,
+                    chat_type: c.type || 'dm',
+                    created_at: c.created ? new Date(c.created).toISOString() : null,
+                }));
+                res.end(JSON.stringify({ chats: v2List }));
+            } else {
+                res.end(JSON.stringify(chatList));
+            }
             return;
         }
 
@@ -2188,7 +2199,20 @@ const server = http.createServer(async (req, res) => {
             const chatId = path.split('/')[3];
             const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
             const before = url.searchParams.get('before') ? parseInt(url.searchParams.get('before')) : undefined;
-            res.end(JSON.stringify(chatServer ? chatServer.apiGetMessages(chatId, user.username, limit, before) : []));
+            const msgs = chatServer ? chatServer.apiGetMessages(chatId, user.username, limit, before) : [];
+            // v2 호환: CrownyOS 형식으로 변환
+            if (isV2 && Array.isArray(msgs)) {
+                const v2Msgs = msgs.map(m => ({
+                    ...m,
+                    content: m.text || '',
+                    sender_pub_key: m.senderId || '',
+                    created_at: m.timestamp ? new Date(m.timestamp).toISOString() : null,
+                    from: m.senderId || '',
+                }));
+                res.end(JSON.stringify({ messages: v2Msgs }));
+            } else {
+                res.end(JSON.stringify(msgs));
+            }
             return;
         }
 
