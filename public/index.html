@@ -686,77 +686,42 @@
         </section>
 
         <section id="today" class="page active">
-            <!-- ── CANVAS: 통합 대시보드 ── -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-                <div>
-                    <div id="home-clock" style="font-size:0.7rem;color:var(--text-secondary)"></div>
-                    <div id="slogan-rotator" class="slogan-rotator" style="margin-top:2px"><p class="slogan-text" style="font-size:0.75rem"></p></div>
+            <div class="hero">
+                <div id="home-clock" style="font-size:0.75rem;color:#7A5C47;margin-bottom:4px"></div>
+                <h2 data-i18n="today.hero_title">GLOBAL BEAUTIE</h2>
+                <div id="slogan-rotator" class="slogan-rotator">
+                    <p class="slogan-text"></p>
+                    <span class="slogan-lang"></span>
                 </div>
-                <div style="text-align:right">
-                    <div style="font-size:0.6rem;color:var(--text-secondary)">CROWNY</div>
-                    <div id="canvas-balance" style="font-size:1rem;font-weight:800;color:var(--primary)">--</div>
-                </div>
+                <h1 data-i18n-html="today.hero_subtitle">A Business Platform<br>Connecting the World</h1>
             </div>
 
-            <!-- 핵심 4기능: 큰 카드 -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-                <div onclick="showPage('messenger')" style="padding:14px;background:var(--primary);color:var(--bg);border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:10px">
-                    <i data-lucide="message-circle" style="width:24px;height:24px"></i>
-                    <div><div style="font-weight:700;font-size:0.9rem" data-i18n="nav.chat">Chat</div><div id="canvas-chat-count" style="font-size:0.65rem;opacity:0.7">--</div></div>
-                </div>
-                <div onclick="showPage('wallet')" style="padding:14px;background:var(--gold);color:var(--bg);border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:10px">
-                    <i data-lucide="wallet" style="width:24px;height:24px"></i>
-                    <div><div style="font-weight:700;font-size:0.9rem" data-i18n="nav.wallet">Wallet</div><div id="canvas-wallet-info" style="font-size:0.65rem;opacity:0.7">--</div></div>
-                </div>
-                <div onclick="showPage('prop-trading')" style="padding:14px;background:#1a1a2e;color:#6B8F3C;border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:10px">
-                    <i data-lucide="trending-up" style="width:24px;height:24px"></i>
-                    <div><div style="font-weight:700;font-size:0.9rem">Trading</div><div id="canvas-trading-info" style="font-size:0.65rem;opacity:0.7">--</div></div>
-                </div>
-                <div onclick="showPage('ai-assistant')" style="padding:14px;background:linear-gradient(135deg,var(--primary),var(--gold));color:var(--bg);border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:10px">
-                    <i data-lucide="crown" style="width:24px;height:24px"></i>
-                    <div><div style="font-weight:700;font-size:0.9rem">Mind</div><div style="font-size:0.65rem;opacity:0.7">AI Assistant</div></div>
-                </div>
-            </div>
-
-            <!-- 서비스 그리드: 카테고리별 -->
-            <div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;padding:4px 0;margin-top:4px">Social</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
-                <div class="cv-btn" onclick="showPage('social')"><i data-lucide="tv" style="width:18px;height:18px"></i><span>Tube</span></div>
-                <div class="cv-btn" onclick="showPage('reels')"><i data-lucide="video" style="width:18px;height:18px"></i><span>Shorts</span></div>
-                <div class="cv-btn" onclick="showPage('contacts-crm')"><i data-lucide="contact" style="width:18px;height:18px"></i><span>Contacts</span></div>
-                <div class="cv-btn" onclick="showPage('crowny-mail')"><i data-lucide="mail" style="width:18px;height:18px"></i><span>Mail</span></div>
-            </div>
-
-            <div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;padding:4px 0">Commerce</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
-                <div class="cv-btn" onclick="showPage('mall')"><i data-lucide="shopping-bag" style="width:18px;height:18px"></i><span>Mall</span></div>
-                <div class="cv-btn" onclick="showPage('art')"><i data-lucide="palette" style="width:18px;height:18px"></i><span>Art</span></div>
-                <div class="cv-btn" onclick="showPage('books')"><i data-lucide="book-open" style="width:18px;height:18px"></i><span>Books</span></div>
-                <div class="cv-btn" onclick="showPage('artist')"><i data-lucide="mic" style="width:18px;height:18px"></i><span>Artist</span></div>
-            </div>
-
-            <div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;padding:4px 0">Finance</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
-                <div class="cv-btn" onclick="showPage('chain-explorer')"><i data-lucide="blocks" style="width:18px;height:18px"></i><span>Chain</span></div>
-                <div class="cv-btn" onclick="showPage('credit')"><i data-lucide="credit-card" style="width:18px;height:18px"></i><span>Credit</span></div>
-                <div class="cv-btn" onclick="showPage('fundraise')"><i data-lucide="heart-handshake" style="width:18px;height:18px"></i><span>Fund</span></div>
-                <div class="cv-btn" onclick="showPage('business')"><i data-lucide="building-2" style="width:18px;height:18px"></i><span>Biz</span></div>
-            </div>
-
-            <div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;padding:4px 0">Lifestyle</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
-                <div class="cv-btn" onclick="showPage('care')"><i data-lucide="heart" style="width:18px;height:18px"></i><span>Care</span></div>
-                <div class="cv-btn" onclick="showPage('beauty-manager')"><i data-lucide="sparkles" style="width:18px;height:18px"></i><span>Beauty</span></div>
-                <div class="cv-btn" onclick="showPage('brain')"><i data-lucide="brain" style="width:18px;height:18px"></i><span>Brain</span></div>
-                <div class="cv-btn" onclick="showPage('movement')"><i data-lucide="activity" style="width:18px;height:18px"></i><span>Move</span></div>
-            </div>
-
-            <div style="font-size:0.65rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;padding:4px 0">Platform</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
-                <div class="cv-btn" onclick="showPage('energy')"><i data-lucide="flask-round" style="width:18px;height:18px"></i><span>CREB</span></div>
-                <div class="cv-btn" onclick="showPage('bible-quiz')" style="border-color:var(--gold)"><i data-lucide="book-open-check" style="width:18px;height:18px"></i><span>Quiz</span></div>
-                <div class="cv-btn" onclick="showPage('hanseon-vm')"><i data-lucide="code-2" style="width:18px;height:18px"></i><span>VM</span></div>
-                <div class="cv-btn" onclick="showPage('settings')"><i data-lucide="settings" style="width:18px;height:18px"></i><span>Settings</span></div>
+            <div class="services">
+                <div class="service-card" onclick="showPage('wallet')"><span class="icon"><i data-lucide="wallet" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.wallet">WALLET</h3></div>
+                <div class="service-card" onclick="showPage('messenger')"><span class="icon"><i data-lucide="message-circle" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="nav.chat">CHAT</h3></div>
+                <div class="service-card" onclick="showPage('social')"><span class="icon"><i data-lucide="tv" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.social">TUBE</h3></div>
+                <div class="service-card" onclick="showPage('art')"><span class="icon"><i data-lucide="palette" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.art">ART</h3></div>
+                <div class="service-card" onclick="showPage('mall')"><span class="icon"><i data-lucide="shopping-bag" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.mall">MALL</h3></div>
+                <div class="service-card" onclick="showPage('fundraise')"><span class="icon"><i data-lucide="heart-handshake" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.fundraise">FUNDRAISE</h3></div>
+                <div class="service-card" onclick="showPage('energy')"><span class="icon"><i data-lucide="flask-round" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.creb_labs">CREB LABS</h3></div>
+                <div class="service-card" onclick="showPage('business')"><span class="icon"><i data-lucide="building-2" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.business">BUSINESS</h3></div>
+                <div class="service-card" onclick="showPage('artist')"><span class="icon"><i data-lucide="mic" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.artist">ARTIST</h3></div>
+                <div class="service-card" onclick="showPage('books')"><span class="icon"><i data-lucide="book-open" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.books">BOOKS</h3></div>
+                <div class="service-card" onclick="showPage('credit')"><span class="icon"><i data-lucide="credit-card" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.credit">CREDIT</h3></div>
+                <div class="service-card" onclick="showPage('prop-trading')"><span class="icon"><i data-lucide="trending-up" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.trading">TRADING</h3></div>
+                <div class="service-card" onclick="showPage('care')"><span class="icon"><i data-lucide="heart" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.care">CARE</h3></div>
+                <div class="service-card" onclick="showPage('beauty-manager')"><span class="icon"><i data-lucide="sparkles" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.beauty">BEAUTY</h3></div>
+                <div class="service-card" onclick="showPage('brain')"><span class="icon"><i data-lucide="brain" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.brain">BRAIN</h3></div>
+                <div class="service-card" onclick="showPage('movement')"><span class="icon"><i data-lucide="activity" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.movement">MOVEMENT</h3></div>
+                <div class="service-card" onclick="showPage('ai-assistant')" style="border:2px solid var(--gold)"><span class="icon"><i data-lucide="crown" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.crowny_panel">CROWNY</h3></div>
+                <div class="service-card" onclick="showPage('reels')"><span class="icon"><i data-lucide="video" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.reels">SHORTS</h3></div>
+                <div class="service-card" onclick="showPage('chain-explorer')"><span class="icon"><i data-lucide="blocks" style="width:24px;height:24px;color:var(--primary);"></i></span><h3>CHAIN</h3></div>
+                <div class="service-card" onclick="showPage('bible-quiz')" style="border:2px solid #D4AF37"><span class="icon"><i data-lucide="book-open-check" style="width:24px;height:24px;color:#8B6914;"></i></span><h3 data-i18n="home.bible_quiz">QUIZ</h3></div>
+                <div class="service-card" onclick="showPage('crowny-mail')"><span class="icon"><i data-lucide="mail" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.mail">MAIL</h3></div>
+                <div class="service-card" onclick="showPage('contacts-crm')"><span class="icon"><i data-lucide="contact" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.contacts">CONTACTS</h3></div>
+                <div class="service-card" onclick="showPage('hanseon-vm')"><span class="icon"><i data-lucide="code-2" style="width:24px;height:24px;color:var(--primary);"></i></span><h3>VM</h3></div>
+                <div class="service-card" onclick="showPage('dashboard')"><span class="icon"><i data-lucide="layout-dashboard" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.dashboard">DASHBOARD</h3></div>
+                <div class="service-card" onclick="showPage('settings')"><span class="icon"><i data-lucide="settings" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.settings">SETTINGS</h3></div>
             </div>
             
             <div style="background:var(--bg); padding:1.5rem; border-radius:12px; margin-top:2rem;">
