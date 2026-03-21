@@ -51,6 +51,12 @@ const { CityEngine } = require('./city');
 const { SCOPES, SCOPE_NAME, SCOPE_APP, PropagationEngine } = require('./scope');
 const { generateChurchDemo } = require('./demo-church');
 const { AuditLog, CLASSIFICATION, CLASS_NAME, canRead, canWrite, createToken, verifyToken, UserStore } = require('./security');
+const { ACHEngine, DFICalculator, RedTeamEngine, WargameEngine, MDMPPipeline } = require('./tactical');
+
+const ach = new ACHEngine();
+const redTeam = new RedTeamEngine(CovenantEngine);
+const wargame = new WargameEngine(ach, DFICalculator, redTeam);
+const mdmp = new MDMPPipeline();
 
 const audit = new AuditLog();
 const users = new UserStore();
@@ -486,6 +492,78 @@ route('GET', '/api/foundry/covenant/stats', async (req, res) => {
 // GET /api/foundry/covenant/slots — 27슬롯 언약 구조
 route('GET', '/api/foundry/covenant/slots', async (req, res) => {
     json(res, 200, { slots: SLOT_META, rings: RING, protocol: PROTOCOL });
+});
+
+// ═══ 전술 API ═══
+
+// ACH
+route('POST', '/api/foundry/tactical/ach/hypothesis', async (req, res) => {
+    const { name, desc } = await parseBody(req);
+    json(res, 201, ach.addHypothesis(name, desc));
+});
+route('POST', '/api/foundry/tactical/ach/evidence', async (req, res) => {
+    const { name, source, reliability } = await parseBody(req);
+    json(res, 201, ach.addEvidence(name, source, reliability));
+});
+route('POST', '/api/foundry/tactical/ach/score', async (req, res) => {
+    const { hypothesisId, evidenceId, score } = await parseBody(req);
+    ach.score(hypothesisId, evidenceId, score);
+    json(res, 200, { scored: true });
+});
+route('GET', '/api/foundry/tactical/ach/evaluate', async (req, res) => {
+    json(res, 200, ach.evaluate());
+});
+route('GET', '/api/foundry/tactical/ach/matrix', async (req, res) => {
+    json(res, 200, ach.getMatrix());
+});
+
+// Wargame
+route('POST', '/api/foundry/tactical/wargame/coa', async (req, res) => {
+    const coa = await parseBody(req);
+    json(res, 200, wargame.evaluateCOA(coa));
+});
+route('GET', '/api/foundry/tactical/wargame/compare', async (req, res) => {
+    json(res, 200, wargame.compare());
+});
+route('POST', '/api/foundry/tactical/wargame/reset', async (req, res) => {
+    wargame.reset();
+    json(res, 200, { reset: true });
+});
+
+// Red Team
+route('POST', '/api/foundry/tactical/redteam/knowledge', async (req, res) => {
+    const { items } = await parseBody(req);
+    redTeam.setEstimatedKnowledge(items || []);
+    json(res, 200, { set: true, count: (items || []).length });
+});
+route('POST', '/api/foundry/tactical/redteam/predict', async (req, res) => {
+    const situation = await parseBody(req);
+    json(res, 200, redTeam.predictEnemyCOA(situation));
+});
+route('GET', '/api/foundry/tactical/redteam/deception', async (req, res) => {
+    json(res, 200, redTeam.findDeceptionOpportunities());
+});
+route('GET', '/api/foundry/tactical/redteam/advantage', async (req, res) => {
+    json(res, 200, redTeam.findInformationAdvantage());
+});
+
+// MDMP
+route('GET', '/api/foundry/tactical/mdmp/status', async (req, res) => {
+    json(res, 200, mdmp.getStatus());
+});
+route('POST', '/api/foundry/tactical/mdmp/cell', async (req, res) => {
+    const { phaseId, cell } = await parseBody(req);
+    mdmp.addCell(phaseId, cell);
+    json(res, 200, { added: true, phase: phaseId });
+});
+route('POST', '/api/foundry/tactical/mdmp/advance', async (req, res) => {
+    json(res, 200, mdmp.advance());
+});
+route('POST', '/api/foundry/tactical/mdmp/force', async (req, res) => {
+    const { commander, reason } = await parseBody(req);
+    const result = mdmp.forceAdvance(commander || req._user?.name || 'unknown', reason || '');
+    if (req._user) audit.log('MDMP_OVERRIDE', req._user.name, `Phase ${result.newPhase}: ${reason}`, 'SECRET');
+    json(res, 200, result);
 });
 
 // ═══ 인증 + 보안 API ═══
