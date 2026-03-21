@@ -25,9 +25,9 @@ class 언약패널 {
     if (!this.el) return;
     this.el.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
-        <div class="card cov-layer cov-torah"><h4>토라 / 경계</h4><div style="font-size:11px;color:var(--text-2)">보호적 울타리 · 비례적 제한<br><b style="color:var(--확정)">경계 차단: ${stats.boundaryBlocks||0}건</b></div></div>
-        <div class="card cov-layer cov-gospel"><h4>복음 / 관계</h4><div style="font-size:11px;color:var(--text-2)">나 → 가족 → 이웃 → 세계<br><b style="color:var(--미확인)">축적된 원칙: ${stats.principles||0}건</b></div></div>
-        <div class="card cov-layer cov-spirit"><h4>성령 / 초월</h4><div style="font-size:11px;color:var(--text-2)">고도화 · 병합 · 세분화<br><b style="color:#6B5B8A">성장 단위: ${stats.growthLevel||3}</b></div></div>
+        <div class="card cov-layer cov-base"><h4>기반 / 보호</h4><div style="font-size:11px;color:var(--text-2)">보호적 울타리 · 비례적 제한<br><b style="color:var(--확정)">경계 차단: ${stats.boundaryBlocks||0}건</b></div></div>
+        <div class="card cov-layer cov-relation"><h4>관계 / 협력</h4><div style="font-size:11px;color:var(--text-2)">나 → 가족 → 이웃 → 세계<br><b style="color:var(--미확인)">축적된 원칙: ${stats.principles||0}건</b></div></div>
+        <div class="card cov-layer cov-growth"><h4>성장 / 혁신</h4><div style="font-size:11px;color:var(--text-2)">고도화 · 병합 · 세분화<br><b style="color:#6B5B8A">성장 단위: ${stats.growthLevel||3}</b></div></div>
       </div>
       <div class="stat-grid" style="margin-bottom:14px">
         <div class="stat"><div class="stat-v">${stats.totalDecisions||0}</div><div class="stat-l">전체 결정</div></div>

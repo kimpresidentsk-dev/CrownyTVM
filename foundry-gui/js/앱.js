@@ -19,7 +19,7 @@ function go(name) {
   if (view) view.classList.add('active');
   if (btn) btn.classList.add('active');
 
-  const titles = { graph:'셀 그래프', decide:'의사결정', tmpl:'프로젝트 템플릿', causal:'인과추론', kps:'차트 분석', create:'만들기', search:'찾기', stats:'통계' };
+  const titles = { home:'CrownyCore', graph:'셀 그래프', decide:'의사결정', tmpl:'프로젝트 템플릿', causal:'인과추론', kps:'차트 분석', create:'만들기', search:'찾기', stats:'통계' };
   document.getElementById('viewTitle').textContent = titles[name] || name;
 
   // Lazy load
@@ -107,14 +107,121 @@ async function loadSample() {
   await post(`${API}/cells/3/evidence`);
   await post(`${API}/cells/3/evidence`);
   await post(`${API}/cells/3/evidence`);
-  document.getElementById('welcome')?.classList.add('hidden');
   await refresh();
+  go('graph');
   toast('셀 10개 + 주장 4개 + 연결 6개 완성!', '확정');
 }
 
 async function refresh() {
-  await graph?.로드();
   await health();
+  await graph?.로드();
+  await updateWorkspace();
+}
+
+// ── Workspace: 셀 리스트 + 컨텍스트 + 가이드 ──
+async function updateWorkspace() {
+  try {
+    const res = await fetch(`${API}/cells?limit=200`);
+    const data = await res.json();
+    const cells = data.cells || [];
+
+    // 상단 통계
+    const statsEl = document.getElementById('wsStats');
+    if (statsEl) {
+      const ti = cells.filter(c => c.status === 2).length;
+      const om = cells.filter(c => c.status === 0).length;
+      statsEl.innerHTML = `
+        <span>전체 ${cells.length}</span>
+        <span style="color:var(--확정)">▲${ti}</span>
+        <span style="color:var(--미확인)">●${om}</span>
+      `;
+    }
+
+    // 프로젝트 이름
+    const nameEl = document.getElementById('wsProjectName');
+    if (nameEl && cells.length > 0) {
+      nameEl.textContent = `작업 공간 · ${cells.length}개 셀`;
+    }
+
+    // 셀 리스트
+    const listEl = document.getElementById('wsCellList');
+    if (!listEl) return;
+    const filter = (document.getElementById('wsFilter')?.value || '').toLowerCase();
+    const filtered = filter ? cells.filter(c => (c.name||'').toLowerCase().includes(filter) || (c.claim?.subject||'').toLowerCase().includes(filter)) : cells;
+
+    listEl.innerHTML = filtered.length ? filtered.map(c => {
+      const stName = ({'2':'확정','0':'미확인','-2':'오류','-1':'미인지'})[String(c.status)] || '미인지';
+      return `<div class="ws-item" data-id="${c.id}">
+        <div class="ws-dot ${stName}"></div>
+        <span class="ws-name">${c.name || (c.claim ? c.claim.subject+' '+c.claim.predicate : '#'+c.id)}</span>
+        <span class="ws-meta">${c.claim ? '주장' : c.evidence > 0 ? '근거'+c.evidence : ''}</span>
+      </div>`;
+    }).join('') : '<div style="padding:10px;color:var(--text-3);font-size:10px;text-align:center">셀이 없습니다<br>홈에서 프로젝트를 선택하세요</div>';
+
+    // 셀 리스트 클릭 이벤트
+    listEl.querySelectorAll('.ws-item').forEach(el => {
+      el.addEventListener('click', async () => {
+        const id = +el.dataset.id;
+        listEl.querySelectorAll('.ws-item').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+        try {
+          const r = await fetch(`${API}/cells/${id}`);
+          if (r.ok) {
+            const cell = await r.json();
+            showDetail(cell);
+            document.getElementById('wsGuide').textContent = `#${cell.id} ${cell.name||''} 선택됨`;
+          }
+        } catch {}
+      });
+    });
+  } catch {}
+}
+
+// ── Workspace 액션 바 이벤트 ──
+function initWorkspaceActions() {
+  // 셀 추가 퀵폼
+  document.getElementById('wsAddCell')?.addEventListener('click', () => go('create'));
+
+  // 주장 추가 퀵 프롬프트
+  document.getElementById('wsAddClaim')?.addEventListener('click', () => {
+    const input = prompt('주장 입력 (누가 무엇을 어떻게)\n예: BTC 추세 상승');
+    if (!input) return;
+    const parts = input.trim().split(/\s+/);
+    if (parts.length < 3) { toast('3단어 이상 입력 (누가 무엇을 어떻게)', '미확인'); return; }
+    fetch(`${API}/claims`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ subject: parts[0], predicate: parts[1], object: parts.slice(2).join(' '), layer: 1 })
+    }).then(() => { refresh(); toast('주장 추가: ' + input, '확정'); });
+  });
+
+  // 의사결정
+  document.getElementById('wsRunDecide')?.addEventListener('click', () => go('decide'));
+
+  // 인과 분석
+  document.getElementById('wsDetectCausal')?.addEventListener('click', async () => {
+    const res = await fetch(`${API}/causal/detect`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ windowMs: 999999999 }) });
+    const data = await res.json();
+    toast(`${data.detected}개 관계 발견`, data.detected > 0 ? '확정' : '미확인');
+    go('causal');
+  });
+
+  // 내보내기
+  document.getElementById('wsExport')?.addEventListener('click', async () => {
+    const res = await fetch(`${API}/cells?limit=1000`);
+    const data = await res.json();
+    const csv = ['ID,이름,상태,유형,내용,신뢰도,근거,계층'].concat(
+      (data.cells||[]).map(c => `${c.id},${c.name||''},${c.statusName||''},${c.type},${JSON.stringify(c.content).replace(/,/g,';')},${c.trust},${c.evidence},${c.layer}`)
+    ).join('\n');
+    const blob = new Blob(['\uFEFF'+csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'crownycore-export.csv';
+    a.click();
+    toast('CSV 내보내기 완료', '확정');
+  });
+
+  // 셀 필터
+  document.getElementById('wsFilter')?.addEventListener('input', () => updateWorkspace());
 }
 
 // ── Detail panel: 27-radial slots + covenant layers ──
@@ -150,9 +257,9 @@ async function showDetail(cell) {
     </div>
 
     <div style="display:flex;gap:6px;margin:10px 0;flex-wrap:wrap">
-      <span class="ring-label ring-torah" style="font-size:8px;padding:2px 4px">토라 0-8</span>
-      <span class="ring-label ring-gospel" style="font-size:8px;padding:2px 4px">복음 9-17</span>
-      <span class="ring-label ring-spirit" style="font-size:8px;padding:2px 4px">성령 18-26</span>
+      <span class="ring-label ring-base" style="font-size:8px;padding:2px 4px">기반 0-8</span>
+      <span class="ring-label ring-relation" style="font-size:8px;padding:2px 4px">관계 9-17</span>
+      <span class="ring-label ring-growth" style="font-size:8px;padding:2px 4px">성장 18-26</span>
     </div>
 
     <div class="detail-title">속성</div>
@@ -174,7 +281,7 @@ async function showDetail(cell) {
   const orbitWrap = document.getElementById('_orbitWrap');
   if (orbitWrap) {
     const slotDefs = [
-    // 토라/경계 (0-8)
+    // 기반/보호 (0-8)
     { key:'status',    label:'상태', fmt: v => ({'2':'▲확정','0':'●미확인','-2':'▼오해','-1':'◆미인지'})[String(v)]||v },
     { key:'forward',   label:'앞',   fmt: v => v > 0 ? '#'+v : '—' },
     { key:'backward',  label:'뒤',   fmt: v => v > 0 ? '#'+v : '—' },
@@ -184,7 +291,7 @@ async function showDetail(cell) {
     { key:'source',    label:'출처' },
     { key:'tag',       label:'태그' },
     { key:'createdAt', label:'생성', fmt: v => v>1e10 ? new Date(v).toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'}) : v },
-    // 복음/관계 (9-17)
+    // 관계/협력 (9-17)
     { key:'depth',     label:'계층', fmt: v => ['코어','도메인','결정','인식','메타'][v]||v },
     { key:'target',    label:'대상', fmt: v => v > 0 ? '#'+v : '—' },
     { key:'strength',  label:'강도' },
@@ -194,7 +301,7 @@ async function showDetail(cell) {
     { key:'evidence',  label:'근거' },
     { key:'trust',     label:'신뢰' },
     { key:'modifiedAt',label:'변경', fmt: v => v>1e10 ? new Date(v).toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'}) : v },
-    // 성령/초월 (18-26)
+    // 성장/혁신 (18-26)
     { key:'version',   label:'버전' },
     { key:'layer',     label:'레이어' },
     { key:'claim_s',   label:'주체', fmt: () => c.claim?.subject || '—' },
@@ -250,8 +357,8 @@ async function createCell(e) {
   const b={name:f.name.value.trim(),type:+f.type.value||0,content:isNaN(f.content.value)?f.content.value:+f.content.value,confirmed:f.confirmed?.checked,layer:+f.layer?.value||0};
   if(!b.name)return;
   await fetch(`${API}/cells`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
-  f.reset();document.getElementById('welcome')?.classList.add('hidden');
-  await refresh();toast('셀 생성: '+b.name,'확정');
+  f.reset();
+  await refresh();go('graph');toast('셀 생성: '+b.name,'확정');
 }
 
 async function createClaim(e) {
@@ -297,17 +404,23 @@ function init() {
   document.addEventListener('셀선택', e => showDetail(e.detail));
   document.addEventListener('데이터변경', () => refresh());
   document.addEventListener('알림', e => toast(e.detail.msg, e.detail.type));
+  document.addEventListener('화면이동', e => go(e.detail));
 
   document.getElementById('cellForm')?.addEventListener('submit', createCell);
   document.getElementById('claimForm')?.addEventListener('submit', createClaim);
   document.getElementById('searchForm')?.addEventListener('submit', search);
   document.getElementById('sampleBtn')?.addEventListener('click', loadSample);
   document.getElementById('refreshBtn')?.addEventListener('click', refresh);
+  initWorkspaceActions();
 
   // Welcome shortcuts
   document.getElementById('w_sample')?.addEventListener('click', loadSample);
-  document.getElementById('w_tmpl')?.addEventListener('click', ()=>go('tmpl'));
+  document.getElementById('w_nation')?.addEventListener('click', ()=>go('tmpl'));
   document.getElementById('w_decide')?.addEventListener('click', ()=>go('decide'));
+  // 3 카테고리 — 해당 도메인으로 템플릿 필터
+  document.getElementById('w_biz')?.addEventListener('click', ()=>{ go('tmpl'); tmpl.selectedDomain='business'; tmpl.렌더(); });
+  document.getElementById('w_ent')?.addEventListener('click', ()=>{ go('tmpl'); tmpl.selectedDomain='entertainment'; tmpl.렌더(); });
+  document.getElementById('w_church')?.addEventListener('click', ()=>{ go('tmpl'); tmpl.selectedDomain='church'; tmpl.렌더(); });
 
   // KPS sample
   const kpsSample = Array.from({length:80},(_,i)=>{
@@ -318,11 +431,11 @@ function init() {
 
   // Load
   health().then(d => {
-    if (d && d.totalCells > 0) document.getElementById('welcome')?.classList.add('hidden');
+    if (d && d.totalCells > 0) go('graph');
   });
   graph.로드();
 
-  go('graph');
+  go('home');
 }
 
 // module script는 defer이므로 DOM이 이미 ready일 수 있음

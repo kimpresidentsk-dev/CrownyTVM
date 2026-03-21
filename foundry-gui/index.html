@@ -20,7 +20,8 @@
 
 <!-- Left Nav Rail -->
 <nav class="nav">
-  <button class="nav-btn active" data-v="graph"><span class="ic">◉</span><span class="label">셀 그래프</span></button>
+  <button class="nav-btn active" data-v="home"><span class="ic">⌂</span><span class="label">홈</span></button>
+  <button class="nav-btn" data-v="graph"><span class="ic">◉</span><span class="label">작업 공간</span></button>
   <button class="nav-btn" data-v="decide"><span class="ic">◎</span><span class="label">의사결정</span></button>
   <div class="nav-sep"></div>
   <button class="nav-btn" data-v="tmpl"><span class="ic">◧</span><span class="label">프로젝트</span></button>
@@ -43,18 +44,51 @@
   </div>
   <div class="canvas-body">
 
-    <!-- Graph View -->
-    <div class="view active" id="v_graph">
-      <div class="welcome" id="welcome">
-        <h2>CrownyCore</h2>
-        <p>무엇을 하고 싶나요?</p>
-        <div class="welcome-grid">
-          <div class="welcome-card" id="w_sample"><span class="ic">◉</span><span class="label">예제 데이터</span><span class="sub">바로 시작해보기</span></div>
-          <div class="welcome-card" id="w_tmpl"><span class="ic">◧</span><span class="label">프로젝트 고르기</span><span class="sub">67가지 중에 선택</span></div>
-          <div class="welcome-card" id="w_decide"><span class="ic">◎</span><span class="label">결정 도와줘</span><span class="sub">AI가 같이 판단</span></div>
-        </div>
+    <!-- Welcome View (첫 화면) -->
+    <div class="view active" id="v_home" style="align-items:center;justify-content:center">
+      <h2 style="font-size:16px;font-weight:700;letter-spacing:-0.03em">CrownyCore</h2>
+      <p style="font-size:12px;color:var(--text-2);max-width:400px;text-align:center;line-height:1.6">무엇을 하고 싶나요?</p>
+      <div class="welcome-grid">
+        <div class="welcome-card" id="w_biz"><span class="ic">▪</span><span class="label">비즈니스</span><span class="sub">매출·고객·재고·HR</span></div>
+        <div class="welcome-card" id="w_ent"><span class="ic">▫</span><span class="label">엔터테인먼트</span><span class="sub">콘텐츠·커뮤니티·이벤트</span></div>
+        <div class="welcome-card" id="w_church"><span class="ic">◌</span><span class="label">교회</span><span class="sub">교인·소그룹·기도·예배</span></div>
       </div>
-      <div class="graph-wrap" id="graphC"></div>
+      <div class="welcome-grid" style="margin-top:8px">
+        <div class="welcome-card" id="w_nation"><span class="ic">◧</span><span class="label">국가 구축</span><span class="sub">191개 프로젝트</span></div>
+        <div class="welcome-card" id="w_sample"><span class="ic">◉</span><span class="label">예제 데이터</span><span class="sub">바로 시작해보기</span></div>
+        <div class="welcome-card" id="w_decide"><span class="ic">◎</span><span class="label">결정 도와줘</span><span class="sub">AI가 같이 판단</span></div>
+      </div>
+    </div>
+
+    <!-- Workspace View -->
+    <div class="view" id="v_graph" style="gap:0">
+      <!-- 상단: 프로젝트 컨텍스트 + 요약 -->
+      <div id="wsContext" style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--panel);display:flex;align-items:center;gap:10px;min-height:40px">
+        <span id="wsProjectName" style="font-weight:600;font-size:12px">프로젝트를 선택하세요</span>
+        <div id="wsStats" style="display:flex;gap:8px;margin-left:auto;font-size:10px;color:var(--text-3)"></div>
+      </div>
+      <!-- 중앙: 리스트 + 그래프 분할 -->
+      <div style="flex:1;display:flex;overflow:hidden">
+        <!-- 왼쪽: 셀 리스트 -->
+        <div id="wsList" style="width:220px;border-right:1px solid var(--border);overflow-y:auto;background:var(--surface);display:flex;flex-direction:column">
+          <div style="padding:8px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px">
+            <input id="wsFilter" placeholder="셀 필터..." style="flex:1;font-size:10px">
+            <button class="btn" id="wsAddCell" style="font-size:10px;padding:2px 6px" title="새 셀 추가">+</button>
+          </div>
+          <div id="wsCellList" style="flex:1;overflow-y:auto"></div>
+        </div>
+        <!-- 오른쪽: 그래프 -->
+        <div class="graph-wrap" id="graphC" style="flex:1"></div>
+      </div>
+      <!-- 하단: 액션 바 -->
+      <div style="padding:6px 14px;border-top:1px solid var(--border);background:var(--panel);display:flex;align-items:center;gap:6px;font-size:10px">
+        <span style="color:var(--text-3)">작업:</span>
+        <button class="btn" id="wsAddClaim" style="font-size:10px;padding:2px 8px">주장 추가</button>
+        <button class="btn" id="wsRunDecide" style="font-size:10px;padding:2px 8px">의사결정</button>
+        <button class="btn" id="wsDetectCausal" style="font-size:10px;padding:2px 8px">인과 분석</button>
+        <button class="btn" id="wsExport" style="font-size:10px;padding:2px 8px">내보내기</button>
+        <div style="margin-left:auto;color:var(--text-3)" id="wsGuide">셀을 클릭하면 오른쪽에 상세 정보가 나타납니다</div>
+      </div>
     </div>
 
     <!-- Decide View -->

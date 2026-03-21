@@ -12,9 +12,13 @@
 // ═══ 도메인 정의 ═══
 const DOMAINS = [
   // ── 크라우니 국가 3계층 ──
-  { id: 'torah',        name: '토라·경계',        icon: '▮', color: '#2D7D5F', layer: 1 },
-  { id: 'gospel',       name: '복음·관계',        icon: '♡', color: '#8C7440', layer: 2 },
-  { id: 'spirit',       name: '성령·초월',        icon: '✦', color: '#6B5B8A', layer: 3 },
+  { id: 'torah',        name: '기반·보호',        icon: '▮', color: '#2D7D5F', layer: 1 },
+  { id: 'gospel',       name: '관계·협력',        icon: '♡', color: '#8C7440', layer: 2 },
+  { id: 'spirit',       name: '성장·혁신',        icon: '✦', color: '#6B5B8A', layer: 3 },
+  // ── 카테고리 ──
+  { id: 'business',     name: '비즈니스',         icon: '▪', color: '#2D5F7D' },
+  { id: 'entertainment',name: '엔터테인먼트',     icon: '▫', color: '#7D5B2D' },
+  { id: 'church',       name: '교회',             icon: '◌', color: '#5B6B4A' },
   // ── 산업 도메인 ──
   { id: 'defense',      name: '국방·안보',        icon: '◈', color: '#4A6741' },
   { id: 'government',   name: '공공·행정',        icon: '◇', color: '#5B6B8A' },
@@ -864,8 +868,45 @@ const TEMPLATES = [
     tags: ['제로트러스트', 'IAM', 'EDR'] },
 
   // ══════════════════════════════════════════════════════════════
+  // 비즈니스 · 엔터테인먼트 · 교회
+  // ══════════════════════════════════════════════════════════════
+
+  // ────── 비즈니스 (9) ──────
+  { id:'biz-crm', domain:'business', name:'고객 관리 (CRM)', desc:'고객 셀 27슬롯, 거래 이력, 만족도 4상 추적', cells:[{name:'고객목록',type:3,content:'고객DB',layer:1},{name:'거래이력',type:1,content:0,layer:1},{name:'만족도분석',type:8,content:'4상',layer:2}], claims:[{subject:'만족도분석',predicate:'평가',object:'고객만족',layer:2}], connections:[[0,1],[1,2]], tags:['CRM','고객','만족도'] },
+  { id:'biz-sales', domain:'business', name:'매출 대시보드', desc:'일별/월별 매출, 목표 대비 달성률, 4상 트렌드', cells:[{name:'매출데이터',type:1,content:0,layer:1},{name:'목표설정',type:1,content:0,layer:2},{name:'달성분석',type:8,content:'트렌드',layer:2}], claims:[{subject:'달성분석',predicate:'비교',object:'목표대비',layer:2}], connections:[[0,2],[1,2]], tags:['매출','목표','트렌드'] },
+  { id:'biz-inventory', domain:'business', name:'재고 관리', desc:'상품 재고 실시간, 부족 경보, 자동 발주', cells:[{name:'재고현황',type:1,content:0,layer:0},{name:'부족감지',type:8,content:'경계값',layer:2},{name:'자동발주',type:8,content:'트리거',layer:2}], claims:[{subject:'부족감지',predicate:'감지',object:'재고부족',layer:2}], connections:[[0,1],[1,2]], tags:['재고','발주','관리'] },
+  { id:'biz-hr', domain:'business', name:'직원 관리', desc:'직원 셀, 역량 추적, 출퇴근, 급여', cells:[{name:'직원목록',type:3,content:'인사DB',layer:0},{name:'역량추적',type:8,content:'성장',layer:2},{name:'급여관리',type:1,content:0,layer:1}], claims:[{subject:'역량추적',predicate:'추적',object:'직원성장',layer:2}], connections:[[0,1],[0,2]], tags:['HR','직원','역량'] },
+  { id:'biz-project', domain:'business', name:'프로젝트 관리', desc:'태스크, 마일스톤, 4상 진행률, 리스크 감지', cells:[{name:'프로젝트',type:3,content:'태스크',layer:0},{name:'마일스톤',type:3,content:'일정',layer:1},{name:'리스크',type:8,content:'4상',layer:2}], claims:[{subject:'리스크',predicate:'감지',object:'프로젝트위험',layer:2}], connections:[[0,1],[1,2]], tags:['프로젝트','태스크','리스크'] },
+  { id:'biz-marketing', domain:'business', name:'마케팅 분석', desc:'캠페인 성과, 채널별 ROI, 전환 인과 추적', cells:[{name:'캠페인',type:3,content:'채널별',layer:1},{name:'전환데이터',type:1,content:0,layer:1},{name:'ROI분석',type:8,content:'인과',layer:2}], claims:[{subject:'ROI분석',predicate:'분석',object:'마케팅효과',layer:2}], connections:[[0,2],[1,2]], tags:['마케팅','ROI','전환'] },
+  { id:'biz-finance', domain:'business', name:'회계·재무', desc:'수입/지출, 손익, 현금흐름, 세금 4상 관리', cells:[{name:'수입',type:1,content:0,layer:0},{name:'지출',type:1,content:0,layer:0},{name:'손익분석',type:8,content:'자동',layer:2}], claims:[{subject:'손익분석',predicate:'산출',object:'손익',layer:2}], connections:[[0,2],[1,2]], tags:['회계','재무','손익'] },
+  { id:'biz-supplier', domain:'business', name:'거래처 관리', desc:'공급업체/파트너 셀, 거래 신뢰도 4상 추적', cells:[{name:'거래처',type:3,content:'목록',layer:1},{name:'신뢰도',type:8,content:'4상추적',layer:3}], claims:[{subject:'신뢰도',predicate:'평가',object:'거래처신뢰',layer:3}], connections:[[0,1]], tags:['거래처','공급','신뢰'] },
+  { id:'biz-startup', domain:'business', name:'스타트업 런치패드', desc:'아이디어→검증→MVP→성장 4상 단계 관리', cells:[{name:'아이디어',type:3,content:'Om',layer:0},{name:'검증',type:8,content:'실험',layer:2},{name:'MVP',type:3,content:'프로토타입',layer:1},{name:'성장',type:8,content:'스케일',layer:2}], claims:[{subject:'검증',predicate:'판단',object:'아이디어적합성',layer:2}], connections:[[0,1],[1,2],[2,3]], tags:['스타트업','MVP','검증'] },
+
+  // ────── 엔터테인먼트 (9) ──────
+  { id:'ent-content', domain:'entertainment', name:'콘텐츠 관리', desc:'영상/음악/글 콘텐츠 셀, 조회수, 반응 4상 추적', cells:[{name:'콘텐츠',type:3,content:'업로드',layer:1},{name:'조회수',type:1,content:0,layer:1},{name:'반응분석',type:8,content:'4상',layer:2}], claims:[{subject:'반응분석',predicate:'분석',object:'콘텐츠반응',layer:2}], connections:[[0,1],[1,2]], tags:['콘텐츠','조회수','반응'] },
+  { id:'ent-community', domain:'entertainment', name:'커뮤니티', desc:'팬/멤버 관계 그래프, 활동도 추적, 기여 보상', cells:[{name:'멤버',type:3,content:'프로필',layer:1},{name:'활동추적',type:8,content:'포인트',layer:2},{name:'기여보상',type:8,content:'자동',layer:2}], claims:[{subject:'활동추적',predicate:'추적',object:'멤버활동',layer:2}], connections:[[0,1],[1,2]], tags:['커뮤니티','활동','보상'] },
+  { id:'ent-event', domain:'entertainment', name:'이벤트 관리', desc:'행사 기획→참가자→실행→후기 체인', cells:[{name:'이벤트',type:3,content:'기획',layer:0},{name:'참가자',type:3,content:'등록',layer:1},{name:'실행',type:8,content:'진행',layer:2},{name:'후기',type:3,content:'피드백',layer:3}], claims:[{subject:'후기',predicate:'평가',object:'이벤트만족',layer:3}], connections:[[0,1],[1,2],[2,3]], tags:['이벤트','행사','후기'] },
+  { id:'ent-game', domain:'entertainment', name:'게임화 시스템', desc:'포인트, 뱃지, 레벨, 리더보드, 도전과제', cells:[{name:'포인트',type:1,content:0,layer:1},{name:'뱃지',type:3,content:'수집',layer:1},{name:'레벨',type:8,content:'성장',layer:2}], claims:[{subject:'레벨',predicate:'계산',object:'성장단계',layer:2}], connections:[[0,2],[1,2]], tags:['게임화','포인트','레벨'] },
+  { id:'ent-streaming', domain:'entertainment', name:'실시간 스트리밍', desc:'라이브 방송, 채팅, 후원, 시청자 분석', cells:[{name:'스트림',type:3,content:'라이브',layer:0},{name:'채팅',type:3,content:'실시간',layer:1},{name:'시청분석',type:8,content:'통계',layer:2}], claims:[{subject:'시청분석',predicate:'분석',object:'시청자패턴',layer:2}], connections:[[0,1],[0,2]], tags:['스트리밍','라이브','채팅'] },
+  { id:'ent-music', domain:'entertainment', name:'음악 프로젝트', desc:'작곡→편곡→녹음→발매 워크플로, 협업 관리', cells:[{name:'작곡',type:3,content:'곡',layer:0},{name:'편곡',type:3,content:'편곡',layer:1},{name:'녹음',type:3,content:'세션',layer:1},{name:'발매',type:8,content:'배포',layer:2}], claims:[{subject:'발매',predicate:'관리',object:'음악프로젝트',layer:2}], connections:[[0,1],[1,2],[2,3]], tags:['음악','작곡','협업'] },
+  { id:'ent-portfolio', domain:'entertainment', name:'창작 포트폴리오', desc:'작품 아카이브, 성장 추적, 외부 공유', cells:[{name:'작품목록',type:3,content:'아카이브',layer:1},{name:'성장그래프',type:8,content:'추적',layer:2}], claims:[{subject:'성장그래프',predicate:'추적',object:'창작성장',layer:2}], connections:[[0,1]], tags:['포트폴리오','창작','성장'] },
+  { id:'ent-fandom', domain:'entertainment', name:'팬덤 관리', desc:'팬 등급, 공식활동, 굿즈, 소통 채널', cells:[{name:'팬등급',type:8,content:'4상',layer:3},{name:'공식활동',type:3,content:'이력',layer:1},{name:'소통채널',type:3,content:'DM',layer:1}], claims:[{subject:'팬등급',predicate:'산정',object:'팬활동',layer:3}], connections:[[0,1],[0,2]], tags:['팬덤','등급','소통'] },
+  { id:'ent-learn-play', domain:'entertainment', name:'놀며 배우기', desc:'퀴즈/챌린지로 지식 습득, 4상 이해도 추적', cells:[{name:'퀴즈',type:3,content:'문제',layer:0},{name:'챌린지',type:8,content:'도전',layer:2},{name:'이해도',type:8,content:'4상',layer:3}], claims:[{subject:'이해도',predicate:'측정',object:'학습성과',layer:3}], connections:[[0,1],[1,2]], tags:['퀴즈','챌린지','학습'] },
+
+  // ────── 교회 (9) ──────
+  { id:'ch-member', domain:'church', name:'교인 관리', desc:'교인 셀, 등록→새가족→정착→봉사 4상 성장', cells:[{name:'교인목록',type:3,content:'등록',layer:0},{name:'성장추적',type:8,content:'4상',layer:3},{name:'소그룹배정',type:8,content:'매칭',layer:1}], claims:[{subject:'성장추적',predicate:'추적',object:'신앙성장',layer:3}], connections:[[0,1],[0,2]], tags:['교인','관리','성장'] },
+  { id:'ch-smallgroup', domain:'church', name:'소그룹·셀모임', desc:'소그룹 구성원, 모임 이력, 출석, 나눔 기록', cells:[{name:'소그룹',type:3,content:'구성',layer:1},{name:'모임이력',type:3,content:'기록',layer:1},{name:'나눔기록',type:3,content:'공유',layer:1}], claims:[{subject:'모임이력',predicate:'기록',object:'셀모임',layer:1}], connections:[[0,1],[1,2]], tags:['소그룹','셀모임','나눔'] },
+  { id:'ch-offering', domain:'church', name:'헌금·재정', desc:'헌금 관리, 예산 배분, 사용 투명성, 4상 감사', cells:[{name:'헌금접수',type:1,content:0,layer:0},{name:'예산배분',type:8,content:'계획',layer:2},{name:'사용보고',type:3,content:'투명',layer:1}], claims:[{subject:'예산배분',predicate:'배분',object:'교회재정',layer:2}], connections:[[0,1],[1,2]], tags:['헌금','재정','투명'] },
+  { id:'ch-prayer', domain:'church', name:'기도 네트워크', desc:'기도 제목 셀, 중보 연결, 응답 추적', cells:[{name:'기도제목',type:3,content:'요청',layer:0},{name:'중보자',type:3,content:'연결',layer:1},{name:'응답추적',type:8,content:'기록',layer:3}], claims:[{subject:'응답추적',predicate:'추적',object:'기도응답',layer:3}], connections:[[0,1],[1,2]], tags:['기도','중보','응답'] },
+  { id:'ch-sermon', domain:'church', name:'설교·말씀', desc:'설교 아카이브, 성경 구절 연결, 적용 추적', cells:[{name:'설교목록',type:3,content:'아카이브',layer:1},{name:'성경연결',type:8,content:'구절매핑',layer:1},{name:'적용기록',type:3,content:'삶적용',layer:3}], claims:[{subject:'성경연결',predicate:'연결',object:'말씀→삶',layer:3}], connections:[[0,1],[1,2]], tags:['설교','성경','적용'] },
+  { id:'ch-mission', domain:'church', name:'선교·봉사', desc:'선교 프로젝트, 봉사팀, 현장 보고, 성과 추적', cells:[{name:'선교프로젝트',type:3,content:'계획',layer:0},{name:'봉사팀',type:3,content:'구성',layer:1},{name:'현장보고',type:3,content:'보고',layer:1},{name:'성과추적',type:8,content:'4상',layer:2}], claims:[{subject:'성과추적',predicate:'추적',object:'선교성과',layer:2}], connections:[[0,1],[1,2],[2,3]], tags:['선교','봉사','성과'] },
+  { id:'ch-youth', domain:'church', name:'청소년·주일학교', desc:'학생 관리, 교육 과정, 출석, 성장 추적', cells:[{name:'학생목록',type:3,content:'등록',layer:0},{name:'교육과정',type:3,content:'커리큘럼',layer:1},{name:'성장추적',type:8,content:'4상',layer:3}], claims:[{subject:'성장추적',predicate:'추적',object:'청소년성장',layer:3}], connections:[[0,1],[1,2]], tags:['청소년','주일학교','교육'] },
+  { id:'ch-worship', domain:'church', name:'예배·찬양', desc:'예배 순서, 찬양팀 스케줄, 악기/음향 관리', cells:[{name:'예배순서',type:3,content:'프로그램',layer:0},{name:'찬양팀',type:3,content:'스케줄',layer:1},{name:'장비관리',type:3,content:'음향/악기',layer:1}], claims:[{subject:'예배순서',predicate:'관리',object:'예배',layer:1}], connections:[[0,1],[0,2]], tags:['예배','찬양','스케줄'] },
+  { id:'ch-care', domain:'church', name:'심방·돌봄', desc:'심방 대상, 방문 이력, 필요 파악, 후속 관리', cells:[{name:'심방대상',type:3,content:'목록',layer:0},{name:'방문이력',type:3,content:'기록',layer:1},{name:'필요분석',type:8,content:'4상',layer:2},{name:'후속관리',type:8,content:'자동',layer:2}], claims:[{subject:'필요분석',predicate:'파악',object:'돌봄필요',layer:2}], connections:[[0,1],[1,2],[2,3]], tags:['심방','돌봄','관리'] },
+
+  // ══════════════════════════════════════════════════════════════
   // 크라우니 국가 프로젝트 (97개)
-  // Layer 1 토라/경계 (33) + Layer 2 복음/관계 (37) + Layer 3 성령/초월 (27)
+  // Layer 1 기반/보호 (33) + Layer 2 관계/협력 (37) + Layer 3 성장/혁신 (27)
   // ══════════════════════════════════════════════════════════════
 
   // ────── 토라 1-A: 헌법·법체계 (9) ──────
@@ -1030,5 +1071,14 @@ function deployTemplate(memory, templateId) {
     claimIds,
   };
 }
+
+// 확충 템플릿 병합 (비즈니스/교회/엔터 실전용)
+try {
+  const { ENRICHED } = require('./templates-enriched');
+  for (const enriched of ENRICHED) {
+    const idx = TEMPLATES.findIndex(t => t.id === enriched.id);
+    if (idx >= 0) TEMPLATES[idx] = enriched; // 교체
+  }
+} catch (e) { /* enriched 파일 없으면 무시 */ }
 
 module.exports = { DOMAINS, TEMPLATES, deployTemplate };

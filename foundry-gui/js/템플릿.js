@@ -106,7 +106,11 @@ class 템플릿브라우저 {
       const data = await res.json();
       if (res.ok) {
         document.dispatchEvent(new CustomEvent('데이터변경'));
-        document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${data.templateName} 배포 완료: ${data.cellsCreated}셀 + ${data.claimsCreated}Claim`, type: '확정' } }));
+        document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${data.templateName} 배포 완료: ${data.cellsCreated}셀`, type: '확정' } }));
+        // 프로젝트 이름 설정 + 그래프 화면 이동
+        const nameEl = document.getElementById('wsProjectName');
+        if (nameEl) nameEl.textContent = data.templateName;
+        document.dispatchEvent(new CustomEvent('화면이동', { detail: 'graph' }));
       } else {
         document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '배포 실패: ' + (data.error || ''), type: '오류' } }));
       }
