@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>CrownyCore</title>
   <link rel="stylesheet" href="css/코어.css">
+  <link rel="stylesheet" href="css/leaflet.css">
   <script src="js/d3.min.js"></script>
+  <script src="js/leaflet.js"></script>
+  <script src="js/milsymbol.js"></script>
 </head>
 <body>
 
@@ -36,6 +39,7 @@
   <button class="nav-btn" data-v="church"><span class="ic">◌</span><span class="label">비영리</span></button>
   <button class="nav-btn" data-v="enterprise"><span class="ic">◇</span><span class="label">기업</span></button>
   <button class="nav-btn" data-v="city"><span class="ic">▣</span><span class="label">관제</span></button>
+  <button class="nav-btn" data-v="map"><span class="ic">◎</span><span class="label">지도</span></button>
   <div class="nav-sep"></div>
   <button class="nav-btn" data-v="create"><span class="ic">+</span><span class="label">만들기</span></button>
   <button class="nav-btn" data-v="search"><span class="ic">⌕</span><span class="label">찾기</span></button>
@@ -166,6 +170,11 @@
     <!-- City View -->
     <div class="view" id="v_city" style="padding:14px;gap:12px;overflow:auto">
       <div id="cityApp"></div>
+    </div>
+
+    <!-- Map View -->
+    <div class="view" id="v_map" style="padding:0;gap:0">
+      <div id="mapContainer" style="flex:1;min-height:400px"></div>
     </div>
 
     <!-- Create View -->
