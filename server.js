@@ -48,6 +48,16 @@ try {
     console.warn('[MAIL] 독립 메일 서버 로드 실패:', e.message);
 }
 
+// CrownyCell Core (27-슬롯 방사형 셀 DB)
+let cellCore = null;
+try {
+    const { CellCore } = require('./cell-core');
+    cellCore = new CellCore();
+    console.log('[CELL] CrownyCell Core loaded:', cellCore.stats().totalCells, 'cells');
+} catch (e) {
+    console.warn('[CELL] CrownyCell Core load failed:', e.message);
+}
+
 // 독립 메신저 (WebSocket + 파일 저장)
 let chatServer = null;
 try {
@@ -3845,6 +3855,82 @@ const server = http.createServer(async (req, res) => {
                 amount: wallet.balances.CRM, memo: 'CrownyTVM sync'
             }, user.busToken);
             res.end(JSON.stringify({ localBalances: wallet.balances, busResponse: r.data, busStatus }));
+            return;
+        }
+
+        // ── CrownyCell Core API (27-슬롯 셀 CRUD) ──
+        if (path === '/api/cell/create' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!cellCore) { res.end('{"error":"cell core not initialized"}'); return; }
+            const cell = cellCore.create(body.type || 1, body.subject || user.username, body.object, body);
+            res.end(JSON.stringify(cellCore.toJSON(cell)));
+            return;
+        }
+        if (path === '/api/cell/query' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!cellCore) { res.end('[]'); return; }
+            const filters = {
+                type: url.searchParams.get('type') ? parseInt(url.searchParams.get('type')) : undefined,
+                owner: url.searchParams.get('owner') || undefined,
+                subject: url.searchParams.get('subject') || undefined,
+                category: url.searchParams.get('category') || undefined,
+                limit: parseInt(url.searchParams.get('limit') || '50'),
+                offset: parseInt(url.searchParams.get('offset') || '0'),
+            };
+            // undefined 키 제거
+            Object.keys(filters).forEach(k => filters[k] === undefined && delete filters[k]);
+            const cells = cellCore.query(filters).map(c => cellCore.toJSON(c));
+            res.end(JSON.stringify(cells));
+            return;
+        }
+        if (path === '/api/cell/get' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!cellCore) { res.end('{"error":"not found"}'); return; }
+            const id = parseInt(url.searchParams.get('id') || '0');
+            const cell = cellCore.get(id);
+            res.end(JSON.stringify(cell ? cellCore.toJSON(cell) : { error: 'not found' }));
+            return;
+        }
+        if (path === '/api/cell/update' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!cellCore || !body.id) { res.end('{"error":"invalid"}'); return; }
+            const cell = cellCore.update(body.id, body.updates || {});
+            res.end(JSON.stringify(cell ? cellCore.toJSON(cell) : { error: 'not found' }));
+            return;
+        }
+        if (path === '/api/cell/delete' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!cellCore) { res.end('{"error":"invalid"}'); return; }
+            const ok = cellCore.delete(body.id);
+            res.end(JSON.stringify({ success: ok }));
+            return;
+        }
+        if (path === '/api/cell/link' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!cellCore) { res.end('{"error":"invalid"}'); return; }
+            const ok = cellCore.link(body.from, body.to, body.direction || 'synapse');
+            res.end(JSON.stringify({ success: ok }));
+            return;
+        }
+        if (path === '/api/cell/graph' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!cellCore) { res.end('{}'); return; }
+            const id = parseInt(url.searchParams.get('id') || '0');
+            const depth = parseInt(url.searchParams.get('depth') || '1');
+            res.end(JSON.stringify(cellCore.graph(id, depth)));
+            return;
+        }
+        if (path === '/api/cell/stats' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            res.end(JSON.stringify(cellCore ? cellCore.stats() : { totalCells: 0 }));
             return;
         }
 
