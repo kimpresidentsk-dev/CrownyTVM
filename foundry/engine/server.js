@@ -113,10 +113,10 @@ function matchRoute(method, pathname) {
 // POST /api/foundry/cells — 셀 생성
 route('POST', '/api/foundry/cells', async (req, res) => {
     const body = await parseBody(req);
-    const { name, type, content, confirmed, layer, owner, tag } = body;
+    const { name, type, content, confirmed, layer, owner, tag, scope } = body;
     if (!name) return err(res, 400, 'name 필수');
     const cell = memory.createValue(name, type ?? TYPE.NONE, content ?? 0, {
-        confirmed: !!confirmed, layer, owner, tag,
+        confirmed: !!confirmed, layer, owner, tag: scope ?? tag ?? 0,
     });
     json(res, 201, cell);
 });
@@ -126,7 +126,14 @@ route('GET', '/api/foundry/cells', async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const offset = parseInt(url.searchParams.get('offset') || '0', 10);
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
-    json(res, 200, memory.listCells(offset, limit));
+    const scope = url.searchParams.get('scope');
+    const result = memory.listCells(offset, limit);
+    if (scope != null) {
+        const s = parseInt(scope);
+        result.cells = result.cells.filter(c => (c.tag ?? 0) === s);
+        result.total = result.cells.length;
+    }
+    json(res, 200, result);
 });
 
 // GET /api/foundry/cells/:id
@@ -163,7 +170,22 @@ route('POST', '/api/foundry/claims', async (req, res) => {
     const ep = (epistemic != null) ? epistemic : EP.OM;
     const ly = (layer != null) ? layer : LAYER.CORE;
     const cell = memory.createClaim(subject, predicate, object, ep, ly);
-    json(res, 201, cell);
+
+    // ★ 크로스앱 전파: Claim 생성 시 자동 호출
+    const sourceScope = body.scope ?? 0;
+    const propagated = propagation.propagate(cell, sourceScope);
+    if (propagated.length > 0) {
+        // 전파된 Claim을 알림으로도 생성
+        for (const p of propagated) {
+            notifications.push({
+                id: notifications.length + 1, type: 'propagation',
+                title: `전파: ${p.rule}`, message: `${SCOPE_NAME[p.from]}→${SCOPE_NAME[p.to]}`,
+                severity: 'normal', timestamp: Date.now(), read: false,
+            });
+        }
+    }
+
+    json(res, 201, { ...cell, propagated: propagated.length, propagations: propagated });
 });
 
 // GET /api/foundry/claims?subject=X&predicate=Y&object=Z
