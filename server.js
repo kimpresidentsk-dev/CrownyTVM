@@ -1844,47 +1844,18 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`);
     let path = url.pathname;
 
-    // ── /v2/ → /api/ 호환 매핑 (CrownyOS 프론트엔드 지원) ──
+    // ── /v2/ → /api/ 호환 매핑 (경로만, body 접근 없음) ──
     const isV2 = path.startsWith('/v2/');
     if (path === '/v2/chat/list') path = '/api/chat/list';
-    else if (path === '/v2/chat/create' && req.method === 'POST') {
-        // CrownyOS: { name, chat_type, participants } → CrownyTVM: { to, type, groupName }
-        if (body.participants && body.participants.length > 0) {
-            body.to = body.participants.length === 1 ? body.participants[0] : body.participants;
-        }
-        if (body.chat_type) body.type = body.chat_type === 'dm' ? 'dm' : 'group';
-        if (body.name) body.groupName = body.name;
-        // pubKey → username 변환 (CrownyOS는 pubKey를 사용할 수 있음)
-        if (body.to && typeof body.to === 'string' && body.to.length > 30) {
-            // 긴 문자열은 pubKey일 수 있음 — username으로 취급
-        }
-        path = '/api/chat/create';
-    }
-    else if (path === '/v2/chat/send' && req.method === 'POST') {
-        // CrownyOS: { chat_id, content } → CrownyTVM: /api/chat/{chatId}/send { text }
-        if (body.chat_id) { path = '/api/chat/' + body.chat_id + '/send'; body.text = body.content || body.text || ''; }
-        else path = '/api/chat/list'; // fallback
-    }
-    else if (path.startsWith('/v2/chat/') && path.endsWith('/messages')) {
-        // /v2/chat/{id}/messages → /api/chat/{id}/messages
-        path = '/api/chat/' + path.split('/')[3] + '/messages';
-    }
+    else if (path === '/v2/chat/create' && req.method === 'POST') path = '/api/chat/create'; // body 변환은 파싱 후
+    else if (path === '/v2/chat/send' && req.method === 'POST') path = '/_v2_chat_send'; // body 파싱 후 처리
+    else if (path.startsWith('/v2/chat/') && path.endsWith('/messages')) path = '/api/chat/' + path.split('/')[3] + '/messages';
     else if (path.startsWith('/v2/chat/')) path = '/api/chat/' + path.slice(9);
     else if (path === '/v2/contacts') path = '/api/contacts';
-    else if (path === '/v2/contacts/pending') {
-        const user = getAuth(req);
-        res.end(JSON.stringify({ contacts: [] }));
-        return;
-    }
+    else if (path === '/v2/contacts/pending') { res.end(JSON.stringify({ contacts: [] })); return; }
     else if (path.startsWith('/v2/contacts/')) {
-        // /v2/contacts/{pubKey}/accept, /block 등
         const parts = path.split('/');
-        if (parts[4] === 'accept' || parts[4] === 'block') {
-            // CrownyOS 연락처 수락/차단 — 현재는 빈 응답
-            const user = getAuth(req);
-            res.end(JSON.stringify({ success: true }));
-            return;
-        }
+        if (parts[4] === 'accept' || parts[4] === 'block') { res.end(JSON.stringify({ success: true })); return; }
         path = '/api/contacts';
     }
 
@@ -1924,7 +1895,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── 정적 파일 서빙 ──
-    if (!path.startsWith('/api') && !path.startsWith('/v2/')) {
+    if (!path.startsWith('/api') && !path.startsWith('/v2/') && !path.startsWith('/_v2_')) {
         const filePath = pathModule.join(PUBLIC_DIR, path === '/' ? 'index.html' : path);
         const safe = pathModule.resolve(filePath).startsWith(PUBLIC_DIR);
         if (safe && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
@@ -1960,6 +1931,19 @@ const server = http.createServer(async (req, res) => {
     }
 
     const body = (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') ? await parseBody(req) : {};
+
+    // ── v2 body 변환 (body 파싱 후) ──
+    if (path === '/_v2_chat_send' && body.chat_id) {
+        path = '/api/chat/' + body.chat_id + '/send';
+        body.text = body.content || body.text || '';
+    } else if (path === '/_v2_chat_send') {
+        path = '/api/chat/list';
+    }
+    if (isV2 && path === '/api/chat/create') {
+        if (body.participants && body.participants.length > 0) body.to = body.participants.length === 1 ? body.participants[0] : body.participants;
+        if (body.chat_type) body.type = body.chat_type === 'dm' ? 'dm' : 'group';
+        if (body.name) body.groupName = body.name;
+    }
 
     const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
 

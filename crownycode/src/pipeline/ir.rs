@@ -433,7 +433,7 @@ pub fn split_compound_intents(text: &str) -> Vec<String> {
     ];
     const COMPONENT_SW: &[(&str, &str)] = &[
         ("kithibitishaji", "validator"), ("thibitisha", "validator"),
-        ("hifadhidata", "database_client"), ("database", "database_client"),
+        ("hifadhi", "database_client"), ("hifadhidata", "database_client"), ("database", "database_client"),
         ("api", "rest_api"), ("seva", "http_server"),
         ("kichanganuzi", "json_parser"),
         ("uthibitishaji", "auth_handler"), ("uhalali", "auth_handler"),
@@ -449,8 +449,8 @@ pub fn split_compound_intents(text: &str) -> Vec<String> {
         ("kupanga", "sort_function"), ("tafuta", "binary_search"),
     ];
     const COMPONENT_HI: &[(&str, &str)] = &[
-        ("सत्यापन", "validator"), ("वैलिडेटर", "validator"),
-        ("डेटाबेस", "database_client"),
+        ("इनपुट", "validator"), ("सत्यापन", "validator"), ("वैलिडेटर", "validator"),
+        ("सेव", "database_client"), ("डेटाबेस", "database_client"),
         ("api", "rest_api"), ("सर्वर", "http_server"),
         ("पार्सर", "json_parser"),
         ("प्रमाणीकरण", "auth_handler"), ("ऑथ", "auth_handler"), ("लॉगिन", "auth_handler"),

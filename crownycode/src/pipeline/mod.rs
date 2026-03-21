@@ -63,7 +63,12 @@ impl Engine {
 
         // ── 2. 한선씨 IR 변환 (기존 재사용) ──
         print!("{}", "  [2/5] 한선씨 IR 변환...".dimmed());
-        let ir_tree = ir::build(&kps_nodes)?;
+        let mut ir_tree = ir::build(&kps_nodes)?;
+        // 복합 의도를 원문 input에서 재감지 (KPS extract_target이 단일 매핑하므로)
+        let raw_compound = ir::split_compound_intents(input);
+        if raw_compound.len() > 1 {
+            ir_tree.sub_intents = raw_compound;
+        }
         println!(" {}", "완료".green());
 
         // ── 2b. 확정 패턴 직접 인출 (O(1) 최적경로) ──
