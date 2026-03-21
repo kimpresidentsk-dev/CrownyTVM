@@ -125,6 +125,24 @@ class 도시앱 {
         const cls = sev === 'critical' ? '오류' : sev === 'warning' ? '오류' : sev === 'caution' ? '미확인' : '확정';
         return `<div class="pipe"><div class="dot ${cls}"></div><span style="font-weight:500">${c.claim?.subject||''}</span><span style="color:var(--text-3)">${c.claim?.predicate}: ${c.claim?.object||''}</span></div>`;
       }).join('') : '<div style="color:var(--text-3);font-size:11px;padding:8px">센서 데이터를 입력하세요</div>';
+
+      // #41 이력 미니 차트 (최근 24시간, 시간대별 이벤트 수)
+      if (sensorLogs.length > 0) {
+        const now = Date.now();
+        const hourMs = 3600000;
+        const hourly = Array.from({ length: 12 }, (_, i) => {
+          const start = now - (12 - i) * hourMs;
+          const end = start + hourMs;
+          return sensorLogs.filter(c => c.createdAt >= start && c.createdAt < end).length;
+        });
+        const maxH = Math.max(...hourly, 1);
+        logEl.innerHTML += `
+          <div style="margin-top:8px;font-size:8px;font-weight:600;color:var(--text-3)">최근 12시간 이벤트</div>
+          <div style="display:flex;gap:2px;align-items:end;height:30px;margin-top:4px">
+            ${hourly.map((h, i) => `<div style="flex:1;height:${Math.max(2, h / maxH * 28)}px;background:${h > 2 ? 'var(--오류)' : h > 0 ? 'var(--미확인)' : 'var(--bg)'};border-radius:1px" title="${12 - i}시간 전: ${h}건"></div>`).join('')}
+          </div>
+        `;
+      }
     }
 
     el.querySelector('#_sensorForm')?.addEventListener('submit', async (e) => {
@@ -145,6 +163,19 @@ class 도시앱 {
     const alerts = await (await fetch(`${API}/city/alerts?all=true`)).json();
     const active = (alerts||[]).filter(a => !a.resolved);
     const resolved = (alerts||[]).filter(a => a.resolved);
+
+    // #38 경보 소리 — critical 경보 시 비프음
+    if (active.some(a => a.severity === 'critical')) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 800; gain.gain.value = 0.3;
+        osc.start(); osc.stop(ctx.currentTime + 0.3);
+        setTimeout(() => { osc.frequency.value = 600; const o2 = ctx.createOscillator(); o2.connect(gain); o2.frequency.value = 600; o2.start(); o2.stop(ctx.currentTime + 0.3); }, 400);
+      } catch {}
+    }
 
     el.innerHTML = `
       <div style="display:flex;gap:8px;margin-bottom:12px">

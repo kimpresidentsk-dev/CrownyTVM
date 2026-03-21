@@ -46,8 +46,9 @@ class 스타트업앱 {
     el.innerHTML = `
       <div class="card" style="margin-bottom:10px">
         <form id="_taskForm" style="display:flex;gap:6px;align-items:end">
-          <input name="task" placeholder="태스크 이름" required style="flex:1;min-width:120px">
-          <input name="assignee" placeholder="담당자" style="width:70px">
+          <input name="task" placeholder="태스크 이름" required style="flex:1;min-width:80px">
+          <input name="assignee" placeholder="담당자" style="width:55px">
+          <input name="due" type="date" style="width:100px" title="기한">
           <button type="submit" class="btn btn-p">추가</button>
         </form>
       </div>
@@ -79,7 +80,7 @@ class 스타트업앱 {
     el.querySelector('#_taskForm')?.addEventListener('submit', async (e) => {
       e.preventDefault(); const f = e.target;
       await fetch(`${API}/claims`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ subject: f.assignee.value||'미배정', predicate: '할일', object: f.task.value, layer: 2 ,scope:2}) });
+        body: JSON.stringify({ subject: f.assignee.value||'미배정', predicate: '할일', object: f.due.value ? `${f.task.value} (${f.due.value})` : f.task.value, layer: 2, scope: 2 }) });
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '태스크 추가', type: '확정' } }));
       this.렌더();
@@ -153,13 +154,34 @@ class 스타트업앱 {
     const stages = { '리드': [], '미팅': [], '제안': [], '계약': [], '종료': [] };
     leads.forEach(l => { const p = l.claim?.predicate; if (stages[p]) stages[p].push(l); });
 
+    // 퍼널 합계
+    const totalLeads = leads.length || 1;
+    const stageColors = { '리드':'var(--text-3)', '미팅':'var(--미확인)', '제안':'var(--미확인)', '계약':'var(--확정)', '종료':'var(--오류)' };
+
     el.innerHTML = `
-      <div class="card" style="margin-bottom:10px">
-        <form id="_leadForm" style="display:flex;gap:6px;align-items:end">
-          <input name="company" placeholder="회사/고객명" required style="width:100px">
-          <input name="contact" placeholder="담당자" style="width:70px">
-          <input name="value" type="number" placeholder="예상금액" style="width:80px">
+      <!-- 퍼널 차트 (#34) -->
+      <div class="card" style="margin-bottom:8px;padding:10px">
+        <div style="font-size:9px;font-weight:600;color:var(--text-3);margin-bottom:6px">파이프라인 퍼널</div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          ${Object.entries(stages).map(([s, items]) => {
+            const pct = Math.round(items.length / totalLeads * 100);
+            return `<div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:9px;min-width:30px;text-align:right">${s}</span>
+              <div style="flex:1;height:14px;background:var(--bg);border-radius:2px;overflow:hidden">
+                <div style="width:${Math.max(2, pct)}%;height:100%;background:${stageColors[s]||'var(--border)'};border-radius:2px;transition:width .3s"></div>
+              </div>
+              <span style="font-size:9px;min-width:30px">${items.length}건</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:8px">
+        <form id="_leadForm" style="display:flex;gap:4px;flex-wrap:wrap;align-items:end">
+          <input name="company" placeholder="회사/고객" required style="width:80px">
+          <input name="contact" placeholder="담당자" style="width:60px">
+          <input name="value" type="number" placeholder="예상금액" style="width:70px">
           <button type="submit" class="btn btn-p">리드 추가</button>
+          <button type="button" class="btn" id="_invoiceBtn" style="font-size:9px">견적서</button>
         </form>
       </div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
@@ -183,6 +205,39 @@ class 스타트업앱 {
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '리드 추가', type: '확정' } }));
       this.렌더();
+    });
+
+    // #33 견적서 생성
+    el.querySelector('#_invoiceBtn')?.addEventListener('click', () => {
+      const company = prompt('회사명:');
+      if (!company) return;
+      const items = prompt('항목 (쉼표 구분, 예: 개발비 500만,디자인 200만):');
+      if (!items) return;
+
+      const lines = items.split(',').map(s => {
+        const parts = s.trim().match(/(.+?)\s*(\d[\d,]*)/);
+        return parts ? { name: parts[1].trim(), amount: parseInt(parts[2].replace(/,/g, '')) * (s.includes('만') ? 10000 : 1) } : { name: s.trim(), amount: 0 };
+      });
+      const total = lines.reduce((s, l) => s + l.amount, 0);
+      const today = new Date().toLocaleDateString('ko');
+
+      const csv = [
+        `견적서`,
+        `발행일: ${today}`,
+        `수신: ${company}`,
+        ``,
+        `항목,금액`,
+        ...lines.map(l => `${l.name},${l.amount.toLocaleString()}원`),
+        ``,
+        `합계,${total.toLocaleString()}원`,
+      ].join('\n');
+
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `견적서_${company}_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: `${company} 견적서 다운로드`, type: '확정' } }));
     });
   }
 
