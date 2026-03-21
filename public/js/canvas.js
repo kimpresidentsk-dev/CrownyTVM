@@ -1195,7 +1195,11 @@ const CANVAS = (function() {
         try {
             const r = await fetch('/api/cell/query?type=10&limit=20', { headers: { 'Authorization': 'Bearer ' + token } });
             const items = await r.json();
-            center.innerHTML = items.length > 0 ? items.map(i => `<div class="cv-list-item"><strong>${escHtml(i.data?.[0] || 'Product')}</strong><span style="float:right;color:var(--gold)">${i.value || 0} CRM</span></div>`).join('') : `<div style="padding:2rem;text-align:center"><p>No products</p><button class="cv-btn" onclick="CANVAS.createShopItem()" style="margin-top:0.5rem">+ List Product</button></div>`;
+            center.innerHTML = items.length > 0 ? items.map(i => `<div style="display:flex;align-items:center;padding:8px;border-bottom:1px solid var(--border)">
+                    <div style="flex:1"><strong style="font-size:0.8rem">${escHtml(i.data?.[0] || 'Product')}</strong><div style="font-size:0.65rem;color:var(--text-secondary)">${escHtml(i.data?.[1] || '')}</div></div>
+                    <div style="text-align:right"><div style="font-weight:700;color:var(--gold)">${i.value || 0} CRM</div>
+                    <button class="cv-btn" style="font-size:0.6rem;padding:2px 8px;margin-top:2px" onclick="CANVAS.buyItem(${i.id})">Buy</button></div>
+                </div>`).join('') : `<div style="padding:2rem;text-align:center"><p>No products</p><button class="cv-btn" onclick="CANVAS.createShopItem()" style="margin-top:0.5rem">+ List Product</button></div>`;
         } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
         right.innerHTML = '<div style="padding:8px"><div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">CART</div><div class="cv-mono">Empty</div></div>';
     }
@@ -1204,12 +1208,36 @@ const CANVAS = (function() {
         const name = prompt('Product name:');
         if (!name) return;
         const price = parseInt(prompt('Price (CRM):') || '0');
+        const desc = prompt('Description:') || '';
         const token = localStorage.getItem('crowny_token');
-        await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 10, name, value: price, category: 'digital' }) });
+        await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 10, name, value: price, category: 'digital', content: desc }) });
+        if (typeof showToast === 'function') showToast('Listed: ' + name, 'success');
         openWs('shop');
     }
 
-    function shopFilter(cat) { if (typeof showToast === 'function') showToast('Filter: ' + cat, 'info'); }
+    async function buyItem(id) {
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch(`/api/cell/get?id=${id}`, { headers: { 'Authorization': 'Bearer ' + token } });
+        const item = await r.json();
+        if (!item.value) return;
+        const confirmed = confirm(`Buy "${item.data?.[0] || 'Product'}" for ${item.value} CRM?`);
+        if (!confirmed) return;
+        // 결제 (지갑에서 차감)
+        const pay = await fetch('/api/wallet/transact', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'send', amount: item.value, to: item.subject || 'treasury', memo: 'Shop: ' + (item.data?.[0] || ''), currency: 'CRM' }) });
+        const payResult = await pay.json();
+        if (payResult.success) {
+            if (typeof showToast === 'function') showToast('Purchased for ' + item.value + ' CRM', 'success');
+            // 구매 기록 셀
+            await fetch('/api/cell/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 10, name: 'Purchase: ' + (item.data?.[0] || ''), value: item.value, category: 'purchase' }) });
+        } else {
+            if (typeof showToast === 'function') showToast(payResult.error || 'Purchase failed', 'error');
+        }
+    }
+
+    function shopFilter(cat) {
+        if (typeof showToast === 'function') showToast('Filter: ' + cat, 'info');
+        // TODO: 실제 필터링
+    }
 
     // ── 워크스페이스: Synergy ──
     async function loadSynergyWorkspace(left, center, right) {
@@ -1499,7 +1527,7 @@ const CANVAS = (function() {
         // Game
         openGame, _tritMove,
         // Shop
-        createShopItem, shopFilter,
+        createShopItem, shopFilter, buyItem,
         // Content
         createContent, viewContent,
         // Admin
