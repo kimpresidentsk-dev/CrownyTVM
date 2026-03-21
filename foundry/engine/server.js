@@ -188,20 +188,27 @@ route('POST', '/api/foundry/claims', async (req, res) => {
     json(res, 201, { ...cell, propagated: propagated.length, propagations: propagated });
 });
 
-// GET /api/foundry/claims?subject=X&predicate=Y&object=Z
+// GET /api/foundry/claims?subject=X&predicate=Y&object=Z&after=ts&before=ts
 route('GET', '/api/foundry/claims', async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const subject = url.searchParams.get('subject');
     const predicate = url.searchParams.get('predicate');
     const object = url.searchParams.get('object');
+    const after = url.searchParams.get('after');
+    const before = url.searchParams.get('before');
 
-    if (!subject && !predicate && !object) {
-        // 전체 Claim 목록
-        const claims = memory.queryClaimsFull({});
-        return json(res, 200, { total: claims.length, claims });
+    let claims = memory.queryClaimsFull({ subject, predicate, object });
+
+    // 날짜 범위 필터
+    if (after) {
+        const ts = new Date(after).getTime() || parseInt(after);
+        claims = claims.filter(c => c.createdAt >= ts);
+    }
+    if (before) {
+        const ts = new Date(before).getTime() || parseInt(before);
+        claims = claims.filter(c => c.createdAt <= ts);
     }
 
-    const claims = memory.queryClaimsFull({ subject, predicate, object });
     json(res, 200, { total: claims.length, claims });
 });
 
