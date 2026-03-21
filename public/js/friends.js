@@ -127,7 +127,7 @@ async function loadFriendRequests() {
             return;
         }
         container.style.display = 'block';
-        let html = `<div style="font-size:0.85rem;font-weight:700;margin-bottom:0.5rem;">📬 ${t('friends.pending_requests', 'Friend Requests')}</div>`;
+        let html = `<div style="font-size:0.85rem;font-weight:700;margin-bottom:0.5rem;">${t('friends.pending_requests', 'Friend Requests')}</div>`;
         for (const req of pending) {
             html += `<div class="friend-request-item">
                 ${avatarHTML(req.photoURL, req.nickname, 36)}
@@ -153,7 +153,7 @@ async function showFriendSearchModal() {
         <h3 style="margin-bottom:1rem;"><i data-lucide="users"></i> ${t('friends.search', 'Find Friends')}</h3>
         <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
             <input type="text" id="friend-search-input" placeholder="${t('friends.search_placeholder', 'Search by nickname or email')}" style="flex:1;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;font-size:0.9rem;">
-            <button onclick="searchFriends()" class="btn-primary" style="padding:0.7rem 1rem;border-radius:8px;font-size:0.85rem;">🔍</button>
+            <button onclick="searchFriends()" class="btn-primary" style="padding:0.7rem 1rem;border-radius:8px;font-size:0.85rem;"></button>
         </div>
         <div id="friend-search-results"></div>
     </div>`;
@@ -188,7 +188,7 @@ async function searchFriends() {
                     <div style="font-weight:600;font-size:0.9rem;">${u.displayName}</div>
                     <div style="font-size:0.75rem;color:var(--text-muted,#6B5744);">${u.statusMessage || ''}</div>
                 </div>
-                ${isFriend ? `<span style="font-size:0.75rem;color:#5A9A6E;"><i data-lucide="check-circle"></i> ${t('friends.friend', 'Friend')}</span>` :
+                ${isFriend ? `<span style="font-size:0.75rem;color:#5B7B8C;"><i data-lucide="check-circle"></i> ${t('friends.friend', 'Friend')}</span>` :
                 `<button onclick="sendFriendRequest('${u.username}');this.textContent='${t('friends.requested', 'Requested')}';this.disabled=true;" class="btn-primary" style="padding:0.3rem 0.8rem;font-size:0.8rem;border-radius:6px;">${t('friends.add_friend', 'Add Friend')}</button>`}
             </div>`;
         }
@@ -276,7 +276,7 @@ async function showUserProfile(uid) {
             ${!isMe ? `
             <div style="display:flex;gap:0.5rem;">
                 <button onclick="followUser('${uid}');document.getElementById('user-profile-modal')?.remove();" class="btn-primary" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;">${profile.isFollowing ? '<i data-lucide="check"></i> ' + t('friends.following', 'Following') : t('friends.follow', 'Follow')}</button>
-                ${!profile.isFriend ? `<button onclick="sendFriendRequest('${uid}');document.getElementById('user-profile-modal')?.remove();" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;">${t('friends.add_friend', 'Add Friend')}</button>` : `<span style="flex:1;display:flex;align-items:center;justify-content:center;font-size:0.85rem;color:#5A9A6E;"><i data-lucide="check-circle"></i> ${t('friends.friend', 'Friend')}</span>`}
+                ${!profile.isFriend ? `<button onclick="sendFriendRequest('${uid}');document.getElementById('user-profile-modal')?.remove();" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;">${t('friends.add_friend', 'Add Friend')}</button>` : `<span style="flex:1;display:flex;align-items:center;justify-content:center;font-size:0.85rem;color:#5B7B8C;"><i data-lucide="check-circle"></i> ${t('friends.friend', 'Friend')}</span>`}
                 <button onclick="startChatFromProfile('${uid}');document.getElementById('user-profile-modal')?.remove();" style="flex:1;padding:0.6rem;border-radius:8px;font-size:0.85rem;border:1px solid var(--border,#E8E0D8);background:var(--bg-card,#3D2B1F);cursor:pointer;"><i data-lucide="message-circle"></i> ${t('friends.message', 'Message')}</button>
             </div>
             ` : ''}
@@ -338,7 +338,7 @@ function parseLinkPreviews(text) {
         if (INSTAGRAM_REGEX.test(url)) {
             previewCards += `
             <a href="${escapedUrl}" target="_blank" rel="noopener" class="link-preview-card" style="text-decoration:none;display:flex;align-items:center;gap:0.8rem;padding:0.8rem;">
-                <span style="font-size:1.5rem;">📸</span>
+                <span style="font-size:1.5rem;"></span>
                 <div style="flex:1;min-width:0;">
                     <div style="font-size:0.85rem;font-weight:600;color:var(--text,#3D2B1F);">Instagram</div>
                     <div style="font-size:0.75rem;color:var(--text-muted,#6B5744);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapedUrl}</div>
@@ -351,7 +351,7 @@ function parseLinkPreviews(text) {
         if (TIKTOK_REGEX.test(url)) {
             previewCards += `
             <a href="${escapedUrl}" target="_blank" rel="noopener" class="link-preview-card" style="text-decoration:none;display:flex;align-items:center;gap:0.8rem;padding:0.8rem;">
-                <span style="font-size:1.5rem;">🎵</span>
+                <span style="font-size:1.5rem;"></span>
                 <div style="flex:1;min-width:0;">
                     <div style="font-size:0.85rem;font-weight:600;color:var(--text,#3D2B1F);">TikTok</div>
                     <div style="font-size:0.75rem;color:var(--text-muted,#6B5744);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapedUrl}</div>

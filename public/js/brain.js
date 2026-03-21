@@ -140,14 +140,17 @@ const BRAIN = (() => {
         // Check existing results
         let latestResult = null;
         try {
-            const snap = await db.collection('users').doc(currentUser.uid)
-                .collection('brain_results').orderBy('createdAt', 'desc').limit(1).get();
-            if (!snap.empty) latestResult = { id: snap.docs[0].id, ...snap.docs[0].data() };
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            const res = await fetch(`/api/db/users/${currentUser.uid}/brain_results?orderBy=createdAt&orderDir=desc&limit=1`, {
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+            });
+            const snap = await res.json();
+            if (!snap.empty && snap.docs.length > 0) latestResult = { id: snap.docs[0].id, ...snap.docs[0].data };
         } catch (e) { console.warn(e.message); }
 
         container.innerHTML = `
             <div style="text-align:center;margin-bottom:2rem;">
-                <div style="font-size:3rem;margin-bottom:0.5rem;">🧠</div>
+                <div style="font-size:3rem;margin-bottom:0.5rem;"><i data-lucide="brain" style="width:48px;height:48px;"></i></div>
                 <h3 style="margin:0;">${t('brain.title','A Journey to Discover Yourself')}</h3>
                 <p style="font-size:0.85rem;color:var(--accent);margin-top:0.5rem;">${t('brain.subtitle','Discover the real you through a 3-stage assessment')}</p>
             </div>
@@ -161,7 +164,7 @@ const BRAIN = (() => {
                             <div style="font-size:1.1rem;font-weight:700;">${t('brain.stage1_title','4 Temperament Assessment')}</div>
                             <div style="font-size:0.75rem;opacity:0.8;margin-top:0.2rem;">${t('brain.stage1_colors','Blue · Yellow · Red · Green')}</div>
                         </div>
-                        <div style="font-size:2rem;">🎨</div>
+                        <div style="font-size:2rem;"><i data-lucide="palette" style="width:32px;height:32px;"></i></div>
                     </div>
                 </div>
 
@@ -172,7 +175,7 @@ const BRAIN = (() => {
                             <div style="font-size:1.1rem;font-weight:700;">${t('brain.stage2_title','243 Personality Types')}</div>
                             <div style="font-size:0.75rem;opacity:0.8;margin-top:0.2rem;">${t('brain.stage2_desc','Enneagram 9 types × 3 instincts × 9 states')}</div>
                         </div>
-                        <div style="font-size:2rem;">🔮</div>
+                        <div style="font-size:2rem;"><i data-lucide="sparkles" style="width:32px;height:32px;"></i></div>
                     </div>
                 </div>
 
@@ -183,7 +186,7 @@ const BRAIN = (() => {
                             <div style="font-size:1.1rem;font-weight:700;">${t('brain.stage3_title','BrainOS 8,192 Types')}</div>
                             <div style="font-size:0.75rem;opacity:0.8;margin-top:0.2rem;">${t('brain.stage3_desc','CEO Ahn Jin-hoon\'s Brain Diagnosis System')}</div>
                         </div>
-                        <div style="font-size:2rem;">🧬</div>
+                        <div style="font-size:2rem;"><i data-lucide="dna" style="width:32px;height:32px;"></i></div>
                     </div>
                 </div>
             </div>
@@ -198,14 +201,14 @@ const BRAIN = (() => {
 
             <!-- Crowny Knowledge Library -->
             <div style="background:var(--card-bg,#F7F3ED);border-radius:12px;padding:1.2rem;margin-top:1rem;">
-                <h3 style="margin:0 0 0.8rem 0;font-size:1rem;">📚 ${t('brain.library_title','Crowny Knowledge Library')}</h3>
+                <h3 style="margin:0 0 0.8rem 0;font-size:1rem;"><i data-lucide="library" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> ${t('brain.library_title','Crowny Knowledge Library')}</h3>
                 <div style="display:grid;gap:0.5rem;">
                     <div onclick="showPage('books')" style="display:flex;align-items:center;gap:0.8rem;padding:0.8rem;background:var(--bg);border-radius:10px;cursor:pointer;">
-                        <span style="font-size:1.5rem;">📖</span>
+                        <span style="font-size:1.5rem;"><i data-lucide="book-open" style="width:24px;height:24px;"></i></span>
                         <div><div style="font-weight:600;font-size:0.9rem;">${t('brain.books_title','Crowny Books')}</div><div style="font-size:0.75rem;color:var(--accent);">${t('brain.books_desc','Multilingual books · Translation contributions · Knowledge sharing')}</div></div>
                     </div>
                     <div onclick="showPage('ai-assistant')" style="display:flex;align-items:center;gap:0.8rem;padding:0.8rem;background:var(--bg);border-radius:10px;cursor:pointer;">
-                        <span style="font-size:1.5rem;">👑</span>
+                        <span style="font-size:1.5rem;"><i data-lucide="crown" style="width:24px;height:24px;"></i></span>
                         <div><div style="font-weight:600;font-size:0.9rem;">${t('brain.panel_title','Crowny Panel')}</div><div style="font-size:0.75rem;color:var(--accent);">${t('brain.panel_desc','Ask 5 AI mentors')}</div></div>
                     </div>
                     <div onclick="showPage('prop-trading')" style="display:flex;align-items:center;gap:0.8rem;padding:0.8rem;background:var(--bg);border-radius:10px;cursor:pointer;">
@@ -219,7 +222,7 @@ const BRAIN = (() => {
 
     function startStage(stage) {
         if (stage === 3) {
-            showToast(t('brain.stage3_coming_soon','🧬 BrainOS 8,192-type assessment is coming soon. (CEO Ahn Jin-hoon system integration planned)'), 'info');
+            showToast(t('brain.stage3_coming_soon','BrainOS 8,192-type assessment is coming soon. (CEO Ahn Jin-hoon system integration planned)'), 'info');
             return;
         }
         currentStage = stage;
@@ -286,18 +289,22 @@ const BRAIN = (() => {
 
         // Save
         try {
-            await db.collection('users').doc(currentUser.uid)
-                .collection('brain_results').add({
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            await fetch(`/api/db/users/${currentUser.uid}/brain_results`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     stage: 1,
                     primary, secondary, counts,
-                    createdAt: new Date()
-                });
+                    createdAt: new Date().toISOString()
+                })
+            });
         } catch (e) { console.warn('[Brain] Save failed:', e); }
 
         const container = document.getElementById('brain-content');
         container.innerHTML = `
             <div style="text-align:center;margin-bottom:1.5rem;">
-                <div style="font-size:4rem;margin-bottom:0.5rem;">${primary === 'blue' ? '<span style="color:var(--info)">●</span>' : primary === 'yellow' ? '<span style="color:#C4841D">●</span>' : primary === 'red' ? '<span style="color:var(--error)">●</span>' : '<span style="color:#5A9A6E">●</span>'}</div>
+                <div style="font-size:4rem;margin-bottom:0.5rem;">${primary === 'blue' ? '<span style="color:var(--info)">●</span>' : primary === 'yellow' ? '<span style="color:#C4841D">●</span>' : primary === 'red' ? '<span style="color:var(--error)">●</span>' : '<span style="color:#5B7B8C">●</span>'}</div>
                 <h2 style="margin:0;">${t('brain.you_are','You are')} ${temp.name}!</h2>
                 <p style="font-size:0.85rem;color:var(--accent);margin-top:0.5rem;">${temp.desc}</p>
             </div>
@@ -327,7 +334,7 @@ const BRAIN = (() => {
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-                <button onclick="BRAIN.startStage(2)" style="padding:0.8rem;border:none;border-radius:10px;background:linear-gradient(135deg,#8B6914,#6B5744);color:#FFF8F0;font-weight:700;cursor:pointer;">🔮 ${t('brain.proceed_stage2','Proceed to Stage 2')}</button>
+                <button onclick="BRAIN.startStage(2)" style="padding:0.8rem;border:none;border-radius:10px;background:linear-gradient(135deg,#8B6914,#6B5744);color:#FFF8F0;font-weight:700;cursor:pointer;"><i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('brain.proceed_stage2','Proceed to Stage 2')}</button>
                 <button onclick="BRAIN.init()" style="padding:0.8rem;border:none;border-radius:10px;background:var(--card-bg,#F7F3ED);border:1px solid #E8E0D8;cursor:pointer;font-weight:600;">${t('brain.go_back','← Go back')}</button>
             </div>
         `;
@@ -338,7 +345,7 @@ const BRAIN = (() => {
         const container = document.getElementById('brain-content');
         container.innerHTML = `
             <div style="text-align:center;padding:2rem;">
-                <div style="font-size:3rem;margin-bottom:1rem;">🔮</div>
+                <div style="font-size:3rem;margin-bottom:1rem;"><i data-lucide="sparkles" style="width:48px;height:48px;"></i></div>
                 <h3>${t('brain.stage2_header','STAGE 2 — 243 Personality Types')}</h3>
                 <p style="font-size:0.85rem;color:var(--accent);margin:1rem 0;">${t('brain.stage2_intro','CrownyGirl will diagnose your Enneagram type through conversation.')}</p>
                 <p style="font-size:0.8rem;color:var(--accent);">${t('brain.stage2_formula','9 types × 3 instincts × 9 health states = <strong>243 types</strong>')}</p>
@@ -356,12 +363,12 @@ const BRAIN = (() => {
         const container = document.getElementById('brain-content');
         container.innerHTML = `
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                <h3 style="margin:0;font-size:1rem;">🔮 ${t('brain.enneagram_chat_title','CrownyGirl Enneagram Assessment')}</h3>
+                <h3 style="margin:0;font-size:1rem;"><i data-lucide="sparkles" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> ${t('brain.enneagram_chat_title','CrownyGirl Enneagram Assessment')}</h3>
                 <button onclick="BRAIN.init()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">✕</button>
             </div>
             <div id="brain-chat" style="background:var(--bg);border-radius:12px;padding:1rem;height:50vh;overflow-y:auto;margin-bottom:1rem;">
                 <div style="background:#F7F3ED;padding:0.8rem;border-radius:10px;margin-bottom:0.5rem;font-size:0.85rem;">
-                    <i data-lucide="sparkles" style="width:14px;height:14px;display:inline;"></i> ${t('brain.chat_greeting','Hello! I\'m CrownyGirl~ I\'ll ask you a few questions now. Feel free to answer!')} 💕
+                    <i data-lucide="sparkles" style="width:14px;height:14px;display:inline;"></i> ${t('brain.chat_greeting','Hello! I\'m CrownyGirl~ I\'ll ask you a few questions now. Feel free to answer!')}
                 </div>
             </div>
             <div style="display:flex;gap:0.5rem;">
@@ -372,7 +379,7 @@ const BRAIN = (() => {
             </div>
         `;
         // AI first question
-        setTimeout(() => addBotMessage(t('brain.chat_first_q','Alright, let me start! 😊 Do you feel more comfortable spending time alone or with people?')), 1000);
+        setTimeout(() => addBotMessage(t('brain.chat_first_q','Alright, let me start! Do you feel more comfortable spending time alone or with people?')), 1000);
     }
 
     let chatHistory = [];
@@ -403,7 +410,7 @@ const BRAIN = (() => {
 
         // After 8 conversations, derive result
         if (chatCount >= 8) {
-            addBotMessage(t('brain.chat_analyzing','💕 We\'ve talked enough! Analyzing now... ✨'));
+            addBotMessage(t('brain.chat_analyzing','We\'ve talked enough! Analyzing now...'));
             await analyzeEnneagram();
             return;
         }
@@ -426,11 +433,11 @@ const BRAIN = (() => {
                 })
             });
             const data = await res.json();
-            const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || t('brain.chat_fallback_q','Here\'s the next question! When were you happiest? 😊');
+            const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || t('brain.chat_fallback_q','Here\'s the next question! When were you happiest?');
             chatHistory.push({ role: 'bot', text: reply });
             addBotMessage(reply);
         } catch (e) {
-            addBotMessage(t('brain.chat_error','Hmm... there was a little issue 😅 Please answer again!'));
+            addBotMessage(t('brain.chat_error','Hmm... there was a little issue. Please answer again!'));
         }
     }
 
@@ -474,19 +481,23 @@ JSON만 출력.`;
             const etype = ENNEAGRAM_TYPES[result.type - 1] || ENNEAGRAM_TYPES[8];
 
             // Save
-            await db.collection('users').doc(currentUser.uid)
-                .collection('brain_results').add({
+            const token2 = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            await fetch(`/api/db/users/${currentUser.uid}/brain_results`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token2, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     stage: 2,
                     ...result,
                     typeName: etype.name,
                     chatHistory,
-                    createdAt: new Date()
-                });
+                    createdAt: new Date().toISOString()
+                })
+            });
 
             addBotMessage(`${t('brain.analysis_done','Analysis complete!')} ${t('brain.you_are','You are')} <strong>${result.code}</strong> — ${etype.name}!\n\n${result.summary}\n\n${t('brain.strengths','Strengths')}: ${(result.strengths || []).join(', ')}\n${result.growth}`);
 
         } catch (e) {
-            addBotMessage(t('brain.analysis_error','😅 An error occurred during analysis. Please try again!'));
+            addBotMessage(t('brain.analysis_error','An error occurred during analysis. Please try again!'));
         }
     }
 
@@ -494,13 +505,13 @@ JSON만 출력.`;
         if (result.stage === 1) {
             const temp = TEMPERAMENTS[result.primary];
             return `<div style="display:flex;align-items:center;gap:1rem;">
-                <div style="font-size:2.5rem;">${result.primary === 'blue' ? '<span style="color:var(--info)">●</span>' : result.primary === 'yellow' ? '<span style="color:#C4841D">●</span>' : result.primary === 'red' ? '<span style="color:var(--error)">●</span>' : '<span style="color:#5A9A6E">●</span>'}</div>
+                <div style="font-size:2.5rem;">${result.primary === 'blue' ? '<span style="color:var(--info)">●</span>' : result.primary === 'yellow' ? '<span style="color:#C4841D">●</span>' : result.primary === 'red' ? '<span style="color:var(--error)">●</span>' : '<span style="color:#5B7B8C">●</span>'}</div>
                 <div><div style="font-weight:700;">${temp?.name || result.primary}</div><div style="font-size:0.8rem;color:var(--accent);">${temp?.desc?.substring(0, 50) || ''}...</div></div>
             </div>`;
         }
         if (result.stage === 2) {
             return `<div style="display:flex;align-items:center;gap:1rem;">
-                <div style="font-size:2.5rem;">🔮</div>
+                <div style="font-size:2.5rem;"><i data-lucide="sparkles" style="width:40px;height:40px;"></i></div>
                 <div><div style="font-weight:700;">${result.code || ''} — ${result.typeName || ''}</div><div style="font-size:0.8rem;color:var(--accent);">${result.summary?.substring(0, 60) || ''}...</div></div>
             </div>`;
         }

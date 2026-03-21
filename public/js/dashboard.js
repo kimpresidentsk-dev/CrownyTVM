@@ -11,28 +11,7 @@ async function withTimeout(promise, timeoutMs = 5000) {
 }
 
 async function loadDashboard() {
-    // currentUser가 아직 없으면 firebase에서 직접 가져오기
-    if (!currentUser && window.auth && auth.currentUser) {
-        currentUser = auth.currentUser;
-    }
-    
-    // 그래도 없으면 짧게 대기 (페이지 새로고침 시 auth 복원 대기)
-    if (!currentUser && window.auth) {
-        const container = document.getElementById('dashboard-content');
-        if (container) container.innerHTML = `<p style="text-align:center;padding:2rem;color:#6B5744;">${t('dashboard.loading','로딩 중...')}</p>`;
-        
-        const user = await new Promise((resolve) => {
-            const timeout = setTimeout(() => resolve(null), 8000);
-            const unsub = auth.onAuthStateChanged((u) => {
-                clearTimeout(timeout);
-                unsub();
-                resolve(u);
-            });
-        });
-        if (user) currentUser = user;
-    }
-    
-    // CrownyTVM 토큰 로그인 지원 (Firebase 없는 환경)
+    // CrownyTVM 토큰 로그인 지원
     const ctvmTk = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
     if (!currentUser && ctvmTk) {
         try {
@@ -82,21 +61,18 @@ async function loadDashboard() {
     
     try {
     // 1. 사용자 데이터 로딩 (기본값 이미 설정됨)
+    const _dh = { 'Authorization': 'Bearer ' + ctvmTk, 'Content-Type': 'application/json' };
     try {
-        if (window.db) {
-            const userDoc = await withTimeout(
-                db.collection('users').doc(currentUser.uid).get(),
-                5000
-            );
-            if (userDoc.exists) {
-                userData = userDoc.data() || {};
-                nickname = userData.nickname || userData.displayName || currentUser.email?.split('@')[0] || 'Guest';
-                photoURL = userData.photoURL || '';
-            } else {
-                nickname = currentUser.email?.split('@')[0] || 'Guest';
-            }
+        const userRes = await withTimeout(
+            fetch('/api/db/users/' + currentUser.uid, { headers: _dh }),
+            5000
+        );
+        const userDoc = await userRes.json();
+        if (userDoc.exists) {
+            userData = userDoc.data || {};
+            nickname = userData.nickname || userData.displayName || currentUser.email?.split('@')[0] || 'Guest';
+            photoURL = userData.photoURL || '';
         } else {
-            console.warn('[Dashboard] ' + t('dashboard.no_db_nickname','Firestore DB missing - using default nickname'));
             nickname = currentUser.email?.split('@')[0] || 'Guest';
         }
     } catch (e) {
@@ -107,103 +83,97 @@ async function loadDashboard() {
     
     // 2. 최근 활동 데이터 (병렬 로딩 + 실패 시 빈 배열)
     const activityPromises = [];
-    
-    // 거래 내역 쿼리 (단순화: orderBy 제거하고 limit만 사용)
-    if (window.db) {
-        activityPromises.push(
-            withTimeout(
-                db.collection('transactions')
-                    .where('userId', '==', currentUser.uid)
-                    .limit(5).get()
-                    .then(snap => ({ type: 'tx', data: snap.docs.map(d => ({ id: d.id, ...d.data() })) }))
-                    .catch(e => {
-                        console.warn('[Dashboard] ' + t('dashboard.tx_query_fail','Transaction query failed') + ':', e.message);
-                        return { type: 'tx', data: [] };
-                    }),
-                5000
-            )
-        );
-        
-        // 주문 내역 쿼리 (단순화)
-        activityPromises.push(
-            withTimeout(
-                db.collection('orders')
-                    .where('buyerId', '==', currentUser.uid)
-                    .limit(3).get()
-                    .then(snap => ({ type: 'orders', data: snap.docs.map(d => ({ id: d.id, ...d.data() })) }))
-                    .catch(e => {
-                        console.warn('[Dashboard] ' + t('dashboard.order_query_fail','Order query failed') + ':', e.message);
-                        return { type: 'orders', data: [] };
-                    }),
-                5000
-            )
-        );
-        
-        // 소셜 알림 쿼리 (단순화)
-        activityPromises.push(
-            withTimeout(
-                db.collection('social_notifications')
-                    .where('targetUid', '==', currentUser.uid)
-                    .limit(5).get()
-                    .then(snap => ({ type: 'social', data: snap.docs.map(d => ({ id: d.id, ...d.data() })) }))
-                    .catch(e => {
-                        console.warn('[Dashboard] ' + t('dashboard.social_query_fail','Social notification query failed') + ':', e.message);
-                        return { type: 'social', data: [] };
-                    }),
-                5000
-            )
-        );
-        
-        // 통계 데이터 쿼리
-        activityPromises.push(
-            withTimeout(
-                db.collection('admin_config').doc('stats').get()
-                    .then(statsDoc => {
-                        if (statsDoc.exists) {
-                            const s = statsDoc.data();
-                            return { type: 'stats', data: { totalUsers: s.totalUsers || '—', totalTx: s.totalTransactions || '—' } };
-                        } else {
-                            return { type: 'stats', data: { totalUsers: '—', totalTx: '—' } };
-                        }
-                    })
-                    .catch(e => {
-                        console.warn('[Dashboard] ' + t('dashboard.stats_query_fail','Stats query failed') + ':', e.message);
+
+    // 거래 내역 쿼리
+    activityPromises.push(
+        withTimeout(
+            fetch('/api/db/transactions?where=userId,==,' + encodeURIComponent(currentUser.uid) + '&limit=5', { headers: _dh })
+                .then(r => r.json())
+                .then(snap => ({ type: 'tx', data: (snap.docs || []).map(d => ({ id: d.id, ...d.data })) }))
+                .catch(e => {
+                    console.warn('[Dashboard] ' + t('dashboard.tx_query_fail','Transaction query failed') + ':', e.message);
+                    return { type: 'tx', data: [] };
+                }),
+            5000
+        )
+    );
+
+    // 주문 내역 쿼리
+    activityPromises.push(
+        withTimeout(
+            fetch('/api/db/orders?where=buyerId,==,' + encodeURIComponent(currentUser.uid) + '&limit=3', { headers: _dh })
+                .then(r => r.json())
+                .then(snap => ({ type: 'orders', data: (snap.docs || []).map(d => ({ id: d.id, ...d.data })) }))
+                .catch(e => {
+                    console.warn('[Dashboard] ' + t('dashboard.order_query_fail','Order query failed') + ':', e.message);
+                    return { type: 'orders', data: [] };
+                }),
+            5000
+        )
+    );
+
+    // 소셜 알림 쿼리
+    activityPromises.push(
+        withTimeout(
+            fetch('/api/db/social_notifications?where=targetUid,==,' + encodeURIComponent(currentUser.uid) + '&limit=5', { headers: _dh })
+                .then(r => r.json())
+                .then(snap => ({ type: 'social', data: (snap.docs || []).map(d => ({ id: d.id, ...d.data })) }))
+                .catch(e => {
+                    console.warn('[Dashboard] ' + t('dashboard.social_query_fail','Social notification query failed') + ':', e.message);
+                    return { type: 'social', data: [] };
+                }),
+            5000
+        )
+    );
+
+    // 통계 데이터 쿼리
+    activityPromises.push(
+        withTimeout(
+            fetch('/api/db/admin_config/stats', { headers: _dh })
+                .then(r => r.json())
+                .then(statsDoc => {
+                    if (statsDoc.exists) {
+                        const s = statsDoc.data;
+                        return { type: 'stats', data: { totalUsers: s.totalUsers || '—', totalTx: s.totalTransactions || '—' } };
+                    } else {
                         return { type: 'stats', data: { totalUsers: '—', totalTx: '—' } };
-                    }),
-                5000
-            )
-        );
-        
-        // 모든 쿼리 병렬 실행
-        try {
-            const results = await Promise.allSettled(activityPromises);
-            results.forEach(result => {
-                if (result.status === 'fulfilled') {
-                    const { type, data } = result.value;
-                    switch (type) {
-                        case 'tx':
-                            recentTx = data;
-                            break;
-                        case 'orders':
-                            recentOrders = data;
-                            break;
-                        case 'social':
-                            recentSocial = data;
-                            break;
-                        case 'stats':
-                            totalUsers = data.totalUsers;
-                            totalTx = data.totalTx;
-                            break;
                     }
-                } else {
-                    console.warn('[Dashboard] ' + t('dashboard.query_fail','Query failed') + ':', result.reason?.message || 'Unknown error');
+                })
+                .catch(e => {
+                    console.warn('[Dashboard] ' + t('dashboard.stats_query_fail','Stats query failed') + ':', e.message);
+                    return { type: 'stats', data: { totalUsers: '—', totalTx: '—' } };
+                }),
+            5000
+        )
+    );
+
+    // 모든 쿼리 병렬 실행
+    try {
+        const results = await Promise.allSettled(activityPromises);
+        results.forEach(result => {
+            if (result.status === 'fulfilled') {
+                const { type, data } = result.value;
+                switch (type) {
+                    case 'tx':
+                        recentTx = data;
+                        break;
+                    case 'orders':
+                        recentOrders = data;
+                        break;
+                    case 'social':
+                        recentSocial = data;
+                        break;
+                    case 'stats':
+                        totalUsers = data.totalUsers;
+                        totalTx = data.totalTx;
+                        break;
                 }
-            });
-        } catch (e) {
-            console.warn('[Dashboard] ' + t('dashboard.parallel_query_fail','Parallel query processing error') + ':', e.message);
-        }
-    } else {
-        console.warn('[Dashboard] ' + t('dashboard.no_db_skip','Firestore DB missing - skipping activity data'));
+            } else {
+                console.warn('[Dashboard] ' + t('dashboard.query_fail','Query failed') + ':', result.reason?.message || 'Unknown error');
+            }
+        });
+    } catch (e) {
+        console.warn('[Dashboard] ' + t('dashboard.parallel_query_fail','Parallel query processing error') + ':', e.message);
     }
     
     // 3. 알림 데이터 (로컬)
@@ -218,7 +188,7 @@ async function loadDashboard() {
             <div style="background:#FFF8F0;padding:1.2rem;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #E8E0D8;">
                 <h4 style="margin-bottom:0.8rem;font-size:0.95rem;color:#3D2B1F;"><i data-lucide="bar-chart-3" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> ${t('dashboard.trading_position','트레이딩 포지션')}</h4>
                 <p style="color:#3D2B1F;margin:0.5rem 0;">${t('dashboard.balance','잔고')}: <strong style="color:#3D2B1F;">$${(pos.balance || 0).toLocaleString()}</strong></p>
-                <p style="color:#3D2B1F;margin:0.5rem 0;">${t('dashboard.profit','수익')}: <strong style="color:${(pos.totalPnl || 0) >= 0 ? '#5A9A6E' : '#B54534'}">$${(pos.totalPnl || 0).toFixed(2)}</strong></p>
+                <p style="color:#3D2B1F;margin:0.5rem 0;">${t('dashboard.profit','수익')}: <strong style="color:${(pos.totalPnl || 0) >= 0 ? '#5B7B8C' : '#B54534'}">$${(pos.totalPnl || 0).toFixed(2)}</strong></p>
                 <button onclick="showPage('prop-trading')" style="padding:0.5rem 1rem;border:1px solid #E8E0D8;border-radius:8px;background:#F7F3ED;cursor:pointer;font-size:0.85rem;transition:background 0.15s;color:#3D2B1F;margin-top:0.5rem;">→ ${t('dashboard.go_trading','트레이딩으로')}</button>
             </div>`;
     } else {
@@ -229,7 +199,7 @@ async function loadDashboard() {
     container.innerHTML = `
         <div style="display:flex;align-items:center;gap:1rem;padding:1.5rem;background:#F7F3ED;border-radius:16px;margin-bottom:1.5rem;">
             <div>
-                ${photoURL ? `<img src="${photoURL}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #8B6914;" loading="lazy">` : '<div style="width:60px;height:60px;border-radius:50%;background:#E8E0D8;display:flex;align-items:center;justify-content:center;font-size:1.8rem;">👤</div>'}
+                ${photoURL ? `<img src="${photoURL}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #8B6914;" loading="lazy">` : '<div style="width:60px;height:60px;border-radius:50%;background:#E8E0D8;display:flex;align-items:center;justify-content:center;font-size:1.8rem;"><i data-lucide="user" style="width:32px;height:32px;"></i></div>'}
             </div>
             <div>
                 <h2 style="color:#3D2B1F;margin:0;">${t('dashboard.welcome','환영합니다')}, ${nickname}!</h2>
@@ -268,10 +238,10 @@ async function loadDashboard() {
             
             <!-- Recent Activity -->
             <div style="background:#FFF8F0;padding:1.2rem;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #E8E0D8;">
-                <h4 style="margin-bottom:0.8rem;font-size:0.95rem;color:#3D2B1F;">📋 ${t('dashboard.recent_activity','최근 활동')}</h4>
+                <h4 style="margin-bottom:0.8rem;font-size:0.95rem;color:#3D2B1F;"><i data-lucide="activity" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> ${t('dashboard.recent_activity','최근 활동')}</h4>
                 ${recentTx.length === 0 && recentOrders.length === 0 ? `<p style="font-size:0.85rem;color:#8B6914;text-align:center;padding:0.5rem 0;">${t('dashboard.no_activity','최근 활동이 없습니다')}</p>` : ''}
                 ${recentTx.map(tx => `<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid #E8E0D8;font-size:0.85rem;color:#3D2B1F;">
-                    <span>${tx.type === 'send' ? '📤' : '📥'} ${tx.tokenKey || 'CRNY'}</span>
+                    <span>${tx.type === 'send' ? '<i data-lucide="arrow-up-right" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>' : '<i data-lucide="arrow-down-left" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'} ${tx.tokenKey || 'CRNY'}</span>
                     <span>${Number(tx.amount || 0).toLocaleString()}</span>
                 </div>`).join('')}
                 ${recentOrders.map(o => `<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid #E8E0D8;font-size:0.85rem;color:#3D2B1F;">
@@ -290,7 +260,7 @@ async function loadDashboard() {
             <!-- Quick Shortcuts -->
             <div style="background:#FFF8F0;padding:1.2rem;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #E8E0D8;">
                 <h4 style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;font-size:0.95rem;color:#3D2B1F;">
-                    <span>⚡ ${t('dashboard.shortcuts','빠른 바로가기')}</span>
+                    <span><i data-lucide="zap" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> ${t('dashboard.shortcuts','빠른 바로가기')}</span>
                     <button onclick="editShortcuts()" style="background:none;border:none;cursor:pointer;font-size:1rem;opacity:0.6;color:#3D2B1F;" title="${t('dashboard.edit','Edit')}"><i data-lucide="pencil" style="width:14px;height:14px;"></i></button>
                 </h4>
                 <div style="display:flex;flex-wrap:wrap;gap:0.5rem;" id="dash-shortcuts-container">
@@ -315,10 +285,10 @@ async function loadDashboard() {
             
             <!-- Invite Friends Card -->
             <div style="background:#3D2B1F;color:#FFF8F0;padding:1.2rem;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-                <h4 style="color:#8B6914;margin-bottom:0.8rem;font-size:0.95rem;">🎉 ${t('dashboard.invite_title','친구 초대')}</h4>
+                <h4 style="color:#8B6914;margin-bottom:0.8rem;font-size:0.95rem;"><i data-lucide="gift" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> ${t('dashboard.invite_title','친구 초대')}</h4>
                 <p style="font-size:0.85rem;opacity:0.9;margin-bottom:0.8rem;color:#FFF8F0;">${t('dashboard.invite_desc','친구를 초대하고 CRTD 리워드를 받으세요!')}</p>
                 <button onclick="if(typeof INVITE!=='undefined')INVITE.showInviteModal()" style="width:100%;padding:0.7rem;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">
-                    📨 ${t('dashboard.invite_btn','친구 초대하기')}
+                    <i data-lucide="mail" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('dashboard.invite_btn','친구 초대하기')}
                 </button>
             </div>
         </div>
@@ -358,7 +328,7 @@ async function loadDashboard() {
         container.innerHTML = `<div style="text-align:center;padding:2rem;">
             <div style="display:flex;align-items:center;gap:1rem;padding:1.5rem;background:#F7F3ED;border-radius:16px;margin-bottom:1.5rem;justify-content:center;">
                 <div>
-                    ${photoURL ? `<img src="${photoURL}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #8B6914;" loading="lazy">` : '<div style="width:60px;height:60px;border-radius:50%;background:#E8E0D8;display:flex;align-items:center;justify-content:center;font-size:1.8rem;">👤</div>'}
+                    ${photoURL ? `<img src="${photoURL}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #8B6914;" loading="lazy">` : '<div style="width:60px;height:60px;border-radius:50%;background:#E8E0D8;display:flex;align-items:center;justify-content:center;font-size:1.8rem;"><i data-lucide="user" style="width:32px;height:32px;"></i></div>'}
                 </div>
                 <div style="text-align:left;">
                     <h2 style="color:#3D2B1F;margin:0;"><i data-lucide="bar-chart-3" style="width:20px;height:20px;display:inline-block;vertical-align:middle;"></i> DASHBOARD</h2>
@@ -432,7 +402,7 @@ async function loadDashboard() {
                 <strong style="color:#3D2B1F;">Debug Info:</strong><br>
                 Error: ${e.message || 'Unknown'}<br>
                 User: ${currentUser?.uid || 'null'}<br>
-                DB: ${!!window.db}<br>
+                Token: ${!!ctvmTk}<br>
                 Wallet: ${!!window.userWallet}<br>
                 Time: ${new Date().toLocaleTimeString()}
             </div>
@@ -505,7 +475,7 @@ async function editShortcuts() {
     }).join('');
 
     modal.innerHTML = `<div style="background:#FFF8F0;border-radius:12px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;padding:1.2rem;">
-        <h3 style="margin-bottom:0.8rem;">⚡ ${t('dashboard.edit_shortcuts','Edit Shortcuts')}</h3>
+        <h3 style="margin-bottom:0.8rem;"><i data-lucide="zap" style="width:18px;height:18px;display:inline-block;vertical-align:middle;"></i> ${t('dashboard.edit_shortcuts','Edit Shortcuts')}</h3>
         <p style="font-size:0.8rem;color:#6B5744;margin-bottom:1rem;">${t('dashboard.shortcut_hint','Select your preferred menus (up to 8)')}</p>
         <div id="shortcut-checklist">${items}</div>
         <div style="display:flex;gap:0.5rem;margin-top:1rem;">
@@ -513,7 +483,7 @@ async function editShortcuts() {
             <button onclick="document.getElementById('shortcut-edit-modal').remove()" style="flex:1;background:#E8E0D8;border:none;padding:0.7rem;border-radius:8px;cursor:pointer;">${t('common.cancel','Cancel')}</button>
         </div>
         <div style="margin-top:0.8rem;padding-top:0.8rem;border-top:1px solid #E8E0D8;">
-            <p style="font-size:0.75rem;color:#6B5744;">💡 ${t('dashboard.share_hint','Each page can be shared via link')}</p>
+            <p style="font-size:0.75rem;color:#6B5744;"><i data-lucide="lightbulb" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> ${t('dashboard.share_hint','Each page can be shared via link')}</p>
         </div>
     </div>`;
     document.body.appendChild(modal);
@@ -527,7 +497,7 @@ function saveShortcutEdit() {
     const container = document.getElementById('dash-shortcuts-container');
     if (container) container.innerHTML = renderShortcuts();
     document.getElementById('shortcut-edit-modal')?.remove();
-    showToast('⚡ ' + t('dashboard.shortcuts_saved','Shortcuts saved!'), 'success');
+    showToast(t('dashboard.shortcuts_saved','Shortcuts saved!'), 'success');
 }
 
 // ========== URL Anchor Routing ==========

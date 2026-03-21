@@ -1,6 +1,12 @@
 // ========== BOOKS PLATFORM v1.0 ==========
 // Interactive digital publishing platform with CSS effects, TTS, treasure hunt, limited editions, translations
 // Token: CRGC only (offchain)
+// Migrated from Firestore to server REST APIs (localhost:7730)
+
+function _bookHeaders() {
+    const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+}
 
 const BOOK_SOUNDS = {
     rain_ambient: 'https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3',
@@ -69,23 +75,14 @@ async function loadBooksGallery() {
     c.innerHTML = '<p style="text-align:center;color:var(--accent);padding:2rem;">' + t('books.loading','Loading...') + '</p>';
 
     try {
-        let snap;
-        try {
-            snap = await db.collection('books').where('status', 'in', ['published', 'active', 'soldout'])
-                .orderBy('publishedAt', 'desc').limit(50).get();
-        } catch (indexErr) {
-            // fallback: createdAt 정렬 (publishedAt 인덱스 없을 때)
-            snap = await db.collection('books').where('status', 'in', ['published', 'active', 'soldout'])
-                .orderBy('createdAt', 'desc').limit(50).get();
-        }
+        const res = await fetch('/api/books', { headers: _bookHeaders() });
+        const data = await res.json();
+        const books = data.books || [];
 
-        if (snap.empty) {
+        if (!books.length) {
             c.innerHTML = `<p style="text-align:center;color:var(--accent);padding:2rem;">${t('books.no_books','No books registered yet')}</p>`;
             return;
         }
-
-        const books = [];
-        snap.forEach(d => books.push({ id: d.id, ...d.data() }));
 
         const limited = books.filter(b => b.edition === 'limited');
         const recent = books.slice(0, 12);
@@ -185,9 +182,10 @@ function filterBooksGallery() {
 // ========== BOOK DETAIL V2 ==========
 
 async function viewBookDetailV2(id) {
-    const doc = await db.collection('books').doc(id).get();
-    if (!doc.exists) return;
-    const b = doc.data();
+    const res = await fetch('/api/books/' + id, { headers: _bookHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const b = data.book;
     const isOwner = currentUser?.uid === b.authorId || currentUser?.uid === b.publisherId;
     const sold = b.soldCount || b.sold || 0;
     const supply = b.totalSupply || 0;
@@ -199,12 +197,10 @@ async function viewBookDetailV2(id) {
     let userOwns = false;
     let editionNumber = null;
     if (currentUser) {
-        const purchaseSnap = await db.collection('book_purchases')
-            .where('userId', '==', currentUser.uid).where('bookId', '==', id).limit(1).get();
-        if (!purchaseSnap.empty) {
-            userOwns = true;
-            editionNumber = purchaseSnap.docs[0].data().editionNumber;
-        }
+        const pRes = await fetch('/api/books/check-purchase/' + id, { headers: _bookHeaders() });
+        const pData = await pRes.json();
+        userOwns = pData.owns;
+        editionNumber = pData.editionNumber;
     }
 
     const modal = document.createElement('div');
@@ -226,15 +222,15 @@ async function viewBookDetailV2(id) {
             <p style="font-size:1.2rem;font-weight:700;color:#3D2B1F;margin:0.5rem 0;">${price > 0 ? price + ' CRGC' : t('books.free','Free')}</p>
             ${editionNumber ? `<p style="font-size:0.8rem;color:#6B5744;margin:0;">${t('books.my_edition','My Edition')}: #${editionNumber} of ${supply || '∞'}</p>` : ''}
             ${b.description ? `<p style="font-size:0.9rem;margin:0.8rem 0;line-height:1.6;color:#6B5744;">${b.description}</p>` : ''}
-            
+
             ${translations.length > 1 ? `<div style="margin:0.5rem 0;font-size:0.8rem;">${t('books.translations','Translations')}: ${translations.map(l => _langLabel(l)).join(', ')}</div>` : ''}
-            
+
             <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.8rem;">
                 ${b.featureCodes?.ttsEnabled ? '<span style="background:#F7F3ED;padding:2px 8px;border-radius:12px;font-size:0.75rem;">TTS</span>' : ''}
                 ${b.featureCodes?.treasureHunt?.enabled ? '<span style="background:#F7F3ED;padding:2px 8px;border-radius:12px;font-size:0.75rem;">' + t('books.treasure_hunt','Treasure Hunt') + '</span>' : ''}
                 ${(b.featureCodes?.effects || []).length ? '<span style="background:#f3e5f5;padding:2px 8px;border-radius:12px;font-size:0.75rem;">' + t('books.interactive','Interactive') + '</span>' : ''}
             </div>
-            
+
             <div style="display:flex;gap:0.5rem;margin-top:1rem;">
                 ${userOwns || isOwner || price <= 0 ? `<button onclick="openBookReader('${id}');document.getElementById('book-detail-modal-v2')?.remove();" style="flex:1;background:#3D2B1F;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">${t('books.read_book','Read Book')}</button>` : ''}
                 ${!userOwns && !isOwner && price > 0 && !isSoldOut ? `<button onclick="buyBookV2('${id}');document.getElementById('book-detail-modal-v2')?.remove();" style="flex:1;background:#3D2B1F;color:#FFF8F0;border:none;padding:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;">${t('books.buy_book','Buy Book')} (${price} CRGC)</button>` : ''}
@@ -257,83 +253,45 @@ function _langLabel(code) {
 
 async function buyBookV2(id) {
     if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
-    const doc = await db.collection('books').doc(id).get();
-    if (!doc.exists) return;
-    const b = doc.data();
+
+    const res = await fetch('/api/books/' + id, { headers: _bookHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const b = data.book;
     const price = b.basePrice || b.price || 0;
 
     if (b.authorId === currentUser.uid || b.publisherId === currentUser.uid) {
         showToast(t('books.own_book','This is your own book'), 'info'); return;
     }
 
-    // Check already purchased
-    const existing = await db.collection('book_purchases')
-        .where('userId', '==', currentUser.uid).where('bookId', '==', id).limit(1).get();
-    if (!existing.empty) {
-        showToast(t('books.already_purchased','Already purchased'), 'info'); return;
-    }
-
-    // Check supply
     const sold = b.soldCount || b.sold || 0;
-    if (b.edition === 'limited' && b.totalSupply > 0 && sold >= b.totalSupply) {
-        showToast(t('books.sold_out','Sold out (limited edition)'), 'warning'); return;
-    }
 
     if (price <= 0) {
-        // Free book
-        await _completePurchase(id, b, 0);
+        // Free book — still go through the server buy endpoint
+        try {
+            const buyRes = await fetch('/api/books/' + id + '/buy', { method: 'POST', headers: _bookHeaders() });
+            const buyData = await buyRes.json();
+            if (!buyRes.ok) { showToast(buyData.error || t('books.purchase_fail','Purchase failed'), 'warning'); return; }
+            showToast(`"${b.title}" ${t('books.purchase_done','Purchase complete!')}${b.edition === 'limited' ? ` #${buyData.editionNumber} of ${b.totalSupply}` : ''}`, 'success');
+        } catch (e) { showToast(t('books.purchase_fail','Purchase failed') + ': ' + e.message, 'error'); }
         return;
     }
 
     if (!await showConfirmModal(t('books.purchase', 'Purchase Book'), `"${b.title}"\nPurchase for ${price} CRGC?${b.edition === 'limited' ? `\nEdition #${sold + 1} of ${b.totalSupply}` : ''}`)) return;
 
     try {
-        const success = await spendOffchainPoints('crgc', price, `${t('books.buy_book','Buy Book')}: ${b.title}`);
-        if (!success) return;
-
-        // Pay author
-        const authorId = b.authorId || b.publisherId;
-        if (authorId) {
-            const pubDoc = await db.collection('users').doc(authorId).get();
-            const pubBal = pubDoc.data()?.offchainBalances || {};
-            await db.collection('users').doc(authorId).update({
-                ['offchainBalances.crgc']: (pubBal.crgc || 0) + price
-            });
+        const buyRes = await fetch('/api/books/' + id + '/buy', { method: 'POST', headers: _bookHeaders() });
+        const buyData = await buyRes.json();
+        if (!buyRes.ok) {
+            if (buyData.error === 'insufficient balance') showToast(t('books.insufficient_balance','Insufficient CRGC balance'), 'warning');
+            else if (buyData.error === 'already purchased') showToast(t('books.already_purchased','Already purchased'), 'info');
+            else if (buyData.error === 'sold out') showToast(t('books.sold_out','Sold out (limited edition)'), 'warning');
+            else showToast(buyData.error || t('books.purchase_fail','Purchase failed'), 'error');
+            return;
         }
-
-        await _completePurchase(id, b, price);
+        showToast(`"${b.title}" ${t('books.purchase_done','Purchase complete!')}${b.edition === 'limited' ? ` #${buyData.editionNumber} of ${b.totalSupply}` : ''}`, 'success');
         if (typeof loadUserWallet === 'function') loadUserWallet();
     } catch (e) { showToast(t('books.purchase_fail','Purchase failed') + ': ' + e.message, 'error'); }
-}
-
-async function _completePurchase(bookId, bookData, price) {
-    const sold = (bookData.soldCount || bookData.sold || 0) + 1;
-    const editionNumber = sold;
-
-    const updateData = { soldCount: sold, sold: sold };
-    if (bookData.edition === 'limited' && bookData.totalSupply > 0 && sold >= bookData.totalSupply) {
-        updateData.status = 'soldout';
-    }
-    await db.collection('books').doc(bookId).update(updateData);
-
-    await db.collection('book_purchases').add({
-        userId: currentUser.uid,
-        bookId,
-        bookTitle: bookData.title,
-        editionNumber,
-        price,
-        token: 'CRGC',
-        purchasedAt: new Date()
-    });
-
-    if (price > 0) {
-        await db.collection('transactions').add({
-            from: currentUser.uid, to: bookData.authorId || bookData.publisherId,
-            amount: price, token: 'CRGC', type: 'book_purchase', bookId, timestamp: new Date()
-        });
-    }
-
-    showToast(`"${bookData.title}" ${t('books.purchase_done','Purchase complete!')}${bookData.edition === 'limited' ? ` #${editionNumber} of ${bookData.totalSupply}` : ''}`, 'success');
 }
 
 // ========== BOOK CREATOR ==========
@@ -361,9 +319,10 @@ function showBookCreator(editBookId) {
 async function _loadBookForEdit(id) {
     showLoading();
     try {
-        const doc = await db.collection('books').doc(id).get();
-        if (!doc.exists) { hideLoading(); showToast(t('books.not_found','Book not found'), 'error'); return; }
-        const b = doc.data();
+        const res = await fetch('/api/books/' + id, { headers: _bookHeaders() });
+        if (!res.ok) { hideLoading(); showToast(t('books.not_found','Book not found'), 'error'); return; }
+        const data = await res.json();
+        const b = data.book;
         Object.assign(_bookCreatorData, b, { editBookId: id, step: 1 });
         hideLoading();
         _renderBookCreator();
@@ -406,22 +365,22 @@ function _renderCreatorStep1() {
     return `<div style="display:grid;gap:1rem;">
         <div><label style="font-size:0.85rem;font-weight:600;">${t('books.title','Title')} *</label>
         <input type="text" id="bc-title" value="${_esc(d.title)}" onchange="_bookCreatorData.title=this.value" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;"></div>
-        
+
         <div><label style="font-size:0.85rem;font-weight:600;">${t('books.author','Author')}</label>
         <input type="text" id="bc-author" value="${_esc(d.author)}" onchange="_bookCreatorData.author=this.value" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;"></div>
-        
+
         <div><label style="font-size:0.85rem;font-weight:600;">${t('books.genre','Genre')}</label>
         <select id="bc-genre" onchange="_bookCreatorData.genre=this.value" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;">
             ${Object.entries(_getBookGenres()).map(([k, v]) => `<option value="${k}" ${d.genre === k ? 'selected' : ''}>${v}</option>`).join('')}
         </select></div>
-        
+
         <div><label style="font-size:0.85rem;font-weight:600;">${t('books.description','Description')}</label>
         <textarea id="bc-desc" rows="3" onchange="_bookCreatorData.description=this.value" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;">${_esc(d.description)}</textarea></div>
-        
+
         <div><label style="font-size:0.85rem;font-weight:600;">${t('books.cover_image','Cover Image')}</label>
         <input type="file" id="bc-cover" accept="image/*" onchange="_handleCoverUpload(this)" style="padding:0.5rem;border:1px solid var(--border);border-radius:8px;width:100%;box-sizing:border-box;">
         ${d.coverImage ? `<img src="${d.coverImage}" loading="lazy" style="height:100px;margin-top:0.5rem;border-radius:8px;">` : ''}</div>
-        
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
             <div><label style="font-size:0.85rem;font-weight:600;">${t('books.edition','Edition')}</label>
             <select onchange="_bookCreatorData.edition=this.value;_renderBookCreator();" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;">
@@ -431,7 +390,7 @@ function _renderCreatorStep1() {
             ${d.edition === 'limited' ? `<div><label style="font-size:0.85rem;font-weight:600;">${t('books.total_supply','Total Supply')}</label>
             <input type="number" value="${d.totalSupply}" onchange="_bookCreatorData.totalSupply=parseInt(this.value)||100" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;"></div>` : '<div></div>'}
         </div>
-        
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
             <div><label style="font-size:0.85rem;font-weight:600;">${t('books.tts_reading','TTS Reading')}</label>
             <select onchange="_bookCreatorData.featureCodes.ttsEnabled=this.value==='true'" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;">
@@ -449,7 +408,7 @@ function _renderCreatorStep1() {
             <input type="number" value="${d.featureCodes.treasureHunt.rewards.amount}" onchange="_bookCreatorData.featureCodes.treasureHunt.rewards.amount=parseInt(this.value)||10" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;"></div>
             <div></div>
         </div>` : ''}
-        
+
         <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1rem;">
             <button onclick="_saveBookDraft()" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">${t('books.save_draft','Save Draft')}</button>
             <button onclick="_bookCreatorData.step=2;_renderBookCreator();" style="padding:0.7rem 1.5rem;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;">${t('books.next','Next')} →</button>
@@ -547,11 +506,11 @@ function _renderCreatorStep4() {
             <p style="font-size:0.85rem;color:var(--accent);">${d.chapters.length} ${t('books.chapters','chapters')} · ${totalScenes} ${t('books.scenes','scenes')} · ${treasures} ${t('books.treasures','treasures')}</p>
             <p style="font-size:0.85rem;color:var(--accent);">${d.edition === 'limited' ? `${t('books.limited_edition','Limited Edition')} ${d.totalSupply}` : t('books.unlimited_edition','Unlimited Edition')}</p>
         </div>
-        
+
         <div><label style="font-size:0.85rem;font-weight:600;">${t('books.sale_price','Sale Price')} (CRGC)</label>
         <input type="number" id="bc-price" value="${d.basePrice}" onchange="_bookCreatorData.basePrice=parseFloat(this.value)||0" style="width:100%;padding:0.7rem;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;">
         <p style="font-size:0.75rem;color:var(--accent);">0 = ${t('books.free','Free')}</p></div>
-        
+
         <div style="display:flex;justify-content:space-between;margin-top:1rem;">
             <button onclick="_bookCreatorData.step=3;_renderBookCreator();" style="padding:0.7rem 1.5rem;border:1px solid var(--border);background:#FFF8F0;border-radius:8px;cursor:pointer;">← ${t('books.previous','Previous')}</button>
             <div style="display:flex;gap:0.5rem;">
@@ -567,9 +526,8 @@ async function _handleCoverUpload(input) {
     if (!input.files[0]) return;
     try {
         const file = input.files[0];
-        const storagePath = `books/covers/${Date.now()}_${file.name}`;
         const resized = (typeof resizeAndUploadImage === 'function')
-            ? await resizeAndUploadImage(file, 600, storagePath)
+            ? await resizeAndUploadImage(file, 600, `books/covers/${Date.now()}_${file.name}`)
             : await _fileToBase64(file);
         _bookCreatorData.coverImage = resized;
         _renderBookCreator();
@@ -580,9 +538,8 @@ async function _handleSceneImage(input, ci, si) {
     if (!input.files[0]) return;
     try {
         const file = input.files[0];
-        const storagePath = `books/scenes/${Date.now()}_${file.name}`;
         const resized = (typeof resizeAndUploadImage === 'function')
-            ? await resizeAndUploadImage(file, 400, storagePath)
+            ? await resizeAndUploadImage(file, 400, `books/scenes/${Date.now()}_${file.name}`)
             : await _fileToBase64(file);
         _bookCreatorData.chapters[ci].scenes[si].imageUrl = resized;
         _renderBookCreator();
@@ -682,22 +639,28 @@ async function _saveBookDraft() {
             basePrice: d.basePrice || 0, price: d.basePrice || 0, priceToken: 'CRGC',
             originalLanguage: 'ko', availableTranslations: ['ko'],
             translationStatus: {}, featureCodes: d.featureCodes,
-            chapters: d.chapters, status: 'draft',
-            createdAt: d.editBookId ? undefined : new Date(), updatedAt: new Date()
+            chapters: d.chapters, status: 'draft'
         };
 
-        // Remove undefined
-        Object.keys(bookData).forEach(k => bookData[k] === undefined && delete bookData[k]);
-
         if (d.editBookId) {
-            await db.collection('books').doc(d.editBookId).update(bookData);
+            // Update existing book
+            const res = await fetch('/api/books/' + d.editBookId, {
+                method: 'PATCH', headers: _bookHeaders(),
+                body: JSON.stringify(bookData)
+            });
+            if (!res.ok) throw new Error('Save failed');
         } else {
-            bookData.createdAt = new Date();
+            // Create new book
             bookData.publisherId = currentUser.uid;
             bookData.publisherEmail = currentUser.email;
             bookData.sold = 0;
-            const ref = await db.collection('books').add(bookData);
-            _bookCreatorData.editBookId = ref.id;
+            const res = await fetch('/api/books', {
+                method: 'POST', headers: _bookHeaders(),
+                body: JSON.stringify(bookData)
+            });
+            if (!res.ok) throw new Error('Save failed');
+            const data = await res.json();
+            _bookCreatorData.editBookId = data.id;
         }
         hideLoading();
         showToast(t('books.draft_saved','Draft saved!'), 'success');
@@ -719,9 +682,10 @@ async function _publishBook() {
     await _saveBookDraft();
 
     try {
-        await db.collection('books').doc(_bookCreatorData.editBookId).update({
-            status: 'published', publishedAt: new Date()
+        const res = await fetch('/api/books/' + _bookCreatorData.editBookId + '/publish', {
+            method: 'POST', headers: _bookHeaders()
         });
+        if (!res.ok) throw new Error('Publish failed');
         showToast(`"${d.title}" ${t('books.published','Published!')}`, 'success');
         document.getElementById('book-creator-modal')?.remove();
         loadBooksGallery();
@@ -733,17 +697,18 @@ async function _publishBook() {
 async function openBookReader(bookId) {
     showLoading();
     try {
-        const doc = await db.collection('books').doc(bookId).get();
-        if (!doc.exists) { hideLoading(); showToast(t('books.not_found','Book not found'), 'error'); return; }
-        const book = doc.data();
+        const res = await fetch('/api/books/' + bookId, { headers: _bookHeaders() });
+        if (!res.ok) { hideLoading(); showToast(t('books.not_found','Book not found'), 'error'); return; }
+        const data = await res.json();
+        const book = data.book;
 
         // Load reading progress
         let lastScene = 0;
         if (currentUser) {
             try {
-                const progDoc = await db.collection('users').doc(currentUser.uid)
-                    .collection('reading_progress').doc(bookId).get();
-                if (progDoc.exists) lastScene = progDoc.data().sceneIndex || 0;
+                const progRes = await fetch('/api/books/my/reading-progress/' + bookId, { headers: _bookHeaders() });
+                const progData = await progRes.json();
+                lastScene = progData.sceneIndex || 0;
             } catch (e) { /* ignore */ }
         }
 
@@ -795,7 +760,7 @@ function _renderBookReader() {
             <button onclick="_toggleReaderSettings()" style="background:none;border:none;color:#FFF8F0;font-size:1.2rem;cursor:pointer;"><i data-lucide="settings" style="width:16px;height:16px;display:inline-block;vertical-align:middle"></i></button>
         </div>
         <div style="height:2px;background:#3D2B1F;flex-shrink:0;"><div style="height:100%;background:#8B6914;width:${progress}%;transition:width 0.3s;"></div></div>
-        
+
         <div id="reader-settings-panel" style="display:none;background:rgba(61,43,31,0.5);padding:0.8rem 1rem;flex-shrink:0;">
             <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
                 <button onclick="_adjustFontSize(-0.1)" style="background:#3D2B1F;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;">A-</button>
@@ -808,7 +773,7 @@ function _renderBookReader() {
                 </select>` : ''}
             </div>
         </div>
-        
+
         <div id="reader-scene-container" style="flex:1;overflow-y:auto;position:relative;">
             <div id="reader-effects-layer" style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;z-index:1;"></div>
             <div id="reader-content" style="position:relative;z-index:2;padding:1.5rem;color:#e0e0e0;font-size:${s.fontSize}rem;line-height:1.8;max-width:700px;margin:0 auto;" onclick="_handleReaderClick(event)">
@@ -817,7 +782,7 @@ function _renderBookReader() {
                 <div id="reader-text">${_renderSceneText(sc)}</div>
             </div>
         </div>
-        
+
         <div style="background:rgba(0,0,0,0.3);padding:0.8rem 1rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
             <button onclick="_navigateScene(-1)" style="background:${s.currentScene > 0 ? '#3D2B1F' : '#6B5744'};color:${s.currentScene > 0 ? '#FFF8F0' : '#6B5744'};border:none;padding:0.5rem 1.5rem;border-radius:8px;cursor:pointer;" ${s.currentScene <= 0 ? 'disabled' : ''}>← ${t('books.previous','Previous')}</button>
             <span style="color:#6B5744;font-size:0.8rem;">${s.currentScene + 1} / ${s.allScenes.length}</span>
@@ -852,10 +817,8 @@ function _renderSceneText(sc) {
     let text = _esc(sc.content || '');
     // Insert treasure word triggers (hidden in text)
     if (sc.treasureCode) {
-        // Make every word clickable for treasure detection
-        // The "treasure" is finding the right word — we mark it with data attribute
         const words = text.split(/(\s+)/);
-        const treasureWordIndex = Math.floor(words.filter(w => w.trim()).length * 0.618); // Golden ratio position
+        const treasureWordIndex = Math.floor(words.filter(w => w.trim()).length * 0.618);
         let wordCount = 0;
         text = words.map(w => {
             if (!w.trim()) return w;
@@ -881,34 +844,23 @@ function _handleReaderClick(e) {
 async function _claimTreasure(code, sceneId) {
     if (!currentUser || !_bookReaderState) return;
     const bookId = _bookReaderState.bookId;
-    const treasureId = `${bookId}_${sceneId}`;
+    const reward = _bookReaderState.book.featureCodes?.treasureHunt?.rewards?.amount || 10;
 
     try {
-        // Check duplicate
-        const existing = await db.collection('users').doc(currentUser.uid)
-            .collection('foundTreasures').doc(treasureId).get();
-        if (existing.exists) {
-            showToast(t('books.treasure_already_found','Treasure already found!'), 'info');
+        const res = await fetch('/api/books/treasure/claim', {
+            method: 'POST', headers: _bookHeaders(),
+            body: JSON.stringify({ bookId, sceneId, code, reward })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            if (data.error === 'already claimed') {
+                showToast(t('books.treasure_already_found','Treasure already found!'), 'info');
+            } else {
+                showToast(t('books.treasure_claim_fail','Treasure claim failed') + ': ' + (data.error || ''), 'error');
+            }
             return;
         }
-
-        const reward = _bookReaderState.book.featureCodes?.treasureHunt?.rewards?.amount || 10;
-
-        // Award treasure
-        await db.collection('users').doc(currentUser.uid)
-            .collection('foundTreasures').doc(treasureId).set({
-                bookId, sceneId, code, foundAt: new Date(), reward
-            });
-
-        // Give CRGC reward
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const bal = userDoc.data()?.offchainBalances || {};
-        await db.collection('users').doc(currentUser.uid).update({
-            ['offchainBalances.crgc']: (bal.crgc || 0) + reward
-        });
-
-        // Celebration modal
-        _showTreasureModal(reward);
+        _showTreasureModal(data.reward);
     } catch (e) { showToast(t('books.treasure_claim_fail','Treasure claim failed') + ': ' + e.message, 'error'); }
 }
 
@@ -944,10 +896,10 @@ function _navigateScene(dir) {
 function _saveReadingProgress() {
     if (!currentUser || !_bookReaderState) return;
     const { bookId, currentScene } = _bookReaderState;
-    db.collection('users').doc(currentUser.uid)
-        .collection('reading_progress').doc(bookId)
-        .set({ sceneIndex: currentScene, updatedAt: new Date() }, { merge: true })
-        .catch(e => console.warn(e.message));
+    fetch('/api/books/my/reading-progress', {
+        method: 'POST', headers: _bookHeaders(),
+        body: JSON.stringify({ bookId, sceneIndex: currentScene })
+    }).catch(e => console.warn(e.message));
 }
 
 function _closeReader() {
@@ -1045,7 +997,6 @@ function _startTTS() {
 function _highlightSentence(index) {
     const textEl = document.getElementById('reader-text');
     if (!textEl) return;
-    // Simple highlight by wrapping
     const sc = _bookReaderState?.allScenes[_bookReaderState.currentScene];
     if (!sc) return;
     const sentences = (sc.content || '').split(/(?<=[.!?。])\s*/);
@@ -1099,7 +1050,7 @@ function _applyEffect(container, effect) {
         } else if (effect === 'rain') {
             el.style.cssText = `position:absolute;width:1px;height:${10 + Math.random() * 20}px;background:rgba(174,194,224,${0.3 + Math.random() * 0.4});left:${left}%;top:-5%;pointer-events:none;animation:rainfall ${0.5 + Math.random() * 0.5}s linear ${delay * 0.2}s infinite;`;
         } else if (effect === 'cherry_blossom') {
-            el.textContent = ['🌸', '🩷', '✿'][Math.floor(Math.random() * 3)];
+            el.textContent = ['*', '+', '·'][Math.floor(Math.random() * 3)];
             el.style.cssText = `position:absolute;font-size:${size}em;left:${left}%;top:-5%;opacity:${0.6 + Math.random() * 0.4};pointer-events:none;animation:cherryfall ${duration + 2}s linear ${delay}s infinite;`;
         } else if (effect === 'firefly') {
             el.style.cssText = `position:absolute;width:${3 + Math.random() * 4}px;height:${3 + Math.random() * 4}px;background:rgba(255,255,100,0.8);border-radius:50%;left:${left}%;top:${Math.random() * 100}%;pointer-events:none;box-shadow:0 0 6px rgba(255,255,100,0.6);animation:fireflyGlow ${2 + Math.random() * 3}s ease-in-out ${delay}s infinite alternate;`;
@@ -1184,22 +1135,23 @@ async function _loadLibraryPurchased() {
     if (!c) return;
     c.innerHTML = t('books.loading','Loading...');
     try {
-        const snap = await db.collection('book_purchases').where('userId', '==', currentUser.uid).orderBy('purchasedAt', 'desc').limit(50).get();
-        if (snap.empty) { c.innerHTML = '<p style="color:var(--accent);text-align:center;padding:2rem;">' + t('books.no_library','No books in your library') + '</p>'; return; }
+        const res = await fetch('/api/books/my/purchases', { headers: _bookHeaders() });
+        const data = await res.json();
+        const purchases = data.purchases || [];
+        if (!purchases.length) { c.innerHTML = '<p style="color:var(--accent);text-align:center;padding:2rem;">' + t('books.no_library','No books in your library') + '</p>'; return; }
 
         let html = '<div style="display:grid;gap:0.8rem;">';
-        for (const d of snap.docs) {
-            const p = d.data();
+        for (const p of purchases) {
             // Get progress
             let progress = 0;
             try {
-                const progDoc = await db.collection('users').doc(currentUser.uid).collection('reading_progress').doc(p.bookId).get();
-                if (progDoc.exists) {
-                    const bookDoc = await db.collection('books').doc(p.bookId).get();
-                    if (bookDoc.exists) {
-                        const totalScenes = (bookDoc.data().chapters || []).reduce((s, ch) => s + (ch.scenes || []).length, 0);
-                        progress = totalScenes > 0 ? Math.round((progDoc.data().sceneIndex + 1) / totalScenes * 100) : 0;
-                    }
+                const progRes = await fetch('/api/books/my/reading-progress/' + p.bookId, { headers: _bookHeaders() });
+                const progData = await progRes.json();
+                const bookRes = await fetch('/api/books/' + p.bookId, { headers: _bookHeaders() });
+                const bookData = await bookRes.json();
+                if (bookData.book) {
+                    const totalScenes = (bookData.book.chapters || []).reduce((s, ch) => s + (ch.scenes || []).length, 0);
+                    progress = totalScenes > 0 ? Math.round((progData.sceneIndex + 1) / totalScenes * 100) : 0;
                 }
             } catch (e) { console.warn(e.message); }
 
@@ -1224,14 +1176,15 @@ async function _loadLibraryWishlist() {
     if (!c) return;
     c.innerHTML = t('books.loading','Loading...');
     try {
-        const snap = await db.collection('reading_list').where('userId', '==', currentUser.uid).orderBy('addedAt', 'desc').limit(50).get();
-        if (snap.empty) { c.innerHTML = '<p style="color:var(--accent);text-align:center;padding:2rem;">' + t('books.wishlist_empty','Wishlist is empty') + '</p>'; return; }
+        const res = await fetch('/api/books/reading-list', { headers: _bookHeaders() });
+        const data = await res.json();
+        const list = data.list || [];
+        if (!list.length) { c.innerHTML = '<p style="color:var(--accent);text-align:center;padding:2rem;">' + t('books.wishlist_empty','Wishlist is empty') + '</p>'; return; }
         let html = '<div style="display:grid;gap:0.5rem;">';
-        snap.forEach(d => {
-            const r = d.data();
+        list.forEach(r => {
             html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem;background:#f9f9f9;border-radius:8px;">
                 <div onclick="viewBookDetailV2('${r.bookId}')" style="cursor:pointer;"><strong>${r.bookTitle}</strong> <span style="color:var(--accent);font-size:0.8rem;">${r.bookAuthor}</span></div>
-                <button onclick="removeFromReadingList('${d.id}')" style="background:none;border:none;cursor:pointer;">✕</button>
+                <button onclick="removeFromReadingList('${r.id}')" style="background:none;border:none;cursor:pointer;">✕</button>
             </div>`;
         });
         c.innerHTML = html + '</div>';
@@ -1243,15 +1196,16 @@ async function _loadLibraryTreasures() {
     if (!c) return;
     c.innerHTML = t('books.loading','Loading...');
     try {
-        const snap = await db.collection('users').doc(currentUser.uid).collection('foundTreasures').orderBy('foundAt', 'desc').limit(50).get();
-        if (snap.empty) { c.innerHTML = `<p style="color:var(--accent);text-align:center;padding:2rem;">${t('books.no_treasures','No treasures found yet')}<br>${t('books.find_treasures','Read books and find hidden treasures!')} ${createLucideIcon('target')}</p>`; return; }
+        const res = await fetch('/api/books/my/treasures', { headers: _bookHeaders() });
+        const data = await res.json();
+        const treasures = data.treasures || [];
+        if (!treasures.length) { c.innerHTML = `<p style="color:var(--accent);text-align:center;padding:2rem;">${t('books.no_treasures','No treasures found yet')}<br>${t('books.find_treasures','Read books and find hidden treasures!')} ${createLucideIcon('target')}</p>`; return; }
         let html = '<div style="display:grid;gap:0.5rem;">';
         let total = 0;
-        snap.forEach(d => {
-            const t = d.data();
-            total += t.reward || 0;
+        treasures.forEach(tr => {
+            total += tr.reward || 0;
             html += `<div style="display:flex;justify-content:space-between;padding:0.6rem;background:#F7F3ED;border-radius:8px;">
-                <span>${t.bookId}</span><span style="color:#C4841D;font-weight:700;">+${t.reward} CRGC</span>
+                <span>${tr.bookId}</span><span style="color:#C4841D;font-weight:700;">+${tr.reward} CRGC</span>
             </div>`;
         });
         html = `<div style="background:#C4841D;color:#FFF8F0;padding:1rem;border-radius:10px;text-align:center;margin-bottom:1rem;"><h3 style="margin:0;">${t('books.total_treasure_reward','Total Treasure Reward')}: ${total} CRGC</h3></div>` + html;
@@ -1275,19 +1229,19 @@ async function requestTranslation(bookId) {
     if (!lang) return;
 
     try {
-        const existing = await db.collection('translation_requests')
-            .where('bookId', '==', bookId).where('targetLang', '==', lang).limit(1).get();
-        if (!existing.empty) {
-            showToast(t('books.translation_already_requested','Translation already requested for this language'), 'info');
+        const res = await fetch('/api/books/translation-request', {
+            method: 'POST', headers: _bookHeaders(),
+            body: JSON.stringify({ bookId, targetLang: lang })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            if (data.error === 'already requested') {
+                showToast(t('books.translation_already_requested','Translation already requested for this language'), 'info');
+            } else {
+                showToast(t('books.request_fail','Request failed') + ': ' + (data.error || ''), 'error');
+            }
             return;
         }
-
-        await db.collection('translation_requests').add({
-            bookId, requesterId: currentUser.uid,
-            targetLang: lang, status: 'pending',
-            createdAt: new Date()
-        });
-
         showToast(`${_langLabel(lang)} ${t('books.translation_requested','translation requested!')}`, 'success');
     } catch (e) { showToast(t('books.request_fail','Request failed') + ': ' + e.message, 'error'); }
 }
@@ -1315,6 +1269,35 @@ function _selectLanguage() {
         m._resolve = (val) => { m.remove(); resolve(val); };
         document.body.appendChild(m);
     });
+}
+
+// ========== READING LIST (addToReadingList / removeFromReadingList) ==========
+
+async function addToReadingList(bookId) {
+    if (!currentUser) return;
+    try {
+        const res = await fetch('/api/books/reading-list/add', {
+            method: 'POST', headers: _bookHeaders(),
+            body: JSON.stringify({ bookId })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            if (data.error === 'already in list') showToast(t('books.already_in_list','Already in your reading list'), 'info');
+            else showToast(t('common.fail','Failed') + ': ' + (data.error || ''), 'error');
+            return;
+        }
+        const entry = data.entry || {};
+        showToast('<i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + (entry.bookTitle || '') + '" ' + t('books.added_to_reading_list','added to reading list!'), 'success');
+    } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
+}
+
+async function removeFromReadingList(id) {
+    try {
+        const res = await fetch('/api/books/reading-list/' + id, { method: 'DELETE', headers: _bookHeaders() });
+        if (!res.ok) { showToast(t('common.fail','Failed'), 'error'); return; }
+        showToast(t('books.removed_from_list','Removed from reading list'), 'info');
+        _loadLibraryWishlist();
+    } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
 
 // ========== OVERRIDE OLD FUNCTIONS ==========
@@ -1356,4 +1339,4 @@ document.addEventListener('DOMNodeInserted', function(e) {
     }
 });
 
-console.log('📚 Books Platform v1.0 loaded');
+console.log('Books Platform v1.0 loaded (server API mode)');

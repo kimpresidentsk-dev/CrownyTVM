@@ -4,7 +4,7 @@
 const DEFAULT_OFFCHAIN_TOKENS = {
     crtd: { name: 'CRTD', get fullName() { return t('token.crtd','Trading Dollar'); }, icon: '', color: '#C4841D', isDefault: true },
     crac: { name: 'CRAC', get fullName() { return t('token.crac','Art Credit'); }, icon: '', color: '#8B6914', isDefault: true },
-    crgc: { name: 'CRGC', get fullName() { return t('token.crgc','Goods & Giving'); }, icon: '', color: '#5A9A6E', isDefault: true },
+    crgc: { name: 'CRGC', get fullName() { return t('token.crgc','Goods & Giving'); }, icon: '', color: '#5B7B8C', isDefault: true },
     creb: { name: 'CREB', get fullName() { return t('token.creb','Eco Bio'); }, icon: '', color: '#5B7B8C', isDefault: true }
 };
 

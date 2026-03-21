@@ -171,7 +171,7 @@ function renderTransactions(txns) {
     container.innerHTML = txns.map(tx => {
         const isIn = tx.txType === 'receive' || tx.txType === 'deposit' || tx.txType === 'swap_in';
         const icon = isIn ? 'arrow-down-left' : 'arrow-up-right';
-        const color = isIn ? '#5A9A6E' : '#B54534';
+        const color = isIn ? '#5B7B8C' : '#B54534';
         const sign = isIn ? '+' : '-';
         const currency = tx.currency || 'CRN';
         const date = new Date(tx.created).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });

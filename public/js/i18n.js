@@ -142,7 +142,7 @@ function setLanguage(lang) {
             if (activePage && typeof showPage === 'function') {
                 showPage(activePage.id);
             }
-        } catch(e) {}
+        } catch(e) { console.warn(e.message); }
     });
 }
 

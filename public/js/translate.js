@@ -1,6 +1,6 @@
 // translate.js v2.0 — 한선씨 의미단어 사전 기반 번역 엔진
 // 1차: 20K 의미단어 사전 (오프라인, ko↔en↔es)
-// 소셜 포스트, 메신저 메시지, 릴스 캡션에 🌐 번역 버튼
+// 튜브 포스트, 메신저 메시지, 쇼츠 캡션에 번역 버튼
 
 (function() {
     'use strict';
@@ -159,8 +159,8 @@
     function createTranslateBtn(getText, container) {
         const btn = document.createElement('button');
         btn.className = 'translate-btn';
-        btn.innerHTML = '🌐';
-        btn.title = '번역 / Translate';
+        btn.innerHTML = '';
+        btn.title = typeof t === 'function' ? t('translate.btn_title', 'Translate') : 'Translate';
         btn.style.cssText = 'background:none;border:1px solid var(--border,#E8E0D8);border-radius:6px;padding:0.2rem 0.5rem;cursor:pointer;font-size:0.85rem;opacity:0.7;transition:opacity 0.2s;';
         btn.onmouseenter = () => btn.style.opacity = '1';
         btn.onmouseleave = () => btn.style.opacity = '0.7';
@@ -172,7 +172,7 @@
             e.stopPropagation();
             if (translated) {
                 container.innerHTML = originalHTML;
-                btn.innerHTML = '🌐';
+                btn.innerHTML = '';
                 translated = false;
                 return;
             }
@@ -188,11 +188,11 @@
             if (result) {
                 originalHTML = container.innerHTML;
                 const langLabel = LANG_NAMES[tl] || tl;
-                container.innerHTML = `<p style="white-space:pre-wrap;">${escapeHtml(result)}</p><p style="font-size:0.65rem;color:var(--text-muted,#6B5744);margin-top:0.3rem;">🌐 ${langLabel}</p>`;
+                container.innerHTML = `<p style="white-space:pre-wrap;">${escapeHtml(result)}</p><p style="font-size:0.65rem;color:var(--text-muted,#6B5744);margin-top:0.3rem;"> ${langLabel}</p>`;
                 btn.innerHTML = '↩️';
                 translated = true;
             } else {
-                btn.innerHTML = '🌐';
+                btn.innerHTML = '';
             }
             btn.disabled = false;
         };

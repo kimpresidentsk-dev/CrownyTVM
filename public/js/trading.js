@@ -64,7 +64,7 @@ async function reloadTradingSystem() {
         if (statusEl) statusEl.innerHTML = ok 
             ? `<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('trading.complete','Ready!')} ${myParticipation?.participantId?.slice(0,8)}… $${currentPrice.toFixed(2)}`
             : `<i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${!myParticipation ? t('trading.no_participation','No participation — join a challenge') : t('trading.waiting_connection','Waiting for price (connecting soon)')}`;
-        if (statusEl) statusEl.style.color = ok ? '#5A9A6E' : '#C4841D';
+        if (statusEl) statusEl.style.color = ok ? '#5B7B8C' : '#C4841D';
         if (typeof lucide !== 'undefined') lucide.createIcons();
     } catch (e) {
         console.error('<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> reloadTradingSystem:', e);
@@ -376,7 +376,7 @@ function updateCRTDDisplay() {
         
         <!-- 인출 정보 -->
         <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; padding-top:0.3rem; border-top:1px solid rgba(255,255,255,0.1);">
-            <span><i data-lucide="wallet" style="width:16px;height:16px;margin-right:6px;"></i>${t('trading.withdrawable','Withdrawable')}: <strong style="color:${withdrawable > 0 ? '#5A9A6E' : '#6B5744'};">${withdrawable} CRTD</strong> (${cfg.withdrawUnit} ${t('trading.unit','unit')})</span>
+            <span><i data-lucide="wallet" style="width:16px;height:16px;margin-right:6px;"></i>${t('trading.withdrawable','Withdrawable')}: <strong style="color:${withdrawable > 0 ? '#5B7B8C' : '#6B5744'};">${withdrawable} CRTD</strong> (${cfg.withdrawUnit} ${t('trading.unit','unit')})</span>
             <span>${t('trading.withdrawn','Withdrawn')}: ${totalWithdrawn}</span>
         </div>
         ${withdrawable >= cfg.withdrawUnit ? `
@@ -532,7 +532,7 @@ const TIMEZONES = {
     'KR': { label: '🇰🇷 Seoul (KST)', zone: 'Asia/Seoul' },
     'JP': { label: '🇯🇵 Tokyo (JST)', zone: 'Asia/Tokyo' },
     'UK': { label: '🇬🇧 London (GMT)', zone: 'Europe/London' },
-    'UTC': { label: '🌐 UTC', zone: 'UTC' }
+    'UTC': { label: 'UTC', zone: 'UTC' }
 };
 let selectedTimezone = 'KR';
 
@@ -847,7 +847,7 @@ function updateLiveClockDisplay() {
         weekday: 'short'
     });
     
-    clockEl.innerHTML = `<span style="color:#5A9A6E; font-weight:700;">${timeStr}</span> <span style="color:#6B5744; font-size:0.65rem;">${dateStr} ${tz.label}</span>`;
+    clockEl.innerHTML = `<span style="color:#5B7B8C; font-weight:700;">${timeStr}</span> <span style="color:#6B5744; font-size:0.65rem;">${dateStr} ${tz.label}</span>`;
 }
 
 // 차트 자동 정렬 (최신 캔들로 스크롤)
@@ -1083,7 +1083,7 @@ function updateLivePriceDisplay(data) {
     // 가격 색상 (이전 대비)
     if (window.liveTicks.length >= 2) {
         const prev = window.liveTicks[window.liveTicks.length - 2].price;
-        priceEl.style.color = data.price > prev ? '#5A9A6E' : data.price < prev ? '#B54534' : '#5A9A6E';
+        priceEl.style.color = data.price > prev ? '#5B7B8C' : data.price < prev ? '#B54534' : '#5B7B8C';
     }
     
     if (bidEl) bidEl.textContent = data.bid ? data.bid.toFixed(2) : '--';
@@ -1353,7 +1353,7 @@ function aggregateTicksToCandles(ticks, intervalSec) {
 function updateLiveStatus(connected) {
     const dot = document.getElementById('live-status-dot');
     const text = document.getElementById('live-status-text');
-    if (dot) dot.style.background = connected ? '#5A9A6E' : '#B54534';
+    if (dot) dot.style.background = connected ? '#5B7B8C' : '#B54534';
     if (text) text.textContent = connected ? `Databento Live · ${window.liveTicks.length} ticks` : t('trading.disconnected','Disconnected');
 }
 
@@ -1390,7 +1390,7 @@ function updateLivePnL() {
     }
     
     pnlEl.textContent = `${totalPnL >= 0 ? '+' : ''}$${totalPnL.toFixed(2)}`;
-    pnlEl.style.color = totalPnL > 0 ? '#5A9A6E' : totalPnL < 0 ? '#B54534' : '#6B5744';
+    pnlEl.style.color = totalPnL > 0 ? '#5B7B8C' : totalPnL < 0 ? '#B54534' : '#6B5744';
     
     // ★ CRTD 프랍 — 실시간 상태
     const cfg = getCRTDConfig();
@@ -1400,7 +1400,7 @@ function updateLivePnL() {
         if (realTimePnL >= cfg.profitThreshold) {
             const excess = realTimePnL - cfg.profitThreshold;
             crtdEstEl.innerHTML = `<i data-lucide="gem" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>+${Math.floor(excess)} CRTD ${t('trading.conversion_zone','Convert Zone')}`;
-            crtdEstEl.style.color = '#5A9A6E';
+            crtdEstEl.style.color = '#5B7B8C';
         } else if (realTimePnL < 0) {
             const left = cfg.liquidation + realTimePnL;
             crtdEstEl.innerHTML = `<i data-lucide="shield" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> -$${cfg.liquidation}${t('trading.until','until')} $${left.toFixed(0)} ${t('trading.remaining','left')}`; if(typeof lucide!=='undefined') lucide.createIcons();

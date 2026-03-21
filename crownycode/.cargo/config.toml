@@ -1,0 +1,13 @@
+# .cargo/config.toml
+# crownycode 크로스 컴파일 설정
+# RPi4: aarch64-unknown-linux-gnu (ARMv8, 64bit)
+# RPi3 이하: armv7-unknown-linux-gnueabihf (ARMv7, 32bit)
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"
+
+# 기본 빌드는 호스트 (Mac/Linux x86_64) 유지
+# RPi4 빌드: cargo build --target aarch64-unknown-linux-gnu --profile release-rpi4

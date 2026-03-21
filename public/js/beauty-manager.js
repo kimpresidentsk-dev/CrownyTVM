@@ -46,7 +46,7 @@ const BEAUTY = (() => {
                     <div style="font-size:0.8rem;opacity:0.9;">camera ${t('beauty.photo_records','Photo Records')}</div>
                 </div>
                 <div style="background:linear-gradient(135deg,#8B6914,#F0C060);padding:1rem;border-radius:12px;color:#FFF8F0;text-align:center;">
-                    <div style="font-size:2rem;font-weight:800;">${latestAnalysis ? '📊' : '—'}</div>
+                    <div style="font-size:2rem;font-weight:800;">${latestAnalysis ? '' : '—'}</div>
                     <div style="font-size:0.8rem;opacity:0.9;">${latestAnalysis ? t('beauty.analysis_exists','Recent analysis available') : t('beauty.analysis_pending','Awaiting analysis')}</div>
                 </div>
             </div>
@@ -390,7 +390,7 @@ JSON만 출력하세요.`;
     function renderAnalysis(analysis) {
         const scores = analysis.scores || {};
         const metricsKo = { moisture: t('beauty.metric_moisture','Moisture'), oil: t('beauty.metric_oil','Oil'), pore: t('beauty.metric_pore','Pore'), wrinkle: t('beauty.metric_wrinkle','Wrinkle'), pigment: t('beauty.metric_pigment','Pigment'), elasticity: t('beauty.metric_elasticity','Elasticity'), overall: t('beauty.metric_overall','Overall') };
-        const colors = { moisture: '#8B6914', oil: '#FFB74D', pore: '#BA68C8', wrinkle: '#B54534', pigment: '#A1887F', elasticity: '#5A9A6E', overall: '#B54534' };
+        const colors = { moisture: '#8B6914', oil: '#FFB74D', pore: '#BA68C8', wrinkle: '#B54534', pigment: '#A1887F', elasticity: '#5B7B8C', overall: '#B54534' };
 
         const date = analysis.createdAt?.toDate ? analysis.createdAt.toDate().toLocaleDateString('ko-KR') : new Date().toLocaleDateString('ko-KR');
         const typeLabel = analysis.type === 'ai' ? '<i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('beauty.crownygirl_ai','CrownyGirl AI') : t('beauty.expert','Expert');
@@ -433,7 +433,7 @@ JSON만 출력하세요.`;
 
             container.innerHTML = snap.docs.map(doc => {
                 const d = doc.data();
-                const zone = ZONES.find(z => z.id === d.zone) || { name: d.zone, emoji: '📷' };
+                const zone = ZONES.find(z => z.id === d.zone) || { name: d.zone, emoji: '' };
                 const date = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
                 return `
                     <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;cursor:pointer;" onclick="BEAUTY.viewPhoto('${d.photoURL}','${zone.name}','${date}')">
@@ -470,7 +470,7 @@ JSON만 출력하세요.`;
                         const prev = i > 0 ? (entries[i - 1].scores?.overall || 0) : overall;
                         const diff = overall - prev;
                         const diffText = i === 0 ? '기준' : (diff > 0 ? `+${diff} ↑` : diff < 0 ? `${diff} ↓` : '변동 없음');
-                        const diffColor = diff > 0 ? '#5A9A6E' : diff < 0 ? '#F44336' : '#6B5744';
+                        const diffColor = diff > 0 ? '#5B7B8C' : diff < 0 ? '#F44336' : '#6B5744';
                         return `
                             <div style="display:flex;align-items:center;gap:0.8rem;">
                                 <div style="width:50px;text-align:center;font-size:0.7rem;color:var(--accent);">${date}</div>
@@ -526,8 +526,8 @@ JSON만 출력하세요.`;
                         </div>
                         <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
                             <button onclick="BEAUTY.adminAnalyze('${doc.id}','${d.userId}')" 
-                                style="flex:1;padding:0.5rem;border:none;border-radius:6px;background:#5A9A6E;color:#FFF8F0;cursor:pointer;font-size:0.8rem;">
-                                📊 분석 입력
+                                style="flex:1;padding:0.5rem;border:none;border-radius:6px;background:#5B7B8C;color:#FFF8F0;cursor:pointer;font-size:0.8rem;">
+                                 분석 입력
                             </button>
                         </div>
                     </div>`;
@@ -546,7 +546,7 @@ JSON만 출력하세요.`;
 
         modal.innerHTML = `
             <div style="background:#FFF8F0;border-radius:16px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;">
-                <h3>📊 피부 분석 입력</h3>
+                <h3> 피부 분석 입력</h3>
                 <div style="display:grid;gap:0.6rem;margin-top:1rem;">
                     <select id="admin-skin-type" style="padding:0.5rem;border:1px solid #E8E0D8;border-radius:6px;">
                         ${SKIN_TYPES.map(t => `<option value="${t}">${t}</option>`).join('')}
@@ -562,7 +562,7 @@ JSON만 출력하세요.`;
                     <textarea id="admin-advice" placeholder="관리 조언" rows="2" style="padding:0.5rem;border:1px solid #E8E0D8;border-radius:6px;"></textarea>
                     <input type="text" id="admin-recommended" placeholder="추천 제품/서비스" style="padding:0.5rem;border:1px solid #E8E0D8;border-radius:6px;">
                     <button onclick="BEAUTY.submitAdminAnalysis('${requestId}','${userId}')" 
-                        style="padding:0.8rem;border:none;border-radius:8px;background:#5A9A6E;color:#FFF8F0;font-weight:700;cursor:pointer;">
+                        style="padding:0.8rem;border:none;border-radius:8px;background:#5B7B8C;color:#FFF8F0;font-weight:700;cursor:pointer;">
                         ✅ 분석 결과 저장
                     </button>
                 </div>
@@ -598,7 +598,7 @@ JSON만 출력하세요.`;
             // 알림
             try {
                 await db.collection('users').doc(userId).collection('notifications').add({
-                    type: 'beauty', message: '📊 피부 분석 결과가 도착했습니다!', read: false, createdAt: new Date()
+                    type: 'beauty', message: ' 피부 분석 결과가 도착했습니다!', read: false, createdAt: new Date()
                 });
             } catch (e) { console.warn(e.message); }
 

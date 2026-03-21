@@ -92,12 +92,16 @@ async function initMentorLearning() {
 // ========== FIRESTORE PERSISTENCE ==========
 
 async function loadMentorPerformance() {
-    if (typeof db === 'undefined') return;
+    const _authHeaders = () => {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    };
     try {
         for (const mid of Object.keys(MENTOR_PARAM_DEFS)) {
-            const doc = await db.collection('mentor_performance').doc(mid).get();
+            const res = await fetch('/api/db/mentor_performance/' + mid, { headers: _authHeaders() });
+            const doc = await res.json();
             if (doc.exists) {
-                const data = doc.data();
+                const data = doc.data;
                 if (data.params) {
                     // Merge with bounds checking
                     for (const [key, val] of Object.entries(data.params)) {
@@ -112,21 +116,28 @@ async function loadMentorPerformance() {
             }
         }
         mentorLearning._lastFirestoreSync = Date.now();
-        console.log('[MentorLearning] Performance data loaded from Firestore');
+        console.log('[MentorLearning] Performance data loaded');
     } catch (e) {
         console.warn('[MentorLearning] Performance load failed:', e.message);
     }
 }
 
 async function saveMentorPerformance(mentorId) {
-    if (typeof db === 'undefined') return;
+    const _authHeaders = () => {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    };
     try {
-        await db.collection('mentor_performance').doc(mentorId).set({
-            params: mentorLearning.params[mentorId],
-            stats: mentorLearning.stats[mentorId],
-            history: mentorLearning.history[mentorId].slice(-100),
-            updatedAt: new Date(),
-        }, { merge: true });
+        await fetch('/api/db/mentor_performance/' + mentorId, {
+            method: 'PUT',
+            headers: _authHeaders(),
+            body: JSON.stringify({
+                params: mentorLearning.params[mentorId],
+                stats: mentorLearning.stats[mentorId],
+                history: mentorLearning.history[mentorId].slice(-100),
+                updatedAt: new Date().toISOString(),
+            })
+        });
     } catch (e) {
         console.warn('[MentorLearning] Performance save failed:', e.message);
     }

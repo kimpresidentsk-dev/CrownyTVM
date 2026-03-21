@@ -148,17 +148,17 @@ async function loadSettings() {
             <!-- Privacy -->
             <div class="settings-card">
                 <h4><i data-lucide="lock" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.privacy', 'Privacy')}</h4>
-                <button onclick="exportMyData()" class="settings-btn">${getText('settings.export_data', '📥 Download my data')}</button>
+                <button onclick="exportMyData()" class="settings-btn">${getText('settings.export_data', 'Download my data')}</button>
                 <button onclick="requestDeactivation()" class="settings-btn settings-btn-danger">${getText('settings.deactivate', '⚠️ Request account deactivation')}</button>
             </div>
             
             <!-- Security -->
             <div class="settings-card">
                 <h4><i data-lucide="shield" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;"></i> ${getText('settings.security', 'Security')}</h4>
-                <button onclick="resetPassword()" class="settings-btn">${getText('settings.change_password', '🔑 Change password')}</button>
+                <button onclick="resetPassword()" class="settings-btn">${getText('settings.change_password', 'Change password')}</button>
                 <p style="font-size:0.8rem; color:var(--accent); margin-top:0.5rem;">
                     ${getText('settings.wallet_encryption', 'Wallet encryption')}: 
-                    <strong style="color:#5A9A6E;">AES-GCM ✅</strong>
+                    <strong style="color:#5B7B8C;">AES-GCM ✅</strong>
                 </p>
             </div>
         </div>

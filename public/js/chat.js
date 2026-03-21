@@ -869,11 +869,11 @@ async function chatShowGroupInfo(chatId) {
                     const isOwner = info.admins?.[0] === m;
                     const isMAdmin = info.admins?.includes(m);
                     const roleBadge = isOwner ? `<span style="font-size:0.6rem;background:#F7F3ED;color:#6B5744;padding:1px 5px;border-radius:4px;margin-left:4px">${t('messenger.owner','Owner')}</span>` :
-                        isMAdmin ? `<span style="font-size:0.6rem;background:#F7F3ED;color:#5A9A6E;padding:1px 5px;border-radius:4px;margin-left:4px">${t('messenger.admin','Admin')}</span>` : '';
+                        isMAdmin ? `<span style="font-size:0.6rem;background:#F7F3ED;color:#5B7B8C;padding:1px 5px;border-radius:4px;margin-left:4px">${t('messenger.admin','Admin')}</span>` : '';
                     const kickBtn = isAdmin && m !== chatMyUsername && !isOwner ?
                         `<button onclick="chatKickMember('${chatId}','${chatEsc(m)}')" style="margin-left:auto;padding:3px 8px;background:none;border:1px solid #E8E0D8;border-radius:6px;font-size:0.65rem;cursor:pointer;color:#B54534">${t('messenger.kick','Kick')}</button>` : '';
                     return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #F0E8DC">
-                        <span style="width:8px;height:8px;border-radius:50%;background:${online ? '#5A9A6E' : '#E8E0D8'};flex-shrink:0"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:${online ? '#5B7B8C' : '#E8E0D8'};flex-shrink:0"></span>
                         <span style="flex:1;font-size:0.85rem;color:#3D2B1F">${chatEsc(m)}${roleBadge}</span>
                         ${kickBtn}
                     </div>`;

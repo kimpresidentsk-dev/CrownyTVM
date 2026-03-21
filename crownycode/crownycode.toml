@@ -1,0 +1,42 @@
+# crownycode.toml — CrownyOS 코드 엔진 설정
+
+[engine]
+version = "0.1.0"
+# 기본 출력 언어: "python" | "rust" | "crowny"
+default_target = "python"
+# 미인지(-2) 상태 시 Claude API 자동 호출 여부
+auto_learn = true
+# 셀DB 경로
+cell_db_path = "data/cells.db"
+
+[claude]
+# ANTHROPIC_API_KEY 환경변수에서 읽음
+model = "claude-sonnet-4-20250514"
+max_tokens = 2048
+# 월별 무료 호출 한도 (개발도상국 게이트웨이)
+free_quota = 100
+
+[codegen]
+# 생성 코드에 주석 포함 여부 (초보자 모드)
+verbose_comments = true
+# 자동 테스트 생성 (미확인 상태 코드에 우선 적용)
+auto_test = true
+
+[gateway]
+# 개발도상국 무상 게이트웨이 활성화
+enabled = false
+# GDP 기준 무상 국가 코드 목록
+free_country_codes = ["KE", "TZ", "NG", "IN", "BD", "ET", "UG", "MZ"]
+
+[runtime]
+# 저전력 모드 — RPi4 등 저사양 장비에서 활성화
+# Claude API 자동 호출 비활성화, 셀DB 로컬 전용 동작
+low_power = false
+# 최대 동시 셀 추론 수 (low_power=true 시 1로 강제)
+max_parallel_cells = 4
+
+[snapshot]
+# 자동 스냅샷 — N회 생성마다 자동 export
+auto_every = 50
+# 스냅샷 저장 경로
+path = "data/snapshots"

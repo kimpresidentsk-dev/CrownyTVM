@@ -17,5 +17,5 @@ async function showSendModal() {
 }
 
 async function sendTokensByEmail() {
-    if (typeof showToast === 'function') showToast('Crowny Network 송금은 아이디로 전송합니다', 'info');
+    if (typeof showToast === 'function') showToast(t('send.use_username', 'Crowny Network transfers are sent by username'), 'info');
 }

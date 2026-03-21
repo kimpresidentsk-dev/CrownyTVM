@@ -1,65 +1,65 @@
-// ===== movement.js - 크라우니무브먼트: 신체 아름다움 3단계 500회 프로세스 (v1.0) =====
+// ===== movement.js - CrownyMovement: Body Beauty 3-Stage 500-Session Process (v1.0) =====
 
 const MOVEMENT = (() => {
     const STAGES = [
         {
             id: 'precision',
-            name: '프레시전 무브먼트',
+            name: t('movement.stage_precision','Precision Movement'),
             emoji: '<i data-lucide="target"></i>',
             color: '#8B6914',
             gradient: 'linear-gradient(135deg,#8B6914,#F0C060)',
             subtitle: 'Precision Movement',
-            desc: '터치를 통해 정교하게 몸 속에서 근육들이 살아나게 하는 단계',
-            detail: '몸의 미세한 근육들을 깨우는 정교한 터치와 움직임. 평소 사용하지 않던 근육을 인식하고 활성화시킵니다.',
+            desc: t('movement.stage_precision_desc','A stage where muscles come alive through precise touch'),
+            detail: t('movement.stage_precision_detail','Precise touch and movement to awaken micro-muscles. Recognize and activate muscles you don\'t normally use.'),
             sessions: 167, // 500 / 3
             exercises: [
-                { name: '마이크로 터치 워밍업', duration: '5분', desc: '손끝으로 얼굴, 목, 어깨의 미세근육을 깨움' },
-                { name: '파인 모터 컨트롤', duration: '10분', desc: '손가락, 발가락의 정밀한 움직임 훈련' },
-                { name: '바디 스캐닝', duration: '8분', desc: '머리부터 발끝까지 각 부위를 인식하며 이완' },
-                { name: '밸런스 터치', duration: '7분', desc: '좌우 균형을 맞추는 부드러운 터치 동작' },
-                { name: '호흡 연동 스트레칭', duration: '10분', desc: '호흡에 맞춰 각 관절을 정교하게 풀어줌' },
-                { name: '페이셜 무브먼트', duration: '5분', desc: '얼굴 근육 60여개를 개별적으로 운동' },
-                { name: '핑거팁 릴리즈', duration: '5분', desc: '손끝에서 시작하는 전신 긴장 해소' }
+                { name: t('movement.ex_micro_touch','Micro Touch Warm-up'), duration: t('movement.dur_5min','5 min'), desc: t('movement.ex_micro_touch_desc','Awaken micro-muscles of face, neck, and shoulders with fingertips') },
+                { name: t('movement.ex_fine_motor','Fine Motor Control'), duration: t('movement.dur_10min','10 min'), desc: t('movement.ex_fine_motor_desc','Precise movement training for fingers and toes') },
+                { name: t('movement.ex_body_scan','Body Scanning'), duration: t('movement.dur_8min','8 min'), desc: t('movement.ex_body_scan_desc','Relax while recognizing each body part from head to toe') },
+                { name: t('movement.ex_balance_touch','Balance Touch'), duration: t('movement.dur_7min','7 min'), desc: t('movement.ex_balance_touch_desc','Gentle touch movements to balance left and right sides') },
+                { name: t('movement.ex_breath_stretch','Breath-Linked Stretching'), duration: t('movement.dur_10min','10 min'), desc: t('movement.ex_breath_stretch_desc','Precisely loosen each joint in sync with breathing') },
+                { name: t('movement.ex_facial','Facial Movement'), duration: t('movement.dur_5min','5 min'), desc: t('movement.ex_facial_desc','Exercise 60+ individual facial muscles') },
+                { name: t('movement.ex_fingertip','Fingertip Release'), duration: t('movement.dur_5min','5 min'), desc: t('movement.ex_fingertip_desc','Full-body tension release starting from fingertips') }
             ]
         },
         {
             id: 'active',
-            name: '액티브 무브먼트',
+            name: t('movement.stage_active','Active Movement'),
             emoji: '<i data-lucide="flame"></i>',
             color: '#8B6914',
             gradient: 'linear-gradient(135deg,#8B6914,#6B5744)',
             subtitle: 'Active Movement',
-            desc: '아랫배에서 명치까지 중심축을 끌어올리는 활동형 무브먼트',
-            detail: '코어의 중심축을 아랫배(단전)에서 명치(태양신경총)까지 끌어올리며 에너지 흐름을 활성화합니다.',
+            desc: t('movement.stage_active_desc','Active movement that raises the central axis from lower abdomen to solar plexus'),
+            detail: t('movement.stage_active_detail','Activate energy flow by raising the core axis from the lower abdomen (dantian) to the solar plexus.'),
             sessions: 167,
             exercises: [
-                { name: '코어 액티베이션', duration: '8분', desc: '아랫배 깊은 근육을 깨우는 동작' },
-                { name: '에너지 라이징', duration: '10분', desc: '단전에서 명치까지 에너지를 끌어올리는 호흡+동작' },
-                { name: '다이나믹 플로우', duration: '12분', desc: '유동적인 전신 동작으로 중심축 강화' },
-                { name: '파워 브리딩', duration: '7분', desc: '강한 호흡과 함께하는 복부 강화 운동' },
-                { name: '스파인 웨이브', duration: '8분', desc: '척추를 파도처럼 움직이며 유연성 확보' },
-                { name: '힙 오프너', duration: '10분', desc: '골반과 고관절을 열어 에너지 흐름 개선' },
-                { name: '액티브 밸런스', duration: '10분', desc: '한 발 서기, 동적 균형 등 활동적 밸런스 훈련' }
+                { name: t('movement.ex_core_act','Core Activation'), duration: t('movement.dur_8min','8 min'), desc: t('movement.ex_core_act_desc','Movements to awaken deep lower abdominal muscles') },
+                { name: t('movement.ex_energy_rise','Energy Rising'), duration: t('movement.dur_10min','10 min'), desc: t('movement.ex_energy_rise_desc','Breathing + movement to raise energy from dantian to solar plexus') },
+                { name: t('movement.ex_dynamic_flow','Dynamic Flow'), duration: t('movement.dur_12min','12 min'), desc: t('movement.ex_dynamic_flow_desc','Strengthen central axis with fluid full-body movements') },
+                { name: t('movement.ex_power_breath','Power Breathing'), duration: t('movement.dur_7min','7 min'), desc: t('movement.ex_power_breath_desc','Abdominal strengthening with powerful breathing') },
+                { name: t('movement.ex_spine_wave','Spine Wave'), duration: t('movement.dur_8min','8 min'), desc: t('movement.ex_spine_wave_desc','Move spine in wave-like motion for flexibility') },
+                { name: t('movement.ex_hip_opener','Hip Opener'), duration: t('movement.dur_10min','10 min'), desc: t('movement.ex_hip_opener_desc','Open pelvis and hip joints to improve energy flow') },
+                { name: t('movement.ex_active_balance','Active Balance'), duration: t('movement.dur_10min','10 min'), desc: t('movement.ex_active_balance_desc','Active balance training including single-leg stands and dynamic balance') }
             ]
         },
         {
             id: 'core',
-            name: '코어 무브먼트',
+            name: t('movement.stage_core','Core Movement'),
             emoji: '<i data-lucide="gem"></i>',
             color: '#8B6914',
             gradient: 'linear-gradient(135deg,#8B6914,#6B5744)',
             subtitle: 'Core Movement',
-            desc: '몸의 가장 깊은 곳까지 에너지를 넘쳐나게 하는 훈련형 무브먼트',
-            detail: '신체의 가장 깊은 근육과 에너지 시스템을 활성화하여, 내면에서 넘치는 활력과 아름다움을 만들어냅니다.',
+            desc: t('movement.stage_core_desc','Training movement that fills the deepest parts of the body with energy'),
+            detail: t('movement.stage_core_detail','Activate the deepest muscles and energy systems to create overflowing vitality and beauty from within.'),
             sessions: 166,
             exercises: [
-                { name: '딥 코어 이그니션', duration: '10분', desc: '가장 깊은 복횡근/다열근 활성화' },
-                { name: '에너지 서킷', duration: '15분', desc: '전신 에너지 순환 집중 훈련' },
-                { name: '파워 플랭크 시리즈', duration: '10분', desc: '다양한 플랭크 변형으로 코어 극대화' },
-                { name: '인터널 포스', duration: '12분', desc: '내부 근력을 최대한 끌어내는 고급 동작' },
-                { name: '브레스 오브 파이어', duration: '8분', desc: '강력한 호흡법으로 내면 에너지 폭발' },
-                { name: '풀바디 인테그레이션', duration: '15분', desc: '모든 근육 체인을 하나로 연결하는 통합 훈련' },
-                { name: '리커버리 메디테이션', duration: '10분', desc: '훈련 후 깊은 이완과 에너지 안정화' }
+                { name: t('movement.ex_deep_core','Deep Core Ignition'), duration: t('movement.dur_10min','10 min'), desc: t('movement.ex_deep_core_desc','Activate the deepest transverse abdominal and multifidus muscles') },
+                { name: t('movement.ex_energy_circuit','Energy Circuit'), duration: t('movement.dur_15min','15 min'), desc: t('movement.ex_energy_circuit_desc','Intensive full-body energy circulation training') },
+                { name: t('movement.ex_power_plank','Power Plank Series'), duration: t('movement.dur_10min','10 min'), desc: t('movement.ex_power_plank_desc','Maximize core with various plank variations') },
+                { name: t('movement.ex_internal_force','Internal Force'), duration: t('movement.dur_12min','12 min'), desc: t('movement.ex_internal_force_desc','Advanced movements to maximize internal strength') },
+                { name: t('movement.ex_breath_fire','Breath of Fire'), duration: t('movement.dur_8min','8 min'), desc: t('movement.ex_breath_fire_desc','Powerful breathing technique to ignite inner energy') },
+                { name: t('movement.ex_fullbody_int','Full Body Integration'), duration: t('movement.dur_15min','15 min'), desc: t('movement.ex_fullbody_int_desc','Integration training connecting all muscle chains as one') },
+                { name: t('movement.ex_recovery_med','Recovery Meditation'), duration: t('movement.dur_10min','10 min'), desc: t('movement.ex_recovery_med_desc','Deep relaxation and energy stabilization after training') }
             ]
         }
     ];
@@ -70,15 +70,18 @@ const MOVEMENT = (() => {
         const container = document.getElementById('movement-content');
         if (!container) return;
         if (!currentUser) {
-            container.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--accent);">로그인이 필요합니다</p>';
+            container.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent);">${t('movement.login_required','Login is required')}</p>`;
             return;
         }
 
-        // 진행 상황 로드
+        // Load progress
         try {
-            const doc = await db.collection('users').doc(currentUser.uid)
-                .collection('movement_progress').doc('current').get();
-            userProgress = doc.exists ? doc.data() : { totalSessions: 0, stage: 'precision', stageSession: 0, lastSessionDate: null, streak: 0 };
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            const res = await fetch(`/api/db/users/${currentUser.uid}/movement_progress/current`, {
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+            });
+            const doc = await res.json();
+            userProgress = doc.exists ? doc.data : { totalSessions: 0, stage: 'precision', stageSession: 0, lastSessionDate: null, streak: 0 };
         } catch (e) {
             userProgress = { totalSessions: 0, stage: 'precision', stageSession: 0, lastSessionDate: null, streak: 0 };
         }
@@ -88,44 +91,44 @@ const MOVEMENT = (() => {
         const stagePercent = (userProgress.stageSession / currentStageObj.sessions * 100).toFixed(0);
 
         container.innerHTML = `
-            <!-- 전체 진행률 -->
+            <!-- Overall Progress -->
             <div style="background:linear-gradient(135deg,#3D2B1F,#6B5744);border-radius:16px;padding:1.5rem;color:#FFF8F0;margin-bottom:1.5rem;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;">
                     <div>
-                        <div style="font-size:0.75rem;opacity:0.7;">500회 프로세스</div>
+                        <div style="font-size:0.75rem;opacity:0.7;">${t('movement.process_500','500-Session Process')}</div>
                         <div style="font-size:2rem;font-weight:800;">${userProgress.totalSessions} <span style="font-size:1rem;opacity:0.7;">/ 500</span></div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:0.75rem;opacity:0.7;">연속</div>
-                        <div style="font-size:1.5rem;font-weight:700;"><i data-lucide="flame" style="width:16px;height:16px;display:inline;"></i> ${userProgress.streak || 0}일</div>
+                        <div style="font-size:0.75rem;opacity:0.7;">${t('movement.streak','Streak')}</div>
+                        <div style="font-size:1.5rem;font-weight:700;"><i data-lucide="flame" style="width:16px;height:16px;display:inline;"></i> ${userProgress.streak || 0}${t('movement.days','days')}</div>
                     </div>
                 </div>
                 <div style="background:rgba(255,255,255,0.2);border-radius:10px;height:10px;overflow:hidden;">
                     <div style="background:linear-gradient(90deg,#8B6914,#F0C060,#6B5744);height:100%;width:${totalPercent}%;border-radius:10px;transition:width 0.5s;"></div>
                 </div>
                 <div style="display:flex;justify-content:space-between;font-size:0.7rem;opacity:0.7;margin-top:0.3rem;">
-                    <span><i data-lucide="target"></i> 프레시전</span><span><i data-lucide="flame"></i> 액티브</span><span><i data-lucide="gem"></i> 코어</span>
+                    <span><i data-lucide="target"></i> ${t('movement.label_precision','Precision')}</span><span><i data-lucide="flame"></i> ${t('movement.label_active','Active')}</span><span><i data-lucide="gem"></i> ${t('movement.label_core','Core')}</span>
                 </div>
             </div>
 
-            <!-- 현재 단계 -->
+            <!-- Current Stage -->
             <div style="background:${currentStageObj.gradient};border-radius:16px;padding:1.5rem;color:#FFF8F0;margin-bottom:1.5rem;">
-                <div style="font-size:0.7rem;opacity:0.8;">현재 단계</div>
+                <div style="font-size:0.7rem;opacity:0.8;">${t('movement.current_stage','Current Stage')}</div>
                 <h3 style="margin:0.3rem 0;">${currentStageObj.emoji} ${currentStageObj.name}</h3>
                 <p style="font-size:0.8rem;opacity:0.9;margin-bottom:1rem;">${currentStageObj.desc}</p>
                 <div style="background:rgba(255,255,255,0.2);border-radius:8px;height:8px;margin-bottom:0.5rem;">
                     <div style="background:#FFF8F0;height:100%;width:${stagePercent}%;border-radius:8px;"></div>
                 </div>
-                <div style="font-size:0.75rem;opacity:0.8;">${userProgress.stageSession} / ${currentStageObj.sessions}회 완료</div>
+                <div style="font-size:0.75rem;opacity:0.8;">${userProgress.stageSession} / ${currentStageObj.sessions}${t('movement.sessions_done',' sessions completed')}</div>
             </div>
 
-            <!-- 오늘의 운동 시작 -->
-            <button onclick="MOVEMENT.startSession()" 
+            <!-- Start Today's Session -->
+            <button onclick="MOVEMENT.startSession()"
                 style="width:100%;padding:1.2rem;border:none;border-radius:12px;background:linear-gradient(135deg,#8B6914,#6B5744);color:#FFF8F0;font-weight:700;font-size:1.1rem;cursor:pointer;margin-bottom:1.5rem;box-shadow:0 4px 15px rgba(139,105,20,0.3);">
-                <i data-lucide="play"></i> 오늘의 무브먼트 시작
+                <i data-lucide="play"></i> ${t('movement.start_today','Start Today\'s Movement')}
             </button>
 
-            <!-- 3단계 소개 -->
+            <!-- 3-Stage Introduction -->
             <div style="display:grid;gap:0.8rem;margin-bottom:1.5rem;">
                 ${STAGES.map((s, i) => {
                     const isActive = s.id === userProgress.stage;
@@ -138,17 +141,17 @@ const MOVEMENT = (() => {
                                 <div style="font-weight:700;">${s.emoji} ${s.name}</div>
                                 <div style="font-size:0.8rem;color:var(--accent);margin-top:0.2rem;">${s.subtitle}</div>
                             </div>
-                            <div style="font-size:0.8rem;color:${s.color};font-weight:700;">${s.sessions}회</div>
+                            <div style="font-size:0.8rem;color:${s.color};font-weight:700;">${s.sessions}${t('movement.sessions_count',' sessions')}</div>
                         </div>
                         <p style="font-size:0.8rem;color:var(--accent);margin-top:0.5rem;">${s.detail}</p>
                     </div>`;
                 }).join('')}
             </div>
 
-            <!-- 운동 기록 -->
+            <!-- Session History -->
             <div style="background:var(--card-bg,#F7F3ED);border-radius:12px;padding:1.2rem;">
-                <h3 style="margin:0 0 0.8rem 0;font-size:1rem;">📋 최근 기록</h3>
-                <div id="movement-history"><p style="text-align:center;color:var(--accent);font-size:0.85rem;">로딩 중...</p></div>
+                <h3 style="margin:0 0 0.8rem 0;font-size:1rem;">${t('movement.recent_history','Recent History')}</h3>
+                <div id="movement-history"><p style="text-align:center;color:var(--accent);font-size:0.85rem;">${t('movement.loading','Loading...')}</p></div>
             </div>
         `;
 
@@ -164,31 +167,31 @@ const MOVEMENT = (() => {
         const container = document.getElementById('movement-content');
         container.innerHTML = `
             <div style="background:${stage.gradient};border-radius:16px;padding:1.5rem;color:#FFF8F0;margin-bottom:1rem;">
-                <div style="font-size:0.7rem;opacity:0.8;">${stage.name} — ${userProgress.totalSessions + 1}번째 세션</div>
+                <div style="font-size:0.7rem;opacity:0.8;">${stage.name} — ${t('movement.session_number','Session #')}${userProgress.totalSessions + 1}</div>
                 <h2 style="margin:0.5rem 0;">${exercise.name}</h2>
                 <p style="opacity:0.9;font-size:0.85rem;">${exercise.desc}</p>
-                <div style="margin-top:1rem;font-size:0.9rem;">⏱️ ${exercise.duration}</div>
+                <div style="margin-top:1rem;font-size:0.9rem;">${exercise.duration}</div>
             </div>
 
-            <!-- 타이머 -->
+            <!-- Timer -->
             <div style="text-align:center;background:var(--card-bg,#F7F3ED);border-radius:16px;padding:2rem;margin-bottom:1rem;">
                 <div id="movement-timer" style="font-size:3rem;font-weight:800;font-family:monospace;">00:00</div>
-                <p id="movement-status" style="font-size:0.9rem;color:var(--accent);margin-top:0.5rem;">준비되셨나요?</p>
+                <p id="movement-status" style="font-size:0.9rem;color:var(--accent);margin-top:0.5rem;">${t('movement.ready','Are you ready?')}</p>
                 <div style="display:flex;justify-content:center;gap:1rem;margin-top:1.5rem;">
-                    <button id="movement-start-btn" onclick="MOVEMENT.toggleTimer()" 
+                    <button id="movement-start-btn" onclick="MOVEMENT.toggleTimer()"
                         style="padding:0.8rem 2rem;border:none;border-radius:10px;background:linear-gradient(135deg,#8B6914,#6B5744);color:#FFF8F0;font-weight:700;cursor:pointer;font-size:1rem;">
-                        <i data-lucide="play"></i> 시작
+                        <i data-lucide="play"></i> ${t('movement.start','Start')}
                     </button>
-                    <button onclick="MOVEMENT.completeSession()" 
+                    <button onclick="MOVEMENT.completeSession()"
                         style="padding:0.8rem 2rem;border:none;border-radius:10px;background:linear-gradient(135deg,#8B6914,#6B5744);color:#FFF8F0;font-weight:700;cursor:pointer;font-size:1rem;">
-                        <i data-lucide="check-circle"></i> 완료
+                        <i data-lucide="check-circle"></i> ${t('movement.complete','Complete')}
                     </button>
                 </div>
             </div>
 
-            <!-- 운동 목록 -->
+            <!-- Exercise List -->
             <div style="background:var(--card-bg,#F7F3ED);border-radius:12px;padding:1rem;">
-                <h4 style="margin:0 0 0.5rem 0;font-size:0.9rem;">📋 ${stage.name} 운동 목록</h4>
+                <h4 style="margin:0 0 0.5rem 0;font-size:0.9rem;">${t('movement.exercise_list','Exercise List')} — ${stage.name}</h4>
                 ${stage.exercises.map((ex, i) => `
                     <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid #F7F3ED;${i === exerciseIndex ? 'background:#F7F3ED;margin:0 -0.5rem;padding:0.5rem;border-radius:6px;' : ''}">
                         <span style="font-size:0.8rem;width:20px;text-align:center;color:${i === exerciseIndex ? '#B54534' : '#6B5744'};">${i === exerciseIndex ? '▶' : (i + 1)}</span>
@@ -200,7 +203,7 @@ const MOVEMENT = (() => {
                 `).join('')}
             </div>
 
-            <button onclick="MOVEMENT.init()" style="width:100%;margin-top:1rem;padding:0.8rem;background:none;border:1px solid #E8E0D8;border-radius:10px;cursor:pointer;"><i data-lucide="arrow-left"></i> 돌아가기</button>
+            <button onclick="MOVEMENT.init()" style="width:100%;margin-top:1rem;padding:0.8rem;background:none;border:1px solid #E8E0D8;border-radius:10px;cursor:pointer;"><i data-lucide="arrow-left"></i> ${t('movement.go_back','Go Back')}</button>
         `;
     }
 
@@ -214,12 +217,12 @@ const MOVEMENT = (() => {
         if (timerRunning) {
             clearInterval(timerInterval);
             timerRunning = false;
-            if (btn) btn.textContent = '▶️ 계속';
-            if (status) status.textContent = '일시정지';
+            if (btn) btn.textContent = t('movement.resume','Resume');
+            if (status) status.textContent = t('movement.paused','Paused');
         } else {
             timerRunning = true;
-            if (btn) btn.textContent = '⏸️ 일시정지';
-            if (status) status.textContent = '운동 중...';
+            if (btn) btn.textContent = t('movement.pause','Pause');
+            if (status) status.textContent = t('movement.exercising','Exercising...');
             timerInterval = setInterval(() => {
                 timerSeconds++;
                 const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
@@ -240,17 +243,17 @@ const MOVEMENT = (() => {
         userProgress.totalSessions++;
         userProgress.stageSession++;
 
-        // 다음 단계 체크
+        // Check next stage
         if (userProgress.stageSession >= stage.sessions) {
             const stageIdx = STAGES.findIndex(s => s.id === userProgress.stage);
             if (stageIdx < STAGES.length - 1) {
                 userProgress.stage = STAGES[stageIdx + 1].id;
                 userProgress.stageSession = 0;
-                showToast(`🎉 ${stage.name} 완료! 다음 단계로 넘어갑니다!`, 'success');
+                showToast(t('movement.stage_complete',`${stage.name} complete! Moving to the next stage!`), 'success');
             }
         }
 
-        // 연속 일수 계산
+        // Calculate streak
         const today = new Date().toDateString();
         const lastDate = userProgress.lastSessionDate;
         if (lastDate) {
@@ -262,38 +265,46 @@ const MOVEMENT = (() => {
         }
         userProgress.lastSessionDate = today;
 
-        // 저장
+        // Save
         try {
-            await db.collection('users').doc(currentUser.uid)
-                .collection('movement_progress').doc('current').set(userProgress);
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            const _h = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+            await fetch(`/api/db/users/${currentUser.uid}/movement_progress/current`, {
+                method: 'PUT',
+                headers: _h,
+                body: JSON.stringify({ ...userProgress, _merge: false })
+            });
 
-            await db.collection('users').doc(currentUser.uid)
-                .collection('movement_log').add({
+            await fetch(`/api/db/users/${currentUser.uid}/movement_log`, {
+                method: 'POST',
+                headers: _h,
+                body: JSON.stringify({
                     stage: stage.id,
                     sessionNumber: userProgress.totalSessions,
                     duration: timerSeconds,
-                    createdAt: new Date()
-                });
+                    createdAt: new Date().toISOString()
+                })
+            });
         } catch (e) {
             console.error('[Movement] Save failed:', e);
         }
 
         timerSeconds = 0;
-        showToast(`✅ ${userProgress.totalSessions}/500 세션 완료! <i data-lucide="flame" style="width:14px;height:14px;display:inline;"></i> ${userProgress.streak}일 연속`, 'success');
+        showToast(t('movement.session_done',`${userProgress.totalSessions}/500 session complete!`) + ` <i data-lucide="flame" style="width:14px;height:14px;display:inline;"></i> ${userProgress.streak}${t('movement.days_streak',' days streak')}`, 'success');
 
-        // 크라우니걸 AI 격려 메시지 (10회마다)
+        // CrownyGirl AI encouragement (every 10 sessions)
         if (userProgress.totalSessions % 10 === 0) {
             try {
-                let apiKey = 'AIzaSyAhkJlLDE_V2Iso8PZaGIWPqs_ht0ZuZeA';
-                try { const s = await db.collection('admin_config').doc('ai_settings').get(); const d = s.data()||{}; if(d.apiKey?.length>10) apiKey=d.apiKey; } catch(e){}
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({ contents:[{parts:[{text:`크라우니걸(밝고 친근한 23세)로서, 무브먼트 ${userProgress.totalSessions}회를 달성한 사용자에게 1~2줄 격려 메시지. 이모지 포함. 텍스트만.`}]}], generationConfig:{temperature:0.9,maxOutputTokens:100} })
+                const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+                const geminiRes = await fetch('/api/ai/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ contents:[{parts:[{text:`As CrownyGirl (bright and friendly, age 23), write a 1-2 line encouragement message for a user who completed ${userProgress.totalSessions} movement sessions. Include emojis. Text only.`}]}], generationConfig:{temperature:0.9,maxOutputTokens:100} })
                 });
-                const data = await res.json();
+                const data = await geminiRes.json();
                 const msg = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-                if (msg) showToast(`✨ ${msg}`, 'success');
-            } catch(e){}
+                if (msg) showToast(`${msg}`, 'success');
+            } catch(e){ console.warn(e.message); }
         }
 
         init();
@@ -304,17 +315,20 @@ const MOVEMENT = (() => {
         if (!container || !currentUser) return;
 
         try {
-            const snap = await db.collection('users').doc(currentUser.uid)
-                .collection('movement_log').orderBy('createdAt', 'desc').limit(10).get();
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            const res = await fetch(`/api/db/users/${currentUser.uid}/movement_log?orderBy=createdAt&orderDir=desc&limit=10`, {
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+            });
+            const snap = await res.json();
 
             if (snap.empty) {
-                container.innerHTML = '<p style="text-align:center;color:var(--accent);font-size:0.85rem;">아직 기록이 없습니다. 첫 세션을 시작해보세요!</p>';
+                container.innerHTML = `<p style="text-align:center;color:var(--accent);font-size:0.85rem;">${t('movement.no_history','No records yet. Start your first session!')}</p>`;
                 return;
             }
 
             container.innerHTML = snap.docs.map(doc => {
-                const d = doc.data();
-                const date = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString('ko-KR') : '';
+                const d = doc.data;
+                const date = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR') : '';
                 const stage = STAGES.find(s => s.id === d.stage) || STAGES[0];
                 const mins = Math.floor((d.duration || 0) / 60);
                 const secs = (d.duration || 0) % 60;
@@ -325,11 +339,11 @@ const MOVEMENT = (() => {
                             <div style="font-size:0.85rem;font-weight:600;">#${d.sessionNumber} ${stage.name}</div>
                             <div style="font-size:0.7rem;color:var(--accent);">${date}</div>
                         </div>
-                        <div style="font-size:0.8rem;color:${stage.color};font-weight:600;">${mins}분 ${secs}초</div>
+                        <div style="font-size:0.8rem;color:${stage.color};font-weight:600;">${mins}${t('movement.min','min')} ${secs}${t('movement.sec','sec')}</div>
                     </div>`;
             }).join('');
         } catch (e) {
-            container.innerHTML = '<p style="color:red;font-size:0.8rem;">로드 실패</p>';
+            container.innerHTML = `<p style="color:red;font-size:0.8rem;">${t('movement.load_failed','Load failed')}</p>`;
         }
     }
 

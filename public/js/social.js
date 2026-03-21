@@ -95,7 +95,7 @@ async function showProfileEdit() {
         <div style="text-align:center; margin-bottom:1rem;">
             <div id="profile-preview-avatar" style="display:inline-block;">${avatarHTML(data.photoURL, data.nickname, 80)}</div>
             <div style="margin-top:0.5rem;">
-                <label for="profile-photo-input" style="color:#3D2B1F; cursor:pointer; font-size:0.85rem; font-weight:600;"><i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.change_photo','📷 Change Photo')}</label>
+                <label for="profile-photo-input" style="color:#3D2B1F; cursor:pointer; font-size:0.85rem; font-weight:600;"><i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.change_photo','Change Photo')}</label>
                 <input type="file" id="profile-photo-input" accept="image/*" style="display:none;" onchange="previewProfilePhoto(this)">
             </div>
         </div>
@@ -110,9 +110,9 @@ async function showProfileEdit() {
             </div>
             <p style="font-size:0.75rem; color:var(--text-muted,#6B5744);">${t('auth.email','Email')}: ${data.email}</p>
             <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid #E8E0D8; display:grid; gap:0.5rem;">
-                <p style="font-size:0.8rem; font-weight:600; color:var(--text,#3D2B1F); margin-bottom:0.2rem;"><i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.login_method','🔐 Login Method')}</p>
-                <p style="font-size:0.75rem; color:#5A9A6E;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.pw_login_set','✅ CrownyTVM Account')}</p>
-                <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','🔑 Change Password')}</button>
+                <p style="font-size:0.8rem; font-weight:600; color:var(--text,#3D2B1F); margin-bottom:0.2rem;"><i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.login_method','Login Method')}</p>
+                <p style="font-size:0.75rem; color:#5B7B8C;"><i data-lucide="check-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('social.pw_login_set','CrownyTVM Account')}</p>
+                <button onclick="changePasswordFromProfile()" style="width:100%;padding:0.7rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;cursor:pointer;background:var(--bg-card,#3D2B1F);font-size:0.85rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${t('auth.change_pw','Change Password')}</button>
             </div>
         </div>
         <div style="display:flex;gap:0.5rem;margin-top:1rem;">
@@ -359,7 +359,7 @@ async function loadContacts() {
                     <div style="font-size:0.95rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
                     <div style="font-size:0.8rem;color:#7A5C47;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sub}</div>
                 </div>
-                ${c.isUser ? '<i data-lucide="badge-check" style="width:16px;height:16px;color:#5A9A6E;flex-shrink:0;"></i>' : ''}`;
+                ${c.isUser ? '<i data-lucide="badge-check" style="width:16px;height:16px;color:#5B7B8C;flex-shrink:0;"></i>' : ''}`;
             contactList.appendChild(contactItem);
         });
     });
@@ -392,7 +392,7 @@ function showContactDetail(contact) {
         <div style="text-align:center;margin-bottom:1rem;">
             <div style="width:64px;height:64px;border-radius:50%;background:#3D2B1F;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;margin:0 auto 8px;">${(name[0] || '?').toUpperCase()}</div>
             <h3 style="margin:0;font-size:1.1rem;">${name}</h3>
-            ${contact.isUser ? '<span style="font-size:0.75rem;color:#5A9A6E;">Crowny ' + t('social.contact_internal','Member') + '</span>' : '<span style="font-size:0.75rem;color:#7A5C47;">' + t('social.contact_external','External') + '</span>'}
+            ${contact.isUser ? '<span style="font-size:0.75rem;color:#5B7B8C;">Crowny ' + t('social.contact_internal','Member') + '</span>' : '<span style="font-size:0.75rem;color:#7A5C47;">' + t('social.contact_external','External') + '</span>'}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:1rem;">
             ${fields.map(f => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F0E8DC;">
@@ -1164,7 +1164,7 @@ let _pendingServiceLink = null;
 // ========== SERVICE LINK CONFIG ==========
 const SERVICE_LINK_CONFIG = {
     artist:   { action: t('social.support_artist','Support'), color: '#B54534', collection: 'artists', nameField: 'name', nav: (id) => { showPage('artist'); viewArtistDetail(id); } },
-    campaign: { action: t('social.donate','Donate'), color: '#5A9A6E', collection: 'campaigns', nameField: 'title', nav: (id) => { showPage('fundraise'); showCampaignDetail(id); } },
+    campaign: { action: t('social.donate','Donate'), color: '#5B7B8C', collection: 'campaigns', nameField: 'title', nav: (id) => { showPage('fundraise'); showCampaignDetail(id); } },
     business: { action: t('social.invest','Invest'), color: '#3D2B1F', collection: 'businesses', nameField: 'name', nav: (id) => { showPage('business'); viewBusinessDetail(id); } },
     art:      { action: t('social.buy_artwork','Buy Artwork'), color: '#8B6914', collection: 'artworks', nameField: 'title', nav: (id) => showPage('art') },
     book:     { action: t('social.buy_book','Buy Book'), color: '#FF9800', collection: 'books', nameField: 'title', nav: (id) => showPage('books') },
@@ -1778,9 +1778,9 @@ async function showFullProfile(uid) {
             </div>`;
 
         html += `<div class="insta-profile-tabs">
-            <button class="insta-profile-tab active" onclick="switchProfileTab('posts','${uid}')">📷</button>
-            <button class="insta-profile-tab" onclick="switchProfileTab('shorts','${uid}')">🎬</button>
-            <button class="insta-profile-tab" onclick="switchProfileTab('saved','${uid}')">🔖</button>
+            <button class="insta-profile-tab active" onclick="switchProfileTab('posts','${uid}')"><i data-lucide="grid-3x3" style="width:18px;height:18px;"></i></button>
+            <button class="insta-profile-tab" onclick="switchProfileTab('shorts','${uid}')"><i data-lucide="film" style="width:18px;height:18px;"></i></button>
+            <button class="insta-profile-tab" onclick="switchProfileTab('saved','${uid}')"><i data-lucide="bookmark" style="width:18px;height:18px;"></i></button>
         </div>`;
 
         html += '<div id="profile-posts-grid" class="insta-grid">';
@@ -1965,7 +1965,7 @@ async function loadIndependentSocialFeed(feed) {
 
         if (!data.posts || data.posts.length === 0) {
             feed.innerHTML = `<div style="text-align:center;padding:3rem;">
-                <p style="font-size:2.5rem;margin-bottom:1rem;">📝</p>
+                <p style="font-size:2.5rem;margin-bottom:1rem;"><i data-lucide="pen-line" style="width:40px;height:40px;"></i></p>
                 <p style="font-size:1.1rem;font-weight:600;color:#3D2B1F;">${t('social.no_posts','No posts yet')}</p>
                 <p style="font-size:0.85rem;color:#7A5C47;">${t('social.write_first','Write your first post!')}</p></div>`;
             return;
@@ -2194,3 +2194,6 @@ function shareIndependentPost(postId, text) {
 
 // createPost hook
 window._createPostIndependent = createIndependentPost;
+ost;
+ost;
+ost;

@@ -31,15 +31,19 @@ async function loadSearchCache() {
         { key: 'posts', col: 'posts', fields: ['text'], icon: 'file-text', page: 'social' },
     ];
     
+    const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    const _headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
     const promises = collections.map(async (c) => {
         try {
-            const snap = await db.collection(c.col).orderBy('createdAt', 'desc').limit(100).get();
-            searchCache[c.key] = snap.docs.map(d => ({ id: d.id, ...d.data(), _meta: c }));
+            const res = await fetch(`/api/db/${c.col}?orderBy=createdAt&orderDir=desc&limit=100`, { headers: _headers });
+            const result = await res.json();
+            searchCache[c.key] = (result.docs || []).map(d => ({ id: d.id, ...d.data, _meta: c }));
         } catch(e) {
-            // Some collections may not have createdAt index
+            // Fallback without ordering
             try {
-                const snap = await db.collection(c.col).limit(100).get();
-                searchCache[c.key] = snap.docs.map(d => ({ id: d.id, ...d.data(), _meta: c }));
+                const res2 = await fetch(`/api/db/${c.col}?limit=100`, { headers: _headers });
+                const result2 = await res2.json();
+                searchCache[c.key] = (result2.docs || []).map(d => ({ id: d.id, ...d.data, _meta: c }));
             } catch(e2) {
                 searchCache[c.key] = [];
             }

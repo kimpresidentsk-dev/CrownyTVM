@@ -1,4 +1,5 @@
 // ===== stories.js v2.0 — STORIES (스토리) =====
+// Migrated to Server REST API — zero Firebase/Firestore references
 (function() {
     'use strict';
 
@@ -8,6 +9,24 @@
     let _progressTimer = null;
     let _mediaFile = null;
     let _mediaType = null;
+
+    function _headers() {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    }
+    function _authHeaders() {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        return { 'Authorization': 'Bearer ' + token };
+    }
+
+    function _fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
 
     // ========== UPLOAD MODAL ==========
     function openUpload() {
@@ -86,20 +105,18 @@
         try {
             const text = document.getElementById('story-text-input')?.value?.trim() || '';
             const ext = _mediaFile.name.split('.').pop();
-            const fileName = `stories/${currentUser.uid}/${Date.now()}.${ext}`;
-            const ref = firebase.storage().ref(fileName);
-            await ref.put(_mediaFile);
-            const mediaUrl = await ref.getDownloadURL();
+            const mediaBase64 = await _fileToBase64(_mediaFile);
 
-            await db.collection('stories').add({
-                userId: currentUser.uid,
-                mediaUrl,
-                mediaType: _mediaType,
-                text,
-                viewers: [],
-                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            const res = await fetch('/api/stories', {
+                method: 'POST', headers: _headers(),
+                body: JSON.stringify({
+                    mediaBase64,
+                    mediaType: _mediaType,
+                    ext,
+                    text
+                })
             });
+            if (!res.ok) throw new Error('Upload failed: ' + res.status);
 
             showToast(t('story.uploaded','스토리가 올라갔습니다!'), 'success');
             document.getElementById('story-upload-modal')?.remove();
@@ -120,18 +137,14 @@
         if (!container) return;
 
         try {
-            const now = new Date();
-            const snap = await db.collection('stories')
-                .where('expiresAt', '>', now)
-                .orderBy('expiresAt')
-                .limit(100)
-                .get();
+            const res = await fetch('/api/stories', { headers: _authHeaders() });
+            const data = await res.json();
+            const stories = data.stories || [];
 
             const userStories = {};
-            snap.docs.forEach(doc => {
-                const d = doc.data();
-                if (!userStories[d.userId]) userStories[d.userId] = [];
-                userStories[d.userId].push({ id: doc.id, ...d });
+            stories.forEach(s => {
+                if (!userStories[s.userId]) userStories[s.userId] = [];
+                userStories[s.userId].push(s);
             });
             _cache = userStories;
 
@@ -149,10 +162,13 @@
             </div>`;
 
             // Get following/friends for priority sort
-            const followSnap = await db.collection('users').doc(currentUser.uid).collection('following').get();
-            const followSet = new Set(followSnap.docs.map(d => d.id));
-            const friendSnap = await db.collection('users').doc(currentUser.uid).collection('friends').get();
-            friendSnap.docs.forEach(d => followSet.add(d.id));
+            let followSet = new Set();
+            try {
+                const followRes = await fetch('/api/user/following', { headers: _authHeaders() });
+                const followData = await followRes.json();
+                (followData.following || []).forEach(id => followSet.add(id));
+                (followData.friends || []).forEach(id => followSet.add(id));
+            } catch (e) { /* ignore */ }
 
             const others = Object.keys(userStories).filter(uid => uid !== currentUser.uid);
             others.sort((a, b) => (followSet.has(a) ? 0 : 1) - (followSet.has(b) ? 0 : 1));
@@ -231,14 +247,17 @@
         _itemIdx = itemIdx;
         const story = stories[itemIdx];
         const info = await getUserDisplayInfo(userId);
-        const timeAgo = getTimeAgo(story.createdAt?.toDate?.() || new Date());
+        const timeAgo = getTimeAgo(story.createdAt ? new Date(story.createdAt) : new Date());
         const isMe = userId === currentUser.uid;
 
         // Mark as viewed
         if (!isMe && !story.viewers?.includes(currentUser.uid)) {
-            db.collection('stories').doc(story.id).update({
-                viewers: firebase.firestore.FieldValue.arrayUnion(currentUser.uid)
+            fetch(`/api/stories/${encodeURIComponent(story.id)}/view`, {
+                method: 'POST', headers: _authHeaders()
             }).catch(e => console.warn(e.message));
+            // Update local cache
+            if (!story.viewers) story.viewers = [];
+            story.viewers.push(currentUser.uid);
         }
 
         // Cleanup existing
@@ -347,41 +366,14 @@
         if (!text) return;
 
         try {
-            const userDoc = await db.collection('users').doc(userId).get();
-            const email = userDoc.data()?.email;
-            if (email) {
-                const chatsSnap = await db.collection('chats')
-                    .where('participants', 'array-contains', currentUser.uid)
-                    .get();
-                let chatId = null;
-                chatsSnap.docs.forEach(doc => {
-                    if (doc.data().participants.includes(userId)) chatId = doc.id;
-                });
-                if (!chatId) {
-                    const newChat = await db.collection('chats').add({
-                        participants: [currentUser.uid, userId],
-                        lastMessage: '',
-                        lastMessageTime: new Date(),
-                        createdAt: new Date()
-                    });
-                    chatId = newChat.id;
-                }
-                await db.collection('chats').doc(chatId).collection('messages').add({
-                    senderId: currentUser.uid,
-                    text: `${t('story.replied_prefix','스토리에 답장')}: ${text}`,
-                    timestamp: new Date(),
-                    type: 'text'
-                });
-                await db.collection('chats').doc(chatId).update({
-                    lastMessage: `${t('story.replied_prefix','스토리에 답장')}: ${text}`,
-                    lastMessageTime: new Date()
-                });
-                await createNotification(userId, 'social_comment', {
-                    message: t('story.reply_notification','스토리에 답장이 왔습니다'),
-                    fromUid: currentUser.uid,
-                    storyId
-                });
-            }
+            await fetch('/api/stories/reply-chat', {
+                method: 'POST', headers: _headers(),
+                body: JSON.stringify({
+                    targetUserId: userId,
+                    storyId,
+                    text: `${t('story.replied_prefix','스토리에 답장')}: ${text}`
+                })
+            });
             input.value = '';
             showToast(t('story.reply_sent','답장을 보냈습니다'), 'success');
         } catch (e) {
@@ -392,8 +384,9 @@
     // ========== VIEWERS LIST ==========
     async function _showViewers(storyId) {
         try {
-            const doc = await db.collection('stories').doc(storyId).get();
-            const viewers = doc.data()?.viewers || [];
+            const res = await fetch(`/api/stories/${encodeURIComponent(storyId)}`, { headers: _authHeaders() });
+            const data = await res.json();
+            const viewers = data.story?.viewers || [];
             if (viewers.length === 0) { showToast(t('story.no_viewers','아직 조회한 사람이 없습니다'), 'info'); return; }
 
             let rows = '';
@@ -424,15 +417,7 @@
     // ========== CLEANUP EXPIRED ==========
     async function _cleanup() {
         try {
-            const now = new Date();
-            const expired = await db.collection('stories')
-                .where('expiresAt', '<', now)
-                .where('userId', '==', currentUser?.uid)
-                .limit(20)
-                .get();
-            for (const doc of expired.docs) {
-                await db.collection('stories').doc(doc.id).delete();
-            }
+            await fetch('/api/stories/expired', { method: 'DELETE', headers: _authHeaders() });
         } catch (e) { /* silent */ }
     }
 

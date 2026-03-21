@@ -2777,7 +2777,9 @@
         // Try to load all questions; fallback to single-question repeated fetch
         let questions = [];
         const allResp = await ctvmApi('/bible/quiz/all');
-        if (Array.isArray(allResp) && allResp.length > 0) {
+        if (allResp && allResp.questions && Array.isArray(allResp.questions) && allResp.questions.length > 0) {
+            questions = allResp.questions;
+        } else if (Array.isArray(allResp) && allResp.length > 0) {
             questions = allResp;
         } else {
             // Fallback: fetch single questions and deduplicate (max 50 tries for 27 unique)
@@ -2884,12 +2886,14 @@
 
         const questions = window._quizQuestions || [];
         let correctCount = 0;
+        let lastRoundResult = null;
 
         for (let qIdx = 0; qIdx < questions.length; qIdx++) {
             const answer = ctvmQuizAnswers[qIdx];
             if (!answer) continue;
 
-            const r = await ctvmApi('/bible/answer', {method:'POST', body:{quizId:answer.quizId, selectedIndex:answer.optIdx}});
+            const r = await ctvmApi('/bible/answer', {method:'POST', body:{quizId: parseInt(answer.quizId), selectedIndex:answer.optIdx}});
+            if (r.roundResult) lastRoundResult = r.roundResult;
             const resultEl = document.getElementById(`quiz-result-${qIdx}`);
 
             // Highlight correct/wrong
@@ -2913,11 +2917,25 @@
             }
         }
 
-        // Show final score
+        // Show final score with reward info
+        const passed = correctCount >= 18;
+        let rewardHTML = '';
+        if (lastRoundResult) {
+            if (lastRoundResult.reward === '1 CRM') {
+                rewardHTML = `<div style="margin-top:8px;font-size:0.9rem;color:var(--success);font-weight:600">+1 ${t('quiz.mam','MAM')} ${t('quiz.rewarded','rewarded!')}</div>`;
+            } else if (lastRoundResult.reward) {
+                rewardHTML = `<div style="margin-top:8px;font-size:0.8rem;color:var(--text-secondary)">${ctvmEsc(lastRoundResult.reward)}</div>`;
+            }
+        } else if (passed) {
+            rewardHTML = `<div style="margin-top:8px;font-size:0.9rem;color:var(--success);font-weight:600">+1 ${t('quiz.mam','MAM')} ${t('quiz.rewarded','rewarded!')}</div>`;
+        }
+
         if(btn) {
             btn.outerHTML = `<div style="padding:16px;background:rgba(139,105,20,0.08);border-radius:10px;text-align:center">
-                <div style="font-size:1.2rem;font-weight:700;color:var(--primary)">${correctCount}/${questions.length} ${t('quiz.correct','correct')}</div>
-                <button onclick="ctvmLoadQuiz()" style="margin-top:8px;padding:8px 20px;background:var(--primary);color:var(--bg);border:none;border-radius:8px;cursor:pointer;font-size:0.85rem">${t('quiz.retry','Next Round')}</button>
+                <div style="font-size:1.2rem;font-weight:700;color:${passed?'var(--success)':'var(--primary)'}">${correctCount}/${questions.length} ${t('quiz.correct','correct')}</div>
+                <div style="font-size:0.85rem;color:var(--text-secondary);margin-top:4px">${passed ? t('quiz.passed','Passed! (18+ correct)') : t('quiz.failed','Need 18+ correct to earn MAM')}</div>
+                ${rewardHTML}
+                <button onclick="ctvmLoadQuiz()" style="margin-top:12px;padding:8px 20px;background:var(--primary);color:var(--bg);border:none;border-radius:8px;cursor:pointer;font-size:0.85rem">${t('quiz.retry','Next Round')}</button>
             </div>`;
         }
     }

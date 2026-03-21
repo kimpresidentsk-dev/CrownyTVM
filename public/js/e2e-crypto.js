@@ -1,10 +1,20 @@
 // ===== e2e-crypto.js - E2E 암호화 + 자동삭제 + 비밀채팅 + 메시지 서명 (v1.0) =====
-// Depends on: social.js (currentUser, db), IndexedDB (crowny-offline)
+// Depends on: social.js (currentUser), IndexedDB (crowny-offline)
+// Migrated to Server REST API — zero Firebase/Firestore references
 
 const E2ECrypto = (() => {
     const DB_NAME = 'crowny-e2e';
     const DB_VERSION = 1;
     const KEY_STORE = 'keys';
+
+    function _headers() {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    }
+    function _authHeaders() {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        return { 'Authorization': 'Bearer ' + token };
+    }
 
     // ========== IndexedDB for private keys ==========
     function openDB() {
@@ -182,26 +192,29 @@ const E2ECrypto = (() => {
             const stored = await getFromIDB(`keys_${uid}`);
             if (stored && stored.encPrivateKey && stored.signPrivateKey) {
                 console.log('[E2E] Keys loaded from IndexedDB');
-                // Verify publicKey is on Firestore
-                const userDoc = await db.collection('users').doc(uid).get();
-                if (userDoc.exists && userDoc.data().publicKey) return;
+                // Verify publicKey is on server
+                try {
+                    const res = await fetch(`/api/crypto/public-keys/${encodeURIComponent(uid)}`, { headers: _authHeaders() });
+                    const data = await res.json();
+                    if (data.publicKey) return;
+                } catch (e) { /* fall through to re-upload */ }
                 // Re-upload public keys
-                const encPub = await exportPublicKeyJWK(await importPrivateKeyEnc(stored.encPrivateKey).then(() => importPublicKeyEnc(stored.encPublicKey)));
-                // Actually just re-save the stored public keys
-                await db.collection('users').doc(uid).update({
-                    publicKey: stored.encPublicKey,
-                    publicSignKey: stored.signPublicKey
+                await fetch('/api/crypto/public-keys', {
+                    method: 'POST', headers: _headers(),
+                    body: JSON.stringify({ publicKey: stored.encPublicKey, publicSignKey: stored.signPublicKey })
                 });
                 return;
             }
 
-            // Check if Firestore already has publicKey (key exists on another device)
-            const userDoc = await db.collection('users').doc(uid).get();
-            if (userDoc.exists && userDoc.data().publicKey) {
-                console.log('[E2E] Public key on Firestore but no private key locally. Need key import or regeneration.');
-                // Don't auto-regenerate - user might import keys
-                return;
-            }
+            // Check if server already has publicKey (key exists on another device)
+            try {
+                const res = await fetch(`/api/crypto/public-keys/${encodeURIComponent(uid)}`, { headers: _authHeaders() });
+                const data = await res.json();
+                if (data.publicKey) {
+                    console.log('[E2E] Public key on server but no private key locally. Need key import or regeneration.');
+                    return;
+                }
+            } catch (e) { /* no keys on server, proceed to generate */ }
 
             // Generate new key pairs
             console.log('[E2E] Generating new key pairs...');
@@ -221,10 +234,10 @@ const E2ECrypto = (() => {
                 createdAt: Date.now()
             });
 
-            // Save public keys to Firestore
-            await db.collection('users').doc(uid).update({
-                publicKey: encPublicJWK,
-                publicSignKey: signPublicJWK
+            // Save public keys to server
+            await fetch('/api/crypto/public-keys', {
+                method: 'POST', headers: _headers(),
+                body: JSON.stringify({ publicKey: encPublicJWK, publicSignKey: signPublicJWK })
             });
 
             console.log('[E2E] Key pairs generated and stored');
@@ -247,16 +260,20 @@ const E2ECrypto = (() => {
 
     // ========== Get recipient's public keys ==========
     async function getRecipientPublicKeys(uid) {
-        const doc = await db.collection('users').doc(uid).get();
-        if (!doc.exists) return null;
-        const data = doc.data();
-        if (!data.publicKey) return null;
-        return {
-            encPublicKey: await importPublicKeyEnc(data.publicKey),
-            signPublicKey: data.publicSignKey ? await importPublicKeySign(data.publicSignKey) : null,
-            encPublicJWK: data.publicKey,
-            signPublicJWK: data.publicSignKey
-        };
+        try {
+            const res = await fetch(`/api/crypto/public-keys/${encodeURIComponent(uid)}`, { headers: _authHeaders() });
+            const data = await res.json();
+            if (!data.publicKey) return null;
+            return {
+                encPublicKey: await importPublicKeyEnc(data.publicKey),
+                signPublicKey: data.publicSignKey ? await importPublicKeySign(data.publicSignKey) : null,
+                encPublicJWK: data.publicKey,
+                signPublicJWK: data.publicSignKey
+            };
+        } catch (e) {
+            console.warn('[E2E] getRecipientPublicKeys error:', e);
+            return null;
+        }
     }
 
     // ========== Encrypt message for 1:1 chat ==========
@@ -305,10 +322,10 @@ const E2ECrypto = (() => {
             if (!msgData.encrypted || !msgData.encryptedMessage) return msgData.text || '';
 
             const myKeys = await getMyKeys(myUid);
-            if (!myKeys) return '🔒 암호화된 메시지 (복호화 불가)';
+            if (!myKeys) return t('crypto.encrypted_no_decrypt', 'Encrypted message (cannot decrypt)');
 
             const encryptedKey = msgData.encryptedKeys?.[myUid];
-            if (!encryptedKey) return '🔒 암호화된 메시지 (복호화 불가)';
+            if (!encryptedKey) return t('crypto.encrypted_no_decrypt', 'Encrypted message (cannot decrypt)');
 
             const aesKey = await decryptAESKeyWithRSA(encryptedKey, myKeys.encPrivateKey);
             const plaintext = await decryptWithAES(msgData.encryptedMessage, msgData.iv, aesKey);
@@ -319,7 +336,7 @@ const E2ECrypto = (() => {
                     const senderKeys = await getRecipientPublicKeys(msgData.senderId);
                     if (senderKeys && senderKeys.signPublicKey) {
                         const valid = await verifySignature(plaintext, msgData.signature, senderKeys.signPublicKey);
-                        if (!valid) return plaintext + ' ⚠️ 서명 검증 실패';
+                        if (!valid) return plaintext + ' — ' + t('crypto.signature_failed', 'Signature verification failed');
                     }
                 } catch (e) {
                     console.warn('[E2E] Signature verification failed:', e);
@@ -329,7 +346,7 @@ const E2ECrypto = (() => {
             return plaintext;
         } catch (e) {
             console.error('[E2E] Decrypt error:', e);
-            return '🔒 암호화된 메시지 (복호화 불가)';
+            return t('crypto.encrypted_no_decrypt', 'Encrypted message (cannot decrypt)');
         }
     }
 
@@ -394,26 +411,22 @@ const E2ECrypto = (() => {
         if (!msg.expiresAt) return null;
         const expiresAt = msg.expiresAt?.toDate ? msg.expiresAt.toDate() : new Date(msg.expiresAt);
         const remaining = expiresAt - Date.now();
-        if (remaining <= 0) return '만료됨';
-        if (remaining < 60000) return `${Math.ceil(remaining / 1000)}초`;
-        if (remaining < 3600000) return `${Math.ceil(remaining / 60000)}분`;
-        if (remaining < 86400000) return `${Math.ceil(remaining / 3600000)}시간`;
-        return `${Math.ceil(remaining / 86400000)}일`;
+        if (remaining <= 0) return t('crypto.expired', 'Expired');
+        if (remaining < 60000) return `${Math.ceil(remaining / 1000)}${t('crypto.seconds', 's')}`;
+        if (remaining < 3600000) return `${Math.ceil(remaining / 60000)}${t('crypto.minutes', 'm')}`;
+        if (remaining < 86400000) return `${Math.ceil(remaining / 3600000)}${t('crypto.hours', 'h')}`;
+        return `${Math.ceil(remaining / 86400000)}${t('crypto.days', 'd')}`;
     }
 
     async function cleanupExpiredMessages(chatId) {
         try {
-            const now = new Date();
-            const snap = await db.collection('chats').doc(chatId)
-                .collection('messages')
-                .where('expiresAt', '<=', now)
-                .limit(50).get();
-            if (snap.empty) return 0;
-            const batch = db.batch();
-            snap.docs.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
-            console.log(`[E2E] Cleaned ${snap.size} expired messages from ${chatId}`);
-            return snap.size;
+            const res = await fetch(`/api/crypto/chat/${encodeURIComponent(chatId)}/expired`, {
+                method: 'DELETE', headers: _authHeaders()
+            });
+            const data = await res.json();
+            const count = data.deleted || 0;
+            if (count > 0) console.log(`[E2E] Cleaned ${count} expired messages from ${chatId}`);
+            return count;
         } catch (e) {
             console.warn('[E2E] Cleanup error:', e);
             return 0;
@@ -423,13 +436,13 @@ const E2ECrypto = (() => {
     async function cleanupAllExpiredMessages() {
         if (!currentUser) return;
         try {
-            const chats = await db.collection('chats')
-                .where('participants', 'array-contains', currentUser.uid).get();
+            const res = await fetch('/api/crypto/chats', { headers: _authHeaders() });
+            const data = await res.json();
+            const chats = data.chats || [];
             let total = 0;
-            for (const doc of chats.docs) {
-                const data = doc.data();
-                if (data.autoDeleteAfter && data.autoDeleteAfter > 0) {
-                    total += await cleanupExpiredMessages(doc.id);
+            for (const chat of chats) {
+                if (chat.autoDeleteAfter && chat.autoDeleteAfter > 0) {
+                    total += await cleanupExpiredMessages(chat.id);
                 }
             }
             if (total > 0) console.log(`[E2E] Total expired messages cleaned: ${total}`);
@@ -441,27 +454,17 @@ const E2ECrypto = (() => {
     // ========== Secret Chat ==========
     async function createSecretChat(otherUid) {
         if (!currentUser) return null;
-        // Check for existing secret chat
-        const existing = await db.collection('chats')
-            .where('participants', 'array-contains', currentUser.uid)
-            .where('secret', '==', true).get();
-        for (const doc of existing.docs) {
-            if (doc.data().participants.includes(otherUid)) return doc.id;
+        try {
+            const res = await fetch('/api/crypto/chat', {
+                method: 'POST', headers: _headers(),
+                body: JSON.stringify({ secret: true, otherUid })
+            });
+            const data = await res.json();
+            return data.chatId || null;
+        } catch (e) {
+            console.error('[E2E] createSecretChat error:', e);
+            return null;
         }
-
-        const newChat = await db.collection('chats').add({
-            participants: [currentUser.uid, otherUid],
-            lastMessage: '🔒 비밀 채팅이 시작되었습니다',
-            lastMessageTime: new Date(),
-            createdAt: new Date(),
-            unreadCount: {},
-            typing: {},
-            secret: true,
-            e2eEnabled: true,
-            autoDeleteAfter: 86400000, // 24h default
-            noForward: true
-        });
-        return newChat.id;
     }
 
     // ========== Screenshot Detection (best-effort) ==========
@@ -477,10 +480,12 @@ const E2ECrypto = (() => {
                 // Send notification
                 try {
                     const myInfo = await getUserDisplayInfo(currentUser.uid);
-                    await db.collection('chats').doc(chatId).collection('messages').add({
-                        type: 'system',
-                        text: `⚠️ ${myInfo.nickname}님이 스크린샷을 캡처했을 수 있습니다`,
-                        timestamp: new Date()
+                    await fetch(`/api/crypto/chat/${encodeURIComponent(chatId)}/message`, {
+                        method: 'POST', headers: _headers(),
+                        body: JSON.stringify({
+                            type: 'system',
+                            text: `${myInfo.nickname} ${t('crypto.screenshot_warning', 'may have captured a screenshot')}`
+                        })
                     });
                 } catch (e) { /* best-effort */ }
             }
@@ -492,8 +497,8 @@ const E2ECrypto = (() => {
     // ========== Key Export/Import (backup) ==========
     async function exportKeysToFile(uid) {
         const stored = await getFromIDB(`keys_${uid}`);
-        if (!stored) { showToast('내보낼 키가 없습니다', 'warning'); return; }
-        const password = await showPromptModal('🔑 키 백업', '백업 파일을 보호할 비밀번호를 입력하세요', '');
+        if (!stored) { showToast(t('crypto.no_keys_to_export', 'No keys to export'), 'warning'); return; }
+        const password = await showPromptModal(t('crypto.key_backup', 'Key Backup'), t('crypto.backup_password_prompt', 'Enter a password to protect the backup file'), '');
         if (!password) return;
 
         // Encrypt with password-derived AES key
@@ -524,7 +529,7 @@ const E2ECrypto = (() => {
         a.href = url; a.download = `crowny-keys-backup-${uid.substring(0, 6)}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        showToast('✅ 키 백업 파일이 다운로드되었습니다', 'success');
+        showToast(t('crypto.backup_downloaded', 'Key backup file downloaded'), 'success');
     }
 
     async function importKeysFromFile(uid) {
@@ -535,7 +540,7 @@ const E2ECrypto = (() => {
             try {
                 const text = await input.files[0].text();
                 const backup = JSON.parse(text);
-                const password = await showPromptModal('🔑 키 복원', '백업 파일의 비밀번호를 입력하세요', '');
+                const password = await showPromptModal(t('crypto.key_restore', 'Key Restore'), t('crypto.restore_password_prompt', 'Enter the backup file password'), '');
                 if (!password) return;
 
                 const enc = new TextEncoder();
@@ -560,16 +565,16 @@ const E2ECrypto = (() => {
                     imported: true
                 });
 
-                // Update Firestore public keys
-                await db.collection('users').doc(uid).update({
-                    publicKey: keys.encPublicKey,
-                    publicSignKey: keys.signPublicKey
+                // Update server public keys
+                await fetch('/api/crypto/public-keys', {
+                    method: 'POST', headers: _headers(),
+                    body: JSON.stringify({ publicKey: keys.encPublicKey, publicSignKey: keys.signPublicKey })
                 });
 
-                showToast('✅ 키 복원 완료! 이전 메시지도 복호화할 수 있습니다.', 'success');
+                showToast(t('crypto.restore_complete', 'Key restore complete! You can now decrypt previous messages.'), 'success');
             } catch (e) {
                 console.error('[E2E] Import error:', e);
-                showToast('키 복원 실패: 비밀번호가 잘못되었거나 파일이 손상되었습니다', 'error');
+                showToast(t('crypto.restore_failed', 'Key restore failed: wrong password or corrupted file'), 'error');
             }
         };
         input.click();
@@ -578,16 +583,20 @@ const E2ECrypto = (() => {
     // ========== Auto Delete Timer Options ==========
     const AUTO_DELETE_OPTIONS = [
         { label: 'OFF', value: 0 },
-        { label: '1시간', value: 3600000 },
-        { label: '24시간', value: 86400000 },
-        { label: '7일', value: 604800000 },
-        { label: '30일', value: 2592000000 }
+        { label: t('crypto.1_hour', '1 hour'), value: 3600000 },
+        { label: t('crypto.24_hours', '24 hours'), value: 86400000 },
+        { label: t('crypto.7_days', '7 days'), value: 604800000 },
+        { label: t('crypto.30_days', '30 days'), value: 2592000000 }
     ];
 
     // ========== Chat Settings UI ==========
     async function showChatSecuritySettings(chatId) {
-        const chatDoc = await db.collection('chats').doc(chatId).get();
-        const chat = chatDoc.data();
+        let chat = {};
+        try {
+            const res = await fetch(`/api/crypto/chat/${encodeURIComponent(chatId)}`, { headers: _authHeaders() });
+            chat = (await res.json()).chat || {};
+        } catch (e) { console.warn('[E2E] getChatSettings error:', e); }
+
         const isSecret = chat.secret || false;
         const e2eEnabled = chat.e2eEnabled === true; // default OFF — only encrypt when explicitly enabled
         const autoDeleteAfter = chat.autoDeleteAfter || 0;
@@ -596,17 +605,21 @@ const E2ECrypto = (() => {
         // Get key fingerprints for 1:1
         let fingerprintHTML = '';
         if (!isGroup) {
-            const otherId = chat.participants.find(id => id !== currentUser.uid);
+            const otherId = (chat.participants || []).find(id => id !== currentUser.uid);
             try {
                 const myStored = await getFromIDB(`keys_${currentUser.uid}`);
-                const otherDoc = await db.collection('users').doc(otherId).get();
-                const otherData = otherDoc.data();
+                let otherPublicKey = null;
+                if (otherId) {
+                    const otherRes = await fetch(`/api/crypto/public-keys/${encodeURIComponent(otherId)}`, { headers: _authHeaders() });
+                    const otherData = await otherRes.json();
+                    otherPublicKey = otherData.publicKey || null;
+                }
                 if (myStored?.encPublicKey) {
                     const myFP = await getKeyFingerprint(myStored.encPublicKey);
-                    fingerprintHTML += `<div style="font-size:0.75rem;color:#6B5744;margin-top:0.3rem;">내 키: <code style="background:#F7F3ED;padding:0.1rem 0.3rem;border-radius:3px;">${myFP}</code></div>`;
+                    fingerprintHTML += `<div style="font-size:0.75rem;color:#6B5744;margin-top:0.3rem;">${t('crypto.my_key', 'My key')}: <code style="background:#F7F3ED;padding:0.1rem 0.3rem;border-radius:3px;">${myFP}</code></div>`;
                 }
-                if (otherData?.publicKey) {
-                    const otherFP = await getKeyFingerprint(otherData.publicKey);
+                if (otherPublicKey) {
+                    const otherFP = await getKeyFingerprint(otherPublicKey);
                     const otherInfo = await getUserDisplayInfo(otherId);
                     fingerprintHTML += `<div style="font-size:0.75rem;color:#6B5744;margin-top:0.2rem;">${otherInfo.nickname}: <code style="background:#F7F3ED;padding:0.1rem 0.3rem;border-radius:3px;">${otherFP}</code></div>`;
                 }
@@ -620,114 +633,124 @@ const E2ECrypto = (() => {
 
         overlay.innerHTML = `
         <div style="background:#FFF8F0;padding:1.5rem;border-radius:16px;max-width:420px;width:100%;">
-            <h3 style="margin-bottom:1rem;">🔐 채팅 보안 설정</h3>
-            ${isSecret ? '<div style="background:#F7F3ED;padding:0.5rem;border-radius:8px;margin-bottom:1rem;font-size:0.8rem;">🔒 비밀 채팅 — E2E 암호화가 강제 적용됩니다</div>' : ''}
-            
+            <h3 style="margin-bottom:1rem;"><i data-lucide="shield" style="width:18px;height:18px;display:inline-block;vertical-align:middle;"></i> ${t('crypto.security_settings', 'Chat Security Settings')}</h3>
+            ${isSecret ? `<div style="background:#F7F3ED;padding:0.5rem;border-radius:8px;margin-bottom:1rem;font-size:0.8rem;"><i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('crypto.secret_chat_forced', 'Secret chat — E2E encryption is enforced')}</div>` : ''}
+
             <div style="display:flex;justify-content:space-between;align-items:center;padding:0.8rem 0;border-bottom:1px solid #E8E0D8;">
                 <div>
-                    <div style="font-weight:600;font-size:0.9rem;">🔒 E2E 암호화</div>
-                    <div style="font-size:0.75rem;color:#6B5744;">메시지를 종단간 암호화합니다</div>
+                    <div style="font-weight:600;font-size:0.9rem;"><i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('crypto.e2e_encryption', 'E2E Encryption')}</div>
+                    <div style="font-size:0.75rem;color:#6B5744;">${t('crypto.e2e_desc', 'Encrypt messages end-to-end')}</div>
                 </div>
                 <label class="toggle-switch">
                     <input type="checkbox" id="e2e-toggle" ${e2eEnabled ? 'checked' : ''} ${isSecret ? 'disabled' : ''} onchange="E2ECrypto.updateChatSetting('${chatId}','e2eEnabled',this.checked)">
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-            
+
             <div style="padding:0.8rem 0;border-bottom:1px solid #E8E0D8;">
-                <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.5rem;">⏱️ 메시지 자동 삭제</div>
+                <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.5rem;"><i data-lucide="timer" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('crypto.auto_delete', 'Auto-delete Messages')}</div>
                 <select id="auto-delete-select" onchange="E2ECrypto.updateChatSetting('${chatId}','autoDeleteAfter',parseInt(this.value))" style="width:100%;padding:0.6rem;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;">
                     ${AUTO_DELETE_OPTIONS.map(o => `<option value="${o.value}" ${autoDeleteAfter === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
                 </select>
             </div>
 
             ${fingerprintHTML ? `<div style="padding:0.8rem 0;border-bottom:1px solid #E8E0D8;">
-                <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.3rem;">🔑 키 지문</div>
-                <div style="font-size:0.75rem;color:#6B5744;margin-bottom:0.3rem;">상대방과 동일한지 확인하세요</div>
+                <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.3rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('crypto.key_fingerprint', 'Key Fingerprint')}</div>
+                <div style="font-size:0.75rem;color:#6B5744;margin-bottom:0.3rem;">${t('crypto.verify_fingerprint', 'Verify it matches your contact')}</div>
                 ${fingerprintHTML}
             </div>` : ''}
 
             <div style="padding:0.8rem 0;">
-                <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.5rem;">🔑 키 관리</div>
+                <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.5rem;"><i data-lucide="key" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('crypto.key_management', 'Key Management')}</div>
                 <div style="display:flex;gap:0.5rem;">
-                    <button onclick="E2ECrypto.exportKeysToFile('${currentUser.uid}')" style="flex:1;padding:0.5rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;font-size:0.8rem;">📤 키 내보내기</button>
-                    <button onclick="E2ECrypto.importKeysFromFile('${currentUser.uid}')" style="flex:1;padding:0.5rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;font-size:0.8rem;">📥 키 가져오기</button>
+                    <button onclick="E2ECrypto.exportKeysToFile('${currentUser.uid}')" style="flex:1;padding:0.5rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;font-size:0.8rem;"><i data-lucide="upload" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> ${t('crypto.export_keys', 'Export Keys')}</button>
+                    <button onclick="E2ECrypto.importKeysFromFile('${currentUser.uid}')" style="flex:1;padding:0.5rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;font-size:0.8rem;"><i data-lucide="download" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> ${t('crypto.import_keys', 'Import Keys')}</button>
                 </div>
             </div>
 
-            <button onclick="document.getElementById('chat-security-modal').remove()" style="width:100%;margin-top:0.5rem;padding:0.7rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;">닫기</button>
+            <button onclick="document.getElementById('chat-security-modal').remove()" style="width:100%;margin-top:0.5rem;padding:0.7rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;">${t('common.close', 'Close')}</button>
         </div>`;
         document.body.appendChild(overlay);
     }
 
     async function updateChatSetting(chatId, field, value) {
         try {
-            await db.collection('chats').doc(chatId).update({ [field]: value });
-            showToast('✅ 설정이 변경되었습니다', 'success');
+            await fetch(`/api/crypto/chat/${encodeURIComponent(chatId)}`, {
+                method: 'PATCH', headers: _headers(),
+                body: JSON.stringify({ [field]: value })
+            });
+            showToast(t('crypto.settings_changed', 'Settings updated'), 'success');
         } catch (e) {
-            showToast('설정 변경 실패: ' + e.message, 'error');
+            showToast(t('crypto.settings_failed', 'Settings change failed: ') + e.message, 'error');
         }
     }
 
     // ========== Secret Chat Modal ==========
     async function showStartSecretChatModal() {
-        const contacts = await db.collection('users').doc(currentUser.uid).collection('contacts').get();
-        if (contacts.empty) { showToast('연락처에 추가된 사용자가 없습니다', 'warning'); return; }
+        let contacts = [];
+        try {
+            const res = await fetch('/api/crypto/contacts', { headers: _authHeaders() });
+            const data = await res.json();
+            contacts = data.contacts || [];
+        } catch (e) { console.warn('[E2E] contacts load error:', e); }
+
+        if (contacts.length === 0) { showToast(t('crypto.no_contacts', 'No contacts added'), 'warning'); return; }
 
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.6);z-index:99997;display:flex;align-items:center;justify-content:center;padding:1rem;';
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
         let listHTML = '';
-        for (const doc of contacts.docs) {
-            const info = await getUserDisplayInfo(doc.id);
-            listHTML += `<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem;border-bottom:1px solid #E8E0D8;cursor:pointer;" onclick="E2ECrypto.startSecretChatWith('${doc.id}');this.closest('[style*=position]').remove();">
+        for (const contact of contacts) {
+            const info = await getUserDisplayInfo(contact.id || contact.uid);
+            const contactId = contact.id || contact.uid;
+            listHTML += `<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem;border-bottom:1px solid #E8E0D8;cursor:pointer;" onclick="E2ECrypto.startSecretChatWith('${contactId}');this.closest('[style*=position]').remove();">
                 ${avatarHTML(info.photoURL, info.nickname, 40)}
                 <div style="flex:1;"><strong>${info.nickname}</strong></div>
-                <span style="font-size:0.8rem;color:#6B5744;">🔒</span>
+                <span style="font-size:0.8rem;color:#6B5744;"><i data-lucide="lock" style="width:14px;height:14px;"></i></span>
             </div>`;
         }
 
         overlay.innerHTML = `<div style="background:#FFF8F0;padding:1.5rem;border-radius:16px;max-width:420px;width:100%;max-height:60vh;overflow-y:auto;">
-            <h3 style="margin-bottom:1rem;">🔒 비밀 채팅 시작</h3>
-            <p style="font-size:0.8rem;color:#6B5744;margin-bottom:1rem;">E2E 암호화 + 자동삭제(24시간) + 전달 불가</p>
+            <h3 style="margin-bottom:1rem;"><i data-lucide="lock" style="width:18px;height:18px;display:inline-block;vertical-align:middle;"></i> ${t('crypto.start_secret_chat', 'Start Secret Chat')}</h3>
+            <p style="font-size:0.8rem;color:#6B5744;margin-bottom:1rem;">${t('crypto.secret_chat_desc', 'E2E encryption + auto-delete (24h) + no forwarding')}</p>
             ${listHTML}
-            <button onclick="this.closest('[style*=position]').remove()" style="width:100%;margin-top:1rem;padding:0.5rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;">취소</button>
+            <button onclick="this.closest('[style*=position]').remove()" style="width:100%;margin-top:1rem;padding:0.5rem;border:1px solid #E8E0D8;border-radius:8px;cursor:pointer;background:#FFF8F0;">${t('common.cancel', 'Cancel')}</button>
         </div>`;
         document.body.appendChild(overlay);
     }
 
     async function startSecretChatWith(otherUid) {
         try {
-            showLoading('🔒 비밀 채팅 생성 중...');
+            showLoading(t('crypto.creating_secret_chat', 'Creating secret chat...'));
             const chatId = await createSecretChat(otherUid);
             hideLoading();
             if (chatId) {
                 await loadMessages();
                 await openChat(chatId, otherUid);
-                showToast('🔒 비밀 채팅이 시작되었습니다', 'success');
+                showToast(t('crypto.secret_chat_started', 'Secret chat started'), 'success');
             }
         } catch (e) {
             hideLoading();
-            showToast('비밀 채팅 생성 실패: ' + e.message, 'error');
+            showToast(t('crypto.secret_chat_failed', 'Secret chat creation failed: ') + e.message, 'error');
         }
     }
 
     // ========== Check if chat has E2E enabled ==========
     async function isChatE2EEnabled(chatId) {
         try {
-            const doc = await db.collection('chats').doc(chatId).get();
-            if (!doc.exists) return false;
-            const data = doc.data();
-            return data.e2eEnabled === true; // default OFF — only encrypt when explicitly enabled
+            const res = await fetch(`/api/crypto/chat/${encodeURIComponent(chatId)}`, { headers: _authHeaders() });
+            const data = await res.json();
+            const chat = data.chat || {};
+            return chat.e2eEnabled === true; // default OFF — only encrypt when explicitly enabled
         } catch (e) { return false; }
     }
 
     async function getChatSettings(chatId) {
         try {
-            const doc = await db.collection('chats').doc(chatId).get();
-            if (!doc.exists) return {};
-            return doc.data();
+            const res = await fetch(`/api/crypto/chat/${encodeURIComponent(chatId)}`, { headers: _authHeaders() });
+            const data = await res.json();
+            return data.chat || {};
         } catch (e) { return {}; }
     }
 
@@ -762,7 +785,7 @@ const E2ECrypto = (() => {
 })();
 
 // Initialize E2E keys when user logs in
-if (typeof firebase !== 'undefined') {
+(function() {
     const _e2eOrigLoadUserData = window.loadUserData;
     if (_e2eOrigLoadUserData) {
         window.loadUserData = async function() {
@@ -773,4 +796,4 @@ if (typeof firebase !== 'undefined') {
             }
         };
     }
-}
+})();

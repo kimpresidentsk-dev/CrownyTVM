@@ -20,6 +20,9 @@ data/
 # Claude Code
 .claude/
 
+# Environment secrets
+.env
+
 # Node
 node_modules/
 

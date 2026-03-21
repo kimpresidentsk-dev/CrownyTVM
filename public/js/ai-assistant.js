@@ -39,7 +39,7 @@ const AI_ASSISTANT = (() => {
             color: '#8B6914',
             bgGradient: 'linear-gradient(135deg, #8B6914, #6B5744)',
             systemPrompt: `당신은 크라우니의 한선(20세, KPS의 아들)입니다. 피아니스트이자 트레이더로, 음악적 감성과 투자 분석을 겸비한 젊은 인재입니다. MZ세대 감성으로 따뜻하고 공감적이며, 사용자의 이야기를 경청하고 진심으로 조언합니다. "~요" 부드러운 존댓말을 사용하며 이모지를 적절히 활용합니다. 트레이딩, 음악, 크라우니 소셜/메신저/케어 기능에 밝습니다. 아버지 KPS를 존경하지만 자기만의 시각도 가지고 있습니다. 평화주의자이고 아이큐가 높지만 본인은 느리고 보통사람이라고 겸손하게 말합니다.`,
-            greeting: t('ai.hansun_greeting', 'I hope you feel at ease~ Tell me anything 💜'),
+            greeting: t('ai.hansun_greeting', 'I hope you feel at ease~ Tell me anything'),
             quickQuestions: [
                 { icon: 'message-circle', text: t('ai.hansun_q1', 'Crowny community introduction') },
                 { icon: 'heart', text: t('ai.hansun_q2', 'I have some worries lately') },
@@ -106,14 +106,14 @@ const AI_ASSISTANT = (() => {
 
     // ── 6번째 캐릭터: 개인 AI 튜터 ──
     const TUTOR_GOALS = {
-        english: { icon: '🇬🇧', label: t('ai.tutor_english', 'English'), labelEn: 'English' },
+        english: { icon: 'languages', label: t('ai.tutor_english', 'English'), labelEn: 'English' },
         trading: { icon: 'trend-up', label: t('ai.tutor_trading', 'Trading'), labelEn: 'Trading' },
-        beauty: { icon: '💄', label: t('ai.tutor_beauty', 'Beauty/Skincare'), labelEn: 'Beauty/Skincare' },
-        coding: { icon: '💻', label: t('ai.tutor_coding', 'Programming'), labelEn: 'Programming' },
+        beauty: { icon: 'sparkles', label: t('ai.tutor_beauty', 'Beauty/Skincare'), labelEn: 'Beauty/Skincare' },
+        coding: { icon: 'code', label: t('ai.tutor_coding', 'Programming'), labelEn: 'Programming' },
         business: { icon: 'briefcase', label: t('ai.tutor_business', 'Business'), labelEn: 'Business' },
         music: { icon: 'music', label: t('ai.tutor_music', 'Music'), labelEn: 'Music' },
-        cooking: { icon: '🍳', label: t('ai.tutor_cooking', 'Cooking'), labelEn: 'Cooking' },
-        fitness: { icon: '💪', label: t('ai.tutor_fitness', 'Fitness/Health'), labelEn: 'Fitness/Health' },
+        cooking: { icon: 'chef-hat', label: t('ai.tutor_cooking', 'Cooking'), labelEn: 'Cooking' },
+        fitness: { icon: 'dumbbell', label: t('ai.tutor_fitness', 'Fitness/Health'), labelEn: 'Fitness/Health' },
         growth: { icon: 'sprout', label: t('ai.tutor_growth', 'Self-development'), labelEn: 'Self-development' }
     };
     const TUTOR_STYLES = {
@@ -168,7 +168,7 @@ const AI_ASSISTANT = (() => {
         color: '#8B6914',
         bgGradient: 'linear-gradient(135deg, #8B6914, #6B5744)',
         get systemPrompt() { return buildTutorSystemPrompt(); },
-        greeting: t('ai.tutor_greeting', 'Hello! I\'m your personal AI tutor 📚 What shall we learn?'),
+        greeting: t('ai.tutor_greeting', 'Hello! I\'m your personal AI tutor. What shall we learn?'),
         quickQuestions: [
             { icon: 'book-open', text: t('ai.tutor_q1', 'Start today\'s lesson') },
             { icon: 'flask', text: t('ai.tutor_q2', 'Give me a quiz') },
@@ -218,9 +218,13 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         } catch(_) { /* optional */ }
         if (!currentUser) return;
         try {
-            const doc = await db.collection('users').doc(currentUser.uid).collection('ai_tutor_profile').doc('config').get();
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            const res = await fetch(`/api/db/users/${currentUser.uid}/ai_tutor_profile/config`, {
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+            });
+            const doc = await res.json();
             if (doc.exists) {
-                tutorProfile = doc.data();
+                tutorProfile = doc.data;
                 localStorage.setItem('crowny_tutor_profile', JSON.stringify(tutorProfile));
             }
         } catch(e) { console.warn('Tutor profile load fail:', e); }
@@ -231,7 +235,12 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         localStorage.setItem('crowny_tutor_profile', JSON.stringify(profile));
         if (!currentUser) return;
         try {
-            await db.collection('users').doc(currentUser.uid).collection('ai_tutor_profile').doc('config').set(profile, { merge: true });
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            await fetch(`/api/db/users/${currentUser.uid}/ai_tutor_profile/config`, {
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify(profile)
+            });
         } catch(e) { console.warn('Tutor profile save fail:', e); }
     }
 
@@ -251,7 +260,12 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         }
         localStorage.setItem(key, JSON.stringify(progress));
         try {
-            await db.collection('users').doc(currentUser.uid).collection('tutor_progress').doc('stats').set(progress, { merge: true });
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            await fetch(`/api/db/users/${currentUser.uid}/tutor_progress/stats`, {
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify(progress)
+            });
         } catch(_) { console.warn(_.message); }
     }
 
@@ -273,7 +287,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         if (header) {
             header.innerHTML = `<div class="panel-chat-header-left">
                 <button class="panel-back-btn" onclick="AI_ASSISTANT.backToSelect()">←</button>
-                <div class="panel-chat-avatar" style="background:linear-gradient(135deg,#8B6914,#6B5744);">📚</div>
+                <div class="panel-chat-avatar" style="background:linear-gradient(135deg,#8B6914,#6B5744);"><i data-lucide="book-open" style="width:20px;height:20px;color:#FFF8F0;"></i></div>
                 <div><div class="panel-chat-name">${t('ai.tutor_setup_title', 'My Tutor Setup')}</div><div class="panel-chat-role">${t('ai.tutor_setup_sub', 'Learning Profile Setup')}</div></div>
             </div><div></div>`;
         }
@@ -294,12 +308,12 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         }).join('');
 
         container.innerHTML = `<div class="tutor-setup">
-            <div class="tutor-setup-icon">📚</div>
+            <div class="tutor-setup-icon"><i data-lucide="book-open" style="width:48px;height:48px;"></i></div>
             <h3>${t('ai.tutor_setup_heading', 'My AI Tutor Setup')}</h3>
             <p style="color:var(--text-muted,#6B5744);margin-bottom:1.5rem;">${t('ai.tutor_setup_desc', 'Set your learning goals and style to get personalized lessons')}</p>
 
             <div class="tutor-section">
-                <h4>📚 ${t('ai.tutor_goals_title', 'Learning Goals (multiple selection)')}</h4>
+                <h4><i data-lucide="book-open" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> ${t('ai.tutor_goals_title', 'Learning Goals (multiple selection)')}</h4>
                 <div class="tutor-goal-grid">${goalBtns}</div>
                 <input type="text" id="tutor-custom-goal" placeholder="${t('ai.tutor_custom_placeholder', 'Enter custom goal...')}" value="${tutorProfile?.customGoal || ''}" class="tutor-custom-input">
             </div>
@@ -314,7 +328,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
                 <div class="tutor-opt-row">${styleBtns}</div>
             </div>
 
-            <button class="tutor-save-btn" onclick="AI_ASSISTANT._saveTutorSetup()">✅ ${t('ai.tutor_save_btn', 'Setup Complete — Start Tutor!')}</button>
+            <button class="tutor-save-btn" onclick="AI_ASSISTANT._saveTutorSetup()"><i data-lucide="check" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('ai.tutor_save_btn', 'Setup Complete — Start Tutor!')}</button>
         </div>`;
     }
 
@@ -414,9 +428,9 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
                 await new Promise(r => setTimeout(r, 2000 * (retryCount + 1)));
                 return sendToGemini(userMessage, char, retryCount + 1);
             }
-            if (res.status === 429) return t('ai.err_rate_limit', '⏳ Too many requests. Please try again shortly.');
-            if (res.status === 403 || res.status === 400) return t('ai.err_invalid_key', '🔑 API key is invalid. Please contact admin.');
-            return t('ai.err_response', '❌ AI response error occurred.');
+            if (res.status === 429) return t('ai.err_rate_limit', 'Too many requests. Please try again shortly.');
+            if (res.status === 403 || res.status === 400) return t('ai.err_invalid_key', 'API key is invalid. Please contact admin.');
+            return t('ai.err_response', 'AI response error occurred.');
         }
 
         const data = await res.json();
@@ -456,9 +470,9 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         });
 
         if (!res.ok) {
-            if (res.status === 429) { showToast(t('ai.err_rate_limit', '⏳ Too many requests. Please try again shortly.'), 'warning'); return null; }
-            if (res.status === 403) { showToast(t('ai.err_invalid_key', '🔑 API key is invalid.'), 'error'); return null; }
-            showToast(t('ai.err_response', '❌ AI response error'), 'error');
+            if (res.status === 429) { showToast(t('ai.err_rate_limit', 'Too many requests. Please try again shortly.'), 'warning'); return null; }
+            if (res.status === 403) { showToast(t('ai.err_invalid_key', 'API key is invalid.'), 'error'); return null; }
+            showToast(t('ai.err_response', 'AI response error'), 'error');
             return null;
         }
 
@@ -534,12 +548,12 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         loungeMode = false;
         const header = document.querySelector('#ai-assistant .section-header');
         if (header) {
-            header.innerHTML = `<h2>👑 <span data-i18n="nav.crowny_panel">${t('nav.crowny_panel','Crowny Panel')}</span></h2><div></div>`;
+            header.innerHTML = `<h2><i data-lucide="crown" style="width:20px;height:20px;display:inline-block;vertical-align:middle;"></i> <span data-i18n="nav.crowny_panel">${t('nav.crowny_panel','Crowny Panel')}</span></h2><div></div>`;
         }
 
         // Lounge button + character cards
         const loungeBtn = `<button class="lounge-enter-btn" onclick="AI_ASSISTANT.enterLounge()">
-            <span class="lounge-enter-icon">🏠</span>
+            <span class="lounge-enter-icon"><i data-lucide="home" style="width:20px;height:20px;"></i></span>
             <div class="lounge-enter-text">
                 <strong>${t('panel.lounge_title','Crowny Lounge')}</strong>
                 <span>${t('panel.lounge_sub','5-Member AI Group Chat')}</span>
@@ -563,7 +577,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
 
         container.innerHTML = `<div class="panel-select-screen">
             <div class="panel-select-title">
-                <div class="panel-select-icon">👑</div>
+                <div class="panel-select-icon"><i data-lucide="crown" style="width:32px;height:32px;"></i></div>
                 <h3>${t('panel.select_title','Who would you like to talk to?')}</h3>
                 <p>${t('panel.select_sub','Please select a Crowny Panel member')}</p>
             </div>
@@ -690,7 +704,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
                             : `<span class="lounge-header-avatar-emoji" style="background:${c.bgGradient};">${c.emoji}</span>`;
                     }).join('')}</div>
                     <div>
-                        <div class="panel-chat-name">🏠 ${t('panel.lounge_title','Crowny Lounge')}</div>
+                        <div class="panel-chat-name"><i data-lucide="home" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('panel.lounge_title','Crowny Lounge')}</div>
                         <div class="panel-chat-role">${t('panel.lounge_members','KPS, Hansun, Michael, Matthew, Crowny Girl')}</div>
                     </div>
                 </div>
@@ -713,10 +727,10 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
                     const c = CHARACTERS[id];
                     return `<div class="lounge-welcome-avatar" style="background:${c.bgGradient};">${renderCharAvatar(c)}</div>`;
                 }).join('')}</div>
-                <h3>🏠 ${t('panel.lounge_title','Crowny Lounge')}</h3>
+                <h3><i data-lucide="home" style="width:18px;height:18px;display:inline-block;vertical-align:middle;"></i> ${t('panel.lounge_title','Crowny Lounge')}</h3>
                 <p>${t('panel.lounge_welcome','Chat with the 5 Crowny Panel members!')}</p>
                 <div class="ai-quick-cards">
-                    <button class="ai-quick-card" onclick="AI_ASSISTANT.askLounge('${t('ai.lounge_ask_hello', 'Hello everyone~ How are you today?')}')">👋 ${t('ai.lounge_btn_hello', 'Say Hello')}</button>
+                    <button class="ai-quick-card" onclick="AI_ASSISTANT.askLounge('${t('ai.lounge_ask_hello', 'Hello everyone~ How are you today?')}')">${t('ai.lounge_btn_hello', 'Say Hello')}</button>
                     <button class="ai-quick-card" onclick="AI_ASSISTANT.askLounge('${t('ai.lounge_ask_intro', 'Tell me about Crowny')}')">sparkles ${t('ai.lounge_btn_intro', 'Crowny Intro')}</button>
                     <button class="ai-quick-card" onclick="AI_ASSISTANT.askLounge('${t('ai.lounge_ask_market', 'How is the market doing these days?')}')">trend-up ${t('ai.lounge_btn_market', 'Market Talk')}</button>
                     <button class="ai-quick-card" onclick="AI_ASSISTANT.askLounge('${t('ai.lounge_ask_healing', 'Please share something to lift my mood')}')">flower ${t('ai.lounge_btn_healing', 'Healing Talk')}</button>
@@ -807,14 +821,14 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
                 }
             } else {
                 // Fallback error
-                loungeHistory.push({ role: 'model', responses: [{ character: 'crownygirl', message: t('ai.lounge_error', 'Oops, something went wrong! Please try again 😅'), delay: 0 }] });
+                loungeHistory.push({ role: 'model', responses: [{ character: 'crownygirl', message: t('ai.lounge_error', 'Oops, something went wrong! Please try again.'), delay: 0 }] });
                 saveLoungeHistory();
                 renderLoungeMessages();
             }
         } catch (e) {
             hideLoungeTyping('crownygirl');
             console.error('Lounge error:', e);
-            loungeHistory.push({ role: 'model', responses: [{ character: 'crownygirl', message: t('ai.err_generic', '❌ An error occurred: ') + e.message, delay: 0 }] });
+            loungeHistory.push({ role: 'model', responses: [{ character: 'crownygirl', message: t('ai.err_generic', 'An error occurred: ') + e.message, delay: 0 }] });
             saveLoungeHistory();
             renderLoungeMessages();
         }
@@ -884,7 +898,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
             chatHistories[currentCharId].push({ role: 'model', text: reply });
             saveHistory(currentCharId);
         } catch (e) {
-            chatHistories[currentCharId].push({ role: 'model', text: t('ai.err_generic', '❌ An error occurred: ') + e.message });
+            chatHistories[currentCharId].push({ role: 'model', text: t('ai.err_generic', 'An error occurred: ') + e.message });
         }
 
         isLoading = false;
@@ -959,7 +973,7 @@ delay: 첫 번째 0~500, 이후 +800~2000씩 증가 (자연스러운 타이밍)`
         try {
             // API key is managed server-side via .env
             enabled = on;
-            showToast(t('ai.admin_saved', 'Crowny Panel settings saved ✅'), 'success');
+            showToast(t('ai.admin_saved', 'Crowny Panel settings saved'), 'success');
         } catch (e) {
             showToast(t('ai.admin_save_fail', 'Save failed: ') + e.message, 'error');
         }

@@ -25,15 +25,15 @@ function toggleMentorFilter(mentorId) {
     const activeCount = Object.values(s.mentorFilter).filter(v => v).length;
     if (activeCount === 0) {
         s.mentorFilter[mentorId] = true;
-        if (typeof showToast === 'function') showToast(t('mentor.min_one','⚠️ At least one mentor must be active'), 'warning');
+        if (typeof showToast === 'function') showToast(t('mentor.min_one','At least one mentor must be active'), 'warning');
         return;
     }
     saveMentorSettings(s);
     applyMentorSettings();
     renderMentorPanel();
     const mentor = mentors[mentorId];
-    const state = s.mentorFilter[mentorId] ? 'ON 🔔' : 'OFF 🔕';
-    if (typeof showToast === 'function') showToast(`${mentor?.icon || '🤖'} ${mentor?.name || mentorId} ${t('mentor.notif','Notification')} ${state}`, 'info', 2000);
+    const state = s.mentorFilter[mentorId] ? 'ON' : 'OFF';
+    if (typeof showToast === 'function') showToast(`${mentor?.name || mentorId} ${t('mentor.notif','Notification')} ${state}`, 'info', 2000);
 }
 window.toggleMentorFilter = toggleMentorFilter;
 
@@ -253,7 +253,7 @@ const mentors = {
             const isVolSpike = volSpike > volMult;
 
             if (momentum > strongTh && isVolSpike) {
-                return { signal: 'buy', confidence: 90, message: t('mentor.msg.now_go_long','Now! Jump in! 🚀'), reason: `Momentum +${(momentum * 100).toFixed(0)}bp, Vol ${volSpike.toFixed(1)}x spike` };
+                return { signal: 'buy', confidence: 90, message: t('mentor.msg.now_go_long','Now! Jump in!'), reason: `Momentum +${(momentum * 100).toFixed(0)}bp, Vol ${volSpike.toFixed(1)}x spike` };
             }
             if (momentum < -strongTh && isVolSpike) {
                 return { signal: 'sell', confidence: 88, message: t('mentor.msg.go_short','Go short! Quick scalp!'), reason: `Momentum ${(momentum * 100).toFixed(0)}bp, Vol ${volSpike.toFixed(1)}x spike` };
@@ -455,7 +455,7 @@ const mentors = {
                 }
             }
 
-            if (validCount === 0) return { signal: 'wait', confidence: 0, message: t('mentor.msg.waiting_mentors','Waiting for mentor analysis! One moment~ ✨'), reason: t('mentor.msg.collecting','Collecting data...') };
+            if (validCount === 0) return { signal: 'wait', confidence: 0, message: t('mentor.msg.waiting_mentors','Waiting for mentor analysis! One moment~'), reason: t('mentor.msg.collecting','Collecting data...') };
 
             const avgConf = Math.round(totalConf / validCount);
             const summary = reasons.join(' · ');
@@ -463,36 +463,36 @@ const mentors = {
             // 다수결 + 자체 판단
             if (buyCount >= 3) {
                 return { signal: 'buy', confidence: Math.min(95, avgConf + 10),
-                    message: `${buyCount} ` + t('mentor.msg.mentors_buy','mentors say buy! Could be a great opportunity! Go for it! 💪✨'),
+                    message: `${buyCount} ` + t('mentor.msg.mentors_buy','mentors say buy! Could be a great opportunity! Go for it!'),
                     reason: `Summary: ${summary}` };
             }
             if (sellCount >= 3) {
                 return { signal: 'sell', confidence: Math.min(95, avgConf + 10),
-                    message: `${sellCount} ` + t('mentor.msg.mentors_sell','mentors say sell. Manage your risk! I\'ll watch over you! 🛡️'),
+                    message: `${sellCount} ` + t('mentor.msg.mentors_sell','mentors say sell. Manage your risk! I\'ll watch over you!'),
                     reason: `Summary: ${summary}` };
             }
             if (buyCount >= 2 && sellCount === 0) {
                 return { signal: 'buy', confidence: Math.min(85, avgConf + 5),
-                    message: t('mentor.msg.buy_dominant','Buy opinions dominate! Enter carefully~ ✨'),
+                    message: t('mentor.msg.buy_dominant','Buy opinions dominate! Enter carefully~'),
                     reason: `Summary: ${summary}` };
             }
             if (sellCount >= 2 && buyCount === 0) {
                 return { signal: 'sell', confidence: Math.min(85, avgConf + 5),
-                    message: t('mentor.msg.sell_dominant','Sell opinions dominate. Check your positions! 💫'),
+                    message: t('mentor.msg.sell_dominant','Sell opinions dominate. Check your positions!'),
                     reason: `Summary: ${summary}` };
             }
             if (buyCount > 0 && sellCount > 0) {
                 return { signal: 'hold', confidence: Math.round(avgConf * 0.8),
-                    message: t('mentor.msg.opinions_split','Mentor opinions are split. Better to watch a bit more! I\'ll protect your trading! ✨'),
+                    message: t('mentor.msg.opinions_split','Mentor opinions are split. Better to watch a bit more! I\'ll protect your trading!'),
                     reason: `Summary: ${summary}` };
             }
             if (holdCount >= 2) {
                 return { signal: 'hold', confidence: avgConf,
-                    message: t('mentor.msg.hold_wait','Hold and wait for the next opportunity! You\'re doing great! 👏'),
+                    message: t('mentor.msg.hold_wait','Hold and wait for the next opportunity! You\'re doing great!'),
                     reason: `Summary: ${summary}` };
             }
             return { signal: 'wait', confidence: Math.round(avgConf * 0.7),
-                message: t('mentor.msg.no_direction','No clear direction yet. Let\'s wait together! I\'ll watch your trading! ✨'),
+                message: t('mentor.msg.no_direction','No clear direction yet. Let\'s wait together! I\'ll watch your trading!'),
                 reason: `Summary: ${summary}` };
         }
     }
@@ -521,7 +521,7 @@ function updateMentorAnalysis() {
         // 데이터 없을 때 패널에 안내 표시
         if (!window.liveTicks || window.liveTicks.length === 0) {
             for (const id of Object.keys(mentors)) {
-                mentorResults[id] = { signal: 'wait', confidence: 0, message: t('mentor.msg.awaiting_price','📡 Awaiting price data...'), reason: t('mentor.reason.need_live','Need live data connection') };
+                mentorResults[id] = { signal: 'wait', confidence: 0, message: t('mentor.msg.awaiting_price','Awaiting price data...'), reason: t('mentor.reason.need_live','Need live data connection') };
             }
             renderMentorPanel();
         }
@@ -580,7 +580,7 @@ function renderMentorPanel() {
         const isActive = activeMentorId === id;
         const isEnabled = isMentorEnabled(id);
         const dimStyle = isEnabled ? '' : 'opacity:0.35; filter:grayscale(80%);';
-        const bellIcon = isEnabled ? '🔔' : '🔕';
+        const bellIcon = isEnabled ? '<i data-lucide="bell" style="width:12px;height:12px;"></i>' : '<i data-lucide="bell-off" style="width:12px;height:12px;"></i>';
         html += `
             <div class="mentor-avatar ${isActive ? 'active' : ''}" style="border-color:${sc.color}; ${dimStyle} position:relative;">
                 <div onclick="selectMentor('${id}')" style="cursor:pointer;">
@@ -609,8 +609,8 @@ function renderMentorPanel() {
 
         const mentorEnabled = isMentorEnabled(activeMentorId);
         const filterBadge = mentorEnabled 
-            ? `<span style="font-size:0.7rem; color:#00cc66;">🔔 ${t('mentor.notif','Notification')} ON</span>`
-            : `<span style="font-size:0.7rem; color:#6B5744;">🔕 ${t('mentor.notif','Notification')} OFF</span>`;
+            ? `<span style="font-size:0.7rem; color:#00cc66;"><i data-lucide="bell" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> ${t('mentor.notif','Notification')} ON</span>`
+            : `<span style="font-size:0.7rem; color:#6B5744;"><i data-lucide="bell-off" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> ${t('mentor.notif','Notification')} OFF</span>`;
         html += `
             <div class="mentor-detail-card" style="border-left:4px solid ${mentor.color}; background:${sc.bg}; ${mentorEnabled ? '' : 'opacity:0.7;'}">
                 <div class="mentor-detail-header">

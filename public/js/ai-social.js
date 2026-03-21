@@ -1,54 +1,61 @@
-// ===== ai-social.js - AI 캐릭터 소셜 봇 시스템 (v1.1) =====
+// ===== ai-social.js - AI 캐릭터 소셜 봇 시스템 (v1.1 REST API migrated) =====
 // 5명의 AI 캐릭터가 소셜 피드에 자동 포스팅 + 댓글 답변
-// 개선사항: 안전성 강화, 에러 처리 개선, 상태 관리 추가
 
 const AI_SOCIAL = (() => {
+    // Safe i18n helper (returns fallback if t() is not yet loaded)
+    const _t = (key, fallback) => (typeof t === 'function' ? t(key, fallback) : fallback);
+
+    const _authHeaders = () => {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    };
+
     // 상태 관리
     let initialized = false;
     let commentWatchInitialized = false;
-    let activeWatchers = new Set();
-    
-    // 캐릭터 봇 계정 UID (Firestore에 저장)
+    let commentPollInterval = null;
+
+    // 캐릭터 봇 계정 UID
     const BOT_CHARACTERS = {
         kps: {
             uid: 'bot_kps',
-            nickname: 'KPS 김선경',
+            get nickname() { return _t('aisocial.name_kps', 'KPS Kim Sunkyung'); },
             avatar: 'images/kps-avatar.png',
-            emoji: '👔',
+            emoji: '',
             topics: ['비전', '전략', '리더십', '크라우니 사업', '팀워크', '긍정 에너지', '화장품', '글로벌 시장'],
             style: '격식체, 전략적, 큰 그림, 낙천적. 사업가 관점에서 인사이트 공유. 팀원들을 격려하고 크라우니의 미래를 이야기함.',
             postFrequency: 'daily'
         },
         hansun: {
             uid: 'bot_hansun',
-            nickname: '한선피아노',
+            get nickname() { return _t('aisocial.name_hansun', 'Hansun Piano'); },
             avatar: 'images/hansun-avatar.png',
-            emoji: '🎹',
+            emoji: '',
             topics: ['피아노', '음악', '트레이딩', '일상', 'MZ세대', '자기계발', '감성'],
             style: '부드러운 존댓말(~요), 이모지 활용, 따뜻하고 공감적. 음악과 투자 이야기를 섞음. 겸손하고 평화로운 톤.',
             postFrequency: 'daily'
         },
         michael: {
             uid: 'bot_michael',
-            nickname: '마이클',
+            get nickname() { return _t('aisocial.name_michael', 'Michael'); },
             avatar: 'images/michael-avatar.png',
-            emoji: '🎤',
+            emoji: '',
             topics: ['공연', '엔터테인먼트', '트레이딩', '콘텐츠', '마케팅', '실행력', '현장 이야기'],
             style: '직설적, 실용적. "결론부터 말하면" 스타일. 형 같은 느낌. 행동 중심 조언. 풍부한 경험담.',
             postFrequency: 'daily'
         },
         matthew: {
             uid: 'bot_matthew',
-            nickname: '매튜',
+            get nickname() { return _t('aisocial.name_matthew', 'Matthew'); },
             avatar: 'images/matthew-avatar.png',
-            emoji: '🔧',
+            emoji: '',
             topics: ['블록체인', '기술', '음향', '데이터 분석', '토큰 경제', '시스템', '신뢰'],
             style: '논리적, 데이터 기반. 숫자와 근거 제시. 차분하고 신뢰감 있는 말투. 기술 인사이트 공유.',
             postFrequency: 'daily'
         },
         crownygirl: {
             uid: 'bot_crownygirl',
-            nickname: '크라우니걸',
+            get nickname() { return _t('aisocial.name_crownygirl', 'Crowny Girl'); },
             avatar: 'images/crownygirl-avatar.png',
             emoji: '<i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',
             topics: ['뷰티', '화장품', '스킨케어', '건강', '운동', '다이어트', '일상 팁', '긍정'],
@@ -59,12 +66,10 @@ const AI_SOCIAL = (() => {
 
     let geminiApiKey = null; // API key managed server-side
 
-    // 의존성 검증
+    // 의존성 검증 (no longer requires db/firebase)
     function checkDependencies() {
-        const required = ['db', 'firebase', 'currentUser'];
-        const missing = required.filter(dep => typeof window[dep] === 'undefined');
-        if (missing.length > 0) {
-            console.error('[AI-Social] Missing dependencies:', missing.join(', '));
+        if (typeof currentUser === 'undefined' || !currentUser) {
+            console.error('[AI-Social] Missing currentUser');
             return false;
         }
         return true;
@@ -75,10 +80,8 @@ const AI_SOCIAL = (() => {
         if (typeof window.currentLang !== 'undefined' && window.currentLang) {
             return window.currentLang;
         }
-        // HTML lang 속성에서 감지
         const htmlLang = document.documentElement.lang;
         if (htmlLang) return htmlLang.substr(0, 2);
-        // 브라우저 언어에서 감지
         const browserLang = navigator.language || navigator.userLanguage;
         return browserLang ? browserLang.substr(0, 2) : 'ko';
     }
@@ -88,43 +91,45 @@ const AI_SOCIAL = (() => {
         return null; // API key managed server-side via /api/ai/gemini proxy
     }
 
-    // 봇 프로필 초기화 (별도 함수로 분리)
+    // 봇 프로필 초기화
     async function initializeBotProfiles() {
-        if (!currentUser) {
-            return;
-        }
+        if (!currentUser) return;
 
         // 관리자 권한 확인
         let isAdmin = false;
         try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const userData = userDoc.data() || {};
+            const res = await fetch('/api/db/users/' + currentUser.uid, { headers: _authHeaders() });
+            const userDoc = await res.json();
+            const userData = userDoc.data || {};
             isAdmin = userData.isAdmin === true;
         } catch (e) {
             console.warn('[AI-Social] Failed to check admin status:', e);
             return;
         }
 
-        if (!isAdmin) {
-            return;
-        }
+        if (!isAdmin) return;
 
         for (const [key, char] of Object.entries(BOT_CHARACTERS)) {
             try {
-                const doc = await db.collection('bot_profiles').doc(char.uid).get();
+                const res = await fetch('/api/db/bot_profiles/' + char.uid, { headers: _authHeaders() });
+                const doc = await res.json();
                 if (!doc.exists) {
-                    await db.collection('bot_profiles').doc(char.uid).set({
-                        email: `${key}@crowny.bot`,
-                        nickname: char.nickname,
-                        photoURL: char.avatar,
-                        isBot: true,
-                        botCharacter: key,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        statusMessage: `${char.emoji} AI 크라우니 멤버`,
-                        lastActive: firebase.firestore.FieldValue.serverTimestamp(),
-                        version: '1.1'
+                    await fetch('/api/db/bot_profiles/' + char.uid, {
+                        method: 'PUT',
+                        headers: _authHeaders(),
+                        body: JSON.stringify({
+                            _merge: false,
+                            email: `${key}@crowny.bot`,
+                            nickname: char.nickname,
+                            photoURL: char.avatar,
+                            isBot: true,
+                            botCharacter: key,
+                            createdAt: new Date().toISOString(),
+                            statusMessage: `${char.emoji} ${_t('aisocial.status_ai_member', 'AI Crowny Member')}`,
+                            lastActive: new Date().toISOString(),
+                            version: '1.1'
+                        })
                     });
-                } else {
                 }
             } catch (e) {
                 console.error(`[AI-Social] Failed to create bot profile for ${key}:`, e);
@@ -134,21 +139,15 @@ const AI_SOCIAL = (() => {
 
     // 메인 초기화 함수
     async function init() {
-        if (initialized) {
-            return;
-        }
+        if (initialized) return;
 
         try {
-            // API 키 로드
             geminiApiKey = await loadApiKey();
-            
-            // 봇 프로필 초기화
             if (checkDependencies()) {
                 await initializeBotProfiles();
             } else {
                 console.warn('[AI-Social] Bot profile initialization skipped - dependencies not ready');
             }
-            
             initialized = true;
         } catch (e) {
             console.error('[AI-Social] Initialization failed:', e);
@@ -170,10 +169,10 @@ const AI_SOCIAL = (() => {
         const now = new Date();
         const hour = now.getHours();
         let timeContext = '';
-        if (hour < 10) timeContext = '아침 시간대';
-        else if (hour < 14) timeContext = '점심 시간대';
-        else if (hour < 18) timeContext = '오후 시간대';
-        else timeContext = '저녁 시간대';
+        if (hour < 10) timeContext = _t('aisocial.time_morning', 'Morning');
+        else if (hour < 14) timeContext = _t('aisocial.time_lunch', 'Lunchtime');
+        else if (hour < 18) timeContext = _t('aisocial.time_afternoon', 'Afternoon');
+        else timeContext = _t('aisocial.time_evening', 'Evening');
 
         const topic = char.topics[Math.floor(Math.random() * char.topics.length)];
 
@@ -212,33 +211,27 @@ ${lang !== 'ko' ? `\n언어: ${langNames[lang] || lang}로 작성하세요.` : '
             if (!res.ok) {
                 const errText = await res.text();
                 console.error(`[AI-Social] Gemini API Error ${res.status}:`, errText);
-
-                // 429 (Rate Limit) 에러면 재시도 제안
                 if (res.status === 429) {
                     console.warn('[AI-Social] Rate limit exceeded, please try again later');
                 }
-
                 return null;
             }
-            
+
             const data = await res.json();
             const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-            
+
             if (!generatedText) {
                 console.error('[AI-Social] Empty response from Gemini API');
                 return null;
             }
-            
+
             return generatedText;
-            
+
         } catch (e) {
             console.error('[AI-Social] Generate post failed:', e);
-            
-            // Network 에러면 더 구체적인 메시지
             if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
                 console.error('[AI-Social] Network error - check internet connection');
             }
-            
             return null;
         }
     }
@@ -250,7 +243,7 @@ ${lang !== 'ko' ? `\n언어: ${langNames[lang] || lang}로 작성하세요.` : '
             console.error(`[AI-Social] Unknown character for publishing: ${charKey}`);
             return null;
         }
-        
+
         if (!text || text.trim().length === 0) {
             console.error(`[AI-Social] Empty text for ${char.nickname}`);
             return null;
@@ -272,7 +265,7 @@ ${lang !== 'ko' ? `\n언어: ${langNames[lang] || lang}로 작성하세요.` : '
             likedBy: [],
             commentCount: 0,
             shareCount: 0,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            timestamp: new Date().toISOString(),
             hashtags,
             mentions,
             isBot: true,
@@ -282,21 +275,23 @@ ${lang !== 'ko' ? `\n언어: ${langNames[lang] || lang}로 작성하세요.` : '
         };
 
         try {
-            const ref = await db.collection('posts').add(postData);
-            
-            // Toast 표시 (함수가 있을 때만)
+            const res = await fetch('/api/db/posts', {
+                method: 'POST',
+                headers: _authHeaders(),
+                body: JSON.stringify(postData)
+            });
+            const result = await res.json();
+
             if (typeof showToast === 'function') {
-                showToast(`${char.emoji} ${char.nickname} 포스팅 완료!`, 'success');
+                showToast(`${char.emoji} ${char.nickname} ${_t('aisocial.post_success', 'posted successfully!')}`, 'success');
             }
-            
-            return ref.id;
+
+            return result.id;
         } catch (e) {
             console.error('[AI-Social] Publish failed:', e);
-            
             if (typeof showToast === 'function') {
-                showToast(`❌ ${char.nickname} 포스팅 실패: ${e.message}`, 'error');
+                showToast(`${char.nickname} ${_t('aisocial.post_failed', 'post failed:')} ${e.message}`, 'error');
             }
-            
             return null;
         }
     }
@@ -308,7 +303,7 @@ ${lang !== 'ko' ? `\n언어: ${langNames[lang] || lang}로 작성하세요.` : '
             console.error(`[AI-Social] Unknown character for reply: ${charKey}`);
             return false;
         }
-        
+
         if (!comment || comment.trim().length === 0) {
             console.warn(`[AI-Social] Empty comment for reply`);
             return false;
@@ -350,16 +345,16 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
                     }
                 })
             });
-            
+
             if (!res.ok) {
                 const errText = await res.text();
                 console.error(`[AI-Social] Reply generation failed ${res.status}:`, errText);
                 return false;
             }
-            
+
             const data = await res.json();
             const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-            
+
             if (!reply) {
                 console.error('[AI-Social] Empty reply generated');
                 return false;
@@ -369,161 +364,114 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
             const commentData = {
                 userId: char.uid,
                 text: reply.trim(),
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                timestamp: new Date().toISOString(),
                 isBot: true,
                 botCharacter: charKey,
                 characterEmoji: char.emoji,
                 version: '1.1'
             };
-            
+
             if (commentId) {
                 commentData.replyTo = commentId;
             }
 
-            await db.collection('posts').doc(postId).collection('comments').add(commentData);
-            
-            // 댓글 카운트 업데이트
-            await db.collection('posts').doc(postId).update({
-                commentCount: firebase.firestore.FieldValue.increment(1)
+            await fetch(`/api/db/posts/${postId}/comments`, {
+                method: 'POST',
+                headers: _authHeaders(),
+                body: JSON.stringify(commentData)
             });
-            
+
+            // 댓글 카운트 업데이트
+            await fetch(`/api/db/posts/${postId}`, {
+                method: 'PUT',
+                headers: _authHeaders(),
+                body: JSON.stringify({
+                    commentCount: { __fieldValue: 'increment', operand: 1 }
+                })
+            });
+
             return true;
-            
+
         } catch (e) {
             console.error('[AI-Social] Reply failed:', e);
             return false;
         }
     }
 
-    // 새 댓글 감지 → 봇 글에 달린 댓글이면 자동 답변 (안전성 강화)
+    // 새 댓글 감지 → 봇 글에 달린 댓글이면 자동 답변 (polling-based)
     function watchBotPostComments() {
-        if (commentWatchInitialized) {
-            return;
-        }
-
+        if (commentWatchInitialized) return;
         if (!checkDependencies()) {
             console.error('[AI-Social] Cannot initialize comment watch - dependencies not ready');
             return;
         }
 
-        const botUids = Object.values(BOT_CHARACTERS).map(c => c.uid);
-        const processedComments = new Set(); // 중복 처리 방지
-        const replyTimeouts = new Map(); // 진행 중인 답변 추적
+        const processedComments = new Set();
 
-        try {
-            // 최근 봇 포스트 감시 (더 안전한 범위)
-            const postsQuery = db.collection('posts')
-                .where('isBot', '==', true)
-                .orderBy('timestamp', 'desc')
-                .limit(10); // 20 -> 10으로 축소
+        async function pollForNewComments() {
+            try {
+                // Get recent bot posts
+                const postsRes = await fetch('/api/db/posts?where=isBot,==,true&orderBy=timestamp&orderDir=desc&limit=10', { headers: _authHeaders() });
+                const postsSnap = await postsRes.json();
 
-            const unsubscribe = postsQuery.onSnapshot(
-                snapshot => {
-                    snapshot.docs.forEach(postDoc => {
-                        const post = postDoc.data();
-                        const charKey = post.botCharacter;
-                        
-                        if (!charKey || !BOT_CHARACTERS[charKey]) {
-                            console.warn(`[AI-Social] Invalid character key: ${charKey}`);
-                            return;
+                for (const postDoc of (postsSnap.docs || [])) {
+                    const post = postDoc.data;
+                    const charKey = post.botCharacter;
+                    if (!charKey || !BOT_CHARACTERS[charKey]) continue;
+
+                    // Get recent comments on this post
+                    const commentsRes = await fetch(`/api/db/posts/${postDoc.id}/comments?orderBy=timestamp&orderDir=desc&limit=3`, { headers: _authHeaders() });
+                    const commentsSnap = await commentsRes.json();
+
+                    for (const commentDoc of (commentsSnap.docs || [])) {
+                        const comment = commentDoc.data;
+                        const cId = commentDoc.id;
+
+                        if (comment.isBot) continue;
+                        if (processedComments.has(cId)) continue;
+                        if (!comment.text || comment.text.trim().length === 0) continue;
+
+                        // Time check (5 min)
+                        if (comment.timestamp) {
+                            const timeDiff = Date.now() - new Date(comment.timestamp).getTime();
+                            if (timeDiff > 300000 || timeDiff < 0) continue;
                         }
 
-                        // 포스트별 댓글 감시
-                        const commentQuery = postDoc.ref.collection('comments')
-                            .orderBy('timestamp', 'desc')
-                            .limit(3); // 5 -> 3으로 축소
+                        processedComments.add(cId);
 
-                        const commentUnsubscribe = commentQuery.onSnapshot(
-                            commentSnapshot => {
-                                commentSnapshot.docChanges().forEach(change => {
-                                    if (change.type !== 'added') return;
-                                    
-                                    const commentDoc = change.doc;
-                                    const comment = commentDoc.data();
-                                    const commentId = commentDoc.id;
-                                    
-                                    // 안전성 검사들
-                                    if (comment.isBot) return; // 봇 댓글 무시
-                                    if (processedComments.has(commentId)) return; // 이미 처리된 댓글
-                                    if (!comment.text || comment.text.trim().length === 0) return; // 빈 댓글
-                                    
-                                    // 시간 검증 (더 관대하게 - 5분)
-                                    const commentTime = comment.timestamp?.toDate?.();
-                                    if (commentTime) {
-                                        const timeDiff = Date.now() - commentTime.getTime();
-                                        if (timeDiff > 300000) return; // 5분 초과
-                                        if (timeDiff < 0) return; // 미래 시간 (이상한 데이터)
-                                    }
-                                    
-                                    // 처리 중인지 확인
-                                    if (replyTimeouts.has(commentId)) {
-                                        return;
-                                    }
-                                    
-                                    // 처리 표시
-                                    processedComments.add(commentId);
-                                    
-                                    // 자연스러운 딜레이 (5~15초)
-                                    const delay = 5000 + Math.random() * 10000;
-                                    
-                                    const timeoutId = setTimeout(async () => {
-                                        try {
-                                            const success = await replyToComment(postDoc.id, comment.text, charKey, commentId);
-                                            
-                                            if (!success) {
-                                                console.warn(`[AI-Social] Failed to reply to comment ${commentId}`);
-                                            }
-                                        } catch (e) {
-                                            console.error(`[AI-Social] Error processing comment ${commentId}:`, e);
-                                        } finally {
-                                            replyTimeouts.delete(commentId);
-                                        }
-                                    }, delay);
-                                    
-                                    replyTimeouts.set(commentId, timeoutId);
-                                });
-                            },
-                            error => {
-                                console.error('[AI-Social] Comment snapshot error:', error);
+                        // Natural delay
+                        const delay = 5000 + Math.random() * 10000;
+                        setTimeout(async () => {
+                            try {
+                                await replyToComment(postDoc.id, comment.text, charKey, cId);
+                            } catch (e) {
+                                console.error(`[AI-Social] Error processing comment ${cId}:`, e);
                             }
-                        );
-                        
-                        // 구독 추적
-                        activeWatchers.add(commentUnsubscribe);
-                    });
-                },
-                error => {
-                    console.error('[AI-Social] Posts snapshot error:', error);
-                    commentWatchInitialized = false;
+                        }, delay);
+                    }
                 }
-            );
-            
-            activeWatchers.add(unsubscribe);
-            commentWatchInitialized = true;
-            
-        } catch (e) {
-            console.error('[AI-Social] Failed to initialize comment watch:', e);
-            commentWatchInitialized = false;
+            } catch (e) {
+                console.error('[AI-Social] Comment poll error:', e);
+            }
         }
+
+        // Poll every 30 seconds
+        commentPollInterval = setInterval(pollForNewComments, 30000);
+        pollForNewComments(); // initial poll
+        commentWatchInitialized = true;
     }
 
     // 댓글 감시 중지
     function stopWatchingComments() {
-        activeWatchers.forEach(unsubscribe => {
-            try {
-                unsubscribe();
-            } catch (e) {
-                console.warn('[AI-Social] Error unsubscribing watcher:', e);
-            }
-        });
-        
-        activeWatchers.clear();
+        if (commentPollInterval) {
+            clearInterval(commentPollInterval);
+            commentPollInterval = null;
+        }
         commentWatchInitialized = false;
     }
 
-    // 자동 포스팅 (관리자가 트리거) - 안전성 강화
+    // 자동 포스팅 (관리자가 트리거)
     async function autoPostAll() {
-        // 초기화 확인
         if (!initialized) {
             try {
                 await init();
@@ -544,46 +492,45 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
             try {
                 const text = await generatePost(key);
                 if (text) {
-                    // 캐릭터 간 자연스러운 시간차 (2~5초)
                     const delay = 2000 + Math.random() * 3000;
                     await new Promise(r => setTimeout(r, delay));
-                    
+
                     const postId = await publishPost(key, text);
                     if (postId) {
-                        results.push({ 
-                            character: char.nickname, 
-                            postId, 
+                        results.push({
+                            character: char.nickname,
+                            postId,
                             text: text.substring(0, 80),
                             success: true,
                             emoji: char.emoji
                         });
                     } else {
-                        results.push({ 
-                            character: char.nickname, 
-                            error: '게시 실패',
-                            success: false 
+                        results.push({
+                            character: char.nickname,
+                            error: _t('aisocial.error_publish', 'Publish failed'),
+                            success: false
                         });
                     }
                 } else {
-                    results.push({ 
-                        character: char.nickname, 
-                        error: 'AI 응답 생성 실패',
-                        success: false 
+                    results.push({
+                        character: char.nickname,
+                        error: _t('aisocial.error_generate', 'AI response generation failed'),
+                        success: false
                     });
                 }
             } catch (e) {
                 console.error(`[AI-Social] Error with ${char.nickname}:`, e);
-                results.push({ 
-                    character: char.nickname, 
+                results.push({
+                    character: char.nickname,
                     error: e.message,
-                    success: false 
+                    success: false
                 });
             }
         }
 
         const duration = Math.round((Date.now() - startTime) / 1000);
         const successCount = results.filter(r => r.success).length;
-        
+
         return {
             results,
             summary: {
@@ -595,7 +542,7 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
         };
     }
 
-    // 특정 캐릭터만 포스팅 - 안전성 강화
+    // 특정 캐릭터만 포스팅
     async function autoPostOne(charKey) {
         if (!BOT_CHARACTERS[charKey]) {
             console.error(`[AI-Social] Unknown character: ${charKey}`);
@@ -603,7 +550,6 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
         }
 
         const char = BOT_CHARACTERS[charKey];
-        // 초기화 확인
         if (!initialized) {
             try {
                 await init();
@@ -622,18 +568,18 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
             if (text) {
                 const postId = await publishPost(charKey, text);
                 if (postId) {
-                    return { 
-                        character: char.nickname, 
-                        postId, 
+                    return {
+                        character: char.nickname,
+                        postId,
                         text: text.substring(0, 80),
                         emoji: char.emoji,
-                        success: true 
+                        success: true
                     };
                 } else {
-                    return { character: char.nickname, error: '게시 실패', success: false };
+                    return { character: char.nickname, error: _t('aisocial.error_publish', 'Publish failed'), success: false };
                 }
             } else {
-                return { character: char.nickname, error: 'AI 응답 생성 실패', success: false };
+                return { character: char.nickname, error: _t('aisocial.error_generate', 'AI response generation failed'), success: false };
             }
         } catch (e) {
             console.error(`[AI-Social] Error with ${char.nickname}:`, e);
@@ -658,7 +604,7 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
         return {
             initialized,
             commentWatchInitialized,
-            activeWatchers: activeWatchers.size,
+            activeWatchers: commentPollInterval ? 1 : 0,
             hasApiKey: !!geminiApiKey,
             dependenciesReady: checkDependencies(),
             characters: Object.keys(BOT_CHARACTERS).length,
@@ -671,7 +617,7 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
         stopWatchingComments();
         initialized = false;
         geminiApiKey = '';
-        
+
         try {
             await init();
             watchBotPostComments();
@@ -687,24 +633,24 @@ ${lang !== 'ko' ? `언어: ${langNames[lang] || lang}로 답변하세요.` : ''}
         init,
         reinitialize,
         getStatus,
-        
+
         // 포스팅
         autoPostAll,
         autoPostOne,
         generatePost,
         publishPost,
-        
+
         // 댓글 처리
         watchBotPostComments,
         stopWatchingComments,
         replyToComment,
-        
+
         // 유틸리티
         isBotUser,
         getBotBadge,
         getCurrentLanguage,
         checkDependencies,
-        
+
         // 상수
         BOT_CHARACTERS
     };

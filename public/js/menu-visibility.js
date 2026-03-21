@@ -45,14 +45,18 @@
 
     let featureFlags = { ...DEFAULT_FEATURES };
 
-    // Load feature flags from Firestore
+    // Load feature flags from server
     async function loadFeatureFlags() {
         try {
-            if (typeof db === 'undefined') return;
-            const doc = await db.collection('admin_config').doc('features').get();
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            if (!token) return;
+            const res = await fetch('/api/db/admin_config/features', {
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+            });
+            const doc = await res.json();
             if (doc.exists) {
-                const data = doc.data();
-                // Merge: Firestore values override defaults
+                const data = doc.data;
+                // Merge: server values override defaults
                 Object.keys(data).forEach(key => {
                     if (typeof data[key] === 'boolean') {
                         featureFlags[key] = data[key];
@@ -117,16 +121,18 @@
     window.setFeatureFlag = async function(feature, enabled) {
         featureFlags[feature] = enabled;
         try {
-            await db.collection('admin_config').doc('features').set(
-                { [feature]: enabled },
-                { merge: true }
-            );
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            await fetch('/api/db/admin_config/features', {
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [feature]: enabled })
+            });
             applyVisibility();
             if (typeof showToast === 'function') {
-                showToast(`${feature}: ${enabled ? '✅ 활성화' : '❌ 비활성화'}`, 'success');
+                showToast(`${feature}: ${enabled ? t('menu.enabled', 'Enabled') : t('menu.disabled', 'Disabled')}`, 'success');
             }
         } catch (e) {
-            if (typeof showToast === 'function') showToast('저장 실패: ' + e.message, 'error');
+            if (typeof showToast === 'function') showToast(t('menu.save_failed', 'Save failed') + ': ' + e.message, 'error');
         }
     };
 

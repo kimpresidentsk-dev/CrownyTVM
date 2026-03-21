@@ -1,23 +1,22 @@
 // ============================================================
-// CROWNY ART MODULE — js/app-art.js v2.0
-// Thirdweb NFT (ERC-721 / ERC-1155) + Firebase Storage Hybrid
+// CROWNY ART MODULE — js/app-art.js v3.0
+// Server REST API version (no Firebase/Firestore)
+// Thirdweb NFT (ERC-721 / ERC-1155) + Base64 Image Storage
 // + Purchase System + Collection + Supply Limit + Artist Weight + Reservations
 // ============================================================
 //
 // 로드 순서: config → ui → auth → wallet → offchain → social
 //            → send → admin → marketplace → trading → ★ app-art
 //
-// 외부 의존성 (HANDOFF_TO_ART.md 참고):
-//   currentUser, userWallet   ← config.js
-//   db                        ← index.html (window.db)
+// 외부 의존성:
+//   currentUser               ← config.js  { uid, email, displayName }
 //   loadUserWallet()          ← wallet.js
 //   earnOffchainPoints()      ← offchain.js
 //   distributeReferralReward()← social.js
 //   window.tw5                ← index.html <script type="module">
-//   firebase.storage()        ← Firebase Storage SDK
 // ============================================================
 
-const ART_VERSION = '2.0.0';
+const ART_VERSION = '3.0.0';
 
 // ─── CONFIG ───
 const ART_CONFIG = {
@@ -42,16 +41,16 @@ const ART_CONFIG = {
 const ART_CATEGORIES = {
     painting:     t('art.cat.painting','<i data-lucide="paintbrush" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Painting'),
     digital:      t('art.cat.digital','<i data-lucide="monitor" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Digital Art'),
-    photo:        t('art.cat.photo','📷 Photography'),
-    sculpture:    t('art.cat.sculpture','🗿 Sculpture/Installation'),
+    photo:        t('art.cat.photo','<i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Photography'),
+    sculpture:    t('art.cat.sculpture','<i data-lucide="box" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Sculpture/Installation'),
     illustration: t('art.cat.illustration','Illustration'),
     calligraphy:  t('art.cat.calligraphy','Calligraphy'),
     mixed:        t('art.cat.mixed','<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Mixed Media'),
     ai:           t('art.cat.ai','<i data-lucide="bot" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> AI Art'),
     music:        t('art.cat.music','<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Music/Sound'),
-    video:        t('art.cat.video','🎬 Video Art'),
-    generative:   t('art.cat.generative','🌀 Generative'),
-    kpop:         t('art.cat.kpop','💜 K-Pop Goods'),
+    video:        t('art.cat.video','<i data-lucide="film" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Video Art'),
+    generative:   t('art.cat.generative','<i data-lucide="infinity" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Generative'),
+    kpop:         t('art.cat.kpop','<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> K-Pop Goods'),
     other:        t('art.cat.other','Other')
 };
 
@@ -61,10 +60,21 @@ let tw5SDK = null;
 let erc721Contract = null;
 let erc1155Contract = null;
 let storageSDK = null;
-let firebaseStorage = null;
 
 // ─── ARTIST WEIGHT CACHE ───
 const _artistWeightCache = {};
+
+// ─── AUTH HELPERS ───
+function _artHeaders() {
+    const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+}
+
+async function _artFetch(url, opts = {}) {
+    if (!opts.headers) opts.headers = _artHeaders();
+    const res = await fetch(url, opts);
+    return res.json();
+}
 
 
 // ============================================================
@@ -73,17 +83,6 @@ const _artistWeightCache = {};
 
 async function initArtModule() {
     console.log('🎨 [ART] Initializing v' + ART_VERSION);
-
-    try {
-        if (typeof firebase !== 'undefined' && firebase.storage) {
-            firebaseStorage = firebase.storage();
-            console.log('🎨 [ART] Firebase Storage ✅');
-        } else {
-            console.warn('🎨 [ART] Firebase Storage not loaded — Base64 fallback');
-        }
-    } catch (e) {
-        console.warn('🎨 [ART] Firebase Storage init failed:', e.message);
-    }
 
     try {
         if (window.tw5) {
@@ -124,28 +123,22 @@ if (document.readyState === 'loading') {
 
 
 // ============================================================
-// 2. 이미지 업로드 — Firebase Storage + IPFS 하이브리드
+// 2. 이미지 업로드 — Server Base64 Storage + IPFS 하이브리드
 // ============================================================
 
-async function uploadToFirebaseStorage(file, artworkId) {
-    if (!firebaseStorage) {
-        const dataUrl = await _fileToDataUrl(file);
-        const resized = await _resizeImageData(dataUrl, ART_CONFIG.maxImageSize);
-        const thumb = await _resizeImageData(dataUrl, ART_CONFIG.thumbnailSize);
-        return { firebaseUrl: resized, thumbnailUrl: thumb, isBase64: true };
-    }
-    const ext = file.name.split('.').pop() || 'jpg';
-    const timestamp = Date.now();
-    const path = `${ART_CONFIG.storagePath}/${artworkId || timestamp}`;
-    const resizedBlob = await _resizeFileToBlob(file, ART_CONFIG.maxImageSize);
-    const mainRef = firebaseStorage.ref(`${path}/main.${ext}`);
-    await mainRef.put(resizedBlob, { contentType: file.type || 'image/jpeg' });
-    const firebaseUrl = await mainRef.getDownloadURL();
-    const thumbBlob = await _resizeFileToBlob(file, ART_CONFIG.thumbnailSize);
-    const thumbRef = firebaseStorage.ref(`${path}/thumb.${ext}`);
-    await thumbRef.put(thumbBlob, { contentType: file.type || 'image/jpeg' });
-    const thumbnailUrl = await thumbRef.getDownloadURL();
-    return { firebaseUrl, thumbnailUrl, isBase64: false };
+async function uploadArtImage(file, artworkId) {
+    const dataUrl = await _fileToDataUrl(file);
+    const resized = await _resizeImageData(dataUrl, ART_CONFIG.maxImageSize);
+    const thumb = await _resizeImageData(dataUrl, ART_CONFIG.thumbnailSize);
+
+    const result = await _artFetch('/api/art/upload-image', {
+        method: 'POST',
+        headers: _artHeaders(),
+        body: JSON.stringify({ imageData: resized, thumbnailData: thumb, artworkId })
+    });
+
+    if (!result.ok) throw new Error('Image upload failed');
+    return { firebaseUrl: resized, thumbnailUrl: thumb, isBase64: true };
 }
 
 async function uploadToIPFS(file) {
@@ -233,8 +226,10 @@ async function _getArtistWeight(artistId) {
         return _artistWeightCache[artistId].weight;
     }
     try {
-        const doc = await db.collection('artist_profiles').doc(artistId).get();
-        const w = doc.exists ? (doc.data().weightMultiplier || 1.0) : 1.0;
+        const data = await _artFetch('/api/art/artist-profile?artistId=' + encodeURIComponent(artistId), {
+            headers: _artHeaders()
+        });
+        const w = (data.ok && data.profile) ? (data.profile.weightMultiplier || 1.0) : 1.0;
         _artistWeightCache[artistId] = { weight: w, _ts: Date.now() };
         return w;
     } catch (e) {
@@ -246,18 +241,15 @@ async function _getArtistWeight(artistId) {
 async function _recalculateArtistWeight(artistId) {
     if (!artistId) return;
     try {
-        const ref = db.collection('artist_profiles').doc(artistId);
-        const doc = await ref.get();
-        if (!doc.exists) return;
-        const data = doc.data();
-        const totalSoldCount = data.totalSoldCount || data.totalSales || 0;
-        const totalDonationContribution = data.totalDonationContribution || 0;
-        let weight = 1.0 + (totalSoldCount * 0.05) + (totalDonationContribution * 0.01);
-        weight = Math.max(1.0, Math.min(10.0, weight));
-        weight = Math.round(weight * 100) / 100;
-        await ref.update({ weightMultiplier: weight });
-        _artistWeightCache[artistId] = { weight: weight, _ts: Date.now() };
-        console.log(`🎨 [Weight] ${artistId} → ${weight}x`);
+        const data = await _artFetch('/api/art/recalculate-weight', {
+            method: 'POST',
+            headers: _artHeaders(),
+            body: JSON.stringify({ artistId })
+        });
+        if (data.ok) {
+            _artistWeightCache[artistId] = { weight: data.weight, _ts: Date.now() };
+            console.log(`🎨 [Weight] ${artistId} → ${data.weight}x`);
+        }
     } catch (e) {
         console.warn('🎨 [Weight] recalc failed:', e.message);
     }
@@ -332,12 +324,13 @@ async function uploadArtwork() {
         setStatus(t('art.uploading','⏳ Uploading image...'));
         const tempId = `art_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
-        const { firebaseUrl, thumbnailUrl, isBase64 } = await uploadToFirebaseStorage(imageFile, tempId);
+        const { firebaseUrl, thumbnailUrl, isBase64 } = await uploadArtImage(imageFile, tempId);
         setStatus(t('art.upload_done','✅ Image upload complete'));
 
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const artistNickname = userDoc.exists ? (userDoc.data().nickname || '') : '';
-        const artistWallet   = userDoc.exists ? (userDoc.data().polygonAddress || '') : '';
+        // Get user info from server
+        const userInfo = await _artFetch('/api/art/user-info', { headers: _artHeaders() });
+        const artistNickname = userInfo.ok ? (userInfo.nickname || '') : '';
+        const artistWallet   = userInfo.ok ? (userInfo.polygonAddress || '') : '';
 
         // Get artist weight
         const artistWeight = await _getArtistWeight(currentUser.uid);
@@ -349,7 +342,6 @@ async function uploadArtwork() {
             artistEmail: currentUser.email,
             artistNickname, artistWallet,
             likes: 0, views: 0, status: 'active',
-            createdAt: new Date(),
             imageUrl: firebaseUrl,
             thumbnailUrl: thumbnailUrl || firebaseUrl,
             isBase64: isBase64 || false,
@@ -376,29 +368,41 @@ async function uploadArtwork() {
             artwork.currentBid = 0;
             artwork.highestBidder = null;
             const hours = parseInt(document.getElementById('art-auction-hours')?.value) || 24;
-            artwork.auctionEnd = new Date(Date.now() + hours * 3600000);
+            artwork.auctionEnd = new Date(Date.now() + hours * 3600000).toISOString();
         }
 
-        setStatus(t('art.saving','💾 Saving artwork info...'));
-        const artDocRef = await db.collection('artworks').add(artwork);
-        const artworkId = artDocRef.id;
+        setStatus(t('art.saving','Saving artwork info...'));
+        const createResult = await _artFetch('/api/art/artwork', {
+            method: 'POST',
+            headers: _artHeaders(),
+            body: JSON.stringify({ artwork })
+        });
+        if (!createResult.ok) throw new Error('Failed to save artwork');
+        const artworkId = createResult.id;
 
         // NFT 민팅
         if (mintNFT) {
-            setStatus(t('art.minting','🔗 Preparing NFT minting...'));
+            setStatus(t('art.minting','Preparing NFT minting...'));
             try {
                 const nftResult = await mintArtworkNFT(artworkId, artwork, imageFile, nftType, editionCount, royaltyPercent);
-                await artDocRef.update({
-                    isNFT: true,
-                    nftTokenId: nftResult.tokenId,
-                    nftContract: nftResult.contractAddress,
-                    nftType,
-                    ipfsImageUri: nftResult.ipfsImageUri,
-                    ipfsMetadataUri: nftResult.ipfsMetadataUri,
-                    editionCount: nftType === 'erc1155' ? editionCount : 1,
-                    mintTxHash: nftResult.txHash || null
+                await _artFetch('/api/art/artwork', {
+                    method: 'PUT',
+                    headers: _artHeaders(),
+                    body: JSON.stringify({
+                        id: artworkId,
+                        updateData: {
+                            isNFT: true,
+                            nftTokenId: nftResult.tokenId,
+                            nftContract: nftResult.contractAddress,
+                            nftType,
+                            ipfsImageUri: nftResult.ipfsImageUri,
+                            ipfsMetadataUri: nftResult.ipfsMetadataUri,
+                            editionCount: nftType === 'erc1155' ? editionCount : 1,
+                            mintTxHash: nftResult.txHash || null
+                        }
+                    })
                 });
-                setStatus(t('art.mint_done','🎉 NFT minting complete!'));
+                setStatus(t('art.mint_done','NFT minting complete!'));
             } catch (nftErr) {
                 console.error('🎨 [NFT] Mint failed:', nftErr);
                 setStatus('\u26A0\uFE0F ' + t('art.status_registered','Artwork registered') + ' (' + t('art.minting_failed','Minting failed') + ': ' + nftErr.message + ')');
@@ -406,9 +410,9 @@ async function uploadArtwork() {
         }
 
         await _updateArtistProfile(currentUser.uid, {
-            totalWorks: firebase.firestore.FieldValue.increment(1),
-            totalWorksCount: firebase.firestore.FieldValue.increment(1),
-            lastUpload: new Date()
+            totalWorks: { _inc: 1 },
+            totalWorksCount: { _inc: 1 },
+            lastUpload: new Date().toISOString()
         });
 
         showToast('\uD83C\uDFA8 "' + title + '" ' + t('art.registration_complete','Registration complete!') + (mintNFT ? ' (NFT \u2705)' : ''), 'success');
@@ -459,22 +463,30 @@ async function mintArtworkNFT(artworkId, artwork, imageFile, nftType, editionCou
     const tokenId = result.id?.toString() || result.tokenId?.toString() || '0';
     const txHash = result.receipt?.transactionHash || null;
     const contractAddress = nftType === 'erc721' ? ART_CONFIG.contracts.erc721 : ART_CONFIG.contracts.erc1155;
-    await db.collection('nft_records').add({
-        artworkId, tokenId: parseInt(tokenId), contractAddress, nftType,
-        ownerWallet: walletAddress, ownerUserId: currentUser.uid,
-        minterUserId: currentUser.uid, minterWallet: walletAddress,
-        ipfsImageUri, ipfsMetadataUri, editionCount: nftType === 'erc1155' ? editionCount : 1,
-        royaltyPercent, txHash, chainId: ART_CONFIG.chainId, mintedAt: new Date(), status: 'minted'
+
+    await _artFetch('/api/art/nft-record', {
+        method: 'POST',
+        headers: _artHeaders(),
+        body: JSON.stringify({
+            record: {
+                artworkId, tokenId: parseInt(tokenId), contractAddress, nftType,
+                ownerWallet: walletAddress, ownerUserId: currentUser.uid,
+                minterUserId: currentUser.uid, minterWallet: walletAddress,
+                ipfsImageUri, ipfsMetadataUri, editionCount: nftType === 'erc1155' ? editionCount : 1,
+                royaltyPercent, txHash, chainId: ART_CONFIG.chainId, mintedAt: new Date().toISOString(), status: 'minted'
+            }
+        })
     });
+
     return { tokenId: parseInt(tokenId), contractAddress, ipfsImageUri, ipfsMetadataUri, txHash };
 }
 
 async function mintExistingArtwork(artworkId) {
     if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
     try {
-        const artDoc = await db.collection('artworks').doc(artworkId).get();
-        if (!artDoc.exists) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
-        const art = artDoc.data();
+        const artData = await _artFetch('/api/art/artwork?id=' + encodeURIComponent(artworkId), { headers: _artHeaders() });
+        if (!artData.ok) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
+        const art = artData;
         if (art.artistId !== currentUser.uid) { showToast(t('art.own_only','Only your own artwork can be minted as NFT'), 'warning'); return; }
         if (art.isNFT) { showToast(t('art.already_nft','Already minted as NFT'), 'info'); return; }
 
@@ -499,10 +511,17 @@ async function mintExistingArtwork(artworkId) {
         showToast(t('art.approve_metamask','Please approve the transaction in MetaMask.'), 'info');
 
         const result = await mintArtworkNFT(artworkId, art, imageFile, type, editionCount, art.royaltyPercent || ART_CONFIG.defaultRoyaltyPercent);
-        await db.collection('artworks').doc(artworkId).update({
-            isNFT: true, nftTokenId: result.tokenId, nftContract: result.contractAddress, nftType: type,
-            ipfsImageUri: result.ipfsImageUri, ipfsMetadataUri: result.ipfsMetadataUri,
-            editionCount: type === 'erc1155' ? editionCount : 1, mintTxHash: result.txHash
+        await _artFetch('/api/art/artwork', {
+            method: 'PUT',
+            headers: _artHeaders(),
+            body: JSON.stringify({
+                id: artworkId,
+                updateData: {
+                    isNFT: true, nftTokenId: result.tokenId, nftContract: result.contractAddress, nftType: type,
+                    ipfsImageUri: result.ipfsImageUri, ipfsMetadataUri: result.ipfsMetadataUri,
+                    editionCount: type === 'erc1155' ? editionCount : 1, mintTxHash: result.txHash
+                }
+            })
         });
         showToast('\uD83C\uDF89 ' + t('art.nft_mint_complete','NFT minting complete!') + ' Token #' + result.tokenId, 'success');
         const modal = document.getElementById('art-modal');
@@ -528,37 +547,15 @@ async function loadArtGallery() {
         const filterSort = document.getElementById('art-filter-sort')?.value || 'newest';
         const filterNFT  = document.getElementById('art-filter-nft')?.value || 'all';
 
-        let query = db.collection('artworks').where('status', '==', 'active');
-        if (filterCat !== 'all') query = query.where('category', '==', filterCat);
+        const qs = new URLSearchParams({ category: filterCat, sort: filterSort, nft: filterNFT, limit: '40' });
+        const data = await _artFetch('/api/art/gallery?' + qs.toString(), { headers: _artHeaders() });
 
-        if (filterSort === 'popular') query = query.orderBy('likes', 'desc');
-        else query = query.orderBy('createdAt', 'desc');
-
-        let snapshot;
-        try {
-            snapshot = await query.limit(40).get();
-        } catch (indexError) {
-            console.warn('Composite index missing, falling back:', indexError.message);
-            query = db.collection('artworks').where('status', '==', 'active').orderBy('createdAt', 'desc');
-            snapshot = await query.limit(40).get();
-        }
-
-        if (snapshot.empty) {
+        if (!data.ok || !data.items || !data.items.length) {
             container.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${t('art.no_artworks_yet','No artworks registered yet. Register your first artwork!')} ${createLucideIcon('palette')}</p>`;
             return;
         }
 
-        let items = [];
-        snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
-
-        if (filterNFT === 'nft')     items = items.filter(a => a.isNFT);
-        if (filterNFT === 'non-nft') items = items.filter(a => !a.isNFT);
-
-        if (filterSort === 'price-low')  items.sort((a, b) => (a.price || 0) - (b.price || 0));
-        if (filterSort === 'price-high') items.sort((a, b) => (b.price || 0) - (a.price || 0));
-        if (filterSort === 'auction')    items = items.filter(a => a.saleType === 'auction');
-
-        container.innerHTML = items.map(art => _renderArtCard(art)).join('');
+        container.innerHTML = data.items.map(art => _renderArtCard(art)).join('');
         if (window.lucide) setTimeout(() => lucide.createIcons(), 50);
     } catch (error) {
         container.innerHTML = `<p style="color:red; grid-column:1/-1;">${t('art.load_failed','Load failed')}: ${error.message}</p>`;
@@ -572,7 +569,7 @@ function _renderArtCard(art) {
     let badges = '';
     if (art.isNFT) {
         const typeLabel = art.nftType === 'erc1155' ? `Ed.×${art.editionCount || '?'}` : '1/1';
-        badges += `<div style="position:absolute;top:6px;right:6px;background:rgba(138,43,226,0.9);color:#E8D5C4;padding:2px 8px;border-radius:12px;font-size:0.65rem;font-weight:700;backdrop-filter:blur(4px)">🔗 NFT · ${typeLabel}</div>`;
+        badges += `<div style="position:absolute;top:6px;right:6px;background:rgba(138,43,226,0.9);color:#E8D5C4;padding:2px 8px;border-radius:12px;font-size:0.65rem;font-weight:700;backdrop-filter:blur(4px)"><i data-lucide="link" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> NFT · ${typeLabel}</div>`;
     }
 
     // Supply badge
@@ -593,11 +590,11 @@ function _renderArtCard(art) {
         const weightInfo = (art.artistWeight && art.artistWeight > 1) ? ` <span style="font-size:0.6rem;color:var(--accent)">(${art.artistWeight}x)</span>` : '';
         priceLabel = `<span style="color:#3D2B1F;font-weight:700">${effectivePrice} ${art.priceToken || 'CRAC'}${weightInfo}</span>`;
     } else if (art.saleType === 'auction') {
-        const endMs = art.auctionEnd?.seconds ? art.auctionEnd.seconds * 1000 : art.auctionEnd;
+        const endMs = typeof art.auctionEnd === 'string' ? new Date(art.auctionEnd).getTime() : (art.auctionEnd?.seconds ? art.auctionEnd.seconds * 1000 : art.auctionEnd);
         const ended = endMs && new Date(endMs) < new Date();
         priceLabel = ended
             ? '<span style="color:#B54534">' + t('art.auction_ended','Auction ended') + '</span>'
-            : `<span style="color:#C4841D">🔨 ${art.currentBid || art.startPrice} CRAC</span>`;
+            : `<span style="color:#C4841D"><i data-lucide="gavel" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${art.currentBid || art.startPrice} CRAC</span>`;
     } else {
         priceLabel = '<span style="color:var(--accent)">' + t('art.on_display','On display') + '</span>';
     }
@@ -626,11 +623,16 @@ function _renderArtCard(art) {
 
 async function viewArtwork(artId) {
     try {
-        const doc = await db.collection('artworks').doc(artId).get();
-        if (!doc.exists) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
-        const art = doc.data();
+        const artData = await _artFetch('/api/art/artwork?id=' + encodeURIComponent(artId), { headers: _artHeaders() });
+        if (!artData.ok) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
+        const art = artData;
 
-        db.collection('artworks').doc(artId).update({ views: (art.views || 0) + 1 }).catch(e => console.warn(e.message));
+        // Increment views
+        _artFetch('/api/art/artwork', {
+            method: 'PUT',
+            headers: _artHeaders(),
+            body: JSON.stringify({ id: artId, updateData: { views: (art.views || 0) + 1 } })
+        }).catch(e => console.warn(e.message));
 
         const catLabel = ART_CATEGORIES[art.category] || 'Art';
         const isOwner  = currentUser && art.artistId === currentUser.uid;
@@ -651,7 +653,7 @@ async function viewArtwork(artId) {
                         <span style="color:var(--accent)">${pct}% ${t('art.sold','Sold')}</span>
                     </div>
                     <div style="background:#e0e0e0;border-radius:4px;height:6px;overflow:hidden">
-                        <div style="background:${isSoldOut ? '#B54534' : '#5A9A6E'};height:100%;width:${pct}%;border-radius:4px;transition:width .3s"></div>
+                        <div style="background:${isSoldOut ? '#B54534' : '#5B7B8C'};height:100%;width:${pct}%;border-radius:4px;transition:width .3s"></div>
                     </div>
                 </div>`;
         }
@@ -770,11 +772,13 @@ async function viewArtwork(artId) {
 async function likeArtwork(artId) {
     if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
     try {
-        const likeRef = db.collection('artworks').doc(artId).collection('likes').doc(currentUser.uid);
-        if ((await likeRef.get()).exists) { showToast(t('art.already_liked','You already liked this artwork'), 'info'); return; }
-        await likeRef.set({ userId: currentUser.uid, timestamp: new Date() });
-        await db.collection('artworks').doc(artId).update({ likes: firebase.firestore.FieldValue.increment(1) });
-        showToast('<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('art.liked','Liked!'), 'success');
+        const result = await _artFetch('/api/art/like', {
+            method: 'POST',
+            headers: _artHeaders(),
+            body: JSON.stringify({ artId })
+        });
+        if (result.alreadyLiked) { showToast(t('art.already_liked','You already liked this artwork'), 'info'); return; }
+        if (result.ok) showToast('<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('art.liked','Liked!'), 'success');
     } catch (e) { console.error('🎨 [Like]', e); }
 }
 
@@ -791,11 +795,19 @@ async function deleteArtwork(artId) {
     const confirmed = await showConfirmModal(t('art.delete_artwork','Delete Artwork'), t('art.confirm_delete','Are you sure you want to delete this artwork?\n(NFTs remain on-chain)'));
     if (!confirmed) return;
     try {
-        await db.collection('artworks').doc(artId).update({ status: 'deleted' });
-        showToast('\uD83D\uDDD1\uFE0F ' + t('art.delete_complete','Deletion complete'), 'success');
-        const modal = document.getElementById('art-modal');
-        if (modal) modal.remove();
-        loadArtGallery();
+        const result = await _artFetch('/api/art/delete', {
+            method: 'POST',
+            headers: _artHeaders(),
+            body: JSON.stringify({ artId })
+        });
+        if (result.ok) {
+            showToast('\uD83D\uDDD1\uFE0F ' + t('art.delete_complete','Deletion complete'), 'success');
+            const modal = document.getElementById('art-modal');
+            if (modal) modal.remove();
+            loadArtGallery();
+        } else {
+            showToast(t('art.delete_failed','Deletion failed') + ': ' + (result.error || ''), 'error');
+        }
     } catch (e) { showToast(t('art.delete_failed','Deletion failed') + ': ' + e.message, 'error'); }
 }
 
@@ -808,8 +820,9 @@ async function buyArtwork(artId) {
     if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
 
     try {
-        const artDoc = await db.collection('artworks').doc(artId).get();
-        const art = artDoc.data();
+        const artData = await _artFetch('/api/art/artwork?id=' + encodeURIComponent(artId), { headers: _artHeaders() });
+        if (!artData.ok) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
+        const art = artData;
         if (art.status !== 'active') { showToast(t('art.already_sold','Already sold'), 'warning'); return; }
 
         // Supply check
@@ -819,23 +832,10 @@ async function buyArtwork(artId) {
         }
 
         const effectivePrice = art.price || _calcEffectivePrice(art.basePrice || 0, art.artistWeight || 1);
-        const tokenKey = 'crac';
-        const isOffchain = true;
-
-        // Balance check (CRAC 오프체인 전용)
-        {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const offBal = userDoc.data()?.offchainBalances?.[tokenKey] || 0;
-            if (offBal < effectivePrice) {
-                showToast(t('art.insufficient_crac','Insufficient CRAC balance') + '. ' + t('art.balance_held','Held') + ': ' + offBal + ', ' + t('art.balance_needed','Needed') + ': ' + effectivePrice, 'warning');
-                return;
-            }
-        }
-
-        // Purchase confirmation with details
         const platformFee = Math.round(effectivePrice * (ART_CONFIG.platformFeePercent / 100) * 100) / 100;
         const artistReceive = Math.round((effectivePrice - platformFee) * 100) / 100;
 
+        // Purchase confirmation with details
         const confirmMsg = `"${art.title}"\n\n` +
             `<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.price','Price')}: ${effectivePrice} ${art.priceToken || 'CRAC'}\n` +
             (art.basePrice && art.artistWeight > 1 ? `   (${t('art.base_price','Base price')} ${art.basePrice} \u00D7 ${t('art.weight','Weight')} ${art.artistWeight}x)\n` : '') +
@@ -848,77 +848,32 @@ async function buyArtwork(artId) {
         const confirmBuy = await showConfirmModal(t('art.buy_confirm','Confirm Purchase'), confirmMsg);
         if (!confirmBuy) return;
 
-        // Execute payment
-        if (isOffchain) {
-            const spent = await spendOffchainPoints(tokenKey, effectivePrice, t('art.art_purchase','Art purchase') + ': ' + art.title);
-            if (!spent) return;
-            const sellerDoc = await db.collection('users').doc(art.artistId).get();
-            const sellerOff = sellerDoc.data()?.offchainBalances || {};
-            await db.collection('users').doc(art.artistId).update({
-                [`offchainBalances.${tokenKey}`]: (sellerOff[tokenKey] || 0) + artistReceive
-            });
-        } else {
-            const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-            const walletDoc = wallets.docs[0];
-            const balances = walletDoc.data().balances || {};
-            await walletDoc.ref.update({ [`balances.${tokenKey}`]: balances[tokenKey] - effectivePrice });
-            const sellerWallets = await db.collection('users').doc(art.artistId).collection('wallets').limit(1).get();
-            if (!sellerWallets.empty) {
-                const sw = sellerWallets.docs[0];
-                const sb = sw.data().balances || {};
-                await sw.ref.update({ [`balances.${tokenKey}`]: (sb[tokenKey] || 0) + artistReceive });
+        // Execute purchase via server
+        const result = await _artFetch('/api/art/buy', {
+            method: 'POST',
+            headers: _artHeaders(),
+            body: JSON.stringify({ artId })
+        });
+
+        if (!result.ok) {
+            if (result.error === 'insufficient_balance') {
+                showToast(t('art.insufficient_crac','Insufficient CRAC balance') + '. ' + t('art.balance_held','Held') + ': ' + result.balance + ', ' + t('art.balance_needed','Needed') + ': ' + result.needed, 'warning');
+            } else {
+                showToast(t('art.purchase_failed','Purchase failed') + ': ' + (result.error || ''), 'error');
             }
+            return;
         }
-
-        // Update artwork
-        const updateData = {
-            soldCount: firebase.firestore.FieldValue.increment(1)
-        };
-        // If single supply or no supply limit, mark as sold
-        if (!art.totalSupply || art.totalSupply <= 1) {
-            updateData.status = 'sold';
-            updateData.buyerId = currentUser.uid;
-            updateData.buyerEmail = currentUser.email;
-            updateData.soldAt = new Date();
-            updateData.soldPrice = effectivePrice;
-            updateData.soldToken = art.priceToken || 'CRAC';
-        }
-        await db.collection('artworks').doc(artId).update(updateData);
-
-        // Record purchase in art_purchases subcollection
-        await db.collection('artworks').doc(artId).collection('purchases').add({
-            buyerId: currentUser.uid,
-            buyerEmail: currentUser.email,
-            price: effectivePrice,
-            token: art.priceToken || 'CRAC',
-            timestamp: new Date()
-        });
-
-        // Transaction record
-        await db.collection('art_transactions').add({
-            artworkId: artId, artworkTitle: art.title,
-            from: currentUser.uid, to: art.artistId,
-            amount: effectivePrice, artistReceive, platformFee,
-            basePrice: art.basePrice || effectivePrice,
-            artistWeight: art.artistWeight || 1,
-            token: art.priceToken || 'CRAC', isNFT: art.isNFT || false,
-            nftTokenId: art.nftTokenId || null,
-            type: 'art_purchase', timestamp: new Date()
-        });
-
-        // Auto donation
-        await _artDonationAuto(currentUser.uid, effectivePrice, art.priceToken || 'CRAC');
 
         // Referral
         if (typeof distributeReferralReward === 'function') {
-            await distributeReferralReward(currentUser.uid, effectivePrice, art.priceToken || 'CRAC');
+            try { await distributeReferralReward(currentUser.uid, effectivePrice, art.priceToken || 'CRAC'); } catch(e) { console.warn(e); }
         }
 
         // Update artist profile + recalculate weight
         await _updateArtistProfile(art.artistId, {
-            totalSales: firebase.firestore.FieldValue.increment(1),
-            totalSoldCount: firebase.firestore.FieldValue.increment(1),
-            totalRevenue: firebase.firestore.FieldValue.increment(artistReceive)
+            totalSales: { _inc: 1 },
+            totalSoldCount: { _inc: 1 },
+            totalRevenue: { _inc: artistReceive }
         });
         await _recalculateArtistWeight(art.artistId);
 
@@ -940,23 +895,23 @@ async function placeBid(artId) {
     const bidInput = document.getElementById(`bid-amount-${artId}`);
     const bidAmount = parseFloat(bidInput?.value);
     try {
-        const artDoc = await db.collection('artworks').doc(artId).get();
-        const art = artDoc.data();
-        const minBid = (art.currentBid || art.startPrice || 1) + 1;
-        if (bidAmount < minBid) { showToast(t('art.minimum_bid','Minimum bid') + ': ' + minBid + ' CRAC', 'warning'); return; }
-        const userDocBid = await db.collection('users').doc(currentUser.uid).get();
-        const cracBal = userDocBid.data()?.offchainBalances?.crac || 0;
-        if (cracBal < bidAmount) { showToast(t('art.insufficient_crac','Insufficient CRAC balance') + '. ' + t('art.balance_held','Held') + ': ' + cracBal, 'warning'); return; }
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const nickname = userDoc.data()?.nickname || currentUser.email;
-        await db.collection('artworks').doc(artId).update({
-            currentBid: bidAmount, highestBidder: currentUser.uid,
-            highestBidderEmail: currentUser.email, highestBidderNickname: nickname
+        const result = await _artFetch('/api/art/bid', {
+            method: 'POST',
+            headers: _artHeaders(),
+            body: JSON.stringify({ artId, bidAmount })
         });
-        await db.collection('artworks').doc(artId).collection('bids').add({
-            bidderId: currentUser.uid, bidderEmail: currentUser.email,
-            bidderNickname: nickname, amount: bidAmount, timestamp: new Date()
-        });
+
+        if (!result.ok) {
+            if (result.error === 'bid_too_low') {
+                showToast(t('art.minimum_bid','Minimum bid') + ': ' + result.minBid + ' CRAC', 'warning');
+            } else if (result.error === 'insufficient_balance') {
+                showToast(t('art.insufficient_crac','Insufficient CRAC balance') + '. ' + t('art.balance_held','Held') + ': ' + result.balance, 'warning');
+            } else {
+                showToast(t('art.bid_failed','Bid failed') + ': ' + (result.error || ''), 'error');
+            }
+            return;
+        }
+
         showToast('\uD83D\uDD28 ' + bidAmount + ' CRAC ' + t('art.bid_complete','Bid placed!'), 'success');
         const modal = document.getElementById('art-modal');
         if (modal) modal.remove();
@@ -973,9 +928,9 @@ async function reserveArtwork(artId) {
     if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
 
     try {
-        const artDoc = await db.collection('artworks').doc(artId).get();
-        if (!artDoc.exists) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
-        const art = artDoc.data();
+        const artData = await _artFetch('/api/art/artwork?id=' + encodeURIComponent(artId), { headers: _artHeaders() });
+        if (!artData.ok) { showToast(t('art.not_found','Artwork not found'), 'warning'); return; }
+        const art = artData;
 
         if (art.status !== 'active') { showToast(t('art.not_available','This artwork is not available for purchase'), 'warning'); return; }
         if (art.totalSupply > 0 && (art.totalSupply - (art.soldCount || 0)) <= 0) {
@@ -985,7 +940,6 @@ async function reserveArtwork(artId) {
         const effectivePrice = art.price || _calcEffectivePrice(art.basePrice || 0, art.artistWeight || 1);
         const depositAmount = Math.ceil(effectivePrice / 10);
         const remainingAmount = effectivePrice - depositAmount;
-        const tokenKey = (art.priceToken || 'CRAC').toLowerCase();
 
         const confirmMsg = `\uD83D\uDCC5 ${t('art.reserve_purchase','Reserve Purchase')}\n\n"${art.title}"\n\n` +
             `<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.total_price','Total price')}: ${effectivePrice} ${art.priceToken || 'CRAC'}\n` +
@@ -997,71 +951,22 @@ async function reserveArtwork(artId) {
         const confirmed = await showConfirmModal('\uD83D\uDCC5 ' + t('art.reserve_purchase','Reserve Purchase'), confirmMsg);
         if (!confirmed) return;
 
-        // Check balance for deposit
-        const isOffchain = typeof isOffchainToken === 'function' && isOffchainToken(tokenKey);
-        if (isOffchain) {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const offBal = userDoc.data()?.offchainBalances?.[tokenKey] || 0;
-            if (offBal < depositAmount) {
-                showToast(t('art.insufficient_deposit','Insufficient deposit') + '. ' + t('art.balance_held','Held') + ': ' + offBal + ', ' + t('art.balance_needed','Needed') + ': ' + depositAmount, 'warning'); return;
+        const result = await _artFetch('/api/art/reserve', {
+            method: 'POST',
+            headers: _artHeaders(),
+            body: JSON.stringify({ artId })
+        });
+
+        if (!result.ok) {
+            if (result.error === 'insufficient_balance') {
+                showToast(t('art.insufficient_deposit','Insufficient deposit') + '. ' + t('art.balance_held','Held') + ': ' + result.balance + ', ' + t('art.balance_needed','Needed') + ': ' + result.needed, 'warning');
+            } else {
+                showToast(t('art.reservation_failed','Reservation failed') + ': ' + (result.error || ''), 'error');
             }
-            const spent = await spendOffchainPoints(tokenKey, depositAmount, t('art.reservation_deposit','Art reservation deposit') + ': ' + art.title);
-            if (!spent) return;
-            // Pay deposit to artist
-            const sellerDoc = await db.collection('users').doc(art.artistId).get();
-            const sellerOff = sellerDoc.data()?.offchainBalances || {};
-            await db.collection('users').doc(art.artistId).update({
-                [`offchainBalances.${tokenKey}`]: (sellerOff[tokenKey] || 0) + depositAmount
-            });
-        } else {
-            const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-            if (wallets.empty) { showToast(t('art.no_wallet','No wallet found'), 'warning'); return; }
-            const walletDoc = wallets.docs[0];
-            const balances = walletDoc.data().balances || {};
-            if ((balances[tokenKey] || 0) < depositAmount) {
-                showToast(t('art.insufficient_deposit','Insufficient deposit'), 'warning'); return;
-            }
-            await walletDoc.ref.update({ [`balances.${tokenKey}`]: balances[tokenKey] - depositAmount });
-            const sellerWallets = await db.collection('users').doc(art.artistId).collection('wallets').limit(1).get();
-            if (!sellerWallets.empty) {
-                const sw = sellerWallets.docs[0];
-                const sb = sw.data().balances || {};
-                await sw.ref.update({ [`balances.${tokenKey}`]: (sb[tokenKey] || 0) + depositAmount });
-            }
+            return;
         }
 
-        // Create reservation
-        const expiresAt = new Date();
-        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-
-        await db.collection('art_reservations').add({
-            artworkId: artId,
-            artworkTitle: art.title,
-            artworkImage: art.thumbnailUrl || art.imageUrl || '',
-            buyerId: currentUser.uid,
-            buyerEmail: currentUser.email,
-            artistId: art.artistId,
-            totalPrice: effectivePrice,
-            depositAmount: depositAmount,
-            depositPaid: true,
-            depositPaidAt: new Date(),
-            depositToken: art.priceToken || 'CRAC',
-            remainingAmount: remainingAmount,
-            expiresAt: expiresAt,
-            status: 'reserved',
-            completedAt: null,
-            createdAt: new Date()
-        });
-
-        // Transaction record
-        await db.collection('art_transactions').add({
-            artworkId: artId, artworkTitle: art.title,
-            from: currentUser.uid, to: art.artistId,
-            amount: depositAmount, token: art.priceToken || 'CRAC',
-            type: 'art_reservation_deposit', timestamp: new Date()
-        });
-
-        showToast('\uD83D\uDCC5 "' + art.title + '" ' + t('art.reservation_complete','Reservation complete!') + ' ' + t('art.deposit','Deposit') + ' ' + depositAmount + ' ' + (art.priceToken || 'CRAC') + ' ' + t('art.paid','paid'), 'success');
+        showToast('\uD83D\uDCC5 "' + art.title + '" ' + t('art.reservation_complete','Reservation complete!') + ' ' + t('art.deposit','Deposit') + ' ' + result.depositAmount + ' ' + (art.priceToken || 'CRAC') + ' ' + t('art.paid','paid'), 'success');
 
         const modal = document.getElementById('art-modal');
         if (modal) modal.remove();
@@ -1076,98 +981,51 @@ async function completeReservation(reservationId) {
     if (!currentUser) { showToast(t('common.login_required','Login is required'), 'warning'); return; }
 
     try {
-        const resDoc = await db.collection('art_reservations').doc(reservationId).get();
-        if (!resDoc.exists) { showToast(t('art.reservation_not_found','Reservation not found'), 'warning'); return; }
-        const res = resDoc.data();
+        // Get reservation info for confirmation dialog
+        const myRes = await _artFetch('/api/art/my-reservations', { headers: _artHeaders() });
+        const reservation = myRes.ok ? myRes.items.find(r => r.id === reservationId) : null;
 
-        if (res.buyerId !== currentUser.uid) { showToast(t('art.own_reservation_only','Only your own reservations can be paid'), 'warning'); return; }
-        if (res.status !== 'reserved') { showToast(t('art.reservation_already_processed','This reservation has already been processed'), 'info'); return; }
+        if (!reservation) { showToast(t('art.reservation_not_found','Reservation not found'), 'warning'); return; }
+        if (reservation.buyerId !== currentUser.uid) { showToast(t('art.own_reservation_only','Only your own reservations can be paid'), 'warning'); return; }
+        if (reservation.status !== 'reserved') { showToast(t('art.reservation_already_processed','This reservation has already been processed'), 'info'); return; }
 
-        const expiresAt = res.expiresAt?.toDate ? res.expiresAt.toDate() : new Date(res.expiresAt);
+        const expiresAt = new Date(reservation.expiresAt);
         if (new Date() > expiresAt) {
-            await db.collection('art_reservations').doc(reservationId).update({ status: 'expired' });
             showToast('\u23F0 ' + t('art.reservation_expired','Reservation has expired'), 'warning');
             return;
         }
 
-        const remainingAmount = res.remainingAmount;
-        const tokenKey = (res.depositToken || 'CRAC').toLowerCase();
-
-        const confirmed = await showConfirmModal(t('art.pay_balance','Pay Balance'), '"' + res.artworkTitle + '"\n\n' + t('art.balance_due','Balance due') + ': ' + remainingAmount + ' ' + (res.depositToken || 'CRAC') + '\n\n' + t('art.proceed_payment','Proceed with payment?'));
+        const confirmed = await showConfirmModal(t('art.pay_balance','Pay Balance'), '"' + reservation.artworkTitle + '"\n\n' + t('art.balance_due','Balance due') + ': ' + reservation.remainingAmount + ' ' + (reservation.depositToken || 'CRAC') + '\n\n' + t('art.proceed_payment','Proceed with payment?'));
         if (!confirmed) return;
 
-        // Pay remaining
-        const isOffchain = typeof isOffchainToken === 'function' && isOffchainToken(tokenKey);
-        const platformFee = Math.round(res.totalPrice * (ART_CONFIG.platformFeePercent / 100) * 100) / 100;
-        const artistReceiveRemaining = Math.round((remainingAmount - platformFee) * 100) / 100;
+        const result = await _artFetch('/api/art/complete-reservation', {
+            method: 'POST',
+            headers: _artHeaders(),
+            body: JSON.stringify({ reservationId })
+        });
 
-        if (isOffchain) {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const offBal = userDoc.data()?.offchainBalances?.[tokenKey] || 0;
-            if (offBal < remainingAmount) {
-                showToast(t('art.insufficient_balance','Insufficient balance') + '. ' + t('art.balance_held','Held') + ': ' + offBal + ', ' + t('art.balance_needed','Needed') + ': ' + remainingAmount, 'warning'); return;
+        if (!result.ok) {
+            if (result.error === 'insufficient_balance') {
+                showToast(t('art.insufficient_balance','Insufficient balance') + '. ' + t('art.balance_held','Held') + ': ' + result.balance + ', ' + t('art.balance_needed','Needed') + ': ' + result.needed, 'warning');
+            } else if (result.error === 'expired') {
+                showToast('\u23F0 ' + t('art.reservation_expired','Reservation has expired'), 'warning');
+            } else {
+                showToast(t('art.balance_payment_failed','Balance payment failed') + ': ' + (result.error || ''), 'error');
             }
-            const spent = await spendOffchainPoints(tokenKey, remainingAmount, t('art.reservation_balance','Art reservation balance') + ': ' + res.artworkTitle);
-            if (!spent) return;
-            const sellerDoc = await db.collection('users').doc(res.artistId).get();
-            const sellerOff = sellerDoc.data()?.offchainBalances || {};
-            await db.collection('users').doc(res.artistId).update({
-                [`offchainBalances.${tokenKey}`]: (sellerOff[tokenKey] || 0) + artistReceiveRemaining
-            });
-        } else {
-            const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-            if (wallets.empty) { showToast(t('art.no_wallet','No wallet found'), 'warning'); return; }
-            const walletDoc = wallets.docs[0];
-            const balances = walletDoc.data().balances || {};
-            if ((balances[tokenKey] || 0) < remainingAmount) { showToast(t('art.insufficient_balance','Insufficient balance'), 'warning'); return; }
-            await walletDoc.ref.update({ [`balances.${tokenKey}`]: balances[tokenKey] - remainingAmount });
-            const sellerWallets = await db.collection('users').doc(res.artistId).collection('wallets').limit(1).get();
-            if (!sellerWallets.empty) {
-                const sw = sellerWallets.docs[0];
-                const sb = sw.data().balances || {};
-                await sw.ref.update({ [`balances.${tokenKey}`]: (sb[tokenKey] || 0) + artistReceiveRemaining });
-            }
+            return;
         }
 
-        // Update reservation
-        await db.collection('art_reservations').doc(reservationId).update({
-            status: 'completed',
-            completedAt: new Date()
+        // Update artist profile + recalculate weight
+        const platformFee = Math.round(reservation.totalPrice * 2.5 / 100 * 100) / 100;
+        const artistReceiveRemaining = Math.round((reservation.remainingAmount - platformFee) * 100) / 100;
+        await _updateArtistProfile(reservation.artistId, {
+            totalSales: { _inc: 1 },
+            totalSoldCount: { _inc: 1 },
+            totalRevenue: { _inc: artistReceiveRemaining }
         });
+        await _recalculateArtistWeight(reservation.artistId);
 
-        // Update artwork soldCount
-        await db.collection('artworks').doc(res.artworkId).update({
-            soldCount: firebase.firestore.FieldValue.increment(1)
-        });
-
-        // Record purchase in art_purchases
-        await db.collection('artworks').doc(res.artworkId).collection('purchases').add({
-            buyerId: currentUser.uid,
-            buyerEmail: currentUser.email,
-            price: res.totalPrice,
-            token: res.depositToken || 'CRAC',
-            type: 'reservation_complete',
-            reservationId: reservationId,
-            timestamp: new Date()
-        });
-
-        // Transaction
-        await db.collection('art_transactions').add({
-            artworkId: res.artworkId, artworkTitle: res.artworkTitle,
-            from: currentUser.uid, to: res.artistId,
-            amount: remainingAmount, token: res.depositToken || 'CRAC',
-            type: 'art_reservation_complete', timestamp: new Date()
-        });
-
-        // Update artist
-        await _updateArtistProfile(res.artistId, {
-            totalSales: firebase.firestore.FieldValue.increment(1),
-            totalSoldCount: firebase.firestore.FieldValue.increment(1),
-            totalRevenue: firebase.firestore.FieldValue.increment(artistReceiveRemaining)
-        });
-        await _recalculateArtistWeight(res.artistId);
-
-        showToast('\uD83C\uDF89 "' + res.artworkTitle + '" ' + t('art.balance_payment_complete','Balance payment complete!'), 'success');
+        showToast('\uD83C\uDF89 "' + reservation.artworkTitle + '" ' + t('art.balance_payment_complete','Balance payment complete!'), 'success');
         loadMyCollection('my-reservations');
         if (typeof loadUserWallet === 'function') loadUserWallet();
 
@@ -1182,12 +1040,16 @@ async function cancelReservation(reservationId) {
         const confirmed = await showConfirmModal('\u26A0\uFE0F ' + t('art.cancel_reservation','Cancel Reservation'),
             t('art.cancel_reservation_confirm','Cancel this reservation?') + '\n\n\u26A0\uFE0F ' + t('art.deposit_no_refund','Deposit is non-refundable if reservation is cancelled.'));
         if (!confirmed) return;
-        await db.collection('art_reservations').doc(reservationId).update({
-            status: 'cancelled',
-            cancelledAt: new Date()
+
+        const result = await _artFetch('/api/art/cancel-reservation', {
+            method: 'POST',
+            headers: _artHeaders(),
+            body: JSON.stringify({ reservationId })
         });
-        showToast(t('art.reservation_cancelled','Reservation cancelled (deposit non-refundable)'), 'info');
-        loadMyCollection('my-reservations');
+        if (result.ok) {
+            showToast(t('art.reservation_cancelled','Reservation cancelled (deposit non-refundable)'), 'info');
+            loadMyCollection('my-reservations');
+        }
     } catch (error) {
         showToast(t('art.cancel_failed','Cancellation failed') + ': ' + error.message, 'error');
     }
@@ -1195,31 +1057,10 @@ async function cancelReservation(reservationId) {
 
 
 // ============================================================
-// 12. 자동 기부
+// 12. 자동 기부 (handled server-side in /api/art/buy)
 // ============================================================
 
-async function _artDonationAuto(userId, amount, token) {
-    try {
-        const donationAmount = Math.max(ART_CONFIG.donationMinCRFN, amount * 0.02);
-        const userDoc = await db.collection('users').doc(userId).get();
-        if (!userDoc.exists) return;
-        const cracBal = userDoc.data()?.offchainBalances?.crac || 0;
-        if (cracBal >= donationAmount) {
-            await db.collection('users').doc(userId).update({
-                ['offchainBalances.crac']: cracBal - donationAmount
-            });
-            await db.collection('giving_pool_logs').add({
-                userId, amount: donationAmount, token: 'CRAC',
-                source: 'art_trade', note: t('art.auto_donation','Art trade auto donation') + ' (' + amount + ' ' + token + ')',
-                timestamp: new Date()
-            });
-            // Update artist donation contribution for weight
-            // (the artist benefits from buyer's donation)
-        }
-    } catch (e) {
-        console.warn('🎨 [Donation] Failed:', e.message);
-    }
-}
+// _artDonationAuto is now handled server-side during buy
 
 
 // ============================================================
@@ -1254,25 +1095,14 @@ async function loadMyCollection(tab) {
 async function _loadMyArtworks(container) {
     container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">' + t('art.loading','Loading...') + '</p>';
     try {
-        let arts;
-        try {
-            arts = await db.collection('artworks')
-                .where('artistId', '==', currentUser.uid)
-                .orderBy('createdAt', 'desc').limit(30).get();
-        } catch (e) {
-            console.warn('🎨 [MyArt] index fallback:', e.message);
-            arts = await db.collection('artworks')
-                .where('artistId', '==', currentUser.uid).limit(30).get();
-        }
-
-        if (arts.empty) {
+        const data = await _artFetch('/api/art/my-artworks', { headers: _artHeaders() });
+        if (!data.ok || !data.items || !data.items.length) {
             container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('palette')}</span><p>${t('art.no_registered_works','No registered artworks')}<br><small>${t('art.upload_first_work','Press the upload button to register your first artwork!')}</small></p></div>`;
             return;
         }
 
         let html = '<div class="collection-scroll">';
-        arts.forEach(doc => {
-            const art = { id: doc.id, ...doc.data() };
+        data.items.forEach(art => {
             const img = art.thumbnailUrl || art.imageUrl || art.imageData || '';
             const status = art.status === 'sold' ? '\u2705 ' + t('art.sold','Sold') : art.status === 'active' ? '\uD83D\uDFE2 ' + t('art.on_sale','On sale') : '\u2B1C';
             html += `
@@ -1295,28 +1125,17 @@ async function _loadMyArtworks(container) {
 async function _loadMyPurchases(container) {
     container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">' + t('art.loading','Loading...') + '</p>';
     try {
-        let arts;
-        try {
-            arts = await db.collection('artworks')
-                .where('buyerId', '==', currentUser.uid)
-                .orderBy('soldAt', 'desc').limit(30).get();
-        } catch (e) {
-            console.warn('🎨 [MyPurchases] index fallback:', e.message);
-            arts = await db.collection('artworks')
-                .where('buyerId', '==', currentUser.uid).limit(30).get();
-        }
-
-        if (arts.empty) {
+        const data = await _artFetch('/api/art/my-purchases', { headers: _artHeaders() });
+        if (!data.ok || !data.items || !data.items.length) {
             container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('shopping-cart')}</span><p>${t('art.no_purchases','No purchased artworks')}<br><small>${t('art.browse_gallery','Browse the gallery to find artworks you love!')}</small></p></div>`;
             return;
         }
 
         let html = '<div class="collection-scroll">';
-        arts.forEach(doc => {
-            const art = doc.data();
+        data.items.forEach(art => {
             const img = art.thumbnailUrl || art.imageUrl || art.imageData || '';
             html += `
-                <div onclick="viewArtwork('${doc.id}')" class="collection-card">
+                <div onclick="viewArtwork('${art.id}')" class="collection-card">
                     <img src="${img}" loading="lazy">
                     <div class="collection-card-info">
                         <div class="collection-card-title">${art.title}</div>
@@ -1334,34 +1153,14 @@ async function _loadMyPurchases(container) {
 async function _loadMyNFTs(container) {
     container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">' + t('art.loading','Loading...') + '</p>';
     try {
-        let minted, bought;
-        try {
-            [minted, bought] = await Promise.all([
-                db.collection('artworks').where('artistId', '==', currentUser.uid).where('isNFT', '==', true).get(),
-                db.collection('artworks').where('buyerId', '==', currentUser.uid).where('isNFT', '==', true).get()
-            ]);
-        } catch (e) {
-            console.warn('🎨 [MyNFTs] fallback:', e.message);
-            const all = await db.collection('artworks').where('isNFT', '==', true).limit(100).get();
-            minted = { forEach: cb => all.forEach(d => { if (d.data().artistId === currentUser.uid) cb(d); }) };
-            bought = { forEach: cb => all.forEach(d => { if (d.data().buyerId === currentUser.uid) cb(d); }) };
-        }
-
-        const nfts = new Map();
-        minted.forEach(d => nfts.set(d.id, { id: d.id, ...d.data(), relation: 'minted' }));
-        bought.forEach(d => {
-            if (nfts.has(d.id)) nfts.get(d.id).relation = 'minted+owned';
-            else nfts.set(d.id, { id: d.id, ...d.data(), relation: 'owned' });
-        });
-
-        const items = Array.from(nfts.values());
-        if (!items.length) {
+        const data = await _artFetch('/api/art/my-nfts', { headers: _artHeaders() });
+        if (!data.ok || !data.items || !data.items.length) {
             container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('link')}</span><p>${t('art.no_nfts','No NFTs owned')}<br><small>${t('art.mint_or_buy_nft','Mint your artwork as an NFT or purchase one!')}</small></p></div>`;
             return;
         }
 
         let html = '<div class="collection-scroll">';
-        items.forEach(art => {
+        data.items.forEach(art => {
             const img = art.thumbnailUrl || art.imageUrl || art.imageData || '';
             const typeLabel = art.nftType === 'erc1155' ? `×${art.editionCount}` : '1/1';
             html += `
@@ -1383,26 +1182,15 @@ async function _loadMyNFTs(container) {
 async function _loadMyReservations(container) {
     container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">' + t('art.loading','Loading...') + '</p>';
     try {
-        let snap;
-        try {
-            snap = await db.collection('art_reservations')
-                .where('buyerId', '==', currentUser.uid)
-                .orderBy('createdAt', 'desc').limit(20).get();
-        } catch (e) {
-            console.warn('🎨 [Reservations] index fallback:', e.message);
-            snap = await db.collection('art_reservations')
-                .where('buyerId', '==', currentUser.uid).limit(20).get();
-        }
-
-        if (snap.empty) {
+        const data = await _artFetch('/api/art/my-reservations', { headers: _artHeaders() });
+        if (!data.ok || !data.items || !data.items.length) {
             container.innerHTML = '<div class="art-empty-state"><span class="icon">\uD83D\uDCC5</span><p>' + t('art.no_reservations','No reservations') + '</p></div>';
             return;
         }
 
         let html = '<div style="display:grid;gap:.8rem">';
-        snap.forEach(doc => {
-            const r = doc.data();
-            const expiresAt = r.expiresAt?.toDate ? r.expiresAt.toDate() : new Date(r.expiresAt);
+        data.items.forEach(r => {
+            const expiresAt = new Date(r.expiresAt);
             const isExpired = new Date() > expiresAt;
             const statusLabel = r.status === 'completed' ? '\u2705 ' + t('art.completed','Completed') :
                 r.status === 'cancelled' ? '\u274C ' + t('art.cancelled','Cancelled') :
@@ -1420,8 +1208,8 @@ async function _loadMyReservations(container) {
                     </div>
                     <div style="display:flex;flex-direction:column;gap:.3rem">
                         ${r.status === 'reserved' && !isExpired ? `
-                            <button onclick="completeReservation('${doc.id}')" style="background:#5A9A6E;color:#E8D5C4;border:none;padding:.4rem .6rem;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:600"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.pay_balance_short','Balance')}</button>
-                            <button onclick="cancelReservation('${doc.id}')" style="background:none;border:1px solid #E8E0D8;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-size:.7rem;color:#6B5744">${t('art.cancel','Cancel')}</button>
+                            <button onclick="completeReservation('${r.id}')" style="background:#5B7B8C;color:#E8D5C4;border:none;padding:.4rem .6rem;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:600"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('art.pay_balance_short','Balance')}</button>
+                            <button onclick="cancelReservation('${r.id}')" style="background:none;border:1px solid #E8E0D8;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-size:.7rem;color:#6B5744">${t('art.cancel','Cancel')}</button>
                         ` : ''}
                     </div>
                 </div>`;
@@ -1435,52 +1223,22 @@ async function _loadMyReservations(container) {
 async function _loadMyTransactions(container) {
     container.innerHTML = '<p style="color:var(--accent);text-align:center;padding:1rem">' + t('art.loading','Loading...') + '</p>';
     try {
-        let snap;
-        try {
-            snap = await db.collection('art_transactions')
-                .where('from', '==', currentUser.uid)
-                .orderBy('timestamp', 'desc').limit(20).get();
-        } catch (e) {
-            console.warn('🎨 [Transactions] index fallback:', e.message);
-            snap = await db.collection('art_transactions')
-                .where('from', '==', currentUser.uid).limit(20).get();
-        }
-
-        // Also get sales (where I'm the artist)
-        let salesSnap;
-        try {
-            salesSnap = await db.collection('art_transactions')
-                .where('to', '==', currentUser.uid)
-                .orderBy('timestamp', 'desc').limit(20).get();
-        } catch (e) {
-            salesSnap = await db.collection('art_transactions')
-                .where('to', '==', currentUser.uid).limit(20).get();
-        }
-
-        const txs = [];
-        snap.forEach(d => txs.push({ id: d.id, ...d.data(), direction: 'out' }));
-        salesSnap.forEach(d => txs.push({ id: d.id, ...d.data(), direction: 'in' }));
-        txs.sort((a, b) => {
-            const ta = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-            const tb = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-            return tb - ta;
-        });
-
-        if (!txs.length) {
+        const data = await _artFetch('/api/art/my-transactions', { headers: _artHeaders() });
+        if (!data.ok || !data.items || !data.items.length) {
             container.innerHTML = `<div class="art-empty-state"><span class="icon">${createLucideIcon('clipboard')}</span><p>${t('art.no_transactions','No transaction history')}</p></div>`;
             return;
         }
 
         let html = '<div style="display:grid;gap:.5rem">';
-        txs.slice(0, 30).forEach(tx => {
-            const date = tx.timestamp?.toDate ? tx.timestamp.toDate() : new Date(tx.timestamp);
+        data.items.forEach(tx => {
+            const date = new Date(tx.timestamp);
             const typeLabel = {
-                'art_purchase': '\uD83D\uDED2 ' + t('art.purchase','Purchase'),
-                'art_reservation_deposit': '\uD83D\uDCC5 ' + t('art.reservation_deposit','Reservation deposit'),
-                'art_reservation_complete': '\u2705 ' + t('art.reservation_complete_label','Reservation complete')
+                'art_purchase': t('art.purchase','Purchase'),
+                'art_reservation_deposit': t('art.reservation_deposit','Reservation deposit'),
+                'art_reservation_complete': t('art.reservation_complete_label','Reservation complete')
             }[tx.type] || tx.type;
-            const dirIcon = tx.direction === 'in' ? '📥' : '📤';
-            const dirColor = tx.direction === 'in' ? '#5A9A6E' : '#e53935';
+            const dirIcon = tx.direction === 'in' ? '<i data-lucide="arrow-down-left" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>' : '<i data-lucide="arrow-up-right" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>';
+            const dirColor = tx.direction === 'in' ? '#5B7B8C' : '#e53935';
 
             html += `
                 <div style="background:#FFF8F0;padding:.6rem .8rem;border-radius:8px;display:flex;justify-content:space-between;align-items:center;font-size:.8rem">
@@ -1509,43 +1267,37 @@ function loadMyNFTs() { loadMyCollection('my-nfts'); }
 
 async function _updateArtistProfile(userId, updateData) {
     try {
-        const ref = db.collection('artist_profiles').doc(userId);
-        const doc = await ref.get();
-        if (!doc.exists) {
-            const userDoc = await db.collection('users').doc(userId).get();
-            const ud = userDoc.exists ? userDoc.data() : {};
-            await ref.set({
-                userId, nickname: ud.nickname || '', email: ud.email || '',
-                bio: '', profileImage: '',
-                totalWorks: 0, totalWorksCount: 0,
-                totalSales: 0, totalSoldCount: 0,
-                totalRevenue: 0, totalLikes: 0,
-                totalDonationContribution: 0,
-                baseWeightMultiplier: 1.0,
-                weightMultiplier: 1.0,
-                verified: false, createdAt: new Date(),
-                ...updateData
-            });
-        } else {
-            await ref.update(updateData);
+        // Get user info for init data
+        let initData = null;
+        const profileCheck = await _artFetch('/api/art/artist-profile?artistId=' + encodeURIComponent(userId), { headers: _artHeaders() });
+        if (!profileCheck.profile) {
+            // Need to create profile - get user info
+            const userInfo = await _artFetch('/api/art/user-info', { headers: _artHeaders() });
+            initData = {
+                nickname: userInfo.ok ? (userInfo.nickname || '') : '',
+                email: userInfo.ok ? (userInfo.email || '') : ''
+            };
         }
+
+        await _artFetch('/api/art/artist-profile', {
+            method: 'POST',
+            headers: _artHeaders(),
+            body: JSON.stringify({ artistId: userId, updateData, initData })
+        });
     } catch (e) { console.warn('🎨 [Profile] Update failed:', e.message); }
 }
 
 async function viewArtistProfile(artistId) {
     try {
-        const [profileDoc, userDoc] = await Promise.all([
-            db.collection('artist_profiles').doc(artistId).get(),
-            db.collection('users').doc(artistId).get()
+        const [profileData, worksData] = await Promise.all([
+            _artFetch('/api/art/artist-profile?artistId=' + encodeURIComponent(artistId), { headers: _artHeaders() }),
+            _artFetch('/api/art/artist-works?artistId=' + encodeURIComponent(artistId), { headers: _artHeaders() })
         ]);
-        const profile = profileDoc.exists ? profileDoc.data() : {};
-        const user = userDoc.exists ? userDoc.data() : {};
-        const nickname = profile.nickname || user.nickname || t('art.anonymous_artist','Anonymous artist');
-        const weight = profile.weightMultiplier || 1.0;
 
-        const worksSnap = await db.collection('artworks')
-            .where('artistId', '==', artistId)
-            .where('status', '==', 'active').get();
+        const profile = (profileData.ok && profileData.profile) ? profileData.profile : {};
+        const nickname = profile.nickname || t('art.anonymous_artist','Anonymous artist');
+        const weight = profile.weightMultiplier || 1.0;
+        const worksCount = worksData.ok ? worksData.count : 0;
 
         const modal = document.createElement('div');
         modal.id = 'artist-profile-modal';
@@ -1561,7 +1313,7 @@ async function viewArtistProfile(artistId) {
                     ${profile.bio ? `<p style="font-size:.85rem;color:var(--accent);margin-top:.3rem">${profile.bio}</p>` : ''}
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem;text-align:center;margin-bottom:1rem">
-                    <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700">${worksSnap.size}</div><div style="font-size:.7rem;color:var(--accent)">${t('art.works','Works')}</div></div>
+                    <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700">${worksCount}</div><div style="font-size:.7rem;color:var(--accent)">${t('art.works','Works')}</div></div>
                     <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700">${profile.totalSales || 0}</div><div style="font-size:.7rem;color:var(--accent)">${t('art.sales','Sales')}</div></div>
                     <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700">${profile.totalLikes || 0}</div><div style="font-size:.7rem;color:var(--accent)">${t('art.likes','Likes')}</div></div>
                     <div style="background:var(--bg);padding:.6rem;border-radius:8px"><div style="font-size:1.1rem;font-weight:700;color:#8B2BE2">${weight}x</div><div style="font-size:.7rem;color:var(--accent)">${t('art.weight','Weight')}</div></div>

@@ -84,5 +84,28 @@
   ],
   "commentCount": 0,
   "ts": 1773828335350
+ },
+ {
+  "id": "p_1774059325070_7cb44b",
+  "author": "testcredit1",
+  "text": "Test post for save/repost",
+  "image": null,
+  "youtube": null,
+  "likes": [],
+  "commentCount": 1,
+  "ts": 1774059325070
+ },
+ {
+  "id": "p_1774059325124_7571b1",
+  "author": "testcredit1",
+  "text": "Edited post text",
+  "image": null,
+  "youtube": null,
+  "likes": [],
+  "commentCount": 0,
+  "repostOf": "p_1774059325070_7cb44b",
+  "originalAuthor": "testcredit1",
+  "ts": 1774059325124,
+  "editedAt": 1774075147440
  }
 ]

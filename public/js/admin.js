@@ -79,7 +79,7 @@ const ADMIN_LEVELS = {
     5: { name: t('admin.level.country','Country Admin'), icon: '<i data-lucide="globe" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#8B6914' },
     4: { name: t('admin.level.business','Business Admin'), icon: '<i data-lucide="briefcase" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#5B7B8C' },
     3: { name: t('admin.level.service','Service Admin'), icon: '<i data-lucide="wrench" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#C4841D' },
-    2: { name: t('admin.level.ops','Operations Admin'), icon: '<i data-lucide="file-text" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#5A9A6E' },
+    2: { name: t('admin.level.ops','Operations Admin'), icon: '<i data-lucide="file-text" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#5B7B8C' },
     1: { name: t('admin.level.cs','CS Admin'), icon: '<i data-lucide="message-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#6B5744' },
     0: { name: t('admin.level.member','Full Member'), icon: '<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#795548' },
     '-1': { name: t('admin.level.basic','Basic Member'), icon: '<i data-lucide="user" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#9E9E9E' }
@@ -318,11 +318,11 @@ async function showAdminEditModal(userId, userData) {
             
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:1rem;">
                 <div>
-                    <label style="font-size:0.8rem;color:#6B5744;display:block;margin-bottom:0.3rem;">📅 Start Date</label>
+                    <label style="font-size:0.8rem;color:#6B5744;display:block;margin-bottom:0.3rem;">Start Date</label>
                     <input type="date" id="edit-admin-start" value="${startStr}" style="width:100%;padding:0.6rem;border:1px solid #E8E0D8;border-radius:8px;box-sizing:border-box;">
                 </div>
                 <div>
-                    <label style="font-size:0.8rem;color:#6B5744;display:block;margin-bottom:0.3rem;">📅 End Date (leave empty for unlimited)</label>
+                    <label style="font-size:0.8rem;color:#6B5744;display:block;margin-bottom:0.3rem;">End Date (leave empty for unlimited)</label>
                     <input type="date" id="edit-admin-end" value="${endStr}" style="width:100%;padding:0.6rem;border:1px solid #E8E0D8;border-radius:8px;box-sizing:border-box;">
                 </div>
             </div>
@@ -1402,7 +1402,7 @@ async function adminLoadOffchainTxLog() {
             'swap_offchain': '<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>Swap'
         };
         const typeColors = {
-            'admin_mint': '#5A9A6E', 'admin_burn': '#B54534',
+            'admin_mint': '#5B7B8C', 'admin_burn': '#B54534',
             'earn': '#5B7B8C', 'spend': '#ff6f00',
             'transfer': '#455a64', 'swap_offchain': '#6a1b9a'
         };
@@ -1452,7 +1452,7 @@ async function adminLoadGivingPool() {
             infoEl.innerHTML = `
                 <div style="text-align:center;">
                     <div style="font-size:0.8rem; color:var(--accent);"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Global Giving Pool Balance</div>
-                    <div style="font-size:2rem; font-weight:800; color:#5A9A6E;">${(pool.totalAmount||0).toLocaleString()} <span style="font-size:0.9rem;">CRGC pt</span></div>
+                    <div style="font-size:2rem; font-weight:800; color:#5B7B8C;">${(pool.totalAmount||0).toLocaleString()} <span style="font-size:0.9rem;">CRGC pt</span></div>
                     <div style="font-size:0.75rem; color:var(--accent);">≈ ${((pool.totalAmount||0)/100).toFixed(2)} CRNY · Last updated: ${updated}</div>
                 </div>`;
         } else {
@@ -1470,7 +1470,7 @@ async function adminLoadGivingPool() {
             const log = doc.data();
             const time = log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString('ko-KR') : '--';
             html += `<div style="padding:0.4rem; border-bottom:1px solid #E8E0D8; font-size:0.78rem;">
-                <span style="color:#5A9A6E; font-weight:600;">+${(log.givingAmount||0).toLocaleString()}</span>
+                <span style="color:#5B7B8C; font-weight:600;">+${(log.givingAmount||0).toLocaleString()}</span>
                 <span style="color:var(--accent);"> from ${log.email||'--'}</span>
                 <span style="color:#6B5744; float:right;">${time}</span>
             </div>`;
@@ -1958,7 +1958,7 @@ async function adminLoadDeletedWallets() {
                             <div style="font-size:0.72rem;color:#6B5744;font-family:monospace;">${w.walletAddress || '--'}</div>
                             <div style="font-size:0.68rem;color:#B54534;">Deleted: ${deletedAt}</div>
                         </div>
-                        ${hasLevel(4) ? `<button onclick="adminRestoreWallet('${userDoc.id}','${wDoc.id}')" style="background:#5A9A6E;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;"><i data-lucide="rotate-ccw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Restore</button>` : ''}
+                        ${hasLevel(4) ? `<button onclick="adminRestoreWallet('${userDoc.id}','${wDoc.id}')" style="background:#5B7B8C;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;"><i data-lucide="rotate-ccw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Restore</button>` : ''}
                     </div>
                 </div>`;
             }
@@ -2042,7 +2042,7 @@ async function loadAdminWallet() {
                     <strong style="font-size:1.2rem;">${balances.fnc.toLocaleString(undefined, {maximumFractionDigits:2})}</strong>
                 </div>
                 <div style="background:#F7F3ED; padding:0.6rem 1rem; border-radius:6px; text-align:center; min-width:80px;">
-                    <div style="font-size:0.7rem; color:#5A9A6E;">CRFN</div>
+                    <div style="font-size:0.7rem; color:#5B7B8C;">CRFN</div>
                     <strong style="font-size:1.2rem;">${balances.crfn.toLocaleString(undefined, {maximumFractionDigits:2})}</strong>
                 </div>
                 <div style="background:#F7F3ED; padding:0.6rem 1rem; border-radius:6px; text-align:center; min-width:80px;">
@@ -2289,7 +2289,7 @@ async function loadAdminParticipants() {
                                     ${openTrades.length > 0 ? `
                                         <button onclick="adminForceCloseAll('${p.userId}', '${participantId}', '${challengeId}')" 
                                             style="background:#cc0000; color:#FFF8F0; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">
-                                            💥 Force Close
+                                            × Force Close
                                         </button>
                                     ` : ''}
                                     ${!isSuspended ? `
@@ -2299,7 +2299,7 @@ async function loadAdminParticipants() {
                                         </button>
                                     ` : `
                                         <button onclick="adminResumeTrading('${participantId}', '${challengeId}')" 
-                                            style="background:#5A9A6E; color:#FFF8F0; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">
+                                            style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">
                                             <i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Resume Trading
                                         </button>
                                     `}
@@ -2373,7 +2373,7 @@ async function loadAdminLog() {
             let actionColor = '';
             switch (log.action) {
                 case 'force_close_all':
-                    actionText = '💥 Force Close';
+                    actionText = '× Force Close';
                     actionColor = '#cc0000';
                     break;
                 case 'suspend_trading':
@@ -2382,7 +2382,7 @@ async function loadAdminLog() {
                     break;
                 case 'resume_trading':
                     actionText = '<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Resume Trading';
-                    actionColor = '#5A9A6E';
+                    actionColor = '#5B7B8C';
                     break;
                 default:
                     actionText = log.action;
@@ -2951,7 +2951,7 @@ async function loadCouponList() {
             const c = doc.data();
             const expiry = c.expiresAt ? c.expiresAt.toDate().toLocaleDateString('en-US') : 'Unlimited';
             const usageText = c.maxUses > 0 ? `${c.usedCount}/${c.maxUses}` : `${c.usedCount}/∞`;
-            const statusColor = c.enabled ? '#5A9A6E' : '#B54534';
+            const statusColor = c.enabled ? '#5B7B8C' : '#B54534';
             const statusText = c.enabled ? 'Active' : 'Inactive';
             const couponName = c.name || c.code;
             html += `<tr style="border-bottom:1px solid #E8E0D8;">
@@ -2965,7 +2965,7 @@ async function loadCouponList() {
                 <td style="text-align:center; color:${statusColor}; font-weight:600;">${statusText}</td>
                 <td style="text-align:center;">
                     <div style="display:flex; flex-direction:column; gap:3px; align-items:center;">
-                        <button onclick="toggleCoupon('${doc.id}', ${!c.enabled})" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:${c.enabled ? '#F7F3ED' : '#F7F3ED'}; color:${c.enabled ? '#B54534' : '#5A9A6E'}; width:100%;">${c.enabled ? 'Disable' : 'Enable'}</button>
+                        <button onclick="toggleCoupon('${doc.id}', ${!c.enabled})" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:${c.enabled ? '#F7F3ED' : '#F7F3ED'}; color:${c.enabled ? '#B54534' : '#5B7B8C'}; width:100%;">${c.enabled ? 'Disable' : 'Enable'}</button>
                         <button onclick="viewCouponLog('${doc.id}','${c.code}')" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:#F7F3ED; color:#5B7B8C; width:100%;"><i data-lucide="scroll-text" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> Log</button>
                         <button onclick="deleteCoupon('${doc.id}','${c.code}')" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:#F7F3ED; color:#B54534; width:100%;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delete</button>
                     </div>
@@ -3523,7 +3523,7 @@ function renderDashboardStats(stats) {
     const sections = stats.sections || {};
     const sectionEl = el('dash-section-stats');
     if (sectionEl) {
-        const colors = { mall: '#5A9A6E', art: '#B54534', books: '#C4841D', trading: '#C4841D', social: '#5B7B8C' };
+        const colors = { mall: '#5B7B8C', art: '#B54534', books: '#C4841D', trading: '#C4841D', social: '#5B7B8C' };
         sectionEl.innerHTML = Object.entries(sections).map(([key, sec]) => {
             const color = colors[key] || '#6B5744';
             return `<div style="background:#FFF8F0; border:1px solid ${color}33; border-left:4px solid ${color}; padding:1rem; border-radius:10px;">
@@ -3561,7 +3561,7 @@ function renderDashboardStats(stats) {
             chartTokenEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;width:100%;color:#6B5744;font-size:0.85rem;">No transaction data</div>';
         } else {
             const maxVol = Math.max(...entries.map(([,v]) => v), 1);
-            const tokenColors = { CRTD: '#C4841D', CRAC: '#B54534', CRGC: '#5A9A6E', CREB: '#2E7D32' };
+            const tokenColors = { CRTD: '#C4841D', CRAC: '#B54534', CRGC: '#5B7B8C', CREB: '#2E7D32' };
             chartTokenEl.innerHTML = entries.map(([tk, vol]) => {
                 const pct = Math.max((vol / maxVol) * 100, 2);
                 const color = tokenColors[tk] || '#6B5744';
@@ -3608,7 +3608,7 @@ async function loadAdminPendingProducts() {
                     </div>
                 </div>
                 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-                    <button onclick="approveProduct('${d.id}')" style="flex:1;background:#5A9A6E;color:#FFF8F0;border:none;padding:0.5rem;border-radius:6px;cursor:pointer;font-weight:600;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Approve</button>
+                    <button onclick="approveProduct('${d.id}')" style="flex:1;background:#5B7B8C;color:#FFF8F0;border:none;padding:0.5rem;border-radius:6px;cursor:pointer;font-weight:600;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Approve</button>
                     <button onclick="rejectProduct('${d.id}')" style="flex:1;background:#B54534;color:#FFF8F0;border:none;padding:0.5rem;border-radius:6px;cursor:pointer;font-weight:600;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Reject</button>
                 </div>
             </div>`;
@@ -3656,14 +3656,14 @@ async function loadAdminReports() {
         if (snap.empty) { c.innerHTML = '<p style="color:var(--accent);">No pending reports <i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></p>'; return; }
         c.innerHTML = '';
         const REPORT_REASONS = { fake: 'Counterfeit', inappropriate: 'Inappropriate', scam: 'Suspected Scam', fraud: 'Fraud', nondelivery: 'Non-delivery', fake_review: 'Fake Review', spam: 'Spam', other: 'Other' };
-        const TARGET_TYPE_LABELS = { product: '<i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Product', review: '<i data-lucide="file-text" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Review', seller: '🏪 Seller' };
+        const TARGET_TYPE_LABELS = { product: '<i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Product', review: '<i data-lucide="file-text" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Review', seller: 'Seller' };
         snap.forEach(d => {
             const r = d.data();
             const dateStr = r.createdAt?.toDate ? r.createdAt.toDate().toLocaleDateString('ko-KR') : '';
             c.innerHTML += `<div style="background:#F7F3ED;padding:0.8rem;border-radius:8px;margin-bottom:0.5rem;border-left:4px solid #B54534;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                     <div>
-                        <strong>🚨 ${REPORT_REASONS[r.reason] || r.reason}</strong>
+                        <strong>${REPORT_REASONS[r.reason] || r.reason}</strong>
                         <span style="font-size:0.75rem;color:var(--accent);margin-left:0.5rem;">${dateStr}</span>
                     </div>
                     <span style="font-size:0.8rem;color:var(--accent);">${TARGET_TYPE_LABELS[r.targetType] || r.targetType}: ${r.targetId?.slice(0,8)}...</span>

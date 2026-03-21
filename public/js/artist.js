@@ -1,6 +1,11 @@
-// artist.js v1.0 — 아티스트 페이지
+// artist.js v1.0 — 아티스트 페이지 (REST API migrated)
 (function() {
     'use strict';
+
+    const _authHeaders = () => {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    };
 
     window.loadArtists = async function() {
         const list = document.getElementById('artist-list');
@@ -8,21 +13,22 @@
         list.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--accent);">로딩 중...</p>';
 
         try {
-            const snap = await db.collection('artists').orderBy('createdAt', 'desc').get();
+            const res = await fetch('/api/db/artists?orderBy=createdAt&orderDir=desc&limit=100', { headers: _authHeaders() });
+            const result = await res.json();
             list.innerHTML = '';
 
-            if (snap.empty) {
+            if (result.empty) {
                 list.innerHTML = `
                     <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--accent);">
-                        <div style="font-size:3rem;margin-bottom:1rem;">🎵</div>
+                        <div style="font-size:3rem;margin-bottom:1rem;"></div>
                         <p style="font-size:1rem;margin-bottom:0.5rem;">아직 등록된 아티스트가 없습니다</p>
                         <p style="font-size:0.8rem;">관리자가 아티스트를 등록하면 여기에 표시됩니다</p>
                     </div>`;
                 return;
             }
 
-            snap.forEach(doc => {
-                const d = doc.data();
+            result.docs.forEach(doc => {
+                const d = doc.data;
                 const card = document.createElement('div');
                 card.style.cssText = 'background:var(--bg-card,#3D2B1F);border:1px solid var(--border,#E8E0D8);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform 0.2s;';
                 card.onmouseenter = () => card.style.transform = 'translateY(-4px)';
@@ -30,7 +36,7 @@
                 card.onclick = () => showArtistDetail(doc.id, d);
                 card.innerHTML = `
                     <div style="height:160px;background:${d.coverColor || 'linear-gradient(135deg,#e91e63,#9c27b0)'};display:flex;align-items:center;justify-content:center;">
-                        ${d.photoURL ? `<img src="${d.photoURL}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid white;">` : `<div style="font-size:3rem;">${d.emoji || '🎵'}</div>`}
+                        ${d.photoURL ? `<img src="${d.photoURL}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid white;">` : `<div style="font-size:3rem;">${d.emoji || ''}</div>`}
                     </div>
                     <div style="padding:0.8rem;">
                         <strong style="display:block;font-size:0.95rem;margin-bottom:0.3rem;">${d.name || '이름 없음'}</strong>
@@ -53,7 +59,7 @@
         overlay.innerHTML = `
             <div style="background:var(--bg-card,#3D2B1F);border-radius:16px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;">
                 <div style="text-align:center;margin-bottom:1rem;">
-                    ${data.photoURL ? `<img src="${data.photoURL}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;margin-bottom:0.8rem;">` : `<div style="font-size:4rem;margin-bottom:0.5rem;">${data.emoji || '🎵'}</div>`}
+                    ${data.photoURL ? `<img src="${data.photoURL}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;margin-bottom:0.8rem;">` : `<div style="font-size:4rem;margin-bottom:0.5rem;">${data.emoji || ''}</div>`}
                     <h3>${data.name || '아티스트'}</h3>
                     <p style="font-size:0.85rem;color:var(--accent);">${data.genre || ''} ${data.country ? '· ' + data.country : ''}</p>
                 </div>

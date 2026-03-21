@@ -942,14 +942,13 @@ function getAllQuiz(username) {
     const pool = BIBLE_QUIZ.filter(q => q.l <= maxDifficulty && !state.answeredIds.has(q.i));
     if (pool.length === 0) return { complete: true, total: state.answeredIds.size, correct: state.totalCorrect, rounds: state.roundsCompleted };
 
-    // Return up to ROUND_SIZE questions for the current round
-    const remaining = ROUND_SIZE - state.roundAnswered;
+    // Always return a full round of ROUND_SIZE (27) questions
     const questions = [];
     const used = new Set();
     const domains = ['SP','HU','LW','SV','HI','LD'];
 
-    for (let i = 0; i < remaining && i < pool.length; i++) {
-        const domainPref = domains[(state.roundAnswered + i) % domains.length];
+    for (let i = 0; i < ROUND_SIZE && i < pool.length; i++) {
+        const domainPref = domains[i % domains.length];
         const available = pool.filter(q => !used.has(q.i));
         if (available.length === 0) break;
         const filtered = available.filter(q => q.d === domainPref);
@@ -967,15 +966,17 @@ function getAllQuiz(username) {
         });
     }
 
-    return questions;
+    return { questions, round: { answered: state.roundAnswered, total: ROUND_SIZE, correct: state.roundCorrect } };
 }
 
 function answerQuiz(username, quizId, selectedIndex) {
-    const quiz = BIBLE_QUIZ.find(q => q.i === quizId);
+    const qid = typeof quizId === 'string' ? parseInt(quizId) : quizId;
+    const sidx = typeof selectedIndex === 'string' ? parseInt(selectedIndex) : selectedIndex;
+    const quiz = BIBLE_QUIZ.find(q => q.i === qid);
     if (!quiz) return { error: '잘못된 퀴즈' };
 
-    const correct = selectedIndex === quiz.a;
-    const scoreCell = createCell(`성경:${quiz.r}`, TY.QUIZ_SCORE, quiz.i, username);
+    const correct = sidx === quiz.a;
+    const scoreCell = createCell(`성경:${quiz.r}`, TY.QUIZ_SCORE, qid, username);
     scoreCell.correct = correct;
 
     // Knowledge cell for ontological tracking
@@ -1054,9 +1055,12 @@ function answerQuiz(username, quizId, selectedIndex) {
 // 스왑: 상향만 허용 (CRM→FNC, FNC→CRN), 역방향 불가
 
 function getWallet(username) {
-    // CrownyCell Chain 사용 가능하면 체인에서 조회
+    // CrownyCell Chain 사용 가능하면 체인에서 조회 (null이면 레거시 폴백)
     if (chainAdapter) {
-        try { return chainAdapter.chainGetWallet(username); } catch (e) { console.warn('[CHAIN] getWallet fallback:', e.message); }
+        try {
+            const chainWallet = chainAdapter.chainGetWallet(username);
+            if (chainWallet) return chainWallet;
+        } catch (e) { console.warn('[CHAIN] getWallet fallback:', e.message); }
     }
     // 레거시 폴백 (JSON 기반)
     const wallets = findCellsByOwner(username, TY.WALLET);
@@ -3896,6 +3900,520 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
+        // ═══ 관리자 확장 API (admin.js migration) ═══
+
+        // GET /api/admin/dashboard-stats
+        if (path === '/api/admin/dashboard-stats' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const forceRefresh = url.searchParams.get('force') === '1';
+            const cacheFile = 'admin_dashboard_cache.json';
+            const CACHE_TTL = 5 * 60 * 1000;
+            if (!forceRefresh) {
+                const cached = loadJSON(cacheFile, null);
+                if (cached && cached.cachedAt && Date.now() - cached.cachedAt < CACHE_TTL) { res.end(JSON.stringify(cached)); return; }
+            }
+            const stats = {};
+            const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+            const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            const allU = Object.values(users); stats.totalUsers = allU.length;
+            let todayU = 0, weekU = 0;
+            const signups7d = {};
+            for (let i = 6; i >= 0; i--) { const d = new Date(todayStart); d.setDate(d.getDate() - i); signups7d[d.toISOString().slice(0,10)] = 0; }
+            allU.forEach(u => { const c = u.created ? new Date(u.created) : null; if (c) { if (c >= todayStart) todayU++; if (c >= weekStart) weekU++; const k = c.toISOString().slice(0,10); if (k in signups7d) signups7d[k]++; } });
+            stats.todayUsers = todayU; stats.weekUsers = weekU; stats.signups7d = signups7d;
+            const offTxArr = Object.values(getCollection('offchain_transactions'));
+            stats.totalTx = offTxArr.length; let todayTx = 0; const txByToken = {};
+            offTxArr.forEach(tx => { const ts = tx.timestamp ? new Date(tx.timestamp) : null; if (ts && ts >= todayStart) todayTx++; const tk = (tx.token || 'unknown').toUpperCase(); txByToken[tk] = (txByToken[tk] || 0) + Math.abs(tx.amount || 0); });
+            stats.todayTx = todayTx; stats.txByToken = txByToken;
+            const sections = {};
+            const productsArr = Object.values(getCollection('products')); const ordersArr = Object.values(getCollection('orders'));
+            let mallRev = 0; ordersArr.forEach(o => { mallRev += o.totalPrice || o.price || 0; });
+            sections.mall = { icon: 'shopping-cart', label: 'MALL', items: [{ label: 'Total Products', value: productsArr.length }, { label: 'Total Orders', value: ordersArr.length }, { label: 'Total Revenue', value: mallRev.toLocaleString() + ' pt' }] };
+            const artArr = Object.values(getCollection('artworks')); let artS = 0; artArr.forEach(a => { artS += a.sold || 0; });
+            sections.art = { icon: 'theater', label: 'ART', items: [{ label: 'Total Artworks', value: artArr.length }, { label: 'Total Sold', value: artS }] };
+            const bookArr = Object.values(getCollection('books')); let bookS = 0; bookArr.forEach(b => { bookS += b.sold || 0; });
+            sections.books = { icon: 'book', label: 'BOOKS', items: [{ label: 'Total Books', value: bookArr.length }, { label: 'Total Sold', value: bookS }] };
+            const chList = getChallenges(); const actCh = chList.filter(c => c.status === 'active');
+            let totP = 0; actCh.forEach(c => { totP += c.participants || 0; });
+            sections.trading = { icon: 'bar-chart-3', label: 'TRADING', items: [{ label: 'Active Challenges', value: actCh.length }, { label: 'Participants', value: totP }] };
+            let pCnt = 0; try { pCnt = JSON.parse(fs.readFileSync(pathModule.join(SOCIAL_DIR, 'posts.json'), 'utf8')).length; } catch(e) {}
+            sections.social = { icon: 'message-circle', label: 'SOCIAL', items: [{ label: 'Total Posts', value: pCnt }] };
+            stats.sections = sections; stats.cachedAt = Date.now(); saveJSON(cacheFile, stats);
+            res.end(JSON.stringify(stats)); return;
+        }
+
+        // POST /api/admin/mint-offchain
+        if (path === '/api/admin/mint-offchain' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { email, tokenKey, amount, reason } = body;
+            if (!email || !tokenKey || !amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"email, tokenKey, amount required"}'); return; }
+            const tu = Object.values(users).find(u => u.email === email);
+            if (!tu) { res.statusCode = 404; res.end('{"error":"user not found"}'); return; }
+            if (!tu.offchainBalances) tu.offchainBalances = {};
+            tu.offchainBalances[tokenKey] = (tu.offchainBalances[tokenKey] || 0) + amount;
+            saveJSON('users.json', users);
+            const otx = getCollection('offchain_transactions');
+            otx[generateDocId()] = { from: 'ADMIN', fromEmail: user.email, to: tu.username, toEmail: email, token: tokenKey, amount, type: 'admin_mint', reason: reason || 'Admin mint', adminLevel: 6, timestamp: Date.now() };
+            saveCollection('offchain_transactions', otx);
+            const al = getCollection('admin_log');
+            al[generateDocId()] = { action: 'offchain_mint', adminEmail: user.email, adminLevel: 6, targetEmail: email, token: tokenKey.toUpperCase(), amount, reason: reason || '', timestamp: Date.now() };
+            saveCollection('admin_log', al);
+            res.end(JSON.stringify({ ok: true, newBalance: tu.offchainBalances[tokenKey] })); return;
+        }
+
+        // POST /api/admin/burn-offchain
+        if (path === '/api/admin/burn-offchain' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { email, tokenKey, amount, reason } = body;
+            if (!email || !tokenKey || !amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"email, tokenKey, amount required"}'); return; }
+            const tu = Object.values(users).find(u => u.email === email);
+            if (!tu) { res.statusCode = 404; res.end('{"error":"user not found"}'); return; }
+            if (!tu.offchainBalances) tu.offchainBalances = {};
+            const cur = tu.offchainBalances[tokenKey] || 0;
+            if (amount > cur) { res.statusCode = 400; res.end(JSON.stringify({ error: 'insufficient balance', current: cur })); return; }
+            tu.offchainBalances[tokenKey] = cur - amount;
+            saveJSON('users.json', users);
+            const otx = getCollection('offchain_transactions');
+            otx[generateDocId()] = { from: tu.username, fromEmail: email, to: 'ADMIN', toEmail: user.email, token: tokenKey, amount: -amount, type: 'admin_burn', reason: reason || 'Admin burn', adminLevel: 6, timestamp: Date.now() };
+            saveCollection('offchain_transactions', otx);
+            const al = getCollection('admin_log');
+            al[generateDocId()] = { action: 'offchain_burn', adminEmail: user.email, adminLevel: 6, targetEmail: email, token: tokenKey.toUpperCase(), amount: -amount, reason: reason || '', timestamp: Date.now() };
+            saveCollection('admin_log', al);
+            res.end(JSON.stringify({ ok: true, newBalance: tu.offchainBalances[tokenKey] })); return;
+        }
+
+        // POST /api/admin/batch-distribute
+        if (path === '/api/admin/batch-distribute' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { tokenKey, amount, reason, emails } = body;
+            if (!tokenKey || !amount || amount <= 0 || !emails || !Array.isArray(emails)) { res.statusCode = 400; res.end('{"error":"tokenKey, amount, emails[] required"}'); return; }
+            let suc = 0, fai = 0; const fl = [];
+            const otx = getCollection('offchain_transactions');
+            for (const em of emails) { const tu = Object.values(users).find(u => u.email === em); if (!tu) { fai++; fl.push(em + ' (not found)'); continue; } if (!tu.offchainBalances) tu.offchainBalances = {}; tu.offchainBalances[tokenKey] = (tu.offchainBalances[tokenKey] || 0) + amount; otx[generateDocId()] = { from: 'ADMIN', fromEmail: user.email, to: tu.username, toEmail: em, token: tokenKey, amount, type: 'admin_batch_mint', reason: reason || 'Batch', adminLevel: 6, timestamp: Date.now() }; suc++; }
+            saveJSON('users.json', users); saveCollection('offchain_transactions', otx);
+            const al = getCollection('admin_log');
+            al[generateDocId()] = { action: 'batch_distribute', adminEmail: user.email, adminLevel: 6, token: tokenKey.toUpperCase(), amountPerUser: amount, totalAmount: amount * suc, successCount: suc, failCount: fai, reason: reason || '', timestamp: Date.now() };
+            saveCollection('admin_log', al);
+            res.end(JSON.stringify({ ok: true, success: suc, fail: fai, failList: fl })); return;
+        }
+
+        // GET /api/admin/all-emails
+        if (path === '/api/admin/all-emails' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const emails = Object.values(users).map(u => u.email).filter(Boolean);
+            res.end(JSON.stringify({ emails, count: emails.length })); return;
+        }
+
+        // GET /api/admin/offchain-lookup
+        if (path === '/api/admin/offchain-lookup' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const email = url.searchParams.get('email');
+            if (!email) { res.statusCode = 400; res.end('{"error":"email required"}'); return; }
+            const tu = Object.values(users).find(u => u.email === email);
+            if (!tu) { res.statusCode = 404; res.end('{"error":"user not found"}'); return; }
+            res.end(JSON.stringify({ username: tu.username, email: tu.email, nickname: tu.displayName || tu.nickname || '', offchainBalances: tu.offchainBalances || {} })); return;
+        }
+
+        // GET /api/admin/offchain-tx-log
+        if (path === '/api/admin/offchain-tx-log' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const arr = Object.entries(getCollection('offchain_transactions')).map(([id, tx]) => ({ id, ...tx }));
+            arr.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            res.end(JSON.stringify({ items: arr.slice(0, 30) })); return;
+        }
+
+        // GET /api/admin/user-list
+        if (path === '/api/admin/user-list' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const allU = Object.values(users).map(u => ({ id: u.username, username: u.username, email: u.email, nickname: u.displayName || u.nickname || '', adminLevel: u.adminLevel ?? (ADMIN_USERS.includes(u.username) ? 6 : -1), adminCountry: u.adminCountry || [], adminBusiness: u.adminBusiness || [], adminService: u.adminService || [], adminStartDate: u.adminStartDate || null, adminEndDate: u.adminEndDate || null, appointedBy: u.appointedBy || null, created: u.created || null, isAdmin: ADMIN_USERS.includes(u.username) }));
+            allU.sort((a, b) => (b.adminLevel || -1) - (a.adminLevel || -1));
+            const acfg = loadJSON('admin_config_settings.json', { quotas: {} });
+            res.end(JSON.stringify({ users: allU, quotas: acfg.quotas || {} })); return;
+        }
+
+        // POST /api/admin/set-admin-level
+        if (path === '/api/admin/set-admin-level' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { targetEmail, level } = body;
+            if (!targetEmail || level === undefined) { res.statusCode = 400; res.end('{"error":"targetEmail, level required"}'); return; }
+            const tu = Object.values(users).find(u => u.email === targetEmail);
+            if (!tu) { res.statusCode = 404; res.end('{"error":"user not found"}'); return; }
+            const prev = tu.adminLevel ?? -1;
+            tu.adminLevel = level; tu.appointedBy = user.email; tu.appointedByLevel = 6; tu.appointedAt = Date.now();
+            saveJSON('users.json', users);
+            const al = getCollection('admin_log');
+            al[generateDocId()] = { action: 'set_admin_level', adminEmail: user.email, adminLevel: 6, targetEmail, prevLevel: prev, newLevel: level, timestamp: Date.now() };
+            saveCollection('admin_log', al);
+            res.end(JSON.stringify({ ok: true, prevLevel: prev, newLevel: level })); return;
+        }
+
+        // POST /api/admin/edit-admin
+        if (path === '/api/admin/edit-admin' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { targetUsername, level, country, business, service, startDate, endDate } = body;
+            if (!targetUsername) { res.statusCode = 400; res.end('{"error":"targetUsername required"}'); return; }
+            const tu = users[targetUsername];
+            if (!tu) { res.statusCode = 404; res.end('{"error":"user not found"}'); return; }
+            const prev = tu.adminLevel ?? -1;
+            tu.adminLevel = level ?? prev; tu.adminCountry = country || []; tu.adminBusiness = business || [];
+            tu.adminService = service || []; tu.adminStartDate = startDate || null; tu.adminEndDate = endDate || null;
+            tu.appointedBy = user.email; tu.appointedByLevel = 6; tu.appointedAt = Date.now();
+            saveJSON('users.json', users);
+            const al = getCollection('admin_log');
+            al[generateDocId()] = { action: 'admin_edit', adminEmail: user.email, adminLevel: 6, targetEmail: tu.email, prevLevel: prev, newLevel: tu.adminLevel, country: country || [], business: business || [], service: service || [], timestamp: Date.now() };
+            saveCollection('admin_log', al);
+            res.end(JSON.stringify({ ok: true })); return;
+        }
+
+        // POST /api/admin/save-quotas
+        if (path === '/api/admin/save-quotas' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const cfg = loadJSON('admin_config_settings.json', {}); cfg.quotas = body.quotas || {};
+            saveJSON('admin_config_settings.json', cfg);
+            res.end(JSON.stringify({ ok: true })); return;
+        }
+
+        // GET /api/admin/admin-stats
+        if (path === '/api/admin/admin-stats' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const st = {};
+            for (let lv = 1; lv <= 5; lv++) st[lv] = Object.values(users).filter(u => (u.adminLevel || -1) === lv).length;
+            res.end(JSON.stringify(st)); return;
+        }
+
+        // GET /api/admin/log
+        if (path === '/api/admin/log' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const fa = url.searchParams.get('action') || null;
+            let arr = Object.entries(getCollection('admin_log')).map(([id, l]) => ({ id, ...l }));
+            if (fa) arr = arr.filter(l => l.action === fa);
+            arr.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            res.end(JSON.stringify({ items: arr.slice(0, parseInt(url.searchParams.get('limit') || '20')) })); return;
+        }
+
+        // GET /api/admin/giving-pool
+        if (path === '/api/admin/giving-pool' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const pool = loadJSON('giving_pool.json', { totalAmount: 0, lastUpdated: null });
+            const logsArr = Object.values(getCollection('giving_pool_logs')).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 20);
+            res.end(JSON.stringify({ pool, logs: logsArr })); return;
+        }
+
+        // POST /api/admin/giving-distribute
+        if (path === '/api/admin/giving-distribute' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { email, amount } = body;
+            if (!email || !amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"email, amount required"}'); return; }
+            const pool = loadJSON('giving_pool.json', { totalAmount: 0 });
+            if (amount > pool.totalAmount) { res.statusCode = 400; res.end(JSON.stringify({ error: 'insufficient pool', current: pool.totalAmount })); return; }
+            const tu = Object.values(users).find(u => u.email === email);
+            if (!tu) { res.statusCode = 404; res.end('{"error":"user not found"}'); return; }
+            if (!tu.offchainBalances) tu.offchainBalances = {};
+            tu.offchainBalances.crgc = (tu.offchainBalances.crgc || 0) + amount;
+            pool.totalAmount -= amount; pool.lastUpdated = Date.now();
+            saveJSON('users.json', users); saveJSON('giving_pool.json', pool);
+            const otx = getCollection('offchain_transactions');
+            otx[generateDocId()] = { from: 'GIVING_POOL', fromEmail: 'giving_pool', to: tu.username, toEmail: email, token: 'crgc', amount, type: 'giving_distribute', adminEmail: user.email, timestamp: Date.now() };
+            saveCollection('offchain_transactions', otx);
+            const al = getCollection('admin_log');
+            al[generateDocId()] = { action: 'giving_distribute', adminEmail: user.email, adminLevel: 6, targetEmail: email, amount, timestamp: Date.now() };
+            saveCollection('admin_log', al);
+            res.end(JSON.stringify({ ok: true, poolRemaining: pool.totalAmount })); return;
+        }
+
+        // GET/POST /api/admin/exchange-rate
+        if (path === '/api/admin/exchange-rate' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            res.end(JSON.stringify(loadJSON('admin_exchange_rate.json', { rates: { crtd: 100, crac: 100, crgc: 100, creb: 100 }, rate: 100, history: [] }))); return;
+        }
+        if (path === '/api/admin/exchange-rate' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { rates, reason, changes } = body;
+            if (!rates) { res.statusCode = 400; res.end('{"error":"rates required"}'); return; }
+            const rd = loadJSON('admin_exchange_rate.json', { rates: {}, rate: 100, history: [] });
+            if (changes && Array.isArray(changes)) { for (const c of changes) rd.history.push({ ...c, reason: reason || '', adminEmail: user.email, adminLevel: 6, timestamp: Date.now() }); }
+            rd.rates = rates; rd.rate = rates.crtd || 100; rd.lastChangedBy = user.email; rd.lastChangedAt = Date.now();
+            saveJSON('admin_exchange_rate.json', rd);
+            const al = getCollection('admin_log');
+            al[generateDocId()] = { action: 'exchange_rate_change', adminEmail: user.email, adminLevel: 6, changes: changes || [], reason: reason || '', timestamp: Date.now() };
+            saveCollection('admin_log', al);
+            res.end(JSON.stringify({ ok: true })); return;
+        }
+
+        // GET/POST /api/admin/coupons
+        if (path === '/api/admin/coupons' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const arr = Object.entries(getCollection('coupons')).map(([id, c]) => ({ id, ...c }));
+            arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            res.end(JSON.stringify({ items: arr })); return;
+        }
+        if (path === '/api/admin/coupons' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { name, code, tokenKey, amount, maxUses, expiresAt, description } = body;
+            if (!name || !code || !tokenKey || !amount) { res.statusCode = 400; res.end('{"error":"name, code, tokenKey, amount required"}'); return; }
+            const coupons = getCollection('coupons');
+            if (Object.values(coupons).find(c => c.code === code.toUpperCase())) { res.statusCode = 409; res.end('{"error":"code exists"}'); return; }
+            const id = generateDocId();
+            coupons[id] = { name, code: code.toUpperCase(), tokenKey, amount, maxUses: maxUses || 0, usedCount: 0, expiresAt: expiresAt || null, createdBy: user.username, createdAt: Date.now(), enabled: true, description: description || '' };
+            saveCollection('coupons', coupons);
+            res.end(JSON.stringify({ ok: true, id })); return;
+        }
+
+        // POST /api/admin/coupons/:id/toggle
+        if (/^\/api\/admin\/coupons\/[^/]+\/toggle$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const cid = path.split('/')[4]; const cps = getCollection('coupons');
+            if (!cps[cid]) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            cps[cid].enabled = body.enabled !== undefined ? body.enabled : !cps[cid].enabled;
+            saveCollection('coupons', cps);
+            res.end(JSON.stringify({ ok: true, enabled: cps[cid].enabled })); return;
+        }
+
+        // DELETE /api/admin/coupons/:id
+        if (/^\/api\/admin\/coupons\/[^/]+$/.test(path) && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const cid = path.split('/')[4]; const cps = getCollection('coupons');
+            if (!cps[cid]) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            delete cps[cid]; saveCollection('coupons', cps);
+            res.end(JSON.stringify({ ok: true })); return;
+        }
+
+        // GET /api/admin/coupon-log/:id
+        if (/^\/api\/admin\/coupon-log\/[^/]+$/.test(path) && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const cid = path.split('/')[4];
+            const arr = Object.values(getCollection('coupon_logs')).filter(l => l.couponId === cid);
+            arr.sort((a, b) => (b.usedAt || 0) - (a.usedAt || 0));
+            res.end(JSON.stringify({ items: arr })); return;
+        }
+
+        // GET /api/admin/pending-products
+        if (path === '/api/admin/pending-products' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const pending = Object.entries(getCollection('products')).filter(([, p]) => p.status === 'pending').map(([id, p]) => ({ id, ...p }));
+            pending.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            res.end(JSON.stringify({ items: pending.slice(0, 50) })); return;
+        }
+
+        // POST /api/admin/approve-product
+        if (path === '/api/admin/approve-product' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const products = getCollection('products');
+            if (!products[body.productId]) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            products[body.productId].status = 'active'; products[body.productId].approvedAt = Date.now(); products[body.productId].approvedBy = user.username;
+            saveCollection('products', products);
+            res.end(JSON.stringify({ ok: true })); return;
+        }
+
+        // POST /api/admin/reject-product
+        if (path === '/api/admin/reject-product' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const products = getCollection('products');
+            if (!products[body.productId]) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            products[body.productId].status = 'rejected'; products[body.productId].rejectedAt = Date.now();
+            products[body.productId].rejectedBy = user.username; products[body.productId].rejectReason = body.reason || '';
+            saveCollection('products', products);
+            res.end(JSON.stringify({ ok: true })); return;
+        }
+
+        // GET /api/admin/reports
+        if (path === '/api/admin/reports' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const pending = Object.entries(getCollection('reports')).filter(([, r]) => r.status === 'pending').map(([id, r]) => ({ id, ...r }));
+            pending.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            res.end(JSON.stringify({ items: pending.slice(0, 50) })); return;
+        }
+
+        // POST /api/admin/handle-report
+        if (path === '/api/admin/handle-report' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { reportId, action } = body;
+            const reports = getCollection('reports');
+            if (!reports[reportId]) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            reports[reportId].status = action; reports[reportId].handledBy = user.username; reports[reportId].handledAt = Date.now();
+            if (action === 'confirmed' && reports[reportId].targetId) {
+                const r = reports[reportId];
+                if (r.targetType === 'product') { const p = getCollection('products'); if (p[r.targetId]) { p[r.targetId].status = 'removed'; p[r.targetId].removedAt = Date.now(); saveCollection('products', p); } }
+                else if (r.targetType === 'review') { const rv = getCollection('product_reviews'); delete rv[r.targetId]; saveCollection('product_reviews', rv); }
+            }
+            saveCollection('reports', reports);
+            res.end(JSON.stringify({ ok: true })); return;
+        }
+
+        // GET/POST /api/admin/referral-config
+        if (path === '/api/admin/referral-config' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            res.end(JSON.stringify(loadJSON('admin_referral_rewards.json', { signupRewards: { crtd: 30, crac: 20, crgc: 30, creb: 20 } }))); return;
+        }
+        if (path === '/api/admin/referral-config' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { signupRewards } = body;
+            if (!signupRewards) { res.statusCode = 400; res.end('{"error":"signupRewards required"}'); return; }
+            const cfg = loadJSON('admin_referral_rewards.json', {}); cfg.signupRewards = signupRewards; cfg.updatedAt = Date.now(); cfg.updatedBy = user.email;
+            saveJSON('admin_referral_rewards.json', cfg);
+            const al = getCollection('admin_log');
+            al[generateDocId()] = { action: 'referral_reward_config_change', newConfig: signupRewards, adminEmail: user.email, timestamp: Date.now() };
+            saveCollection('admin_log', al);
+            res.end(JSON.stringify({ ok: true })); return;
+        }
+
+        // GET/POST /api/admin/token-registry
+        if (path === '/api/admin/token-registry' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            res.end(JSON.stringify(loadJSON('admin_tokens.json', { registry: {} }))); return;
+        }
+        if (path === '/api/admin/token-registry' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { action: tAct, key, tokenData } = body;
+            const tokens = loadJSON('admin_tokens.json', { registry: {} });
+            if (tAct === 'create' && key && tokenData) { if (tokens.registry[key]) { res.statusCode = 409; res.end('{"error":"exists"}'); return; } tokens.registry[key] = { ...tokenData, createdBy: user.email, createdAt: Date.now() }; }
+            else if (tAct === 'delete' && key) { delete tokens.registry[key]; }
+            else { res.statusCode = 400; res.end('{"error":"action, key required"}'); return; }
+            saveJSON('admin_tokens.json', tokens);
+            const al = getCollection('admin_log');
+            al[generateDocId()] = { action: tAct === 'create' ? 'create_token' : 'delete_token', adminEmail: user.email, tokenKey: key, timestamp: Date.now() };
+            saveCollection('admin_log', al);
+            res.end(JSON.stringify({ ok: true })); return;
+        }
+
+        // GET/POST /api/admin/reward-settings
+        if (path === '/api/admin/reward-settings' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const rs = loadJSON('admin_reward_settings.json', { signupEnabled: true, signupTiers: [{maxUsers:1000,amount:100},{maxUsers:10000,amount:30},{maxUsers:100000,amount:10}], inviteEnabled: true, inviteAmount: 0.5, inviteMaxPerUser: 100 });
+            const is = loadJSON('admin_invite_settings.json', {});
+            const logsArr = Object.entries(getCollection('reward_logs')).map(([id, l]) => ({ id, ...l })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            res.end(JSON.stringify({ rewardSettings: rs, inviteSettings: is, logs: logsArr.slice(0, 50) })); return;
+        }
+        if (path === '/api/admin/reward-settings' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { rewardSettings, inviteSettings } = body;
+            if (rewardSettings) { rewardSettings.updatedAt = Date.now(); rewardSettings.updatedBy = user.email; saveJSON('admin_reward_settings.json', rewardSettings); }
+            if (inviteSettings) { inviteSettings.updatedAt = Date.now(); inviteSettings.updatedBy = user.email; saveJSON('admin_invite_settings.json', inviteSettings); }
+            const al = getCollection('admin_log');
+            al[generateDocId()] = { action: 'reward_settings_change', adminEmail: user.email, timestamp: Date.now() };
+            saveCollection('admin_log', al);
+            res.end(JSON.stringify({ ok: true })); return;
+        }
+
+        // GET/POST /api/admin/super-wallets
+        if (path === '/api/admin/super-wallets' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            res.end(JSON.stringify(loadJSON('admin_super_wallets_' + user.username + '.json', { original: null, operating: null, default: null, activeWallet: 'default' }))); return;
+        }
+        if (path === '/api/admin/super-wallets' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { action: wAct, type, toType, tokenKey, amount } = body;
+            const fn = 'admin_super_wallets_' + user.username + '.json';
+            const w = loadJSON(fn, { original: null, operating: null, default: null, activeWallet: 'default' });
+            if (wAct === 'create' && type) { w[type] = { type, offchainBalances: {}, balances: {}, createdAt: Date.now(), createdBy: user.email }; }
+            else if (wAct === 'switch' && type) { w.activeWallet = type; }
+            else if (wAct === 'transfer' && type && toType && tokenKey && amount > 0) {
+                if (!w[type]) { res.statusCode = 400; res.end('{"error":"source not found"}'); return; }
+                const fb = (w[type].offchainBalances || {})[tokenKey] || 0;
+                if (fb < amount) { res.statusCode = 400; res.end(JSON.stringify({ error: 'insufficient', current: fb })); return; }
+                if (!w[toType]) w[toType] = { type: toType, offchainBalances: {}, balances: {}, createdAt: Date.now() };
+                w[type].offchainBalances[tokenKey] = fb - amount;
+                if (!w[toType].offchainBalances) w[toType].offchainBalances = {};
+                w[toType].offchainBalances[tokenKey] = (w[toType].offchainBalances[tokenKey] || 0) + amount;
+                const al = getCollection('admin_log');
+                al[generateDocId()] = { action: 'super_internal_transfer', adminEmail: user.email, fromWallet: type, toWallet: toType, token: tokenKey, amount, timestamp: Date.now() };
+                saveCollection('admin_log', al);
+            } else { res.statusCode = 400; res.end('{"error":"invalid action"}'); return; }
+            saveJSON(fn, w);
+            res.end(JSON.stringify({ ok: true, wallets: w })); return;
+        }
+
+        // POST /api/admin/register-product
+        if (path === '/api/admin/register-product' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { title, description, category, price, stock, images } = body;
+            if (!title || !price) { res.statusCode = 400; res.end('{"error":"title, price required"}'); return; }
+            const products = getCollection('products'); const id = generateDocId();
+            products[id] = { title, description: description || '', category: category || 'other', price, priceToken: 'CRGC', stock: stock || 1, images: images || [], imageData: (images && images[0]) || '', sellerId: user.username, sellerEmail: user.email, sellerNickname: user.displayName || user.nickname || '', sold: 0, status: ADMIN_USERS.includes(user.username) ? 'active' : 'pending', createdAt: Date.now() };
+            saveCollection('products', products);
+            res.end(JSON.stringify({ ok: true, id })); return;
+        }
+
+        // POST /api/admin/referral-generate
+        if (path === '/api/admin/referral-generate' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            if (user.referralCode) { res.end(JSON.stringify({ code: user.referralCode, nickname: user.referralNickname || '' })); return; }
+            let code; let ex = true;
+            while (ex) { code = 'CR-' + Math.random().toString(36).slice(2, 8).toUpperCase(); ex = Object.values(users).some(u => u.referralCode === code); }
+            user.referralCode = code; user.referralNickname = (body.nickname || '').trim() || user.displayName || '';
+            user.referralCount = 0; user.referralEarnings = { crny: 0, fnc: 0, crfn: 0, crtd: 0, crac: 0, crgc: 0, creb: 0 };
+            saveJSON('users.json', users);
+            res.end(JSON.stringify({ ok: true, code })); return;
+        }
+
+        // POST /api/admin/challenge-participant-update
+        if (path === '/api/admin/challenge-participant-update' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const { challengeId, participantId, updates } = body;
+            if (!challengeId || !participantId || !updates) { res.statusCode = 400; res.end('{"error":"challengeId, participantId, updates required"}'); return; }
+            const td = getTradingData(participantId);
+            if (!td) { res.statusCode = 404; res.end('{"error":"participant not found"}'); return; }
+            const allowed = ['currentBalance', 'dailyLocked', 'adminSuspended', 'suspendReason', 'suspendedAt', 'suspendedBy', 'dailyPnL', 'dailyLossLimit', 'maxDrawdown', 'copyAccounts', 'tradingTier'];
+            for (const [k, v] of Object.entries(updates)) { if (allowed.includes(k)) td[k] = v; }
+            saveTradingData(participantId, td);
+            const al = getCollection('admin_log');
+            al[generateDocId()] = { action: 'challenge_participant_update', adminEmail: user.email, adminLevel: 6, participantId, challengeId, updates, timestamp: Date.now() };
+            saveCollection('admin_log', al);
+            res.end(JSON.stringify({ ok: true })); return;
+        }
+
+        // GET /api/admin/challenge-participants
+        if (path === '/api/admin/challenge-participants' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            const chs = getChallenges().filter(c => c.status === 'active').slice(0, 5);
+            const result = [];
+            for (const ch of chs) {
+                const parts = [];
+                if (ch.participantList && Array.isArray(ch.participantList)) { for (const pU of ch.participantList) { const td = getTradingData(pU); if (td) parts.push({ id: pU, ...td }); } }
+                result.push({ id: ch.id, title: ch.name || ch.title || 'Challenge', participants: parts });
+            }
+            res.end(JSON.stringify({ challenges: result })); return;
+        }
+
         // ═══ 설정 / 알림 ═══
 
         // POST /api/profile/settings — 알림 설정 저장
@@ -4435,6 +4953,2220 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify({ ok: true, subscribed, subscriberCount: channel.subscribers.length }));
             return;
         }
+
+        // ═══ ART MODULE API ═══
+
+        // --- Art: Image Upload (base64) ---
+        if (path === '/api/art/upload-image' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { imageData, thumbnailData, artworkId } = body;
+            if (!imageData) { res.writeHead(400); res.end(JSON.stringify({ error: 'imageData required' })); return; }
+            // Store images as base64 in data/art_images/
+            const imgDir = pathModule.join(DATA_DIR, 'art_images');
+            if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
+            const id = artworkId || `art_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            fs.writeFileSync(pathModule.join(imgDir, id + '_main.txt'), imageData);
+            if (thumbnailData) fs.writeFileSync(pathModule.join(imgDir, id + '_thumb.txt'), thumbnailData);
+            res.end(JSON.stringify({ ok: true, imageUrl: `/api/art/image/${id}_main`, thumbnailUrl: thumbnailData ? `/api/art/image/${id}_thumb` : `/api/art/image/${id}_main`, isBase64: true }));
+            return;
+        }
+
+        // --- Art: Serve stored image ---
+        if (path.startsWith('/api/art/image/') && req.method === 'GET') {
+            const imgId = path.replace('/api/art/image/', '');
+            const imgFile = pathModule.join(DATA_DIR, 'art_images', imgId + '.txt');
+            if (fs.existsSync(imgFile)) {
+                const data = fs.readFileSync(imgFile, 'utf8');
+                // data is a data URL like data:image/jpeg;base64,...
+                if (data.startsWith('data:')) {
+                    const match = data.match(/^data:(image\/[^;]+);base64,(.+)$/);
+                    if (match) {
+                        res.writeHead(200, { 'Content-Type': match[1], 'Cache-Control': 'public, max-age=31536000' });
+                        res.end(Buffer.from(match[2], 'base64'));
+                        return;
+                    }
+                }
+                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.end(data);
+            } else {
+                res.writeHead(404); res.end('Not found');
+            }
+            return;
+        }
+
+        // --- Art: Artist profiles ---
+        if (path === '/api/art/artist-profile' && req.method === 'GET') {
+            const artistId = params.get('artistId');
+            if (!artistId) { res.writeHead(400); res.end(JSON.stringify({ error: 'artistId required' })); return; }
+            const profiles = loadJSON('art_artist_profiles.json', {});
+            res.end(JSON.stringify({ ok: true, profile: profiles[artistId] || null }));
+            return;
+        }
+
+        if (path === '/api/art/artist-profile' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { artistId, updateData, initData } = body;
+            if (!artistId) { res.writeHead(400); res.end(JSON.stringify({ error: 'artistId required' })); return; }
+            const profiles = loadJSON('art_artist_profiles.json', {});
+            if (!profiles[artistId] && initData) {
+                profiles[artistId] = { userId: artistId, nickname: '', email: '', bio: '', profileImage: '', totalWorks: 0, totalWorksCount: 0, totalSales: 0, totalSoldCount: 0, totalRevenue: 0, totalLikes: 0, totalDonationContribution: 0, baseWeightMultiplier: 1.0, weightMultiplier: 1.0, verified: false, createdAt: new Date().toISOString(), ...initData };
+            }
+            if (profiles[artistId] && updateData) {
+                // Handle increment operations
+                for (const [k, v] of Object.entries(updateData)) {
+                    if (typeof v === 'object' && v && v._inc !== undefined) {
+                        profiles[artistId][k] = (profiles[artistId][k] || 0) + v._inc;
+                    } else {
+                        profiles[artistId][k] = v;
+                    }
+                }
+            }
+            saveJSON('art_artist_profiles.json', profiles);
+            res.end(JSON.stringify({ ok: true, profile: profiles[artistId] }));
+            return;
+        }
+
+        // --- Art: Recalculate artist weight ---
+        if (path === '/api/art/recalculate-weight' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { artistId } = body;
+            if (!artistId) { res.writeHead(400); res.end(JSON.stringify({ error: 'artistId required' })); return; }
+            const profiles = loadJSON('art_artist_profiles.json', {});
+            if (!profiles[artistId]) { res.end(JSON.stringify({ ok: true, weight: 1.0 })); return; }
+            const data = profiles[artistId];
+            const totalSoldCount = data.totalSoldCount || data.totalSales || 0;
+            const totalDonationContribution = data.totalDonationContribution || 0;
+            let weight = 1.0 + (totalSoldCount * 0.05) + (totalDonationContribution * 0.01);
+            weight = Math.max(1.0, Math.min(10.0, weight));
+            weight = Math.round(weight * 100) / 100;
+            profiles[artistId].weightMultiplier = weight;
+            saveJSON('art_artist_profiles.json', profiles);
+            res.end(JSON.stringify({ ok: true, weight }));
+            return;
+        }
+
+        // --- Art: Gallery (list artworks) ---
+        if (path === '/api/art/gallery' && req.method === 'GET') {
+            const artworks = loadJSON('art_gallery.json', {});
+            const filterCat = params.get('category') || 'all';
+            const filterSort = params.get('sort') || 'newest';
+            const filterNFT = params.get('nft') || 'all';
+            const limit = parseInt(params.get('limit')) || 40;
+            let items = Object.entries(artworks).map(([id, data]) => ({ id, ...data })).filter(a => a.status === 'active');
+            if (filterCat !== 'all') items = items.filter(a => a.category === filterCat);
+            if (filterNFT === 'nft') items = items.filter(a => a.isNFT);
+            if (filterNFT === 'non-nft') items = items.filter(a => !a.isNFT);
+            if (filterSort === 'popular') items.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+            else if (filterSort === 'price-low') items.sort((a, b) => (a.price || 0) - (b.price || 0));
+            else if (filterSort === 'price-high') items.sort((a, b) => (b.price || 0) - (a.price || 0));
+            else items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            if (filterSort === 'auction') items = items.filter(a => a.saleType === 'auction');
+            res.end(JSON.stringify({ ok: true, items: items.slice(0, limit) }));
+            return;
+        }
+
+        // --- Art: Get single artwork ---
+        if (path === '/api/art/artwork' && req.method === 'GET') {
+            const artId = params.get('id');
+            if (!artId) { res.writeHead(400); res.end(JSON.stringify({ error: 'id required' })); return; }
+            const artworks = loadJSON('art_gallery.json', {});
+            const art = artworks[artId];
+            if (!art) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
+            res.end(JSON.stringify({ ok: true, id: artId, ...art }));
+            return;
+        }
+
+        // --- Art: Create artwork ---
+        if (path === '/api/art/artwork' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { artwork } = body;
+            if (!artwork) { res.writeHead(400); res.end(JSON.stringify({ error: 'artwork required' })); return; }
+            const artworks = loadJSON('art_gallery.json', {});
+            const artId = `art_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            artwork.createdAt = new Date().toISOString();
+            artworks[artId] = artwork;
+            saveJSON('art_gallery.json', artworks);
+            res.end(JSON.stringify({ ok: true, id: artId }));
+            return;
+        }
+
+        // --- Art: Update artwork ---
+        if (path === '/api/art/artwork' && req.method === 'PUT') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { id, updateData } = body;
+            if (!id) { res.writeHead(400); res.end(JSON.stringify({ error: 'id required' })); return; }
+            const artworks = loadJSON('art_gallery.json', {});
+            if (!artworks[id]) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
+            for (const [k, v] of Object.entries(updateData || {})) {
+                if (typeof v === 'object' && v && v._inc !== undefined) {
+                    artworks[id][k] = (artworks[id][k] || 0) + v._inc;
+                } else {
+                    artworks[id][k] = v;
+                }
+            }
+            saveJSON('art_gallery.json', artworks);
+            res.end(JSON.stringify({ ok: true, artwork: artworks[id] }));
+            return;
+        }
+
+        // --- Art: Like artwork ---
+        if (path === '/api/art/like' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { artId } = body;
+            if (!artId) { res.writeHead(400); res.end(JSON.stringify({ error: 'artId required' })); return; }
+            const likes = loadJSON('art_likes.json', {});
+            const key = `${artId}_${user.username}`;
+            if (likes[key]) { res.end(JSON.stringify({ ok: false, alreadyLiked: true })); return; }
+            likes[key] = { userId: user.username, artId, timestamp: new Date().toISOString() };
+            saveJSON('art_likes.json', likes);
+            // Increment likes on artwork
+            const artworks = loadJSON('art_gallery.json', {});
+            if (artworks[artId]) { artworks[artId].likes = (artworks[artId].likes || 0) + 1; saveJSON('art_gallery.json', artworks); }
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // --- Art: Delete artwork (soft) ---
+        if (path === '/api/art/delete' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { artId } = body;
+            if (!artId) { res.writeHead(400); res.end(JSON.stringify({ error: 'artId required' })); return; }
+            const artworks = loadJSON('art_gallery.json', {});
+            if (!artworks[artId]) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
+            if (artworks[artId].artistId !== user.username) { res.writeHead(403); res.end(JSON.stringify({ error: 'not owner' })); return; }
+            artworks[artId].status = 'deleted';
+            saveJSON('art_gallery.json', artworks);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // --- Art: NFT records ---
+        if (path === '/api/art/nft-record' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { record } = body;
+            if (!record) { res.writeHead(400); res.end(JSON.stringify({ error: 'record required' })); return; }
+            const records = loadJSON('art_nft_records.json', {});
+            const recId = `nft_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            record.createdAt = new Date().toISOString();
+            records[recId] = record;
+            saveJSON('art_nft_records.json', records);
+            res.end(JSON.stringify({ ok: true, id: recId }));
+            return;
+        }
+
+        // --- Art: Buy artwork ---
+        if (path === '/api/art/buy' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { artId } = body;
+            if (!artId) { res.writeHead(400); res.end(JSON.stringify({ error: 'artId required' })); return; }
+            const artworks = loadJSON('art_gallery.json', {});
+            const art = artworks[artId];
+            if (!art) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
+            if (art.status !== 'active') { res.end(JSON.stringify({ ok: false, error: 'not active' })); return; }
+            if (art.totalSupply > 0 && (art.totalSupply - (art.soldCount || 0)) <= 0) { res.end(JSON.stringify({ ok: false, error: 'sold out' })); return; }
+            const effectivePrice = art.price || Math.round((art.basePrice || 0) * (art.artistWeight || 1) * 100) / 100;
+            const platformFeePercent = 2.5;
+            const platformFee = Math.round(effectivePrice * (platformFeePercent / 100) * 100) / 100;
+            const artistReceive = Math.round((effectivePrice - platformFee) * 100) / 100;
+            // Check buyer balance
+            const usersData = loadJSON('users_ext.json', {});
+            const buyerData = usersData[user.username] || {};
+            const buyerBal = (buyerData.offchainBalances || {}).crac || 0;
+            if (buyerBal < effectivePrice) { res.end(JSON.stringify({ ok: false, error: 'insufficient_balance', balance: buyerBal, needed: effectivePrice })); return; }
+            // Deduct from buyer
+            if (!usersData[user.username]) usersData[user.username] = { offchainBalances: {} };
+            if (!usersData[user.username].offchainBalances) usersData[user.username].offchainBalances = {};
+            usersData[user.username].offchainBalances.crac = buyerBal - effectivePrice;
+            // Pay artist
+            if (!usersData[art.artistId]) usersData[art.artistId] = { offchainBalances: {} };
+            if (!usersData[art.artistId].offchainBalances) usersData[art.artistId].offchainBalances = {};
+            usersData[art.artistId].offchainBalances.crac = (usersData[art.artistId].offchainBalances.crac || 0) + artistReceive;
+            saveJSON('users_ext.json', usersData);
+            // Update artwork
+            artworks[artId].soldCount = (artworks[artId].soldCount || 0) + 1;
+            if (!art.totalSupply || art.totalSupply <= 1) {
+                artworks[artId].status = 'sold';
+                artworks[artId].buyerId = user.username;
+                artworks[artId].buyerEmail = user.email;
+                artworks[artId].soldAt = new Date().toISOString();
+                artworks[artId].soldPrice = effectivePrice;
+                artworks[artId].soldToken = art.priceToken || 'CRAC';
+            }
+            saveJSON('art_gallery.json', artworks);
+            // Record purchase
+            const purchases = loadJSON('art_purchases.json', []);
+            purchases.push({ artworkId: artId, buyerId: user.username, buyerEmail: user.email, price: effectivePrice, token: art.priceToken || 'CRAC', timestamp: new Date().toISOString() });
+            saveJSON('art_purchases.json', purchases);
+            // Transaction record
+            const txns = loadJSON('art_transactions.json', []);
+            txns.push({ artworkId: artId, artworkTitle: art.title, from: user.username, to: art.artistId, amount: effectivePrice, artistReceive, platformFee, basePrice: art.basePrice || effectivePrice, artistWeight: art.artistWeight || 1, token: art.priceToken || 'CRAC', isNFT: art.isNFT || false, nftTokenId: art.nftTokenId || null, type: 'art_purchase', timestamp: new Date().toISOString() });
+            saveJSON('art_transactions.json', txns);
+            // Auto donation
+            const donationAmount = Math.max(10, effectivePrice * 0.02);
+            const newBuyerBal = usersData[user.username].offchainBalances.crac;
+            if (newBuyerBal >= donationAmount) {
+                usersData[user.username].offchainBalances.crac = newBuyerBal - donationAmount;
+                saveJSON('users_ext.json', usersData);
+                const donLogs = loadJSON('art_giving_pool_logs.json', []);
+                donLogs.push({ userId: user.username, amount: donationAmount, token: 'CRAC', source: 'art_trade', note: 'Art trade auto donation (' + effectivePrice + ' CRAC)', timestamp: new Date().toISOString() });
+                saveJSON('art_giving_pool_logs.json', donLogs);
+            }
+            res.end(JSON.stringify({ ok: true, effectivePrice, platformFee, artistReceive }));
+            return;
+        }
+
+        // --- Art: Place bid ---
+        if (path === '/api/art/bid' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { artId, bidAmount } = body;
+            if (!artId || !bidAmount) { res.writeHead(400); res.end(JSON.stringify({ error: 'artId and bidAmount required' })); return; }
+            const artworks = loadJSON('art_gallery.json', {});
+            const art = artworks[artId];
+            if (!art) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
+            const minBid = (art.currentBid || art.startPrice || 1) + 1;
+            if (bidAmount < minBid) { res.end(JSON.stringify({ ok: false, error: 'bid_too_low', minBid })); return; }
+            // Check balance
+            const usersData = loadJSON('users_ext.json', {});
+            const bal = (usersData[user.username]?.offchainBalances?.crac) || 0;
+            if (bal < bidAmount) { res.end(JSON.stringify({ ok: false, error: 'insufficient_balance', balance: bal })); return; }
+            // Get nickname
+            const nickname = user.displayName || user.username;
+            artworks[artId].currentBid = bidAmount;
+            artworks[artId].highestBidder = user.username;
+            artworks[artId].highestBidderEmail = user.email;
+            artworks[artId].highestBidderNickname = nickname;
+            saveJSON('art_gallery.json', artworks);
+            // Record bid
+            const bids = loadJSON('art_bids.json', []);
+            bids.push({ artworkId: artId, bidderId: user.username, bidderEmail: user.email, bidderNickname: nickname, amount: bidAmount, timestamp: new Date().toISOString() });
+            saveJSON('art_bids.json', bids);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // --- Art: Reserve artwork ---
+        if (path === '/api/art/reserve' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { artId } = body;
+            if (!artId) { res.writeHead(400); res.end(JSON.stringify({ error: 'artId required' })); return; }
+            const artworks = loadJSON('art_gallery.json', {});
+            const art = artworks[artId];
+            if (!art) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
+            if (art.status !== 'active') { res.end(JSON.stringify({ ok: false, error: 'not active' })); return; }
+            if (art.totalSupply > 0 && (art.totalSupply - (art.soldCount || 0)) <= 0) { res.end(JSON.stringify({ ok: false, error: 'sold out' })); return; }
+            const effectivePrice = art.price || Math.round((art.basePrice || 0) * (art.artistWeight || 1) * 100) / 100;
+            const depositAmount = Math.ceil(effectivePrice / 10);
+            const remainingAmount = effectivePrice - depositAmount;
+            const tokenKey = 'crac';
+            // Check balance
+            const usersData = loadJSON('users_ext.json', {});
+            const buyerBal = (usersData[user.username]?.offchainBalances?.crac) || 0;
+            if (buyerBal < depositAmount) { res.end(JSON.stringify({ ok: false, error: 'insufficient_balance', balance: buyerBal, needed: depositAmount })); return; }
+            // Deduct deposit from buyer, pay to artist
+            if (!usersData[user.username]) usersData[user.username] = { offchainBalances: {} };
+            if (!usersData[user.username].offchainBalances) usersData[user.username].offchainBalances = {};
+            usersData[user.username].offchainBalances.crac = buyerBal - depositAmount;
+            if (!usersData[art.artistId]) usersData[art.artistId] = { offchainBalances: {} };
+            if (!usersData[art.artistId].offchainBalances) usersData[art.artistId].offchainBalances = {};
+            usersData[art.artistId].offchainBalances.crac = (usersData[art.artistId].offchainBalances.crac || 0) + depositAmount;
+            saveJSON('users_ext.json', usersData);
+            // Create reservation
+            const expiresAt = new Date();
+            expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+            const reservations = loadJSON('art_reservations.json', {});
+            const resId = `res_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            reservations[resId] = { artworkId: artId, artworkTitle: art.title, artworkImage: art.thumbnailUrl || art.imageUrl || '', buyerId: user.username, buyerEmail: user.email, artistId: art.artistId, totalPrice: effectivePrice, depositAmount, depositPaid: true, depositPaidAt: new Date().toISOString(), depositToken: art.priceToken || 'CRAC', remainingAmount, expiresAt: expiresAt.toISOString(), status: 'reserved', completedAt: null, createdAt: new Date().toISOString() };
+            saveJSON('art_reservations.json', reservations);
+            // Transaction
+            const txns = loadJSON('art_transactions.json', []);
+            txns.push({ artworkId: artId, artworkTitle: art.title, from: user.username, to: art.artistId, amount: depositAmount, token: art.priceToken || 'CRAC', type: 'art_reservation_deposit', timestamp: new Date().toISOString() });
+            saveJSON('art_transactions.json', txns);
+            res.end(JSON.stringify({ ok: true, reservationId: resId, depositAmount, remainingAmount, effectivePrice }));
+            return;
+        }
+
+        // --- Art: Complete reservation ---
+        if (path === '/api/art/complete-reservation' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { reservationId } = body;
+            if (!reservationId) { res.writeHead(400); res.end(JSON.stringify({ error: 'reservationId required' })); return; }
+            const reservations = loadJSON('art_reservations.json', {});
+            const reservation = reservations[reservationId];
+            if (!reservation) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
+            if (reservation.buyerId !== user.username) { res.writeHead(403); res.end(JSON.stringify({ error: 'not owner' })); return; }
+            if (reservation.status !== 'reserved') { res.end(JSON.stringify({ ok: false, error: 'already processed' })); return; }
+            if (new Date() > new Date(reservation.expiresAt)) {
+                reservations[reservationId].status = 'expired';
+                saveJSON('art_reservations.json', reservations);
+                res.end(JSON.stringify({ ok: false, error: 'expired' }));
+                return;
+            }
+            const remainingAmount = reservation.remainingAmount;
+            const platformFee = Math.round(reservation.totalPrice * 2.5 / 100 * 100) / 100;
+            const artistReceiveRemaining = Math.round((remainingAmount - platformFee) * 100) / 100;
+            // Check balance
+            const usersData = loadJSON('users_ext.json', {});
+            const buyerBal = (usersData[user.username]?.offchainBalances?.crac) || 0;
+            if (buyerBal < remainingAmount) { res.end(JSON.stringify({ ok: false, error: 'insufficient_balance', balance: buyerBal, needed: remainingAmount })); return; }
+            // Deduct
+            usersData[user.username].offchainBalances.crac = buyerBal - remainingAmount;
+            if (!usersData[reservation.artistId]) usersData[reservation.artistId] = { offchainBalances: {} };
+            if (!usersData[reservation.artistId].offchainBalances) usersData[reservation.artistId].offchainBalances = {};
+            usersData[reservation.artistId].offchainBalances.crac = (usersData[reservation.artistId].offchainBalances.crac || 0) + artistReceiveRemaining;
+            saveJSON('users_ext.json', usersData);
+            // Update reservation
+            reservations[reservationId].status = 'completed';
+            reservations[reservationId].completedAt = new Date().toISOString();
+            saveJSON('art_reservations.json', reservations);
+            // Update artwork soldCount
+            const artworks = loadJSON('art_gallery.json', {});
+            if (artworks[reservation.artworkId]) {
+                artworks[reservation.artworkId].soldCount = (artworks[reservation.artworkId].soldCount || 0) + 1;
+                saveJSON('art_gallery.json', artworks);
+            }
+            // Purchases
+            const purchases = loadJSON('art_purchases.json', []);
+            purchases.push({ artworkId: reservation.artworkId, buyerId: user.username, buyerEmail: user.email, price: reservation.totalPrice, token: reservation.depositToken || 'CRAC', type: 'reservation_complete', reservationId, timestamp: new Date().toISOString() });
+            saveJSON('art_purchases.json', purchases);
+            // Transaction
+            const txns = loadJSON('art_transactions.json', []);
+            txns.push({ artworkId: reservation.artworkId, artworkTitle: reservation.artworkTitle, from: user.username, to: reservation.artistId, amount: remainingAmount, token: reservation.depositToken || 'CRAC', type: 'art_reservation_complete', timestamp: new Date().toISOString() });
+            saveJSON('art_transactions.json', txns);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // --- Art: Cancel reservation ---
+        if (path === '/api/art/cancel-reservation' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { reservationId } = body;
+            if (!reservationId) { res.writeHead(400); res.end(JSON.stringify({ error: 'reservationId required' })); return; }
+            const reservations = loadJSON('art_reservations.json', {});
+            if (!reservations[reservationId]) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
+            if (reservations[reservationId].buyerId !== user.username) { res.writeHead(403); res.end(JSON.stringify({ error: 'not owner' })); return; }
+            reservations[reservationId].status = 'cancelled';
+            reservations[reservationId].cancelledAt = new Date().toISOString();
+            saveJSON('art_reservations.json', reservations);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // --- Art: My artworks ---
+        if (path === '/api/art/my-artworks' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const artworks = loadJSON('art_gallery.json', {});
+            const items = Object.entries(artworks).filter(([, a]) => a.artistId === user.username).map(([id, a]) => ({ id, ...a })).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 30);
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+
+        // --- Art: My purchases ---
+        if (path === '/api/art/my-purchases' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const artworks = loadJSON('art_gallery.json', {});
+            const items = Object.entries(artworks).filter(([, a]) => a.buyerId === user.username).map(([id, a]) => ({ id, ...a })).sort((a, b) => new Date(b.soldAt || 0) - new Date(a.soldAt || 0)).slice(0, 30);
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+
+        // --- Art: My NFTs ---
+        if (path === '/api/art/my-nfts' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const artworks = loadJSON('art_gallery.json', {});
+            const nfts = new Map();
+            Object.entries(artworks).forEach(([id, a]) => {
+                if (a.isNFT && a.artistId === user.username) nfts.set(id, { id, ...a, relation: 'minted' });
+            });
+            Object.entries(artworks).forEach(([id, a]) => {
+                if (a.isNFT && a.buyerId === user.username) {
+                    if (nfts.has(id)) nfts.get(id).relation = 'minted+owned';
+                    else nfts.set(id, { id, ...a, relation: 'owned' });
+                }
+            });
+            res.end(JSON.stringify({ ok: true, items: Array.from(nfts.values()) }));
+            return;
+        }
+
+        // --- Art: My reservations ---
+        if (path === '/api/art/my-reservations' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const reservations = loadJSON('art_reservations.json', {});
+            const items = Object.entries(reservations).filter(([, r]) => r.buyerId === user.username).map(([id, r]) => ({ id, ...r })).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 20);
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+
+        // --- Art: My transactions ---
+        if (path === '/api/art/my-transactions' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const txns = loadJSON('art_transactions.json', []);
+            const items = txns.filter(t => t.from === user.username || t.to === user.username).map(t => ({ ...t, direction: t.to === user.username ? 'in' : 'out' })).sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)).slice(0, 30);
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+
+        // --- Art: Get user info (nickname, wallet, balances) ---
+        if (path === '/api/art/user-info' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const usersData = loadJSON('users_ext.json', {});
+            const ext = usersData[user.username] || {};
+            res.end(JSON.stringify({ ok: true, nickname: user.displayName || user.username, polygonAddress: user.walletAddress || '', offchainBalances: ext.offchainBalances || {} }));
+            return;
+        }
+
+        // --- Art: Artist works (for profile view) ---
+        if (path === '/api/art/artist-works' && req.method === 'GET') {
+            const artistId = params.get('artistId');
+            if (!artistId) { res.writeHead(400); res.end(JSON.stringify({ error: 'artistId required' })); return; }
+            const artworks = loadJSON('art_gallery.json', {});
+            const items = Object.entries(artworks).filter(([, a]) => a.artistId === artistId && a.status === 'active').map(([id, a]) => ({ id, ...a }));
+            res.end(JSON.stringify({ ok: true, count: items.length }));
+            return;
+        }
+
+        // --- Art: Giving pool log ---
+        if (path === '/api/art/giving-pool-log' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+            const { logEntry } = body;
+            const logs = loadJSON('art_giving_pool_logs.json', []);
+            logs.push({ ...logEntry, timestamp: new Date().toISOString() });
+            saveJSON('art_giving_pool_logs.json', logs);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ═══ 도서 플랫폼 (Books) ═══
+
+        // GET /api/books — 공개 도서 목록
+        if (path === '/api/books' && req.method === 'GET') {
+            const books = loadJSON('books.json', {});
+            const list = Object.entries(books)
+                .map(([id, b]) => ({ id, ...b }))
+                .filter(b => ['published', 'active', 'soldout'].includes(b.status))
+                .sort((a, b) => (b.publishedAt || b.createdAt || 0) - (a.publishedAt || a.createdAt || 0))
+                .slice(0, 50);
+            res.end(JSON.stringify({ ok: true, books: list }));
+            return;
+        }
+
+        // GET /api/books/my/purchases — 내 구매 목록
+        if (path === '/api/books/my/purchases' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const purchases = loadJSON('book_purchases.json', []);
+            const mine = purchases.filter(p => p.userId === user.username)
+                .sort((a, b) => (b.purchasedAt || 0) - (a.purchasedAt || 0)).slice(0, 50);
+            res.end(JSON.stringify({ ok: true, purchases: mine }));
+            return;
+        }
+
+        // GET /api/books/my/treasures — 내 보물 목록
+        if (path === '/api/books/my/treasures' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const treasures = loadJSON('book_treasures.json', {});
+            const mine = Object.entries(treasures)
+                .filter(([k]) => k.startsWith(user.username + ':'))
+                .map(([, v]) => v)
+                .sort((a, b) => (b.foundAt || 0) - (a.foundAt || 0)).slice(0, 50);
+            res.end(JSON.stringify({ ok: true, treasures: mine }));
+            return;
+        }
+
+        // GET /api/books/my/reading-progress/:bookId — 독서 진행률
+        if (path.match(/^\/api\/books\/my\/reading-progress\//) && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.end(JSON.stringify({ ok: true, sceneIndex: 0 })); return; }
+            const bookId = path.split('/api/books/my/reading-progress/')[1];
+            const progress = loadJSON('book_reading_progress.json', {});
+            const key = user.username + ':' + bookId;
+            res.end(JSON.stringify({ ok: true, sceneIndex: progress[key]?.sceneIndex || 0 }));
+            return;
+        }
+
+        // POST /api/books/my/reading-progress — 독서 진행률 저장
+        if (path === '/api/books/my/reading-progress' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const { bookId, sceneIndex } = body;
+            const progress = loadJSON('book_reading_progress.json', {});
+            const key = user.username + ':' + bookId;
+            progress[key] = { sceneIndex, updatedAt: Date.now() };
+            saveJSON('book_reading_progress.json', progress);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // GET /api/books/check-purchase/:bookId — 구매 여부 확인
+        if (path.match(/^\/api\/books\/check-purchase\//) && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.end(JSON.stringify({ ok: true, owns: false })); return; }
+            const bookId = path.split('/api/books/check-purchase/')[1];
+            const purchases = loadJSON('book_purchases.json', []);
+            const found = purchases.find(p => p.userId === user.username && p.bookId === bookId);
+            res.end(JSON.stringify({ ok: true, owns: !!found, editionNumber: found?.editionNumber || null }));
+            return;
+        }
+
+        // GET /api/books/reading-list — 읽기 목록 조회
+        if (path === '/api/books/reading-list' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const readingList = loadJSON('book_reading_list.json', []);
+            const mine = readingList.filter(r => r.userId === user.username)
+                .sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)).slice(0, 50);
+            res.end(JSON.stringify({ ok: true, list: mine }));
+            return;
+        }
+
+        // GET /api/books/:id — 도서 상세
+        if (path.match(/^\/api\/books\/[^/]+$/) && req.method === 'GET') {
+            const id = path.split('/api/books/')[1];
+            if (!id) { res.statusCode = 400; res.end('{"error":"id required"}'); return; }
+            const books = loadJSON('books.json', {});
+            const b = books[id];
+            if (!b) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            res.end(JSON.stringify({ ok: true, book: { id, ...b } }));
+            return;
+        }
+
+        // POST /api/books — 도서 생성(초안 저장)
+        if (path === '/api/books' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const books = loadJSON('books.json', {});
+            const id = 'book_' + crypto.randomBytes(8).toString('hex');
+            const bookData = body;
+            bookData.authorId = bookData.authorId || user.username;
+            bookData.publisherId = user.username;
+            bookData.publisherEmail = user.username + '@crowny.org';
+            bookData.createdAt = Date.now();
+            bookData.updatedAt = Date.now();
+            bookData.sold = bookData.sold || 0;
+            bookData.soldCount = bookData.soldCount || 0;
+            books[id] = bookData;
+            saveJSON('books.json', books);
+            res.end(JSON.stringify({ ok: true, id }));
+            return;
+        }
+
+        // PATCH /api/books/:id — 도서 수정
+        if (path.match(/^\/api\/books\/[^/]+$/) && req.method === 'PATCH') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const id = path.split('/api/books/')[1];
+            const books = loadJSON('books.json', {});
+            const b = books[id];
+            if (!b) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (b.authorId !== user.username && b.publisherId !== user.username && !ADMIN_USERS.includes(user.username)) {
+                res.statusCode = 403; res.end('{"error":"forbidden"}'); return;
+            }
+            Object.assign(b, body, { updatedAt: Date.now() });
+            books[id] = b;
+            saveJSON('books.json', books);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // POST /api/books/:id/publish — 도서 출판
+        if (path.match(/^\/api\/books\/[^/]+\/publish$/) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const id = path.split('/')[3];
+            const books = loadJSON('books.json', {});
+            const b = books[id];
+            if (!b) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (b.authorId !== user.username && b.publisherId !== user.username) {
+                res.statusCode = 403; res.end('{"error":"forbidden"}'); return;
+            }
+            b.status = 'published';
+            b.publishedAt = Date.now();
+            books[id] = b;
+            saveJSON('books.json', books);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // POST /api/books/:id/buy — 도서 구매
+        if (path.match(/^\/api\/books\/[^/]+\/buy$/) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const id = path.split('/')[3];
+            const books = loadJSON('books.json', {});
+            const b = books[id];
+            if (!b) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const price = b.basePrice || b.price || 0;
+
+            // 자기 책은 구매 불가
+            if (b.authorId === user.username || b.publisherId === user.username) {
+                res.statusCode = 400; res.end('{"error":"own book"}'); return;
+            }
+
+            // 중복 구매 체크
+            const purchases = loadJSON('book_purchases.json', []);
+            const already = purchases.find(p => p.userId === user.username && p.bookId === id);
+            if (already) { res.statusCode = 400; res.end('{"error":"already purchased"}'); return; }
+
+            // 매진 체크
+            const sold = b.soldCount || b.sold || 0;
+            if (b.edition === 'limited' && b.totalSupply > 0 && sold >= b.totalSupply) {
+                res.statusCode = 400; res.end('{"error":"sold out"}'); return;
+            }
+
+            // 결제 처리
+            if (price > 0) {
+                const profile = users[user.username] || {};
+                if (!profile.offchainBalances) profile.offchainBalances = {};
+                const current = profile.offchainBalances.crgc || 0;
+                if (current < price) { res.statusCode = 400; res.end('{"error":"insufficient balance"}'); return; }
+                profile.offchainBalances.crgc = current - price;
+                users[user.username] = profile;
+
+                // 저자에게 지급
+                const authorId = b.authorId || b.publisherId;
+                if (authorId && users[authorId]) {
+                    if (!users[authorId].offchainBalances) users[authorId].offchainBalances = {};
+                    users[authorId].offchainBalances.crgc = (users[authorId].offchainBalances.crgc || 0) + price;
+                }
+                saveJSON('users.json', users);
+
+                // 거래 기록
+                const txns = loadJSON('book_transactions.json', []);
+                txns.push({ from: user.username, to: authorId, amount: price, token: 'CRGC', type: 'book_purchase', bookId: id, timestamp: Date.now() });
+                saveJSON('book_transactions.json', txns);
+            }
+
+            // 판매 수 증가
+            const newSold = sold + 1;
+            b.soldCount = newSold;
+            b.sold = newSold;
+            if (b.edition === 'limited' && b.totalSupply > 0 && newSold >= b.totalSupply) {
+                b.status = 'soldout';
+            }
+            books[id] = b;
+            saveJSON('books.json', books);
+
+            // 구매 기록
+            const editionNumber = newSold;
+            purchases.push({ userId: user.username, bookId: id, bookTitle: b.title, editionNumber, price, token: 'CRGC', purchasedAt: Date.now() });
+            saveJSON('book_purchases.json', purchases);
+
+            res.end(JSON.stringify({ ok: true, editionNumber, soldCount: newSold }));
+            return;
+        }
+
+        // POST /api/books/reading-list/add — 읽기 목록 추가
+        if (path === '/api/books/reading-list/add' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const { bookId } = body;
+            const readingList = loadJSON('book_reading_list.json', []);
+            const exists = readingList.find(r => r.userId === user.username && r.bookId === bookId);
+            if (exists) { res.statusCode = 400; res.end('{"error":"already in list"}'); return; }
+            const books = loadJSON('books.json', {});
+            const book = books[bookId];
+            const entry = {
+                id: 'rl_' + crypto.randomBytes(6).toString('hex'),
+                userId: user.username, bookId,
+                bookTitle: book?.title || '', bookAuthor: book?.author || '',
+                addedAt: Date.now()
+            };
+            readingList.push(entry);
+            saveJSON('book_reading_list.json', readingList);
+            res.end(JSON.stringify({ ok: true, entry }));
+            return;
+        }
+
+        // DELETE /api/books/reading-list/:id — 읽기 목록에서 삭제
+        if (path.startsWith('/api/books/reading-list/') && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const entryId = path.split('/api/books/reading-list/')[1];
+            let readingList = loadJSON('book_reading_list.json', []);
+            const idx = readingList.findIndex(r => r.id === entryId && r.userId === user.username);
+            if (idx < 0) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            readingList.splice(idx, 1);
+            saveJSON('book_reading_list.json', readingList);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // POST /api/books/treasure/claim — 보물 수집
+        if (path === '/api/books/treasure/claim' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const { bookId, sceneId, code, reward } = body;
+            const treasures = loadJSON('book_treasures.json', {});
+            const key = user.username + ':' + bookId + '_' + sceneId;
+            if (treasures[key]) { res.statusCode = 400; res.end('{"error":"already claimed"}'); return; }
+            treasures[key] = { bookId, sceneId, code, reward: reward || 10, foundAt: Date.now() };
+            saveJSON('book_treasures.json', treasures);
+
+            // CRGC 보상 지급
+            const profile = users[user.username] || {};
+            if (!profile.offchainBalances) profile.offchainBalances = {};
+            profile.offchainBalances.crgc = (profile.offchainBalances.crgc || 0) + (reward || 10);
+            users[user.username] = profile;
+            saveJSON('users.json', users);
+
+            res.end(JSON.stringify({ ok: true, reward: reward || 10 }));
+            return;
+        }
+
+        // POST /api/books/translation-request — 번역 요청
+        if (path === '/api/books/translation-request' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            const { bookId, targetLang } = body;
+            const requests = loadJSON('book_translation_requests.json', []);
+            const exists = requests.find(r => r.bookId === bookId && r.targetLang === targetLang);
+            if (exists) { res.statusCode = 400; res.end('{"error":"already requested"}'); return; }
+            requests.push({ bookId, requesterId: user.username, targetLang, status: 'pending', createdAt: Date.now() });
+            saveJSON('book_translation_requests.json', requests);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ═══ 크라우니케어 (Care) API ═══
+
+        // GET /api/care/group — 내 케어 그룹 조회
+        if (path === '/api/care/group' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.end(JSON.stringify({ group: null })); return; }
+            res.end(JSON.stringify({ group }));
+            return;
+        }
+
+        // POST /api/care/group — 케어 그룹 생성
+        if (path === '/api/care/group' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { name } = body;
+            if (!name) { res.statusCode = 400; res.end('{"error":"name required"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const nickname = user.nickname || user.displayName || user.username;
+            const group = {
+                id: crypto.randomBytes(8).toString('hex'),
+                name,
+                createdBy: user.username,
+                createdAt: Date.now(),
+                memberUids: [user.username],
+                members: [{ uid: user.username, email: user.username + '@crowny.org', nickname, role: 'guardian', joinedAt: new Date().toISOString() }]
+            };
+            groups.push(group);
+            saveJSON('care_groups.json', groups);
+            res.end(JSON.stringify({ ok: true, group }));
+            return;
+        }
+
+        // POST /api/care/group/invite — 멤버 초대
+        if (path === '/api/care/group/invite' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { email, role } = body;
+            if (!email) { res.statusCode = 400; res.end('{"error":"email required"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.statusCode = 404; res.end('{"error":"no group"}'); return; }
+            const invitedUsername = email.replace(/@crowny\.org$/, '');
+            const invitedUser = users[invitedUsername];
+            if (!invitedUser) { res.statusCode = 404; res.end('{"error":"user not found"}'); return; }
+            if ((group.memberUids || []).includes(invitedUsername)) { res.statusCode = 400; res.end('{"error":"already member"}'); return; }
+            const memberRole = (role === 'guardian') ? 'guardian' : 'member';
+            group.memberUids.push(invitedUsername);
+            group.members.push({ uid: invitedUsername, email, nickname: invitedUser.nickname || invitedUsername, role: memberRole, joinedAt: new Date().toISOString() });
+            saveJSON('care_groups.json', groups);
+            const notifFile = pathModule.join(DATA_DIR, 'notifications.json');
+            const allNotifs = fs.existsSync(notifFile) ? JSON.parse(fs.readFileSync(notifFile, 'utf8')) : [];
+            allNotifs.push({ id: crypto.randomBytes(8).toString('hex'), userId: invitedUsername, type: 'care_invite', message: 'You have been invited to ' + group.name, read: false, createdAt: Date.now() });
+            fs.writeFileSync(notifFile, JSON.stringify(allNotifs, null, 2));
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // GET /api/care/messages — 메시지 목록
+        if (path === '/api/care/messages' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.end(JSON.stringify({ messages: [] })); return; }
+            const msgs = loadJSON('care_messages.json', []);
+            const groupMsgs = msgs.filter(m => m.groupId === group.id).sort((a, b) => b.createdAt - a.createdAt);
+            const limit = parseInt(url.searchParams.get('limit') || '3');
+            res.end(JSON.stringify({ messages: groupMsgs.slice(0, limit) }));
+            return;
+        }
+
+        // POST /api/care/messages — 메시지 전송
+        if (path === '/api/care/messages' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { text, type: msgType, skipNotify, notifyType, notifyMessage, priority } = body;
+            if (!text) { res.statusCode = 400; res.end('{"error":"text required"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.statusCode = 404; res.end('{"error":"no group"}'); return; }
+            const nickname = user.nickname || user.displayName || user.username;
+            const msgs = loadJSON('care_messages.json', []);
+            const msg = { id: crypto.randomBytes(8).toString('hex'), groupId: group.id, text, senderId: user.username, senderName: msgType === 'sos' ? 'sos SOS' : nickname, type: msgType || 'text', createdAt: Date.now() };
+            msgs.push(msg);
+            if (msgs.length > 5000) msgs.splice(0, msgs.length - 5000);
+            saveJSON('care_messages.json', msgs);
+            if (!skipNotify) {
+                const notifFile = pathModule.join(DATA_DIR, 'notifications.json');
+                const allNotifs = fs.existsSync(notifFile) ? JSON.parse(fs.readFileSync(notifFile, 'utf8')) : [];
+                for (const m of group.members) {
+                    if (m.uid !== user.username) {
+                        allNotifs.push({ id: crypto.randomBytes(8).toString('hex'), userId: m.uid, type: notifyType || 'care_message', message: notifyMessage || (nickname + ': ' + text), read: false, priority: priority || 'normal', createdAt: Date.now() });
+                    }
+                }
+                if (allNotifs.length > 1000) allNotifs.splice(0, allNotifs.length - 1000);
+                fs.writeFileSync(notifFile, JSON.stringify(allNotifs, null, 2));
+            }
+            res.end(JSON.stringify({ ok: true, msg }));
+            return;
+        }
+
+        // GET /api/care/schedules — 스케줄 목록
+        if (path === '/api/care/schedules' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.end(JSON.stringify({ schedules: [] })); return; }
+            const all = loadJSON('care_schedules.json', []);
+            const scheds = all.filter(s => s.groupId === group.id).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+            res.end(JSON.stringify({ schedules: scheds }));
+            return;
+        }
+
+        // POST /api/care/schedules — 스케줄 추가
+        if (path === '/api/care/schedules' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { title, time, icon } = body;
+            if (!title || !time) { res.statusCode = 400; res.end('{"error":"title and time required"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.statusCode = 404; res.end('{"error":"no group"}'); return; }
+            const all = loadJSON('care_schedules.json', []);
+            const sched = { id: crypto.randomBytes(8).toString('hex'), groupId: group.id, title, time, icon: icon || '\u2022', createdBy: user.username, createdAt: Date.now() };
+            all.push(sched);
+            saveJSON('care_schedules.json', all);
+            res.end(JSON.stringify({ ok: true, schedule: sched }));
+            return;
+        }
+
+        // DELETE /api/care/schedules/:id — 스케줄 삭제
+        if (/^\/api\/care\/schedules\/[^/]+$/.test(path) && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const schedId = path.split('/')[4];
+            const all = loadJSON('care_schedules.json', []);
+            const idx = all.findIndex(s => s.id === schedId);
+            if (idx >= 0) all.splice(idx, 1);
+            saveJSON('care_schedules.json', all);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // GET /api/care/medications — 복약 목록
+        if (path === '/api/care/medications' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.end(JSON.stringify({ medications: [] })); return; }
+            const all = loadJSON('care_medications.json', []);
+            const meds = all.filter(m => m.groupId === group.id).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+            res.end(JSON.stringify({ medications: meds }));
+            return;
+        }
+
+        // POST /api/care/medications — 복약 추가
+        if (path === '/api/care/medications' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { name, time, repeat } = body;
+            if (!name || !time) { res.statusCode = 400; res.end('{"error":"name and time required"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.statusCode = 404; res.end('{"error":"no group"}'); return; }
+            const all = loadJSON('care_medications.json', []);
+            const med = { id: crypto.randomBytes(8).toString('hex'), groupId: group.id, name, time, repeat: repeat || 'Daily', takenDates: [], createdBy: user.username, createdAt: Date.now() };
+            all.push(med);
+            saveJSON('care_medications.json', all);
+            res.end(JSON.stringify({ ok: true, medication: med }));
+            return;
+        }
+
+        // POST /api/care/medications/:id/take — 복약 확인
+        if (/^\/api\/care\/medications\/[^/]+\/take$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const medId = path.split('/')[4];
+            const all = loadJSON('care_medications.json', []);
+            const med = all.find(m => m.id === medId);
+            if (!med) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const today = new Date().toISOString().split('T')[0];
+            if (!med.takenDates) med.takenDates = [];
+            if (!med.takenDates.includes(today)) med.takenDates.push(today);
+            saveJSON('care_medications.json', all);
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => g.id === med.groupId);
+            if (group) {
+                const nickname = user.nickname || user.displayName || user.username;
+                const notifFile = pathModule.join(DATA_DIR, 'notifications.json');
+                const allNotifs = fs.existsSync(notifFile) ? JSON.parse(fs.readFileSync(notifFile, 'utf8')) : [];
+                for (const m of group.members) {
+                    if (m.role === 'guardian' && m.uid !== user.username) {
+                        allNotifs.push({ id: crypto.randomBytes(8).toString('hex'), userId: m.uid, type: 'care_medication', message: 'pill ' + nickname + ' took their medication', read: false, createdAt: Date.now() });
+                    }
+                }
+                if (allNotifs.length > 1000) allNotifs.splice(0, allNotifs.length - 1000);
+                fs.writeFileSync(notifFile, JSON.stringify(allNotifs, null, 2));
+            }
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // GET /api/care/health — 건강 기록 목록
+        if (path === '/api/care/health' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.end(JSON.stringify({ logs: [] })); return; }
+            const all = loadJSON('care_health_logs.json', []);
+            const logs = all.filter(l => l.groupId === group.id).sort((a, b) => b.createdAt - a.createdAt);
+            const limit = parseInt(url.searchParams.get('limit') || '5');
+            res.end(JSON.stringify({ logs: logs.slice(0, limit) }));
+            return;
+        }
+
+        // POST /api/care/health — 건강 기록 추가
+        if (path === '/api/care/health' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { bloodPressure, temperature, bloodSugar, weight } = body;
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.statusCode = 404; res.end('{"error":"no group"}'); return; }
+            const nickname = user.nickname || user.displayName || user.username;
+            const all = loadJSON('care_health_logs.json', []);
+            const log = { id: crypto.randomBytes(8).toString('hex'), groupId: group.id, bloodPressure: bloodPressure || null, temperature: temperature ? parseFloat(temperature) : null, bloodSugar: bloodSugar || null, weight: weight ? parseFloat(weight) : null, recorderId: user.username, recorderName: nickname, createdAt: Date.now() };
+            all.push(log);
+            saveJSON('care_health_logs.json', all);
+            res.end(JSON.stringify({ ok: true, log }));
+            return;
+        }
+
+        // POST /api/care/sos — SOS 알림 생성
+        if (path === '/api/care/sos' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { location } = body;
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.statusCode = 404; res.end('{"error":"no group"}'); return; }
+            const nickname = user.nickname || user.displayName || user.username;
+            const all = loadJSON('care_sos_alerts.json', []);
+            const alert = { id: crypto.randomBytes(8).toString('hex'), groupId: group.id, senderId: user.username, senderName: nickname, location: location || null, status: 'active', locations: [], createdAt: Date.now() };
+            if (location) alert.locations.push({ lat: location.lat, lng: location.lng, timestamp: Date.now() });
+            all.push(alert);
+            saveJSON('care_sos_alerts.json', all);
+            const locationStr = location ? location.lat.toFixed(4) + ', ' + location.lng.toFixed(4) : 'Location unavailable';
+            const notifFile = pathModule.join(DATA_DIR, 'notifications.json');
+            const allNotifs = fs.existsSync(notifFile) ? JSON.parse(fs.readFileSync(notifFile, 'utf8')) : [];
+            for (const m of group.members) {
+                if (m.uid !== user.username) {
+                    allNotifs.push({ id: crypto.randomBytes(8).toString('hex'), userId: m.uid, type: 'care_sos', message: 'sos URGENT! ' + nickname + ' sent an SOS! (Location: ' + locationStr + ')', read: false, priority: 'urgent', createdAt: Date.now() });
+                }
+            }
+            if (allNotifs.length > 1000) allNotifs.splice(0, allNotifs.length - 1000);
+            fs.writeFileSync(notifFile, JSON.stringify(allNotifs, null, 2));
+            res.end(JSON.stringify({ ok: true, alert }));
+            return;
+        }
+
+        // POST /api/care/sos/:id/location — SOS 위치 업데이트
+        if (/^\/api\/care\/sos\/[^/]+\/location$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const alertId = path.split('/')[4];
+            const { lat, lng, accuracy } = body;
+            const all = loadJSON('care_sos_alerts.json', []);
+            const alert = all.find(a => a.id === alertId);
+            if (!alert) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (!alert.locations) alert.locations = [];
+            alert.locations.push({ lat, lng, accuracy, timestamp: Date.now() });
+            saveJSON('care_sos_alerts.json', all);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // POST /api/care/sos/:id/resolve — SOS 해제
+        if (/^\/api\/care\/sos\/[^/]+\/resolve$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const alertId = path.split('/')[4];
+            const all = loadJSON('care_sos_alerts.json', []);
+            const alert = all.find(a => a.id === alertId);
+            if (alert) { alert.status = 'resolved'; alert.resolvedAt = Date.now(); }
+            saveJSON('care_sos_alerts.json', all);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // POST /api/care/sos/:id/recording — SOS 녹음 업로드 (base64)
+        if (/^\/api\/care\/sos\/[^/]+\/recording$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const alertId = path.split('/')[4];
+            const { base64, mimeType } = body;
+            if (!base64) { res.statusCode = 400; res.end('{"error":"base64 required"}'); return; }
+            const recDir = pathModule.join(DATA_DIR, 'sos_recordings');
+            if (!fs.existsSync(recDir)) fs.mkdirSync(recDir, { recursive: true });
+            const ext = (mimeType || 'audio/webm').includes('webm') ? 'webm' : 'ogg';
+            const filename = alertId + '_' + Date.now() + '.' + ext;
+            const filePath = pathModule.join(recDir, filename);
+            fs.writeFileSync(filePath, Buffer.from(base64, 'base64'));
+            const recUrl = '/data/sos_recordings/' + filename;
+            const all = loadJSON('care_sos_alerts.json', []);
+            const alert = all.find(a => a.id === alertId);
+            if (alert) { alert.recordingUrl = recUrl; }
+            saveJSON('care_sos_alerts.json', all);
+            res.end(JSON.stringify({ ok: true, url: recUrl }));
+            return;
+        }
+
+        // GET /api/care/emergency-contacts — 비상연락처 목록
+        if (path === '/api/care/emergency-contacts' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.end(JSON.stringify({ contacts: [] })); return; }
+            const all = loadJSON('care_emergency_contacts.json', []);
+            const contacts = all.filter(c => c.groupId === group.id);
+            res.end(JSON.stringify({ contacts }));
+            return;
+        }
+
+        // POST /api/care/emergency-contacts — 비상연락처 추가
+        if (path === '/api/care/emergency-contacts' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { hospitalName, phone, doctorName, address } = body;
+            if (!hospitalName || !phone) { res.statusCode = 400; res.end('{"error":"hospitalName and phone required"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.statusCode = 404; res.end('{"error":"no group"}'); return; }
+            const all = loadJSON('care_emergency_contacts.json', []);
+            const contact = { id: crypto.randomBytes(8).toString('hex'), groupId: group.id, hospitalName, phone, doctorName: doctorName || '', address: address || '', createdBy: user.username, createdAt: Date.now() };
+            all.push(contact);
+            saveJSON('care_emergency_contacts.json', all);
+            res.end(JSON.stringify({ ok: true, contact }));
+            return;
+        }
+
+        // DELETE /api/care/emergency-contacts/:id — 비상연락처 삭제
+        if (/^\/api\/care\/emergency-contacts\/[^/]+$/.test(path) && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const ecId = path.split('/')[4];
+            const all = loadJSON('care_emergency_contacts.json', []);
+            const idx = all.findIndex(c => c.id === ecId);
+            if (idx >= 0) all.splice(idx, 1);
+            saveJSON('care_emergency_contacts.json', all);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // GET /api/care/neighbors — 이웃 목록
+        if (path === '/api/care/neighbors' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.end(JSON.stringify({ neighbors: [] })); return; }
+            const all = loadJSON('care_neighbors.json', []);
+            const neighbors = all.filter(n => n.groupId === group.id);
+            res.end(JSON.stringify({ neighbors }));
+            return;
+        }
+
+        // POST /api/care/neighbors — 이웃 추가
+        if (path === '/api/care/neighbors' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { email, lat, lng } = body;
+            if (!email) { res.statusCode = 400; res.end('{"error":"email required"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.statusCode = 404; res.end('{"error":"no group"}'); return; }
+            const neighborUsername = email.replace(/@crowny\.org$/, '');
+            const neighborUser = users[neighborUsername];
+            if (!neighborUser) { res.statusCode = 404; res.end('{"error":"user not found"}'); return; }
+            const all = loadJSON('care_neighbors.json', []);
+            const neighbor = { id: crypto.randomBytes(8).toString('hex'), groupId: group.id, uid: neighborUsername, email, name: neighborUser.nickname || neighborUsername, lat: lat ? parseFloat(lat) : null, lng: lng ? parseFloat(lng) : null, createdAt: Date.now() };
+            all.push(neighbor);
+            saveJSON('care_neighbors.json', all);
+            res.end(JSON.stringify({ ok: true, neighbor }));
+            return;
+        }
+
+        // POST /api/care/sos/notify-neighbors — 이웃에게 SOS 알림
+        if (path === '/api/care/sos/notify-neighbors' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { location, senderName } = body;
+            if (!location) { res.end(JSON.stringify({ count: 0 })); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.end(JSON.stringify({ count: 0 })); return; }
+            const allNeighbors = loadJSON('care_neighbors.json', []);
+            const neighbors = allNeighbors.filter(n => n.groupId === group.id);
+            const R = 6371;
+            function haversineDist(lat1, lng1, lat2, lng2) {
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLng = (lng2 - lng1) * Math.PI / 180;
+                const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+                return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            }
+            let count = 0;
+            const notifFile = pathModule.join(DATA_DIR, 'notifications.json');
+            const allNotifs = fs.existsSync(notifFile) ? JSON.parse(fs.readFileSync(notifFile, 'utf8')) : [];
+            for (const nb of neighbors) {
+                if (nb.lat && nb.lng) {
+                    const dist = haversineDist(location.lat, location.lng, nb.lat, nb.lng);
+                    if (dist <= 1 && nb.uid) {
+                        allNotifs.push({ id: crypto.randomBytes(8).toString('hex'), userId: nb.uid, type: 'care_sos_neighbor', message: 'sos Neighbor ' + senderName + ' sent an SOS! (' + dist.toFixed(1) + 'km)', read: false, priority: 'urgent', createdAt: Date.now() });
+                        count++;
+                    }
+                }
+            }
+            if (allNotifs.length > 1000) allNotifs.splice(0, allNotifs.length - 1000);
+            fs.writeFileSync(notifFile, JSON.stringify(allNotifs, null, 2));
+            res.end(JSON.stringify({ count }));
+            return;
+        }
+
+        // GET /api/care/photos — 사진 목록
+        if (path === '/api/care/photos' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.end(JSON.stringify({ photos: [] })); return; }
+            const all = loadJSON('care_photos.json', []);
+            const photos = all.filter(p => p.groupId === group.id).sort((a, b) => b.createdAt - a.createdAt).slice(0, 20);
+            res.end(JSON.stringify({ photos }));
+            return;
+        }
+
+        // POST /api/care/photos — 사진 업로드 (base64 URL)
+        if (path === '/api/care/photos' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { url: photoUrl, caption } = body;
+            if (!photoUrl) { res.statusCode = 400; res.end('{"error":"url required"}'); return; }
+            const groups = loadJSON('care_groups.json', []);
+            const group = groups.find(g => (g.memberUids || []).includes(user.username));
+            if (!group) { res.statusCode = 404; res.end('{"error":"no group"}'); return; }
+            const all = loadJSON('care_photos.json', []);
+            const photo = { id: crypto.randomBytes(8).toString('hex'), groupId: group.id, url: photoUrl, caption: caption || '', uploaderId: user.username, createdAt: Date.now() };
+            all.push(photo);
+            saveJSON('care_photos.json', all);
+            res.end(JSON.stringify({ ok: true, photo }));
+            return;
+        }
+
+        // GET /api/care/user-nickname — 현재 사용자 닉네임
+        if (path === '/api/care/user-nickname' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const nickname = user.nickname || user.displayName || user.username;
+            res.end(JSON.stringify({ nickname }));
+            return;
+        }
+
+
+        // ═══════════════════════════════════════════════════════════════
+        // ═══ 마켓플레이스 REST API (Firestore 대체) ═══
+        // ═══════════════════════════════════════════════════════════════
+
+        const MARKET_DIR = pathModule.join(DATA_DIR, 'marketplace');
+        if (!fs.existsSync(MARKET_DIR)) fs.mkdirSync(MARKET_DIR, { recursive: true });
+
+        function loadMarket(file, def = []) {
+            const p = pathModule.join(MARKET_DIR, file);
+            try { if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e) {}
+            return typeof def === 'function' ? def() : (Array.isArray(def) ? [...def] : { ...def });
+        }
+        function saveMarket(file, data) {
+            fs.writeFileSync(pathModule.join(MARKET_DIR, file), JSON.stringify(data, null, 2));
+        }
+        function mktId() { return crypto.randomBytes(10).toString('hex'); }
+
+        // ── PRODUCTS ──
+
+        if (path === '/api/mall/products' && req.method === 'GET') {
+            const products = loadMarket('products.json', []);
+            const brand = url.searchParams.get('brand') || '';
+            let items = products.filter(p => p.status === 'active');
+            if (brand) items = items.filter(p => p.category === brand);
+            items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            items = items.slice(0, 50);
+            res.end(JSON.stringify({ items }));
+            return;
+        }
+
+        if (/^\/api\/mall\/products\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[4];
+            const products = loadMarket('products.json', []);
+            const p = products.find(x => x.id === id);
+            if (!p) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            res.end(JSON.stringify({ item: p }));
+            return;
+        }
+
+        if (path === '/api/mall/products' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const products = loadMarket('products.json', []);
+            const id = mktId();
+            const item = {
+                id, title: body.title || '', description: body.description || '',
+                category: body.category || '', price: Number(body.price) || 0,
+                priceToken: body.priceToken || 'CRGC', stock: Number(body.stock) || 0, sold: 0,
+                imageData: body.imageData || '', images: body.images || [],
+                sellerId: user.username, sellerEmail: user.username + '@crowny.org',
+                sellerNickname: users[user.username]?.nickname || users[user.username]?.displayName || user.username,
+                avgRating: 0, reviewCount: 0, status: 'active', createdAt: Date.now()
+            };
+            products.push(item);
+            saveMarket('products.json', products);
+            res.end(JSON.stringify({ ok: true, item }));
+            return;
+        }
+
+        if (/^\/api\/mall\/products\/[^/]+$/.test(path) && req.method === 'PUT') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const products = loadMarket('products.json', []);
+            const p = products.find(x => x.id === id);
+            if (!p) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (p.sellerId !== user.username) { res.statusCode = 403; res.end('{"error":"forbidden"}'); return; }
+            if (body.title !== undefined) p.title = body.title;
+            if (body.description !== undefined) p.description = body.description;
+            if (body.price !== undefined) p.price = Number(body.price);
+            if (body.stock !== undefined) p.stock = Number(body.stock);
+            if (body.status !== undefined) p.status = body.status;
+            if (body.images) { p.images = body.images; p.imageData = body.images[0] || p.imageData; }
+            saveMarket('products.json', products);
+            res.end(JSON.stringify({ ok: true, item: p }));
+            return;
+        }
+
+        if (/^\/api\/mall\/products\/[^/]+$/.test(path) && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            let products = loadMarket('products.json', []);
+            const idx = products.findIndex(x => x.id === id && x.sellerId === user.username);
+            if (idx < 0) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            products.splice(idx, 1);
+            saveMarket('products.json', products);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ── ORDERS ──
+
+        if (path === '/api/mall/orders' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const role = url.searchParams.get('role') || 'buyer';
+            const orders = loadMarket('orders.json', []);
+            let items = role === 'seller' ? orders.filter(o => o.sellerId === user.username) : orders.filter(o => o.buyerId === user.username);
+            items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            items = items.slice(0, 50);
+            res.end(JSON.stringify({ items }));
+            return;
+        }
+
+        if (/^\/api\/mall\/orders\/[^/]+$/.test(path) && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const orders = loadMarket('orders.json', []);
+            const o = orders.find(x => x.id === id && (x.buyerId === user.username || x.sellerId === user.username));
+            if (!o) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            res.end(JSON.stringify({ item: o }));
+            return;
+        }
+
+        if (path === '/api/mall/orders' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { productId, shippingInfo } = body;
+            const products = loadMarket('products.json', []);
+            const p = products.find(x => x.id === productId && x.status === 'active');
+            if (!p) { res.statusCode = 400; res.end('{"error":"Product not found or inactive"}'); return; }
+            const price = p.price;
+            if (!price || price <= 0) { res.statusCode = 400; res.end('{"error":"Invalid price"}'); return; }
+            if (price > 10000) { res.statusCode = 400; res.end('{"error":"Exceeds max order amount"}'); return; }
+            if ((p.stock - (p.sold || 0)) <= 0) { res.statusCode = 400; res.end('{"error":"Sold out"}'); return; }
+            const profile = users[user.username];
+            if (!profile) { res.statusCode = 400; res.end('{"error":"User not found"}'); return; }
+            if ((profile.offchainBalances?.crgc || 0) < price) { res.statusCode = 400; res.end('{"error":"Insufficient CRGC"}'); return; }
+            if (!profile.offchainBalances) profile.offchainBalances = {};
+            profile.offchainBalances.crgc = (profile.offchainBalances.crgc || 0) - price;
+            const seller = users[p.sellerId];
+            if (seller) { if (!seller.offchainBalances) seller.offchainBalances = {}; seller.offchainBalances.crgc = (seller.offchainBalances.crgc || 0) + price; }
+            p.sold = (p.sold || 0) + 1;
+            saveMarket('products.json', products);
+            saveJSON('users.json', users);
+            const orders = loadMarket('orders.json', []);
+            const order = {
+                id: mktId(), productId, productTitle: p.title, productImage: (p.images && p.images[0]) || p.imageData || '',
+                buyerId: user.username, buyerEmail: user.username + '@crowny.org',
+                sellerId: p.sellerId, sellerEmail: p.sellerEmail || '',
+                amount: price, qty: 1, token: 'CRGC', status: 'paid',
+                shippingInfo: shippingInfo || {},
+                statusHistory: [{ status: 'paid', at: new Date().toISOString() }], createdAt: Date.now()
+            };
+            orders.push(order);
+            saveMarket('orders.json', orders);
+            res.end(JSON.stringify({ ok: true, order }));
+            return;
+        }
+
+        if (/^\/api\/mall\/orders\/[^/]+\/status$/.test(path) && req.method === 'PUT') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const orders = loadMarket('orders.json', []);
+            const o = orders.find(x => x.id === id && x.sellerId === user.username);
+            if (!o) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const { status, trackingNumber } = body;
+            o.status = status; o[status + 'At'] = new Date().toISOString();
+            if (trackingNumber) o.trackingNumber = trackingNumber;
+            if (!o.statusHistory) o.statusHistory = [];
+            o.statusHistory.push({ status, at: new Date().toISOString() });
+            saveMarket('orders.json', orders);
+            res.end(JSON.stringify({ ok: true, order: o }));
+            return;
+        }
+
+        // ── REVIEWS ──
+
+        if (path === '/api/mall/reviews' && req.method === 'GET') {
+            const productId = url.searchParams.get('productId') || '';
+            const buyerId = url.searchParams.get('buyerId') || '';
+            const reviews = loadMarket('reviews.json', []);
+            let items = reviews;
+            if (productId) items = items.filter(r => r.productId === productId);
+            if (buyerId) items = items.filter(r => r.buyerId === buyerId);
+            items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            items = items.slice(0, 30);
+            res.end(JSON.stringify({ items }));
+            return;
+        }
+
+        if (path === '/api/mall/reviews' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { productId, rating, comment, imageData } = body;
+            const orders = loadMarket('orders.json', []);
+            const hasDelivered = orders.some(o => o.buyerId === user.username && o.productId === productId && o.status === 'delivered');
+            const reviews = loadMarket('reviews.json', []);
+            if (reviews.find(r => r.productId === productId && r.buyerId === user.username)) { res.statusCode = 400; res.end('{"error":"Already reviewed"}'); return; }
+            const review = { id: mktId(), productId, buyerId: user.username, buyerEmail: user.username + '@crowny.org', rating: Number(rating) || 5, comment: comment || '', imageData: imageData || '', verified: hasDelivered, helpful: 0, createdAt: Date.now() };
+            reviews.push(review);
+            saveMarket('reviews.json', reviews);
+            const prodReviews = reviews.filter(r => r.productId === productId);
+            const avgRating = Math.round((prodReviews.reduce((s, r) => s + r.rating, 0) / prodReviews.length) * 10) / 10;
+            const products = loadMarket('products.json', []);
+            const prod = products.find(x => x.id === productId);
+            if (prod) { prod.avgRating = avgRating; prod.reviewCount = prodReviews.length; saveMarket('products.json', products); }
+            res.end(JSON.stringify({ ok: true, review, avgRating, reviewCount: prodReviews.length, sellerId: prod?.sellerId }));
+            return;
+        }
+
+        if (/^\/api\/mall\/reviews\/[^/]+\/helpful$/.test(path) && req.method === 'PUT') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const reviews = loadMarket('reviews.json', []);
+            const r = reviews.find(x => x.id === id);
+            if (!r) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            r.helpful = (r.helpful || 0) + 1;
+            saveMarket('reviews.json', reviews);
+            res.end(JSON.stringify({ ok: true, helpful: r.helpful }));
+            return;
+        }
+
+        // ── CART ──
+
+        if (path === '/api/mall/cart' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const carts = loadMarket('carts.json', {});
+            res.end(JSON.stringify({ items: carts[user.username] || [] }));
+            return;
+        }
+
+        if (path === '/api/mall/cart' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { productId } = body;
+            const products = loadMarket('products.json', []);
+            const p = products.find(x => x.id === productId);
+            if (!p) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const carts = loadMarket('carts.json', {});
+            if (!carts[user.username]) carts[user.username] = [];
+            const existing = carts[user.username].find(c => c.productId === productId);
+            if (existing) { existing.qty = (existing.qty || 1) + 1; }
+            else { carts[user.username].push({ id: mktId(), productId, title: p.title, price: p.price, token: p.priceToken || 'CRGC', imageData: (p.images && p.images[0]) || p.imageData || '', qty: 1, addedAt: Date.now() }); }
+            saveMarket('carts.json', carts);
+            res.end(JSON.stringify({ ok: true, items: carts[user.username] }));
+            return;
+        }
+
+        if (/^\/api\/mall\/cart\/[^/]+$/.test(path) && req.method === 'PUT') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const cartId = path.split('/')[4];
+            const carts = loadMarket('carts.json', {});
+            if (!carts[user.username]) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const idx = carts[user.username].findIndex(c => c.id === cartId);
+            if (idx < 0) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (Number(body.qty) <= 0) carts[user.username].splice(idx, 1);
+            else carts[user.username][idx].qty = Number(body.qty);
+            saveMarket('carts.json', carts);
+            res.end(JSON.stringify({ ok: true, items: carts[user.username] }));
+            return;
+        }
+
+        if (/^\/api\/mall\/cart\/[^/]+$/.test(path) && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const cartId = path.split('/')[4];
+            const carts = loadMarket('carts.json', {});
+            if (carts[user.username]) carts[user.username] = carts[user.username].filter(c => c.id !== cartId);
+            saveMarket('carts.json', carts);
+            res.end(JSON.stringify({ ok: true, items: carts[user.username] || [] }));
+            return;
+        }
+
+        if (path === '/api/mall/checkout' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { shippingInfo } = body;
+            const carts = loadMarket('carts.json', {});
+            const cartItems = carts[user.username] || [];
+            if (!cartItems.length) { res.statusCode = 400; res.end('{"error":"Cart is empty"}'); return; }
+            let total = 0;
+            cartItems.forEach(c => { total += c.price * (c.qty || 1); });
+            if (total <= 0 || total > 10000) { res.statusCode = 400; res.end('{"error":"Invalid total"}'); return; }
+            const profile = users[user.username];
+            if (!profile || (profile.offchainBalances?.crgc || 0) < total) { res.statusCode = 400; res.end('{"error":"Insufficient CRGC"}'); return; }
+            profile.offchainBalances.crgc -= total;
+            const products = loadMarket('products.json', []);
+            const orders = loadMarket('orders.json', []);
+            const newOrders = [];
+            for (const item of cartItems) {
+                const p = products.find(x => x.id === item.productId);
+                if (!p) continue;
+                const qty = item.qty || 1;
+                const subtotal = item.price * qty;
+                if ((p.stock - (p.sold || 0)) < qty) { res.statusCode = 400; res.end(JSON.stringify({ error: '"' + item.title + '" out of stock' })); return; }
+                p.sold = (p.sold || 0) + qty;
+                const seller = users[p.sellerId];
+                if (seller) { if (!seller.offchainBalances) seller.offchainBalances = {}; seller.offchainBalances.crgc = (seller.offchainBalances.crgc || 0) + subtotal; }
+                const order = { id: mktId(), productId: item.productId, productTitle: item.title, productImage: (p.images && p.images[0]) || p.imageData || '', buyerId: user.username, buyerEmail: user.username + '@crowny.org', sellerId: p.sellerId, sellerEmail: p.sellerEmail || '', amount: subtotal, qty, token: 'CRGC', status: 'paid', shippingInfo: shippingInfo || {}, statusHistory: [{ status: 'paid', at: new Date().toISOString() }], createdAt: Date.now() };
+                orders.push(order); newOrders.push(order);
+            }
+            carts[user.username] = [];
+            saveMarket('products.json', products); saveMarket('orders.json', orders); saveMarket('carts.json', carts); saveJSON('users.json', users);
+            res.end(JSON.stringify({ ok: true, orders: newOrders }));
+            return;
+        }
+
+        // ── WISHLIST ──
+
+        if (path === '/api/mall/wishlist' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const wishlists = loadMarket('wishlists.json', {});
+            res.end(JSON.stringify({ items: wishlists[user.username] || [] }));
+            return;
+        }
+
+        if (path === '/api/mall/wishlist/toggle' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { productId } = body;
+            const wishlists = loadMarket('wishlists.json', {});
+            if (!wishlists[user.username]) wishlists[user.username] = [];
+            const idx = wishlists[user.username].findIndex(w => w.productId === productId);
+            let added = false;
+            if (idx >= 0) { wishlists[user.username].splice(idx, 1); }
+            else {
+                const products = loadMarket('products.json', []);
+                const p = products.find(x => x.id === productId);
+                if (p) { wishlists[user.username].push({ id: mktId(), productId, title: p.title, price: p.price, token: p.priceToken || 'CRGC', imageData: (p.images && p.images[0]) || p.imageData || '', addedAt: Date.now() }); added = true; }
+            }
+            saveMarket('wishlists.json', wishlists);
+            res.end(JSON.stringify({ ok: true, added, items: wishlists[user.username] }));
+            return;
+        }
+
+        // ── ADDRESSES ──
+
+        if (path === '/api/mall/addresses' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const addresses = loadMarket('addresses.json', {});
+            const items = (addresses[user.username] || []).sort((a, b) => (b.usedAt || 0) - (a.usedAt || 0));
+            res.end(JSON.stringify({ items }));
+            return;
+        }
+
+        if (path === '/api/mall/addresses' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const addresses = loadMarket('addresses.json', {});
+            if (!addresses[user.username]) addresses[user.username] = [];
+            addresses[user.username].push({ ...body, id: mktId(), usedAt: Date.now() });
+            saveMarket('addresses.json', addresses);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ── STORE SETTINGS ──
+
+        if (/^\/api\/mall\/store\/[^/]+$/.test(path) && req.method === 'GET') {
+            const sellerId = path.split('/')[4];
+            const profile = users[sellerId];
+            const seller = profile ? { storeName: profile.storeName || profile.nickname || profile.displayName || sellerId, storeDesc: profile.storeDesc || '', storeImage: profile.storeImage || profile.profileImage || '', email: sellerId + '@crowny.org' } : { storeName: sellerId, storeDesc: '', storeImage: '', email: sellerId + '@crowny.org' };
+            res.end(JSON.stringify({ seller }));
+            return;
+        }
+
+        if (path === '/api/mall/store' && req.method === 'PUT') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const profile = users[user.username];
+            if (!profile) { res.statusCode = 400; res.end('{"error":"User not found"}'); return; }
+            if (body.storeName !== undefined) profile.storeName = body.storeName;
+            if (body.storeDesc !== undefined) profile.storeDesc = body.storeDesc;
+            if (body.storeImage !== undefined) profile.storeImage = body.storeImage;
+            saveJSON('users.json', users);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ── RETURNS ──
+
+        if (path === '/api/mall/returns' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const role = url.searchParams.get('role') || 'buyer';
+            const returns = loadMarket('returns.json', []);
+            let items = role === 'seller' ? returns.filter(r => r.sellerId === user.username) : returns.filter(r => r.buyerId === user.username);
+            items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            res.end(JSON.stringify({ items }));
+            return;
+        }
+
+        if (path === '/api/mall/returns' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { orderId, reasonCategory, reasonDetail } = body;
+            const orders = loadMarket('orders.json', []);
+            const order = orders.find(o => o.id === orderId && o.buyerId === user.username);
+            if (!order) { res.statusCode = 404; res.end('{"error":"Order not found"}'); return; }
+            const returns = loadMarket('returns.json', []);
+            const ret = { id: mktId(), orderId, productId: order.productId, productTitle: order.productTitle, buyerId: user.username, buyerEmail: user.username + '@crowny.org', sellerId: order.sellerId, sellerEmail: order.sellerEmail, amount: order.amount, token: order.token || 'CRGC', reasonCategory, reasonDetail: reasonDetail || '', status: 'requested', createdAt: Date.now() };
+            returns.push(ret);
+            saveMarket('returns.json', returns);
+            res.end(JSON.stringify({ ok: true, item: ret }));
+            return;
+        }
+
+        if (/^\/api\/mall\/returns\/[^/]+$/.test(path) && req.method === 'PUT') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const retId = path.split('/')[4];
+            const returns = loadMarket('returns.json', []);
+            const ret = returns.find(r => r.id === retId && r.sellerId === user.username);
+            if (!ret) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const { action, rejectReason } = body;
+            if (action === 'approve') {
+                const tk = (ret.token || 'CRGC').toLowerCase();
+                const buyerProfile = users[ret.buyerId];
+                if (buyerProfile) { if (!buyerProfile.offchainBalances) buyerProfile.offchainBalances = {}; buyerProfile.offchainBalances[tk] = (buyerProfile.offchainBalances[tk] || 0) + ret.amount; }
+                const sellerProfile = users[ret.sellerId];
+                if (sellerProfile) { if (!sellerProfile.offchainBalances) sellerProfile.offchainBalances = {}; sellerProfile.offchainBalances[tk] = Math.max(0, (sellerProfile.offchainBalances[tk] || 0) - ret.amount); }
+                saveJSON('users.json', users);
+                ret.status = 'completed'; ret.completedAt = Date.now();
+                const orders = loadMarket('orders.json', []);
+                const order = orders.find(o => o.id === ret.orderId);
+                if (order) { order.status = 'cancelled'; order.cancelledAt = new Date().toISOString(); if (!order.statusHistory) order.statusHistory = []; order.statusHistory.push({ status: 'cancelled', at: new Date().toISOString(), reason: 'return_refund' }); saveMarket('orders.json', orders); }
+            } else { ret.status = 'rejected'; ret.rejectReason = rejectReason || ''; ret.rejectedAt = Date.now(); }
+            saveMarket('returns.json', returns);
+            res.end(JSON.stringify({ ok: true, item: ret }));
+            return;
+        }
+
+        // ── REPORTS ──
+
+        if (path === '/api/mall/reports' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const reports = loadMarket('reports.json', []);
+            reports.push({ id: mktId(), targetType: body.targetType, targetId: body.targetId, reporterId: user.username, reporterEmail: user.username + '@crowny.org', reason: body.reason, detail: body.detail || '', status: 'pending', createdAt: Date.now() });
+            saveMarket('reports.json', reports);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ── CAMPAIGNS (Fundraise) ──
+
+        if (path === '/api/mall/campaigns' && req.method === 'GET') {
+            const campaigns = loadMarket('campaigns.json', []);
+            res.end(JSON.stringify({ items: campaigns.filter(c => c.status === 'active').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 20) }));
+            return;
+        }
+
+        if (/^\/api\/mall\/campaigns\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[4];
+            const campaigns = loadMarket('campaigns.json', []);
+            const c = campaigns.find(x => x.id === id);
+            if (!c) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const txns = loadMarket('transactions.json', []);
+            const donors = txns.filter(t => t.campaignId === id && t.type === 'donation').sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 50);
+            res.end(JSON.stringify({ item: c, donors }));
+            return;
+        }
+
+        if (path === '/api/mall/campaigns' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const campaigns = loadMarket('campaigns.json', []);
+            const item = { id: mktId(), title: body.title || '', description: body.description || '', category: body.category || '', goal: Number(body.goal) || 0, raised: 0, token: 'CRGC', backers: 0, backerCount: 0, imageData: body.imageData || '', platformFee: Number(body.platformFee) || 2.5, creatorId: user.username, creatorEmail: user.username + '@crowny.org', creatorNickname: users[user.username]?.nickname || users[user.username]?.displayName || user.username, endDate: Date.now() + (Number(body.days) || 30) * 86400000, status: 'active', createdAt: Date.now() };
+            campaigns.push(item);
+            saveMarket('campaigns.json', campaigns);
+            res.end(JSON.stringify({ ok: true, item }));
+            return;
+        }
+
+        if (/^\/api\/mall\/campaigns\/[^/]+\/donate$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const campId = path.split('/')[4];
+            const amount = Number(body.amount);
+            if (!amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"Invalid amount"}'); return; }
+            const campaigns = loadMarket('campaigns.json', []);
+            const camp = campaigns.find(c => c.id === campId && c.status === 'active');
+            if (!camp) { res.statusCode = 404; res.end('{"error":"Campaign not found"}'); return; }
+            const profile = users[user.username];
+            if (!profile || (profile.offchainBalances?.crgc || 0) < amount) { res.statusCode = 400; res.end('{"error":"Insufficient CRGC"}'); return; }
+            const platformFee = amount * ((camp.platformFee || 2.5) / 100);
+            const creatorReceive = amount - platformFee;
+            profile.offchainBalances.crgc -= amount;
+            const creator = users[camp.creatorId];
+            if (creator) { if (!creator.offchainBalances) creator.offchainBalances = {}; creator.offchainBalances.crgc = (creator.offchainBalances.crgc || 0) + creatorReceive; }
+            saveJSON('users.json', users);
+            camp.raised = (camp.raised || 0) + amount; camp.backers = (camp.backers || 0) + 1; camp.backerCount = (camp.backerCount || 0) + 1;
+            saveMarket('campaigns.json', campaigns);
+            const txns = loadMarket('transactions.json', []);
+            txns.push({ id: mktId(), from: user.username, to: camp.creatorId, amount, token: 'CRGC', type: 'donation', campaignId: campId, platformFee, creatorReceive, timestamp: Date.now() });
+            saveMarket('transactions.json', txns);
+            const fees = loadMarket('platform_fees.json', []);
+            fees.push({ id: mktId(), campaignId: campId, amount: platformFee, token: 'CRGC', fromUser: user.username, timestamp: Date.now() });
+            saveMarket('platform_fees.json', fees);
+            res.end(JSON.stringify({ ok: true, raised: camp.raised }));
+            return;
+        }
+
+        if (/^\/api\/mall\/campaigns\/[^/]+\/close$/.test(path) && req.method === 'PUT') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const campId = path.split('/')[4];
+            const campaigns = loadMarket('campaigns.json', []);
+            const camp = campaigns.find(c => c.id === campId);
+            if (!camp) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (camp.creatorId !== user.username) { res.statusCode = 403; res.end('{"error":"Only creator can close"}'); return; }
+            const fee = camp.platformFee || 2.5;
+            const feeAmount = camp.raised * (fee / 100);
+            if (feeAmount > 0) { const fees = loadMarket('platform_fees.json', []); fees.push({ id: mktId(), campaignId: campId, amount: feeAmount, token: 'CRGC', type: 'campaign_close', timestamp: Date.now() }); saveMarket('platform_fees.json', fees); }
+            camp.status = 'closed'; camp.closedAt = Date.now();
+            saveMarket('campaigns.json', campaigns);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ── ENERGY / CREB LABS ──
+
+        if (path === '/api/mall/energy/projects' && req.method === 'GET') {
+            const projects = loadMarket('energy_projects.json', []);
+            res.end(JSON.stringify({ items: projects.filter(p => p.status === 'active').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 20) }));
+            return;
+        }
+
+        if (/^\/api\/mall\/energy\/projects\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[5];
+            const projects = loadMarket('energy_projects.json', []);
+            const p = projects.find(x => x.id === id);
+            if (!p) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const comments = loadMarket('energy_comments.json', []).filter(c => c.projectId === id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 20);
+            const investments = loadMarket('energy_investments.json', []).filter(i => i.projectId === id).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 10);
+            res.end(JSON.stringify({ item: p, comments, investments }));
+            return;
+        }
+
+        if (path === '/api/mall/energy/projects' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const projects = loadMarket('energy_projects.json', []);
+            const item = { id: mktId(), title: body.title || '', location: body.location || '', description: body.description || '', capacity: Number(body.capacity) || 0, returnRate: Number(body.returnRate) || 0, goal: Number(body.goal) || 0, category: body.category || 'energy', investType: body.investType || 'return', invested: 0, investors: 0, status: 'active', milestones: body.milestones || [], teamMembers: body.teamMembers || [], creatorId: user.username, createdAt: Date.now() };
+            projects.push(item);
+            saveMarket('energy_projects.json', projects);
+            res.end(JSON.stringify({ ok: true, item }));
+            return;
+        }
+
+        if (/^\/api\/mall\/energy\/projects\/[^/]+\/comment$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const projectId = path.split('/')[5];
+            const comments = loadMarket('energy_comments.json', []);
+            comments.push({ id: mktId(), projectId, userId: user.username, nickname: users[user.username]?.nickname || users[user.username]?.displayName || user.username, text: body.text || '', createdAt: Date.now() });
+            saveMarket('energy_comments.json', comments);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        if (/^\/api\/mall\/energy\/projects\/[^/]+\/invest$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const projectId = path.split('/')[5];
+            const amount = Number(body.amount);
+            if (!amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"Invalid amount"}'); return; }
+            const profile = users[user.username];
+            if (!profile || (profile.offchainBalances?.creb || 0) < amount) { res.statusCode = 400; res.end('{"error":"Insufficient CREB"}'); return; }
+            profile.offchainBalances.creb -= amount;
+            saveJSON('users.json', users);
+            const projects = loadMarket('energy_projects.json', []);
+            const p = projects.find(x => x.id === projectId);
+            if (p) { p.invested = (p.invested || 0) + amount; p.investors = (p.investors || 0) + 1; saveMarket('energy_projects.json', projects); }
+            const investments = loadMarket('energy_investments.json', []);
+            investments.push({ id: mktId(), projectId, userId: user.username, amount, token: 'CREB', timestamp: Date.now() });
+            saveMarket('energy_investments.json', investments);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        if (path === '/api/mall/energy/investments' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const investments = loadMarket('energy_investments.json', []).filter(i => i.userId === user.username).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            const projects = loadMarket('energy_projects.json', []);
+            const projMap = {}; projects.forEach(p => { projMap[p.id] = p; });
+            const items = investments.map(i => ({ ...i, project: projMap[i.projectId] || { title: 'Deleted', returnRate: 0, category: 'energy' } }));
+            res.end(JSON.stringify({ items }));
+            return;
+        }
+
+        if (/^\/api\/mall\/energy\/distribute\/[^/]+$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const projectId = path.split('/')[5];
+            const projects = loadMarket('energy_projects.json', []);
+            const proj = projects.find(x => x.id === projectId);
+            if (!proj) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (proj.creatorId !== user.username && !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"forbidden"}'); return; }
+            const rate = proj.returnRate || 0;
+            const investments = loadMarket('energy_investments.json', []).filter(i => i.projectId === projectId);
+            let distributed = 0;
+            const txns = loadMarket('transactions.json', []);
+            for (const inv of investments) { const share = inv.amount * rate / 100 / 12; if (share <= 0) continue; const u = users[inv.userId]; if (u) { if (!u.offchainBalances) u.offchainBalances = {}; u.offchainBalances.creb = (u.offchainBalances.creb || 0) + share; txns.push({ id: mktId(), from: 'energy_system', to: inv.userId, amount: share, token: 'CREB', type: 'energy_return', projectId, timestamp: Date.now() }); distributed += share; } }
+            saveJSON('users.json', users); saveMarket('transactions.json', txns);
+            res.end(JSON.stringify({ ok: true, distributed, investorCount: investments.length }));
+            return;
+        }
+
+        // ── BUSINESS ──
+
+        if (path === '/api/mall/businesses' && req.method === 'GET') {
+            res.end(JSON.stringify({ items: loadMarket('businesses.json', []).filter(b => b.status === 'active').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 20) }));
+            return;
+        }
+
+        if (/^\/api\/mall\/businesses\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[4];
+            const businesses = loadMarket('businesses.json', []);
+            const b = businesses.find(x => x.id === id);
+            if (!b) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const bizInvs = loadMarket('business_investments.json', []).filter(i => i.businessId === id);
+            let totalInvested = 0; bizInvs.forEach(i => { totalInvested += i.amount || 0; });
+            res.end(JSON.stringify({ item: b, totalInvested, investorCount: bizInvs.length }));
+            return;
+        }
+
+        if (path === '/api/mall/businesses' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const businesses = loadMarket('businesses.json', []);
+            const item = { id: mktId(), name: body.name || '', description: body.description || '', category: body.category || '', country: body.country || '', website: body.website || '', imageData: body.imageData || '', ownerId: user.username, ownerEmail: user.username + '@crowny.org', ownerNickname: users[user.username]?.nickname || users[user.username]?.displayName || user.username, rating: 0, reviews: 0, status: 'active', createdAt: Date.now() };
+            businesses.push(item);
+            saveMarket('businesses.json', businesses);
+            res.end(JSON.stringify({ ok: true, item }));
+            return;
+        }
+
+        if (/^\/api\/mall\/businesses\/[^/]+\/invest$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const bizId = path.split('/')[4];
+            const amount = Number(body.amount);
+            if (!amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"Invalid amount"}'); return; }
+            const profile = users[user.username];
+            if (!profile || (profile.offchainBalances?.crgc || 0) < amount) { res.statusCode = 400; res.end('{"error":"Insufficient CRGC"}'); return; }
+            const businesses = loadMarket('businesses.json', []);
+            const biz = businesses.find(b => b.id === bizId);
+            if (!biz) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            profile.offchainBalances.crgc -= amount;
+            const owner = users[biz.ownerId];
+            if (owner) { if (!owner.offchainBalances) owner.offchainBalances = {}; owner.offchainBalances.crgc = (owner.offchainBalances.crgc || 0) + amount; }
+            saveJSON('users.json', users);
+            const bizInvs = loadMarket('business_investments.json', []);
+            bizInvs.push({ id: mktId(), businessId: bizId, businessName: biz.name, investorId: user.username, investorEmail: user.username + '@crowny.org', amount, token: 'CRGC', timestamp: Date.now() });
+            saveMarket('business_investments.json', bizInvs);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        if (/^\/api\/mall\/businesses\/[^/]+\/rate$/.test(path) && req.method === 'PUT') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const bizId = path.split('/')[4];
+            const rating = Number(body.rating);
+            if (!rating || rating < 1 || rating > 5) { res.statusCode = 400; res.end('{"error":"Invalid rating"}'); return; }
+            const businesses = loadMarket('businesses.json', []);
+            const biz = businesses.find(b => b.id === bizId);
+            if (!biz) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            biz.rating = (biz.rating || 0) + rating; biz.reviews = (biz.reviews || 0) + 1;
+            saveMarket('businesses.json', businesses);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ── ARTISTS ──
+
+        if (path === '/api/mall/artists' && req.method === 'GET') {
+            res.end(JSON.stringify({ items: loadMarket('artists.json', []).filter(a => a.status === 'active').sort((a, b) => (b.fans || 0) - (a.fans || 0)).slice(0, 20) }));
+            return;
+        }
+
+        if (/^\/api\/mall\/artists\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[4];
+            const artists = loadMarket('artists.json', []);
+            const a = artists.find(x => x.id === id);
+            if (!a) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const txns = loadMarket('transactions.json', []);
+            const supports = txns.filter(t => t.artistId === id && t.type === 'artist_support').sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 10);
+            const uniqueFans = new Set(txns.filter(t => t.artistId === id && t.type === 'artist_support').map(t => t.from));
+            res.end(JSON.stringify({ item: a, supports, uniqueFanCount: uniqueFans.size }));
+            return;
+        }
+
+        if (path === '/api/mall/artists' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const artists = loadMarket('artists.json', []);
+            const item = { id: mktId(), name: body.name || '', bio: body.bio || '', genre: body.genre || '', imageData: body.imageData || '', userId: user.username, email: user.username + '@crowny.org', fans: 0, totalSupport: 0, status: 'active', createdAt: Date.now() };
+            artists.push(item);
+            saveMarket('artists.json', artists);
+            res.end(JSON.stringify({ ok: true, item }));
+            return;
+        }
+
+        if (/^\/api\/mall\/artists\/[^/]+\/support$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const artistId = path.split('/')[4];
+            const amount = Number(body.amount);
+            if (!amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"Invalid amount"}'); return; }
+            const profile = users[user.username];
+            if (!profile || (profile.offchainBalances?.crac || 0) < amount) { res.statusCode = 400; res.end('{"error":"Insufficient CRAC"}'); return; }
+            const artists = loadMarket('artists.json', []);
+            const artist = artists.find(a => a.id === artistId);
+            if (!artist) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            profile.offchainBalances.crac -= amount;
+            const artistUser = users[artist.userId];
+            if (artistUser) { if (!artistUser.offchainBalances) artistUser.offchainBalances = {}; artistUser.offchainBalances.crac = (artistUser.offchainBalances.crac || 0) + amount; }
+            saveJSON('users.json', users);
+            const txns = loadMarket('transactions.json', []);
+            const isNewFan = !txns.some(t => t.from === user.username && t.artistId === artistId && t.type === 'artist_support');
+            artist.totalSupport = (artist.totalSupport || 0) + amount;
+            if (isNewFan) artist.fans = (artist.fans || 0) + 1;
+            saveMarket('artists.json', artists);
+            txns.push({ id: mktId(), from: user.username, to: artist.userId, amount, token: 'CRAC', type: 'artist_support', artistId, timestamp: Date.now() });
+            saveMarket('transactions.json', txns);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ── BOOKS ──
+
+        if (path === '/api/mall/books' && req.method === 'GET') {
+            res.end(JSON.stringify({ items: loadMarket('books.json', []).filter(b => b.status === 'active').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 20) }));
+            return;
+        }
+
+        if (/^\/api\/mall\/books\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[4];
+            const books = loadMarket('books.json', []);
+            const b = books.find(x => x.id === id);
+            if (!b) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            res.end(JSON.stringify({ item: b }));
+            return;
+        }
+
+        if (path === '/api/mall/books' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const books = loadMarket('books.json', []);
+            const item = { id: mktId(), title: body.title || '', author: body.author || '', description: body.description || '', genre: body.genre || '', price: Number(body.price) || 0, priceToken: 'CRGC', imageData: body.imageData || '', publisherId: user.username, publisherEmail: user.username + '@crowny.org', sold: 0, rating: 0, reviews: 0, status: 'active', createdAt: Date.now() };
+            books.push(item);
+            saveMarket('books.json', books);
+            res.end(JSON.stringify({ ok: true, item }));
+            return;
+        }
+
+        if (/^\/api\/mall\/books\/[^/]+\/buy$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const bookId = path.split('/')[4];
+            const books = loadMarket('books.json', []);
+            const b = books.find(x => x.id === bookId);
+            if (!b) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (b.publisherId === user.username) { res.statusCode = 400; res.end('{"error":"Cannot buy your own book"}'); return; }
+            if (b.price <= 0) { res.end(JSON.stringify({ ok: true, free: true })); return; }
+            const profile = users[user.username];
+            if (!profile || (profile.offchainBalances?.crgc || 0) < b.price) { res.statusCode = 400; res.end('{"error":"Insufficient CRGC"}'); return; }
+            profile.offchainBalances.crgc -= b.price;
+            const publisher = users[b.publisherId];
+            if (publisher) { if (!publisher.offchainBalances) publisher.offchainBalances = {}; publisher.offchainBalances.crgc = (publisher.offchainBalances.crgc || 0) + b.price; }
+            saveJSON('users.json', users);
+            b.sold = (b.sold || 0) + 1;
+            saveMarket('books.json', books);
+            const txns = loadMarket('transactions.json', []);
+            txns.push({ id: mktId(), from: user.username, to: b.publisherId, amount: b.price, token: 'CRGC', type: 'book_purchase', bookId, timestamp: Date.now() });
+            saveMarket('transactions.json', txns);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ── READING LIST ──
+
+        if (path === '/api/mall/reading-list' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const lists = loadMarket('reading_lists.json', {});
+            res.end(JSON.stringify({ items: (lists[user.username] || []).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)) }));
+            return;
+        }
+
+        if (path === '/api/mall/reading-list' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { bookId } = body;
+            const lists = loadMarket('reading_lists.json', {});
+            if (!lists[user.username]) lists[user.username] = [];
+            if (lists[user.username].some(r => r.bookId === bookId)) { res.statusCode = 400; res.end('{"error":"Already in list"}'); return; }
+            const books = loadMarket('books.json', []);
+            const book = books.find(b => b.id === bookId);
+            if (!book) { res.statusCode = 404; res.end('{"error":"Book not found"}'); return; }
+            lists[user.username].push({ id: mktId(), bookId, bookTitle: book.title, bookAuthor: book.author || '', addedAt: Date.now() });
+            saveMarket('reading_lists.json', lists);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        if (/^\/api\/mall\/reading-list\/[^/]+$/.test(path) && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const itemId = path.split('/')[4];
+            const lists = loadMarket('reading_lists.json', {});
+            if (lists[user.username]) lists[user.username] = lists[user.username].filter(r => r.id !== itemId);
+            saveMarket('reading_lists.json', lists);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // ═══ END 마켓플레이스 REST API ═══
+
+        // ═══ Seed Data API ═══
+        if (/^\/api\/seed\/[^/]+$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req); if (!user) { res.statusCode=401; res.end('{"error":"auth"}'); return; }
+            const col = path.split('/')[3];
+            if (!['artists','businesses','campaigns','bot_profiles','admin_config'].includes(col)) { res.statusCode=400; res.end('{"error":"invalid"}'); return; }
+            const f = `seed_${col}.json`, ex = loadJSON(f,{}); const items = body.items||{}; let cnt=0;
+            for (const [id,d] of Object.entries(items)) { if (!ex[id]) { ex[id]={...d,createdAt:Date.now()}; cnt++; } }
+            saveJSON(f, ex); res.end(JSON.stringify({ok:true,created:cnt})); return;
+        }
+        if (/^\/api\/seed\/[^/]+$/.test(path) && req.method === 'GET') {
+            res.end(JSON.stringify({ok:true,data:loadJSON(`seed_${path.split('/')[3]}.json`,{})})); return;
+        }
+
+        // ═══ Shortform API ═══
+        if (path==='/api/shortform/upload' && req.method==='POST') {
+            const user=getAuth(req); if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}
+            const videos=loadJSON('shortform_videos.json',[]);
+            const sfId=`sf_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+            let videoUrl=body.videoUrl||'';
+            if(body.videoBase64){const d=pathModule.join(DATA_DIR,'uploads',user.username);if(!fs.existsSync(d))fs.mkdirSync(d,{recursive:true});const n=`${Date.now()}.mp4`;const m=body.videoBase64.match(/^data:[^;]+;base64,(.+)$/);fs.writeFileSync(pathModule.join(d,n),Buffer.from(m?m[1]:body.videoBase64,'base64'));videoUrl=`/uploads/${user.username}/${n}`;}
+            let thumbnailUrl=body.thumbnailUrl||'';
+            if(body.thumbnailBase64){const d=pathModule.join(DATA_DIR,'uploads',user.username);if(!fs.existsSync(d))fs.mkdirSync(d,{recursive:true});const n=`${Date.now()}_thumb.jpg`;const m=body.thumbnailBase64.match(/^data:[^;]+;base64,(.+)$/);fs.writeFileSync(pathModule.join(d,n),Buffer.from(m?m[1]:body.thumbnailBase64,'base64'));thumbnailUrl=`/uploads/${user.username}/${n}`;}
+            videos.push({id:sfId,authorUid:user.username,videoUrl,thumbnailUrl,caption:body.caption||'',hashtags:body.hashtags||[],serviceLink:body.serviceLink||null,likes:0,likedBy:[],views:0,commentCount:0,createdAt:Date.now(),trimStart:body.trimStart||null,trimEnd:body.trimEnd||null,filter:body.filter||null,textOverlay:body.textOverlay||null,textPosition:body.textPosition||'bottom',textColor:body.textColor||'#FFF8F0',textSize:body.textSize||24});
+            saveJSON('shortform_videos.json',videos); res.end(JSON.stringify({ok:true,id:sfId})); return;
+        }
+        if(path==='/api/shortform/videos'&&req.method==='GET'){
+            const videos=loadJSON('shortform_videos.json',[]);const pg=parseInt(url.searchParams.get('page')||'0');const lim=Math.min(parseInt(url.searchParams.get('limit')||'10'),50);
+            const sorted=videos.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));const paged=sorted.slice(pg*lim,(pg+1)*lim);const ud=loadJSON('users.json',{});
+            res.end(JSON.stringify({ok:true,videos:paged.map(v=>{const u=ud[v.authorUid]||{};return{...v,authorName:u.nickname||u.displayName||v.authorUid,authorPhoto:u.photoURL||''};}),total:videos.length}));return;
+        }
+        if(/^\/api\/shortform\/video\/[^/]+$/.test(path)&&req.method==='GET'){
+            const vid=path.split('/')[4];const videos=loadJSON('shortform_videos.json',[]);const video=videos.find(v=>v.id===vid);
+            if(!video){res.statusCode=404;res.end('{"error":"not found"}');return;}
+            const ud=loadJSON('users.json',{});const u=ud[video.authorUid]||{};
+            res.end(JSON.stringify({ok:true,video:{...video,authorName:u.nickname||u.displayName||video.authorUid,authorPhoto:u.photoURL||''}}));return;
+        }
+        if(/^\/api\/shortform\/video\/[^/]+\/like$/.test(path)&&req.method==='POST'){
+            const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}
+            const vid=path.split('/')[4];const videos=loadJSON('shortform_videos.json',[]);const video=videos.find(v=>v.id===vid);
+            if(!video){res.statusCode=404;res.end('{"error":"not found"}');return;}
+            if(!video.likedBy)video.likedBy=[];const li=video.likedBy.indexOf(user.username);
+            if(li>=0){video.likedBy.splice(li,1);video.likes=Math.max(0,(video.likes||1)-1);}else{video.likedBy.push(user.username);video.likes=(video.likes||0)+1;}
+            saveJSON('shortform_videos.json',videos);res.end(JSON.stringify({ok:true,likes:video.likes,liked:li<0}));return;
+        }
+        if(/^\/api\/shortform\/video\/[^/]+\/view$/.test(path)&&req.method==='POST'){
+            const vid=path.split('/')[4];const videos=loadJSON('shortform_videos.json',[]);const v=videos.find(x=>x.id===vid);
+            if(v){v.views=(v.views||0)+1;saveJSON('shortform_videos.json',videos);}res.end('{"ok":true}');return;
+        }
+        if(/^\/api\/shortform\/video\/[^/]+\/comments$/.test(path)&&req.method==='GET'){
+            res.end(JSON.stringify({ok:true,comments:loadJSON(`shortform_comments_${path.split('/')[4]}.json`,[])}));return;
+        }
+        if(/^\/api\/shortform\/video\/[^/]+\/comments$/.test(path)&&req.method==='POST'){
+            const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}
+            const videoId=path.split('/')[4];const comments=loadJSON(`shortform_comments_${videoId}.json`,[]);const ud=loadJSON('users.json',{});const u=ud[user.username]||{};
+            const comment={id:`sc_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,uid:user.username,nickname:u.nickname||u.displayName||user.username,photoURL:u.photoURL||'',text:body.text||'',createdAt:Date.now()};
+            comments.push(comment);saveJSON(`shortform_comments_${videoId}.json`,comments);
+            const videos=loadJSON('shortform_videos.json',[]);const v=videos.find(x=>x.id===videoId);if(v){v.commentCount=(v.commentCount||0)+1;saveJSON('shortform_videos.json',videos);}
+            res.end(JSON.stringify({ok:true,comment}));return;
+        }
+        if(/^\/api\/shortform\/services\/[^/]+$/.test(path)&&req.method==='GET'){
+            const st=path.split('/')[4];const cm={artist:'seed_artists.json',campaign:'seed_campaigns.json',business:'seed_businesses.json',art:'seed_artists.json',book:'seed_artists.json',product:'seed_businesses.json'};
+            const nm={artist:'name',campaign:'title',business:'name',art:'name',book:'title',product:'name'};const sd=loadJSON(cm[st]||'seed_artists.json',{});const q=(url.searchParams.get('q')||'').toLowerCase();
+            res.end(JSON.stringify({ok:true,items:Object.entries(sd).map(([id,d])=>({id,name:d[nm[st]]||d.title||d.name||id})).filter(i=>!q||i.name.toLowerCase().includes(q)).slice(0,10)}));return;
+        }
+
+        // ═══ Invite API ═══
+        if(path==='/api/invite/settings'&&req.method==='GET'){const ac=loadJSON('seed_admin_config.json',{});res.end(JSON.stringify({ok:true,inviteSettings:ac.invite_settings||{},rewardSettings:ac.reward_settings||null}));return;}
+        if(path==='/api/invite/user-code'&&req.method==='GET'){
+            const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}
+            const ud=loadJSON('users.json',{});const u=ud[user.username]||{};
+            if(u.referralCode){res.end(JSON.stringify({ok:true,code:u.referralCode}));return;}
+            let code,ce=true;while(ce){code='CR-'+Math.random().toString(36).slice(2,8).toUpperCase();ce=Object.values(ud).some(x=>x.referralCode===code);}
+            if(!ud[user.username])ud[user.username]={};ud[user.username].referralCode=code;ud[user.username].referralNickname=u.nickname||'';ud[user.username].referralCount=u.referralCount||0;ud[user.username].referralEarnings=u.referralEarnings||{};
+            saveJSON('users.json',ud);res.end(JSON.stringify({ok:true,code}));return;
+        }
+        if(path==='/api/invite/stats'&&req.method==='GET'){
+            const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}
+            const inv=loadJSON('invitations.json',[]);const comp=inv.filter(i=>i.inviterUid===user.username&&i.status==='completed');
+            const rc=loadJSON('seed_admin_config.json',{}).reward_settings||{};const ia=rc.inviteAmount||0.5;
+            res.end(JSON.stringify({ok:true,completedCount:comp.length,earnedCRTD:comp.filter(i=>i.rewardPaid).length*ia}));return;
+        }
+        if(path==='/api/invite/lookup'&&req.method==='GET'){
+            const lc=(url.searchParams.get('code')||'').toUpperCase();if(!lc){res.end(JSON.stringify({ok:true,inviterName:''}));return;}
+            const ud=loadJSON('users.json',{});const e=Object.entries(ud).find(([_,u])=>u.referralCode===lc);
+            res.end(JSON.stringify({ok:true,inviterName:e?(e[1].referralNickname||e[1].nickname||''):''}));return;
+        }
+        if(path==='/api/invite/process-signup'&&req.method==='POST'){
+            const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}
+            const rc=(body.referralCode||'').toUpperCase();if(!rc){res.end('{"ok":true,"skipped":true}');return;}
+            const ud=loadJSON('users.json',{});const ie=Object.entries(ud).find(([_,u])=>u.referralCode===rc);
+            if(!ie){res.end('{"ok":true,"skipped":true}');return;}const inviterUid=ie[0];if(inviterUid===user.username){res.end('{"ok":true,"skipped":true}');return;}
+            const inv=loadJSON('invitations.json',[]);inv.push({inviterUid,inviteeUid:user.username,inviteeEmail:user.username+'@crowny.org',status:'completed',rewardPaid:false,createdAt:Date.now()});saveJSON('invitations.json',inv);
+            const ac=loadJSON('seed_admin_config.json',{});const rw=ac.reward_settings||{inviteEnabled:true,inviteAmount:0.5,inviteMaxPerUser:100,signupEnabled:true,signupTiers:[{maxUsers:1000,amount:100},{maxUsers:10000,amount:30},{maxUsers:100000,amount:10}]};
+            if(rw.inviteEnabled){const amt=rw.inviteAmount||0.5,mx=rw.inviteMaxPerUser||100;const pc=inv.filter(i=>i.inviterUid===inviterUid&&i.rewardPaid).length;
+            if(pc*amt<mx){if(!ud[inviterUid])ud[inviterUid]={};const off=ud[inviterUid].offchainBalances||{};off.crtd=(off.crtd||0)+amt;ud[inviterUid].offchainBalances=off;const iv=inv.find(i=>i.inviterUid===inviterUid&&i.inviteeUid===user.username&&!i.rewardPaid);if(iv)iv.rewardPaid=true;saveJSON('invitations.json',inv);}}
+            if(rw.signupEnabled){const stats=ac.stats||{totalUsers:0};let sa=0;for(const tier of(rw.signupTiers||[])){if(stats.totalUsers<=tier.maxUsers){sa=tier.amount;break;}}
+            if(sa>0){if(!ud[user.username])ud[user.username]={};const off=ud[user.username].offchainBalances||{};off.crtd=(off.crtd||0)+sa;ud[user.username].offchainBalances=off;}stats.totalUsers=(stats.totalUsers||0)+1;ac.stats=stats;saveJSON('seed_admin_config.json',ac);}
+            const logs=loadJSON('reward_logs.json',[]);logs.push({uid:inviterUid,type:'invite',amount:rw.inviteAmount||0.5,inviteeUid:user.username,createdAt:Date.now()});logs.push({uid:user.username,type:'signup',createdAt:Date.now()});saveJSON('reward_logs.json',logs);saveJSON('users.json',ud);
+            res.end('{"ok":true}');return;
+        }
+
+        // ═══ E2E Crypto API ═══
+        if(/^\/api\/crypto\/public-keys\/[^/]+$/.test(path)&&req.method==='GET'){const tuid=decodeURIComponent(path.split('/')[4]);const ud=loadJSON('users.json',{});const u=ud[tuid]||{};res.end(JSON.stringify({ok:true,publicKey:u.publicKey||null,publicSignKey:u.publicSignKey||null}));return;}
+        if(path==='/api/crypto/public-keys'&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const ud=loadJSON('users.json',{});if(!ud[user.username])ud[user.username]={};ud[user.username].publicKey=body.publicKey;ud[user.username].publicSignKey=body.publicSignKey;saveJSON('users.json',ud);res.end('{"ok":true}');return;}
+        if(path==='/api/crypto/chats'&&req.method==='GET'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const chats=loadJSON('chats.json',[]);res.end(JSON.stringify({ok:true,chats:chats.filter(c=>c.participants&&c.participants.includes(user.username))}));return;}
+        if(/^\/api\/crypto\/chat\/[^/]+$/.test(path)&&req.method==='GET'){const cid=path.split('/')[4];const chats=loadJSON('chats.json',[]);const c=chats.find(x=>x.id===cid);if(!c){res.statusCode=404;res.end('{"error":"not found"}');return;}res.end(JSON.stringify({ok:true,chat:c}));return;}
+        if(path==='/api/crypto/chat'&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const chats=loadJSON('chats.json',[]);if(body.secret){const ex=chats.find(c=>c.secret&&c.participants&&c.participants.includes(user.username)&&c.participants.includes(body.otherUid));if(ex){res.end(JSON.stringify({ok:true,chatId:ex.id}));return;}}const cid=`chat_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;chats.push({id:cid,participants:[user.username,body.otherUid],lastMessage:body.secret?'🔒 Secret chat started':'',lastMessageTime:Date.now(),createdAt:Date.now(),unreadCount:{},typing:{},secret:body.secret||false,e2eEnabled:body.secret||false,autoDeleteAfter:body.secret?86400000:0,noForward:body.secret||false});saveJSON('chats.json',chats);res.end(JSON.stringify({ok:true,chatId:cid}));return;}
+        if(/^\/api\/crypto\/chat\/[^/]+$/.test(path)&&req.method==='PATCH'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const cid=path.split('/')[4];const chats=loadJSON('chats.json',[]);const c=chats.find(x=>x.id===cid);if(!c){res.statusCode=404;res.end('{"error":"not found"}');return;}if(body.field!==undefined&&body.value!==undefined)c[body.field]=body.value;else Object.assign(c,body);saveJSON('chats.json',chats);res.end('{"ok":true}');return;}
+        if(/^\/api\/crypto\/chat\/[^/]+\/message$/.test(path)&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const cid=path.split('/')[4];const msgs=loadJSON(`chat_msgs_${cid}.json`,[]);const msg={id:`msg_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,...body,timestamp:Date.now()};msgs.push(msg);saveJSON(`chat_msgs_${cid}.json`,msgs);const chats=loadJSON('chats.json',[]);const c=chats.find(x=>x.id===cid);if(c){c.lastMessage=body.text||'🔒';c.lastMessageTime=Date.now();saveJSON('chats.json',chats);}res.end(JSON.stringify({ok:true,message:msg}));return;}
+        if(/^\/api\/crypto\/chat\/[^/]+\/expired$/.test(path)&&req.method==='DELETE'){const cid=path.split('/')[4];const msgs=loadJSON(`chat_msgs_${cid}.json`,[]);const now=Date.now();const b=msgs.length;const f=msgs.filter(m=>!m.expiresAt||m.expiresAt>now);saveJSON(`chat_msgs_${cid}.json`,f);res.end(JSON.stringify({ok:true,cleaned:b-f.length}));return;}
+        if(path==='/api/crypto/contacts'&&req.method==='GET'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}res.end(JSON.stringify({ok:true,contacts:loadJSON(`contacts_${user.username}.json`,[])}));return;}
+
+        // ═══ Stories API ═══
+        if(path==='/api/stories'&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const stories=loadJSON('stories.json',[]);const sid=`story_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;let mediaUrl=body.mediaUrl||'';if(body.mediaBase64){const d=pathModule.join(DATA_DIR,'uploads',user.username);if(!fs.existsSync(d))fs.mkdirSync(d,{recursive:true});const ext=body.mediaType==='video'?'mp4':'jpg';const fn=`story_${Date.now()}.${ext}`;const m=body.mediaBase64.match(/^data:[^;]+;base64,(.+)$/);fs.writeFileSync(pathModule.join(d,fn),Buffer.from(m?m[1]:body.mediaBase64,'base64'));mediaUrl=`/uploads/${user.username}/${fn}`;}stories.push({id:sid,userId:user.username,mediaUrl,mediaType:body.mediaType||'image',text:body.text||'',viewers:[],expiresAt:Date.now()+86400000,createdAt:Date.now()});saveJSON('stories.json',stories);res.end(JSON.stringify({ok:true,id:sid}));return;}
+        if(path==='/api/stories'&&req.method==='GET'){const stories=loadJSON('stories.json',[]);res.end(JSON.stringify({ok:true,stories:stories.filter(s=>s.expiresAt>Date.now())}));return;}
+        if(/^\/api\/stories\/[^/]+\/view$/.test(path)&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const sid=path.split('/')[3];const stories=loadJSON('stories.json',[]);const s=stories.find(x=>x.id===sid);if(s&&!s.viewers.includes(user.username)){s.viewers.push(user.username);saveJSON('stories.json',stories);}res.end('{"ok":true}');return;}
+        if(/^\/api\/stories\/[^/]+$/.test(path)&&req.method==='GET'){const sid=path.split('/')[3];const stories=loadJSON('stories.json',[]);const s=stories.find(x=>x.id===sid);if(!s){res.statusCode=404;res.end('{"error":"not found"}');return;}res.end(JSON.stringify({ok:true,story:s}));return;}
+        if(path==='/api/stories/expired'&&req.method==='DELETE'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const stories=loadJSON('stories.json',[]);const now=Date.now();const f=stories.filter(s=>s.expiresAt>now||s.userId!==user.username);saveJSON('stories.json',f);res.end(JSON.stringify({ok:true,cleaned:stories.length-f.length}));return;}
+        if(path==='/api/stories/reply-chat'&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const ou=body.userId;const chats=loadJSON('chats.json',[]);let ch=chats.find(c=>c.participants&&c.participants.includes(user.username)&&c.participants.includes(ou)&&!c.secret);if(!ch){const cid=`chat_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;ch={id:cid,participants:[user.username,ou],lastMessage:'',lastMessageTime:Date.now(),createdAt:Date.now()};chats.push(ch);saveJSON('chats.json',chats);}const msgs=loadJSON(`chat_msgs_${ch.id}.json`,[]);msgs.push({id:`msg_${Date.now()}`,senderId:user.username,text:body.text||'',timestamp:Date.now(),type:'text'});saveJSON(`chat_msgs_${ch.id}.json`,msgs);ch.lastMessage=body.text;ch.lastMessageTime=Date.now();saveJSON('chats.json',chats);res.end(JSON.stringify({ok:true,chatId:ch.id}));return;}
+        if(path==='/api/user/following'&&req.method==='GET'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}res.end(JSON.stringify({ok:true,following:loadJSON(`following_${user.username}.json`,[]),friends:loadJSON(`friends_${user.username}.json`,[])}));return;}
+
+        // ═══ Beauty Manager API ═══
+        if(path==='/api/beauty/skin-analyses'&&req.method==='GET'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const a=loadJSON(`beauty_analyses_${user.username}.json`,[]);const lim=parseInt(url.searchParams.get('limit')||'10');res.end(JSON.stringify({ok:true,analyses:a.sort((x,y)=>(y.createdAt||0)-(x.createdAt||0)).slice(0,lim)}));return;}
+        if(path==='/api/beauty/skin-analyses'&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const tu=body.userId||user.username;const a=loadJSON(`beauty_analyses_${tu}.json`,[]);const aid=`ba_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;const an={id:aid,...body,createdAt:Date.now()};delete an.userId;a.push(an);saveJSON(`beauty_analyses_${tu}.json`,a);res.end(JSON.stringify({ok:true,id:aid}));return;}
+        if(path==='/api/beauty/skin-photos'&&req.method==='GET'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const p=loadJSON(`beauty_photos_${user.username}.json`,[]);const lim=parseInt(url.searchParams.get('limit')||'12');res.end(JSON.stringify({ok:true,photos:p.sort((x,y)=>(y.createdAt||0)-(x.createdAt||0)).slice(0,lim)}));return;}
+        if(path==='/api/beauty/skin-photos'&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const p=loadJSON(`beauty_photos_${user.username}.json`,[]);let photoURL=body.photoURL||'';if(body.photoBase64){const d=pathModule.join(DATA_DIR,'uploads',user.username,'skin');if(!fs.existsSync(d))fs.mkdirSync(d,{recursive:true});const fn=`${body.zone||'full'}_${Date.now()}.jpg`;const m=body.photoBase64.match(/^data:[^;]+;base64,(.+)$/);fs.writeFileSync(pathModule.join(d,fn),Buffer.from(m?m[1]:body.photoBase64,'base64'));photoURL=`/uploads/${user.username}/skin/${fn}`;}const pid=`bp_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;p.push({id:pid,zone:body.zone||'full',photoURL,storagePath:photoURL,createdAt:Date.now(),analyzed:false,analysisResult:null});saveJSON(`beauty_photos_${user.username}.json`,p);res.end(JSON.stringify({ok:true,id:pid,photoURL}));return;}
+        if(path==='/api/beauty/analysis-requests'&&req.method==='GET'){const r=loadJSON('beauty_analysis_requests.json',[]);res.end(JSON.stringify({ok:true,requests:r.filter(x=>x.status==='pending'||x.status==='in_progress').sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,20)}));return;}
+        if(path==='/api/beauty/analysis-requests'&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const r=loadJSON('beauty_analysis_requests.json',[]);const rid=`bar_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;r.push({id:rid,userId:user.username,userNickname:body.userNickname||user.username,photoCount:body.photoCount||0,type:body.type||'expert',status:'pending',createdAt:Date.now(),completedAt:null,analysisId:null});saveJSON('beauty_analysis_requests.json',r);res.end(JSON.stringify({ok:true,id:rid}));return;}
+        if(/^\/api\/beauty\/analysis-requests\/[^/]+$/.test(path)&&(req.method==='PATCH'||req.method==='POST')){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const rid=path.split('/')[4];const r=loadJSON('beauty_analysis_requests.json',[]);const rq=r.find(x=>x.id===rid);if(!rq){res.statusCode=404;res.end('{"error":"not found"}');return;}Object.assign(rq,body);saveJSON('beauty_analysis_requests.json',r);res.end('{"ok":true}');return;}
+        if(path==='/api/beauty/notify'&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const n=loadJSON(`notifications_${body.userId}.json`,[]);n.push({type:'beauty',message:body.message||'Analysis result available!',read:false,createdAt:Date.now()});saveJSON(`notifications_${body.userId}.json`,n);res.end('{"ok":true}');return;}
 
         // ═══ 독립 소셜 피드 ═══
 

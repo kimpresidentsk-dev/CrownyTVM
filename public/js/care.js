@@ -1,8 +1,20 @@
-// ===== care.js v2.0 - 크라우니케어: 가족돌봄/건강관리/SOS 강화/케어모드UI =====
+// ===== care.js v3.0 - 크라우니케어: Firestore -> REST API 마이그레이션 =====
 // SOS: 카운트다운, 사이렌, 실시간위치, 녹음, 119·112, 병원정보, 이웃네트워크
 
 window.CARE = (function() {
     'use strict';
+
+    // ========== AUTH HELPER ==========
+    function authHeaders() {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    }
+
+    async function apiFetch(url, opts = {}) {
+        opts.headers = authHeaders();
+        const res = await fetch(url, opts);
+        return res.json();
+    }
 
     // ========== STATE ==========
     let careGroup = null;
@@ -72,13 +84,11 @@ window.CARE = (function() {
     async function loadCareGroup() {
         if (!currentUser) return;
         try {
-            const snap = await db.collection('care_groups')
-                .where('memberUids', 'array-contains', currentUser.uid)
-                .limit(1).get();
+            const data = await apiFetch('/api/care/group');
 
-            if (!snap.empty) {
-                careGroupId = snap.docs[0].id;
-                careGroup = snap.docs[0].data();
+            if (data.group) {
+                careGroup = data.group;
+                careGroupId = data.group.id;
                 const me = (careGroup.members || []).find(m => m.uid === currentUser.uid);
                 careRole = me ? me.role : 'member';
                 renderCareHome();
@@ -120,25 +130,17 @@ window.CARE = (function() {
         if (!name) return;
 
         try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const nickname = userDoc.exists ? userDoc.data().nickname : (currentUser.displayName || currentUser.email);
-
-            const ref = await db.collection('care_groups').add({
-                name: name,
-                createdBy: currentUser.uid,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                memberUids: [currentUser.uid],
-                members: [{
-                    uid: currentUser.uid,
-                    email: currentUser.email,
-                    nickname: nickname,
-                    role: 'guardian',
-                    joinedAt: new Date().toISOString()
-                }]
+            const data = await apiFetch('/api/care/group', {
+                method: 'POST',
+                body: JSON.stringify({ name })
             });
-            careGroupId = ref.id;
-            showToast(t('care.group_created','Family group has been created!'));
-            loadCareGroup();
+            if (data.ok) {
+                careGroupId = data.group.id;
+                showToast(t('care.group_created','Family group has been created!'));
+                loadCareGroup();
+            } else {
+                showToast(t('common.error','An error occurred'), 'error');
+            }
         } catch(e) {
             console.error(e);
             showToast(t('common.error','An error occurred'), 'error');
@@ -162,40 +164,25 @@ window.CARE = (function() {
         const role = (roleChoice === 'guardian') ? 'guardian' : 'member';
 
         try {
-            const userSnap = await db.collection('users').where('email', '==', email).limit(1).get();
-            if (userSnap.empty) {
+            const data = await apiFetch('/api/care/group/invite', {
+                method: 'POST',
+                body: JSON.stringify({ email, role })
+            });
+
+            if (data.error === 'user not found') {
                 showToast(t('care.user_not_found','No user found with that email'), 'error');
                 return;
             }
-            const invitedUser = userSnap.docs[0];
-            const invitedData = invitedUser.data();
-
-            if ((careGroup.memberUids || []).includes(invitedUser.id)) {
+            if (data.error === 'already member') {
                 showToast(t('care.already_member','Already a member of this group'), 'error');
                 return;
             }
-
-            await db.collection('care_groups').doc(careGroupId).update({
-                memberUids: firebase.firestore.FieldValue.arrayUnion(invitedUser.id),
-                members: firebase.firestore.FieldValue.arrayUnion({
-                    uid: invitedUser.id,
-                    email: email,
-                    nickname: invitedData.nickname || email,
-                    role: role,
-                    joinedAt: new Date().toISOString()
-                })
-            });
-
-            await db.collection('notifications').add({
-                userId: invitedUser.id,
-                type: 'care_invite',
-                message: `${t('care.invited_to_group', 'You have been invited to')} ${careGroup.name}`,
-                read: false,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            showToast(t('care.invited','Invitation sent!'));
-            loadCareGroup();
+            if (data.ok) {
+                showToast(t('care.invited','Invitation sent!'));
+                loadCareGroup();
+            } else {
+                showToast(t('common.error','An error occurred'), 'error');
+            }
         } catch(e) {
             console.error(e);
             showToast(t('common.error','An error occurred'), 'error');
@@ -246,7 +233,7 @@ window.CARE = (function() {
             <div class="care-card">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h3 style="margin:0; font-size:1.3rem;">message-circle ${t('care.messages','Family Messages')}</h3>
-                    <button onclick="CARE.showSendMessage()" class="care-btn care-btn-small">✏ ${t('care.write','Write')}</button>
+                    <button onclick="CARE.showSendMessage()" class="care-btn care-btn-small">\u270F ${t('care.write','Write')}</button>
                 </div>
                 <div id="care-messages" style="margin-top:1rem;"></div>
                 <div class="care-quick-replies">
@@ -309,17 +296,15 @@ window.CARE = (function() {
         if (!el) return;
 
         try {
-            const snap = await db.collection('care_groups').doc(careGroupId)
-                .collection('messages').orderBy('createdAt', 'desc').limit(3).get();
+            const data = await apiFetch('/api/care/messages?limit=3');
 
-            if (snap.empty) {
+            if (!data.messages || data.messages.length === 0) {
                 el.innerHTML = `<p style="color:#6B5744; font-size:1.1rem; text-align:center;">${t('care.no_messages','No messages yet')}</p>`;
                 return;
             }
 
-            el.innerHTML = snap.docs.map(d => {
-                const msg = d.data();
-                const time = msg.createdAt ? new Date(msg.createdAt.toDate()).toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : '';
+            el.innerHTML = data.messages.map(msg => {
+                const time = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : '';
                 return `<div class="care-message-card">
                     <div style="font-weight:700; font-size:1.1rem;">${msg.senderName || t('care.family', 'Family')}</div>
                     <div style="font-size:1.3rem; margin:0.5rem 0;">${msg.text}</div>
@@ -340,27 +325,10 @@ window.CARE = (function() {
         if (!text) return;
 
         try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const nickname = userDoc.exists ? userDoc.data().nickname : currentUser.email;
-
-            await db.collection('care_groups').doc(careGroupId).collection('messages').add({
-                text: text,
-                senderId: currentUser.uid,
-                senderName: nickname,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            await apiFetch('/api/care/messages', {
+                method: 'POST',
+                body: JSON.stringify({ text })
             });
-
-            for (const m of careGroup.members) {
-                if (m.uid !== currentUser.uid) {
-                    await db.collection('notifications').add({
-                        userId: m.uid,
-                        type: 'care_message',
-                        message: `${nickname}: ${text}`,
-                        read: false,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
-            }
 
             showToast(t('care.message_sent','Message sent'));
             loadMessages();
@@ -372,14 +340,9 @@ window.CARE = (function() {
 
     async function sendQuickReply(text) {
         try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const nickname = userDoc.exists ? userDoc.data().nickname : currentUser.email;
-
-            await db.collection('care_groups').doc(careGroupId).collection('messages').add({
-                text: text,
-                senderId: currentUser.uid,
-                senderName: nickname,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            await apiFetch('/api/care/messages', {
+                method: 'POST',
+                body: JSON.stringify({ text, skipNotify: true })
             });
             showToast(`${text} ${t('care.sent', 'sent')}!`);
             loadMessages();
@@ -395,24 +358,22 @@ window.CARE = (function() {
         if (!el) return;
 
         try {
-            const snap = await db.collection('care_groups').doc(careGroupId)
-                .collection('schedules').orderBy('time', 'asc').get();
+            const data = await apiFetch('/api/care/schedules');
 
-            if (snap.empty) {
+            if (!data.schedules || data.schedules.length === 0) {
                 el.innerHTML = `<p style="color:#6B5744; font-size:1.1rem; text-align:center;">${t('care.no_schedule','No scheduled events')}</p>`;
                 return;
             }
 
-            el.innerHTML = snap.docs.map(d => {
-                const s = d.data();
+            el.innerHTML = data.schedules.map(s => {
                 const now = new Date();
                 const [hh, mm] = (s.time || '00:00').split(':');
                 const schedTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(hh), parseInt(mm));
                 const isPast = now > schedTime;
                 return `<div class="care-schedule-item ${isPast ? 'past' : ''}">
                     <span class="care-schedule-time">${s.time}</span>
-                    <span class="care-schedule-label">${s.icon || '•'} ${s.title}</span>
-                    ${careRole === 'guardian' ? `<button onclick="CARE.deleteSchedule('${d.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">✕</button>` : ''}
+                    <span class="care-schedule-label">${s.icon || '\u2022'} ${s.title}</span>
+                    ${careRole === 'guardian' ? `<button onclick="CARE.deleteSchedule('${s.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">\u2715</button>` : ''}
                 </div>`;
             }).join('');
         } catch(e) {
@@ -427,12 +388,13 @@ window.CARE = (function() {
         if (!time) return;
 
         try {
-            await db.collection('care_groups').doc(careGroupId).collection('schedules').add({
-                title: title,
-                time: time,
-                icon: title.match(/\p{Emoji}/u)?.[0] || '•',
-                createdBy: currentUser.uid,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            await apiFetch('/api/care/schedules', {
+                method: 'POST',
+                body: JSON.stringify({
+                    title,
+                    time,
+                    icon: title.match(/\p{Emoji}/u)?.[0] || '\u2022'
+                })
             });
             showToast(t('care.schedule_added','Schedule added calendar'));
             loadSchedules();
@@ -445,7 +407,7 @@ window.CARE = (function() {
     async function deleteSchedule(id) {
         if (!confirm(t('care.delete_confirm','Are you sure you want to delete?'))) return;
         try {
-            await db.collection('care_groups').doc(careGroupId).collection('schedules').doc(id).delete();
+            await apiFetch('/api/care/schedules/' + id, { method: 'DELETE' });
             showToast(t('common.delete','Deleted'));
             loadSchedules();
         } catch(e) { console.error(e); }
@@ -458,27 +420,25 @@ window.CARE = (function() {
         if (!el) return;
 
         try {
-            const snap = await db.collection('care_groups').doc(careGroupId)
-                .collection('medications').orderBy('time', 'asc').get();
+            const data = await apiFetch('/api/care/medications');
 
-            if (snap.empty) {
+            if (!data.medications || data.medications.length === 0) {
                 el.innerHTML = `<p style="color:#6B5744; font-size:1.1rem; text-align:center;">${t('care.no_meds','No medications registered')}</p>`;
                 return;
             }
 
             const today = new Date().toISOString().split('T')[0];
 
-            el.innerHTML = snap.docs.map(d => {
-                const med = d.data();
+            el.innerHTML = data.medications.map(med => {
                 const taken = med.takenDates && med.takenDates.includes(today);
                 return `<div class="care-med-item ${taken ? 'taken' : ''}">
                     <div>
                         <div style="font-weight:700; font-size:1.2rem;">pill ${med.name}</div>
-                        <div style="color:#6B5744; font-size:1rem;">⏰ ${med.time} · ${med.repeat || t('care.daily', 'Daily')}</div>
+                        <div style="color:#6B5744; font-size:1rem;">\u23F0 ${med.time} \u00B7 ${med.repeat || t('care.daily', 'Daily')}</div>
                     </div>
                     ${taken
                         ? `<span class="care-med-done">${t('care.taken','Taken')}</span>`
-                        : `<button onclick="CARE.confirmMedication('${d.id}')" class="care-btn care-btn-med">pill ${t('care.take','Confirm Taken')}</button>`
+                        : `<button onclick="CARE.confirmMedication('${med.id}')" class="care-btn care-btn-med">pill ${t('care.take','Confirm Taken')}</button>`
                     }
                 </div>`;
             }).join('');
@@ -494,13 +454,13 @@ window.CARE = (function() {
         if (!time) return;
 
         try {
-            await db.collection('care_groups').doc(careGroupId).collection('medications').add({
-                name: name,
-                time: time,
-                repeat: t('care.daily', 'Daily'),
-                takenDates: [],
-                createdBy: currentUser.uid,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            await apiFetch('/api/care/medications', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name,
+                    time,
+                    repeat: t('care.daily', 'Daily')
+                })
             });
             showToast(t('care.med_added','Medication registered pill'));
             loadMedications();
@@ -511,26 +471,11 @@ window.CARE = (function() {
     }
 
     async function confirmMedication(medId) {
-        const today = new Date().toISOString().split('T')[0];
         try {
-            await db.collection('care_groups').doc(careGroupId).collection('medications').doc(medId).update({
-                takenDates: firebase.firestore.FieldValue.arrayUnion(today)
+            await apiFetch('/api/care/medications/' + medId + '/take', {
+                method: 'POST',
+                body: JSON.stringify({})
             });
-
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const nickname = userDoc.exists ? userDoc.data().nickname : currentUser.email;
-
-            for (const m of careGroup.members) {
-                if (m.role === 'guardian' && m.uid !== currentUser.uid) {
-                    await db.collection('notifications').add({
-                        userId: m.uid,
-                        type: 'care_medication',
-                        message: `pill ${nickname} ${t('care.took_medication', 'took their medication')}`,
-                        read: false,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
-            }
 
             showToast(t('care.med_confirmed','Medication confirmed!'));
             loadMedications();
@@ -546,24 +491,22 @@ window.CARE = (function() {
         if (!el) return;
 
         try {
-            const snap = await db.collection('care_groups').doc(careGroupId)
-                .collection('health_logs').orderBy('createdAt', 'desc').limit(5).get();
+            const data = await apiFetch('/api/care/health?limit=5');
 
-            if (snap.empty) {
+            if (!data.logs || data.logs.length === 0) {
                 el.innerHTML = `<p style="color:#6B5744; font-size:1.1rem; text-align:center;">${t('care.no_health','No records')}</p>`;
                 return;
             }
 
-            el.innerHTML = snap.docs.map(d => {
-                const h = d.data();
-                const date = h.createdAt ? new Date(h.createdAt.toDate()).toLocaleDateString('ko-KR') : '';
+            el.innerHTML = data.logs.map(h => {
+                const date = h.createdAt ? new Date(h.createdAt).toLocaleDateString('ko-KR') : '';
                 const items = [];
-                if (h.bloodPressure) items.push(`🩸 ${t('care.blood_pressure', 'BP')}: ${h.bloodPressure}`);
-                if (h.temperature) items.push(`${t('care.temperature', 'Temp')}: ${h.temperature}°C`);
+                if (h.bloodPressure) items.push(`\uD83E\uDE78 ${t('care.blood_pressure', 'BP')}: ${h.bloodPressure}`);
+                if (h.temperature) items.push(`${t('care.temperature', 'Temp')}: ${h.temperature}\u00B0C`);
                 if (h.bloodSugar) items.push(`${t('care.blood_sugar', 'Sugar')}: ${h.bloodSugar}`);
                 if (h.weight) items.push(`${t('care.weight', 'Weight')}: ${h.weight}kg`);
                 return `<div class="care-health-card">
-                    <div style="font-weight:700;">${h.recorderName || ''} · ${date}</div>
+                    <div style="font-weight:700;">${h.recorderName || ''} \u00B7 ${date}</div>
                     <div style="margin-top:0.5rem; font-size:1.1rem;">${items.join(' &nbsp;|&nbsp; ')}</div>
                 </div>`;
             }).join('');
@@ -573,7 +516,7 @@ window.CARE = (function() {
     }
 
     async function showAddHealthLog() {
-        const bp = await showPromptModal('🩸 ' + t('care.blood_pressure', 'Blood Pressure'), t('care.bp_prompt', 'Enter blood pressure (e.g. 120/80, leave blank to skip)'), '');
+        const bp = await showPromptModal('\uD83E\uDE78 ' + t('care.blood_pressure', 'Blood Pressure'), t('care.bp_prompt', 'Enter blood pressure (e.g. 120/80, leave blank to skip)'), '');
         const temp = await showPromptModal(t('care.temperature', 'Temperature'), t('care.temp_prompt', 'Enter temperature (e.g. 36.5, leave blank to skip)'), '');
         const sugar = await showPromptModal(t('care.blood_sugar', 'Blood Sugar'), t('care.sugar_prompt', 'Enter blood sugar (leave blank to skip)'), '');
         const weight = await showPromptModal(t('care.weight', 'Weight'), t('care.weight_prompt', 'Enter weight in kg (leave blank to skip)'), '');
@@ -584,17 +527,14 @@ window.CARE = (function() {
         }
 
         try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const nickname = userDoc.exists ? userDoc.data().nickname : currentUser.email;
-
-            await db.collection('care_groups').doc(careGroupId).collection('health_logs').add({
-                bloodPressure: bp || null,
-                temperature: temp ? parseFloat(temp) : null,
-                bloodSugar: sugar || null,
-                weight: weight ? parseFloat(weight) : null,
-                recorderId: currentUser.uid,
-                recorderName: nickname,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            await apiFetch('/api/care/health', {
+                method: 'POST',
+                body: JSON.stringify({
+                    bloodPressure: bp || null,
+                    temperature: temp || null,
+                    bloodSugar: sugar || null,
+                    weight: weight || null
+                })
             });
             showToast(t('care.health_saved','Health record saved heart'));
             loadHealthLogs();
@@ -627,7 +567,7 @@ window.CARE = (function() {
                 <div class="sos-countdown-number" id="sos-countdown-num">${count}</div>
                 <div class="sos-countdown-desc">${t('care.sos_countdown_desc','seconds until dispatch')}</div>
                 <button onclick="CARE.cancelSOSCountdown()" class="sos-countdown-cancel">
-                    ✕ ${t('care.sos_cancel','Cancel')}
+                    \u2715 ${t('care.sos_cancel','Cancel')}
                 </button>
             </div>
         `;
@@ -664,8 +604,12 @@ window.CARE = (function() {
         sosActive = true;
         sosStartTime = new Date();
 
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const nickname = userDoc.exists ? userDoc.data().nickname : currentUser.email;
+        // Get nickname
+        let nickname = currentUser.displayName || currentUser.email;
+        try {
+            const nickData = await apiFetch('/api/care/user-nickname');
+            if (nickData.nickname) nickname = nickData.nickname;
+        } catch(e) { /* use default */ }
 
         // 1) Start siren
         startSiren();
@@ -684,61 +628,40 @@ window.CARE = (function() {
         // 3) Start recording
         startAudioRecording();
 
-        // 4) Save SOS record to Firestore
+        // 4) Save SOS record to server
         try {
-            const alertRef = await db.collection('care_groups').doc(careGroupId).collection('sos_alerts').add({
-                senderId: currentUser.uid,
-                senderName: nickname,
-                location: location,
-                status: 'active',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            const sosData = await apiFetch('/api/care/sos', {
+                method: 'POST',
+                body: JSON.stringify({ location })
             });
-            sosAlertId = alertRef.id;
-
-            // Also save initial location
-            if (location) {
-                await alertRef.collection('locations').add({
-                    lat: location.lat,
-                    lng: location.lng,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
+            if (sosData.ok && sosData.alert) {
+                sosAlertId = sosData.alert.id;
             }
         } catch(e) {
             console.error('SOS save error:', e);
         }
 
-        // 5) Notify all guardians + messenger auto-message
+        // 5) Auto-message via messenger
         const locationStr = location ? `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}` : t('care.location_unavailable','Location unavailable');
-        for (const m of careGroup.members) {
-            if (m.uid !== currentUser.uid) {
-                try {
-                    await db.collection('notifications').add({
-                        userId: m.uid,
-                        type: 'care_sos',
-                        message: `sos ${t('care.sos_urgent', 'URGENT!')} ${nickname} ${t('care.sos_called', 'sent an SOS!')} (${t('care.sos_location', 'Location')}: ${locationStr})`,
-                        read: false,
-                        priority: 'urgent',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                } catch(e) { console.error(e); }
-            }
-        }
-
-        // Auto-message via messenger
         try {
-            await db.collection('care_groups').doc(careGroupId).collection('messages').add({
-                text: `sos ${nickname}${t('care.sos_auto_msg',' has sent an emergency call!')} ${t('care.sos_location','Location')}: ${locationStr}`,
-                senderId: currentUser.uid,
-                senderName: 'sos SOS',
-                type: 'sos',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            await apiFetch('/api/care/messages', {
+                method: 'POST',
+                body: JSON.stringify({
+                    text: `sos ${nickname}${t('care.sos_auto_msg',' has sent an emergency call!')} ${t('care.sos_location','Location')}: ${locationStr}`,
+                    type: 'sos',
+                    skipNotify: true
+                })
             });
         } catch(e) { console.error(e); }
 
         // 6) Notify neighbors
         let neighborCount = 0;
         try {
-            neighborCount = await notifyNeighbors(location, nickname);
+            const nbData = await apiFetch('/api/care/sos/notify-neighbors', {
+                method: 'POST',
+                body: JSON.stringify({ location, senderName: nickname })
+            });
+            neighborCount = nbData.count || 0;
         } catch(e) { console.error('Neighbor notify error:', e); }
 
         // 7) Start real-time location sharing (30 min)
@@ -747,9 +670,8 @@ window.CARE = (function() {
         // 8) Load emergency contacts
         let emergencyContacts = [];
         try {
-            const ecSnap = await db.collection('care_groups').doc(careGroupId)
-                .collection('emergency_contacts').get();
-            emergencyContacts = ecSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const ecData = await apiFetch('/api/care/emergency-contacts');
+            emergencyContacts = ecData.contacts || [];
         } catch(e) { console.error(e); }
 
         // Show SOS complete screen
@@ -837,18 +759,22 @@ window.CARE = (function() {
         if (sosRecordingChunks.length === 0) return;
         try {
             const blob = new Blob(sosRecordingChunks, { type: 'audio/webm' });
-            const storageRef = firebase.storage().ref();
-            const ts = Date.now();
-            const path = `sos_recordings/${currentUser.uid}/${ts}.webm`;
-            const fileRef = storageRef.child(path);
-            await fileRef.put(blob);
-            const url = await fileRef.getDownloadURL();
+            // Convert blob to base64
+            const reader = new FileReader();
+            const base64Promise = new Promise((resolve) => {
+                reader.onloadend = () => {
+                    const base64 = reader.result.split(',')[1]; // strip data:...;base64, prefix
+                    resolve(base64);
+                };
+                reader.readAsDataURL(blob);
+            });
+            const base64 = await base64Promise;
 
-            // Update SOS alert with recording URL
-            if (sosAlertId && careGroupId) {
-                await db.collection('care_groups').doc(careGroupId)
-                    .collection('sos_alerts').doc(sosAlertId)
-                    .update({ recordingUrl: url, recordingPath: path });
+            if (sosAlertId) {
+                await apiFetch('/api/care/sos/' + sosAlertId + '/recording', {
+                    method: 'POST',
+                    body: JSON.stringify({ base64, mimeType: 'audio/webm' })
+                });
             }
         } catch(e) {
             console.error('Recording upload error:', e);
@@ -865,14 +791,14 @@ window.CARE = (function() {
             async (pos) => {
                 if (!sosAlertId || !careGroupId) return;
                 try {
-                    await db.collection('care_groups').doc(careGroupId)
-                        .collection('sos_alerts').doc(sosAlertId)
-                        .collection('locations').add({
+                    await apiFetch('/api/care/sos/' + sosAlertId + '/location', {
+                        method: 'POST',
+                        body: JSON.stringify({
                             lat: pos.coords.latitude,
                             lng: pos.coords.longitude,
-                            accuracy: pos.coords.accuracy,
-                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                        });
+                            accuracy: pos.coords.accuracy
+                        })
+                    });
                 } catch(e) { console.error(e); }
                 // Update panel
                 updateSOSLocationDisplay(pos.coords.latitude, pos.coords.longitude);
@@ -912,44 +838,6 @@ window.CARE = (function() {
         // Update maps link
         const mapLink = document.getElementById('sos-map-link');
         if (mapLink) mapLink.href = `https://www.google.com/maps?q=${lat},${lng}`;
-    }
-
-    // --- Neighbor Network ---
-    function haversineDistance(lat1, lng1, lat2, lng2) {
-        const R = 6371; // km
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLng = (lng2 - lng1) * Math.PI / 180;
-        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-
-    async function notifyNeighbors(location, senderName) {
-        if (!location || !careGroupId) return 0;
-        let count = 0;
-        try {
-            const snap = await db.collection('care_groups').doc(careGroupId)
-                .collection('neighbors').get();
-            const radiusKm = 1; // default 1km
-
-            for (const doc of snap.docs) {
-                const neighbor = doc.data();
-                if (neighbor.lat && neighbor.lng) {
-                    const dist = haversineDistance(location.lat, location.lng, neighbor.lat, neighbor.lng);
-                    if (dist <= radiusKm && neighbor.uid) {
-                        await db.collection('notifications').add({
-                            userId: neighbor.uid,
-                            type: 'care_sos_neighbor',
-                            message: `sos ${t('care.neighbor_sos', 'Neighbor')} ${senderName} ${t('care.sos_called', 'sent an SOS!')} (${dist.toFixed(1)}km)`,
-                            read: false,
-                            priority: 'urgent',
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        count++;
-                    }
-                }
-            }
-        } catch(e) { console.error(e); }
-        return count;
     }
 
     // --- SOS Active Panel UI ---
@@ -1057,12 +945,13 @@ window.CARE = (function() {
         stopAudioRecording();
         stopLocationSharing();
 
-        // Update Firestore status
-        if (sosAlertId && careGroupId) {
+        // Update server status
+        if (sosAlertId) {
             try {
-                await db.collection('care_groups').doc(careGroupId)
-                    .collection('sos_alerts').doc(sosAlertId)
-                    .update({ status: 'resolved', resolvedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                await apiFetch('/api/care/sos/' + sosAlertId + '/resolve', {
+                    method: 'POST',
+                    body: JSON.stringify({})
+                });
             } catch(e) { console.error(e); }
         }
 
@@ -1084,9 +973,8 @@ window.CARE = (function() {
 
         let contacts = [];
         try {
-            const snap = await db.collection('care_groups').doc(careGroupId)
-                .collection('emergency_contacts').get();
-            contacts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const data = await apiFetch('/api/care/emergency-contacts');
+            contacts = data.contacts || [];
         } catch(e) { console.error(e); }
 
         // Build modal content
@@ -1094,17 +982,17 @@ window.CARE = (function() {
             <div style="display:flex; justify-content:space-between; align-items:center; padding:0.8rem; background:#f9f9f9; border-radius:10px; margin-bottom:0.5rem;">
                 <div>
                     <strong>hospital ${c.hospitalName || ''}</strong>
-                    ${c.doctorName ? `<span style="color:#6B5744;"> · ${c.doctorName}</span>` : ''}
-                    <div style="font-size:0.85rem; color:#6B5744;">${c.phone || ''} · ${c.address || ''}</div>
+                    ${c.doctorName ? `<span style="color:#6B5744;"> \u00B7 ${c.doctorName}</span>` : ''}
+                    <div style="font-size:0.85rem; color:#6B5744;">${c.phone || ''} \u00B7 ${c.address || ''}</div>
                 </div>
-                <button onclick="CARE.deleteEmergencyContact('${c.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">✕</button>
+                <button onclick="CARE.deleteEmergencyContact('${c.id}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">\u2715</button>
             </div>
         `).join('') : `<p style="color:#6B5744;">${t('care.no_emergency_contacts','No contacts registered')}</p>`;
 
         // Use prompt-style modal (simple approach)
         const hospitalName = await showPromptModal(
             `hospital ${t('care.emergency_contacts','Emergency Contacts')}`,
-            `${t('care.add_hospital','Add new hospital/doctor — Enter hospital name (leave blank to view list)')}\n\n${t('care.currently_registered', 'Currently registered')}: ${contacts.length}`,
+            `${t('care.add_hospital','Add new hospital/doctor \u2014 Enter hospital name (leave blank to view list)')}\n\n${t('care.currently_registered', 'Currently registered')}: ${contacts.length}`,
             ''
         );
         if (!hospitalName) return; // just viewing
@@ -1116,10 +1004,9 @@ window.CARE = (function() {
         if (!phone) { showToast(t('care.phone_required','Phone number is required'), 'error'); return; }
 
         try {
-            await db.collection('care_groups').doc(careGroupId).collection('emergency_contacts').add({
-                hospitalName, phone, doctorName: doctorName || '', address: address || '',
-                createdBy: currentUser.uid,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            await apiFetch('/api/care/emergency-contacts', {
+                method: 'POST',
+                body: JSON.stringify({ hospitalName, phone, doctorName: doctorName || '', address: address || '' })
             });
             showToast(t('care.ec_added','Emergency contact added hospital'));
         } catch(e) {
@@ -1131,7 +1018,7 @@ window.CARE = (function() {
     async function deleteEmergencyContact(id) {
         if (!confirm(t('care.delete_confirm','Are you sure you want to delete?'))) return;
         try {
-            await db.collection('care_groups').doc(careGroupId).collection('emergency_contacts').doc(id).delete();
+            await apiFetch('/api/care/emergency-contacts/' + id, { method: 'DELETE' });
             showToast(t('common.delete','Deleted'));
         } catch(e) { console.error(e); }
     }
@@ -1148,28 +1035,26 @@ window.CARE = (function() {
         if (!email) return;
 
         try {
-            const userSnap = await db.collection('users').where('email', '==', email).limit(1).get();
-            if (userSnap.empty) {
-                showToast(t('care.user_not_found','User not found'), 'error');
-                return;
-            }
-            const neighborUser = userSnap.docs[0];
-            const neighborData = neighborUser.data();
-
             // Get neighbor's location (prompt for manual input)
             const latStr = await showPromptModal(t('care.neighbor_lat','Neighbor Latitude'), t('care.neighbor_lat_prompt','Enter latitude (e.g. 37.5665)'), '');
             const lngStr = await showPromptModal(t('care.neighbor_lng','Neighbor Longitude'), t('care.neighbor_lng_prompt','Enter longitude (e.g. 126.9780)'), '');
 
-            await db.collection('care_groups').doc(careGroupId).collection('neighbors').add({
-                uid: neighborUser.id,
-                email: email,
-                name: neighborData.nickname || email,
-                lat: latStr ? parseFloat(latStr) : null,
-                lng: lngStr ? parseFloat(lngStr) : null,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            const data = await apiFetch('/api/care/neighbors', {
+                method: 'POST',
+                body: JSON.stringify({
+                    email,
+                    lat: latStr ? parseFloat(latStr) : null,
+                    lng: lngStr ? parseFloat(lngStr) : null
+                })
             });
 
-            showToast(t('care.neighbor_added','Neighbor has been registered home'));
+            if (data.error === 'user not found') {
+                showToast(t('care.user_not_found','User not found'), 'error');
+                return;
+            }
+            if (data.ok) {
+                showToast(t('care.neighbor_added','Neighbor has been registered home'));
+            }
         } catch(e) {
             console.error(e);
             showToast(t('common.error','Error'), 'error');
@@ -1201,10 +1086,8 @@ window.CARE = (function() {
     async function loadPhotos() {
         if (!careGroupId) return;
         try {
-            const snap = await db.collection('care_groups').doc(careGroupId)
-                .collection('photos').orderBy('createdAt', 'desc').limit(20).get();
-
-            slideshowPhotos = snap.docs.map(d => d.data());
+            const data = await apiFetch('/api/care/photos');
+            slideshowPhotos = data.photos || [];
             renderSlideshow();
         } catch(e) {
             console.error(e);
@@ -1225,9 +1108,9 @@ window.CARE = (function() {
                 ${photo.caption ? `<p style="text-align:center; margin-top:0.5rem; font-size:1.1rem; color:#6B5744;">${photo.caption}</p>` : ''}
             </div>
             ${slideshowPhotos.length > 1 ? `<div style="text-align:center; margin-top:0.5rem;">
-                <button onclick="CARE.prevPhoto()" class="care-btn care-btn-small">◀</button>
+                <button onclick="CARE.prevPhoto()" class="care-btn care-btn-small">\u25C0</button>
                 <span style="margin:0 1rem; color:#6B5744;">${(slideshowIndex % slideshowPhotos.length) + 1} / ${slideshowPhotos.length}</span>
-                <button onclick="CARE.nextPhoto()" class="care-btn care-btn-small">▶</button>
+                <button onclick="CARE.nextPhoto()" class="care-btn care-btn-small">\u25B6</button>
             </div>` : ''}`;
     }
 
@@ -1248,11 +1131,12 @@ window.CARE = (function() {
                     const resized = await resizeImage(ev.target.result, 1200);
                     const caption = await showPromptModal('camera ' + t('care.photo_caption', 'Photo Caption'), t('care.caption_prompt', 'Enter a description for the photo (optional)'), '');
 
-                    await db.collection('care_groups').doc(careGroupId).collection('photos').add({
-                        url: resized,
-                        caption: caption || '',
-                        uploaderId: currentUser.uid,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    await apiFetch('/api/care/photos', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            url: resized,
+                            caption: caption || ''
+                        })
                     });
                     showToast(t('care.photo_uploaded','Photo uploaded camera'));
                     loadPhotos();
@@ -1293,7 +1177,7 @@ window.CARE = (function() {
         board.innerHTML = `
             <div class="care-board-bg" ${bgPhoto ? `style="background-image:url(${bgPhoto})"` : ''}>
                 <div class="care-board-overlay">
-                    <button onclick="CARE.exitSmartBoard()" class="care-board-exit">✕</button>
+                    <button onclick="CARE.exitSmartBoard()" class="care-board-exit">\u2715</button>
                     <div class="care-board-clock" id="care-board-clock">00:00</div>
                     <div class="care-board-date" id="care-board-date"></div>
                     <div id="care-board-messages" class="care-board-messages"></div>
@@ -1339,10 +1223,8 @@ window.CARE = (function() {
         const el = document.getElementById('care-board-messages');
         if (!el) return;
         try {
-            const snap = await db.collection('care_groups').doc(careGroupId)
-                .collection('messages').orderBy('createdAt','desc').limit(3).get();
-            el.innerHTML = snap.docs.map(d => {
-                const m = d.data();
+            const data = await apiFetch('/api/care/messages?limit=3');
+            el.innerHTML = (data.messages || []).map(m => {
                 return `<div class="care-board-msg">${m.senderName}: ${m.text}</div>`;
             }).join('');
         } catch(e) { console.warn("[catch]", e); }
@@ -1353,11 +1235,9 @@ window.CARE = (function() {
         const el = document.getElementById('care-board-schedule');
         if (!el) return;
         try {
-            const snap = await db.collection('care_groups').doc(careGroupId)
-                .collection('schedules').orderBy('time','asc').get();
-            el.innerHTML = snap.docs.map(d => {
-                const s = d.data();
-                return `<div class="care-board-sched">${s.time} ${s.icon || '•'} ${s.title}</div>`;
+            const data = await apiFetch('/api/care/schedules');
+            el.innerHTML = (data.schedules || []).map(s => {
+                return `<div class="care-board-sched">${s.time} ${s.icon || '\u2022'} ${s.title}</div>`;
             }).join('');
         } catch(e) { console.warn("[catch]", e); }
     }

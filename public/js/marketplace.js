@@ -1,7 +1,7 @@
 // ===== marketplace.js - 쇼핑몰, 모금, 에너지, 비즈니스, 아티스트, 출판, P2P크레딧 =====
 
 const ORDER_STATUS_LABELS = { paid:t('mall.status_paid','<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Paid'), shipping:t('mall.status_shipping','<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Shipping'), delivered:t('mall.status_delivered','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delivered'), cancelled:t('mall.status_cancelled','<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Cancelled') };
-const ORDER_STATUS_COLORS = { paid:'#C4841D', shipping:'#5B7B8C', delivered:'#5A9A6E', cancelled:'#B54534' };
+const ORDER_STATUS_COLORS = { paid:'#C4841D', shipping:'#5B7B8C', delivered:'#5B7B8C', cancelled:'#B54534' };
 const BRAND_SLOGANS = {
     present: t('brand.slogan_present','Gift of beauty'), doctor: t('brand.slogan_doctor','The start of a healthy life'), medical: t('brand.slogan_medical','Trustworthy medical care'),
     avls: t('brand.slogan_avls','Awaken your senses'), solution: t('brand.slogan_solution','Design safety'), architect: t('brand.slogan_architect','Create spaces'),
@@ -171,7 +171,7 @@ async function renderProductDetail(id) {
                     </div>`;
                 revSnap.forEach(r => {
                     const rv = r.data();
-                    const verifiedBadge = rv.verified ? `<span style="background:#F7F3ED;color:#5A9A6E;font-size:0.7rem;padding:0.1rem 0.4rem;border-radius:4px;margin-left:0.3rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.verified_purchase','Verified')}</span>` : '';
+                    const verifiedBadge = rv.verified ? `<span style="background:#F7F3ED;color:#5B7B8C;font-size:0.7rem;padding:0.1rem 0.4rem;border-radius:4px;margin-left:0.3rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.verified_purchase','Verified')}</span>` : '';
                     const dateStr = rv.createdAt?.toDate ? rv.createdAt.toDate().toLocaleDateString('ko-KR') : '';
                     reviewsHtml += `<div style="background:var(--bg); padding:0.8rem; border-radius:8px; margin-bottom:0.5rem;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -456,13 +456,13 @@ async function loadMyProducts() {
         c.innerHTML='';
         o.forEach(d => {
             const x = d.data();
-            const statusBadge = x.status === 'active' ? `<span style="color:#5A9A6E; font-size:0.75rem;">● ${t('mall.status_active','Active')}</span>` : x.status === 'pending' ? `<span style="color:#C4841D; font-size:0.75rem;">● ${t('mall.status_pending','Pending')}</span>` : x.status === 'rejected' ? `<span style="color:#B54534; font-size:0.75rem;">● ${t('mall.status_rejected','Rejected')}</span>` : `<span style="color:#6B5744; font-size:0.75rem;">● ${t('mall.status_inactive','Inactive')}</span>`;
+            const statusBadge = x.status === 'active' ? `<span style="color:#5B7B8C; font-size:0.75rem;">● ${t('mall.status_active','Active')}</span>` : x.status === 'pending' ? `<span style="color:#C4841D; font-size:0.75rem;">● ${t('mall.status_pending','Pending')}</span>` : x.status === 'rejected' ? `<span style="color:#B54534; font-size:0.75rem;">● ${t('mall.status_rejected','Rejected')}</span>` : `<span style="color:#6B5744; font-size:0.75rem;">● ${t('mall.status_inactive','Inactive')}</span>`;
             c.innerHTML += `<div style="padding:0.6rem; background:var(--bg); border-radius:6px; margin-bottom:0.4rem; font-size:0.85rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.3rem;">
                     <div><strong>${x.title}</strong> — ${x.price} CRGC · ${t('mall.sold','Sold')}: ${x.sold||0}/${x.stock} ${statusBadge}</div>
                     <div style="display:flex; gap:0.3rem;">
                         <button onclick="editProduct('${d.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.edit_btn','<i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Edit')}</button>
-                        <button onclick="toggleProduct('${d.id}','${x.status}')" style="background:${x.status==='active'?'#6B5744':'#5A9A6E'}; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${x.status==='active'?t('mall.deactivate','<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Deactivate'):t('mall.activate','▶ Activate')}</button>
+                        <button onclick="toggleProduct('${d.id}','${x.status}')" style="background:${x.status==='active'?'#6B5744':'#5B7B8C'}; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${x.status==='active'?t('mall.deactivate','<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Deactivate'):t('mall.activate','▶ Activate')}</button>
                         <button onclick="deleteProduct('${d.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
                     </div>
                 </div>
@@ -530,7 +530,7 @@ async function loadSellerOrders() {
             const statusColor = ORDER_STATUS_COLORS[x.status] || 'var(--accent)';
             const nextActions = [];
             if (x.status === 'paid') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','shipping')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.process_shipping','<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Ship')}</button>`);
-            if (x.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','delivered')" style="background:#5A9A6E; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.mark_delivered','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delivered')}</button>`);
+            if (x.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','delivered')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.mark_delivered','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delivered')}</button>`);
             const shipInfo = x.shippingInfo ? `<div style="font-size:0.7rem; color:#6B5744; margin-top:0.2rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${x.shippingInfo.name} · ${x.shippingInfo.phone} · ${x.shippingInfo.address}${x.shippingInfo.memo ? ' · '+x.shippingInfo.memo : ''}</div>` : '';
             c.innerHTML += `<div style="padding:0.6rem; background:var(--bg); border-radius:6px; margin-bottom:0.4rem; font-size:0.85rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.3rem;">
@@ -635,17 +635,17 @@ async function loadCampaigns() {
                     <div style="padding:1rem;">
                         <h4 style="margin-bottom:0.3rem;">${x.title}</h4>
                         <p style="font-size:0.85rem; color:var(--accent); margin-bottom:0.5rem;">${x.creatorNickname || x.creatorEmail} · ${x.backerCount || x.backers || 0} ${t('fund.backers','backers')}</p>
-                        <p style="font-size:0.75rem; color:#5A9A6E; margin-bottom:0.5rem;"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.fee','Fee')} ${x.platformFee||2.5}% · ${t('fund.creator_receives','Creator receives')} ${100-(x.platformFee||2.5)}%</p>
+                        <p style="font-size:0.75rem; color:#5B7B8C; margin-bottom:0.5rem;"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.fee','Fee')} ${x.platformFee||2.5}% · ${t('fund.creator_receives','Creator receives')} ${100-(x.platformFee||2.5)}%</p>
                         <div style="background:#e0e0e0; height:8px; border-radius:4px; margin-bottom:0.5rem;">
-                            <div style="background:#5A9A6E; height:100%; border-radius:4px; width:${pct}%;"></div>
+                            <div style="background:#5B7B8C; height:100%; border-radius:4px; width:${pct}%;"></div>
                         </div>
                         <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
                             <span style="font-weight:700;">${x.raised} / ${x.goal} ${x.token}</span>
                             <span style="color:var(--accent);">${pct}%</span>
                         </div>
                         <div style="display:flex; gap:0.5rem; margin-top:0.8rem;">
-                            <button onclick="event.stopPropagation(); donateCampaign('${d.id}')" style="background:#5A9A6E; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; flex:1; font-weight:700;">${t('fundraise.donate_btn','<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Donate')}</button>
-                            ${isCreator ? `<button onclick="event.stopPropagation(); closeCampaign('${d.id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem;">${t('fund.close','🔒 Close')}</button>` : ''}
+                            <button onclick="event.stopPropagation(); donateCampaign('${d.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; flex:1; font-weight:700;">${t('fundraise.donate_btn','<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Donate')}</button>
+                            ${isCreator ? `<button onclick="event.stopPropagation(); closeCampaign('${d.id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem;">${t('fund.close','Close')}</button>` : ''}
                         </div>
                     </div>
                 </div>`;
@@ -694,13 +694,13 @@ async function donateCampaign(id) {
 const CREB_CATEGORIES = {
     energy: { icon: '<i data-lucide="zap" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#C4841D', label: t('invest.impact_energy','Energy'), sdg: 'SDG 7' },
     genetics: { icon: '<i data-lucide="dna" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#B54534', label: t('invest.impact_genetics','Genetic Engineering'), sdg: 'SDG 3' },
-    biotech: { icon: '<i data-lucide="microscope" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#5A9A6E', label: t('invest.impact_biotech','Biotechnology'), sdg: 'SDG 3' },
+    biotech: { icon: '<i data-lucide="microscope" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#5B7B8C', label: t('invest.impact_biotech','Biotechnology'), sdg: 'SDG 3' },
     ai_robotics: { icon: '<i data-lucide="bot" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', color: '#5B7B8C', label: t('invest.impact_ai_robotics','AI & Robotics'), sdg: 'SDG 9' }
 };
 
 const CREB_INVEST_TYPES = {
     return: { icon: '<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: t('invest.type_profit','Profit-type'), color: '#C4841D', bg: '#FFF3E0' },
-    donation: { icon: '<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: t('invest.type_donation','Donation & Good Investment'), color: '#5A9A6E', bg: '#E8F5E9' },
+    donation: { icon: '<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: t('invest.type_donation','Donation & Good Investment'), color: '#5B7B8C', bg: '#E8F5E9' },
     hybrid: { icon: '<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: t('invest.type_hybrid','Hybrid'), color: '#5B7B8C', bg: '#E3F2FD' }
 };
 
@@ -771,8 +771,8 @@ async function loadEnergyProjects() {
                 </div>
                 <div style="margin-bottom:0.3rem;">${renderInvestBadge(x)}</div>
                 <p style="font-size:0.85rem; color:var(--accent); margin:0.3rem 0;">${x.location || ''} ${x.capacity ? '· ' + x.capacity + 'kW' : ''} ${rate > 0 ? '· ' + t('energy.expected_return','Expected return') + ' ' + rate + '%' : ''}</p>
-                ${rate > 0 ? `<div style="font-size:0.8rem; color:#5A9A6E; margin-top:0.3rem;"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('invest.per_100_creb','100 CREB invested')} → ${t('invest.monthly_short','monthly')} ${exMonthly} CREB (${t('invest.annual_short','annual')} ${rate}%)</div>` : ''}
-                ${itype === 'donation' ? `<div style="font-size:0.8rem; color:#5A9A6E; margin-top:0.3rem;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('energy.pure_donation','Pure donation - investing in the future without returns')}</div>` : ''}
+                ${rate > 0 ? `<div style="font-size:0.8rem; color:#5B7B8C; margin-top:0.3rem;"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('invest.per_100_creb','100 CREB invested')} → ${t('invest.monthly_short','monthly')} ${exMonthly} CREB (${t('invest.annual_short','annual')} ${rate}%)</div>` : ''}
+                ${itype === 'donation' ? `<div style="font-size:0.8rem; color:#5B7B8C; margin-top:0.3rem;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('energy.pure_donation','Pure donation - investing in the future without returns')}</div>` : ''}
                 ${itype === 'hybrid' ? `<div style="font-size:0.8rem; color:#5B7B8C; margin-top:0.3rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('energy.hybrid_desc','50% returns + 50% reinvestment')}</div>` : ''}
                 <div style="font-size:0.75rem; color:var(--accent);">${t('invest.investors','Investors')} ${xInvestors}${t('common.count_people','')}</div>
                 <div style="background:#e0e0e0; height:6px; border-radius:3px; margin:0.5rem 0;"><div style="background:${catInfo.color}; height:100%; border-radius:3px; width:${pct}%;"></div></div>
@@ -808,7 +808,7 @@ async function openProjectDetail(projectId) {
 
         let milestonesHtml = '';
         if (x.milestones && x.milestones.length) {
-            milestonesHtml = `<div style="margin-top:1rem;"><h4>📋 ${t('invest.milestones','Milestones')}</h4>${x.milestones.map(m => {
+            milestonesHtml = `<div style="margin-top:1rem;"><h4><i data-lucide="clipboard-list" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> ${t('invest.milestones','Milestones')}</h4>${x.milestones.map(m => {
                 const mp = Math.min(100, Math.round((m.current/m.target)*100));
                 return `<div style="margin:0.5rem 0;"><div style="font-size:0.85rem; font-weight:600;">${m.name}</div><div style="background:#e0e0e0; height:6px; border-radius:3px; margin:0.3rem 0;"><div style="background:${catInfo.color}; height:100%; border-radius:3px; width:${mp}%;"></div></div><div style="font-size:0.75rem; color:var(--accent);">${m.current}/${m.target} (${mp}%)</div></div>`;
             }).join('')}</div>`;
@@ -929,7 +929,7 @@ async function registerBusiness() {
             ownerNickname: userDoc.data()?.nickname || '',
             rating: 0, reviews: 0, status: 'active', createdAt: new Date()
         });
-        showToast(`🏢 "${name}" ${t('common.registered','registered!')}`, 'success');
+        showToast(`"${name}" ${t('common.registered','registered!')}`, 'success');
         document.getElementById('biz-name').value = '';
         loadBusinessList();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -941,11 +941,11 @@ async function loadBusinessList() {
     try {
         const docs = await db.collection('businesses').where('status','==','active').orderBy('createdAt','desc').limit(20).get();
         if (docs.empty) { c.innerHTML = `<p style="color:var(--accent);">${t('biz.no_businesses','No businesses registered')}</p>`; return; }
-        const BIZ_CATS = {retail:'<i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',food:'<i data-lucide="utensils" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',service:'<i data-lucide="wrench" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',education:'<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',health:'<i data-lucide="pill" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',logistics:'<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',entertainment:'<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',other:'🏢'};
+        const BIZ_CATS = {retail:'<i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',food:'<i data-lucide="utensils" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',service:'<i data-lucide="wrench" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',education:'<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',health:'<i data-lucide="pill" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',logistics:'<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',entertainment:'<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',other:'<i data-lucide="building" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'};
         c.innerHTML = '';
         docs.forEach(d => { const x = d.data();
             c.innerHTML += `<div onclick="viewBusinessDetail('${d.id}')" style="background:#FFF8F0; padding:1rem; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); display:flex; gap:1rem; align-items:center; cursor:pointer;">
-                ${x.imageData ? `<img src="${x.imageData}" loading="lazy" style="width:70px; height:70px; border-radius:8px; object-fit:cover;">` : `<div style="width:70px; height:70px; background:var(--bg); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">${BIZ_CATS[x.category]||'🏢'}</div>`}
+                ${x.imageData ? `<img src="${x.imageData}" loading="lazy" style="width:70px; height:70px; border-radius:8px; object-fit:cover;">` : `<div style="width:70px; height:70px; background:var(--bg); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">${BIZ_CATS[x.category]||'<i data-lucide="building" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'}</div>`}
                 <div style="flex:1;"><h4>${x.name}</h4><p style="font-size:0.8rem; color:var(--accent);">${[BIZ_CATS[x.category], x.country, x.ownerNickname || x.ownerEmail].filter(Boolean).join(' · ')}</p>
                 ${x.description ? `<p style="font-size:0.85rem; margin-top:0.3rem;">${x.description.slice(0,80)}${x.description.length>80?'...':''}</p>` : ''}
                 <div style="font-size:0.75rem; color:var(--accent); margin-top:0.3rem;"><i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${x.reviews > 0 ? (x.rating/x.reviews).toFixed(1) : '-'} · ${x.reviews||0} ${t('mall.reviews','Reviews')}</div></div></div>`; });
@@ -988,7 +988,7 @@ async function loadArtistList() {
                 ${x.imageData ? `<img src="${x.imageData}" loading="lazy" style="width:100%; height:100%; object-fit:cover;">` : `<div style="height:100%; display:flex; align-items:center; justify-content:center; font-size:3rem; color:#FFF8F0;">${GENRES[x.genre]||'<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'}</div>`}</div>
                 <div style="padding:0.6rem;"><div style="font-weight:700;">${x.name}</div>
                 <div style="font-size:0.75rem; color:var(--accent);">${GENRES[x.genre]||''} · ${t('artist.fans','Fans')} ${x.fans}</div>
-                <button onclick="event.stopPropagation(); supportArtist('${d.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; margin-top:0.4rem; font-size:0.8rem;">${t('artist.support_btn','💖 Support')}</button>
+                <button onclick="event.stopPropagation(); supportArtist('${d.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; margin-top:0.4rem; font-size:0.8rem;">${t('artist.support_btn','<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Support')}</button>
                 </div></div>`; });
     } catch (e) { c.innerHTML = e.message; }
 }
@@ -1023,7 +1023,7 @@ async function supportArtist(id) {
         const isNewFan = existingSupport.empty;
         await db.collection('artists').doc(id).update({ totalSupport: (artist2.totalSupport||0) + amount, fans: (artist2.fans||0) + (isNewFan ? 1 : 0) });
         await db.collection('transactions').add({ from:currentUser.uid, to:artist2.userId, amount, token:tkName, type:'artist_support', artistId:id, timestamp:new Date() });
-        showToast(`💖 ${amount} ${tkName} ${t('artist.supported','supported')} ${artist2.name}!`, 'success'); loadArtistList(); loadUserWallet();
+        showToast(`${amount} ${tkName} ${t('artist.supported','supported')} ${artist2.name}!`, 'success'); loadArtistList(); loadUserWallet();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
 
@@ -1154,7 +1154,7 @@ async function loadInsuranceAdmin() {
                 </div>
                 <p class="meta">${r.reason}</p>
                 <div class="credit-admin-actions">
-                    <button onclick="approveInsurance('${r.id}')" style="background:#5A9A6E;"><i data-lucide="check-circle"></i> ${t('credit.approve','Approve')}</button>
+                    <button onclick="approveInsurance('${r.id}')" style="background:#5B7B8C;"><i data-lucide="check-circle"></i> ${t('credit.approve','Approve')}</button>
                     <button onclick="rejectInsurance('${r.id}')" style="background:#B54534;"><i data-lucide="x-circle"></i> ${t('credit.reject','Reject')}</button>
                 </div>
             </div>`;
@@ -1174,7 +1174,7 @@ async function loadMyInsuranceClaims() {
         const mine = items.filter(r => r.requesterId === currentUser.uid);
         if (!mine.length) { c.innerHTML = `<p style="color:var(--accent); font-size:0.85rem;">${t('credit.no_insurance_claims','No insurance claims')}</p>`; return; }
         const STATUS = { pending: `<i data-lucide="hourglass"></i> ${t('credit.status_pending','Pending')}`, approved: `<i data-lucide="check-circle"></i> ${t('credit.status_approved','Approved')}`, rejected: `<i data-lucide="x-circle"></i> ${t('credit.status_rejected','Rejected')}` };
-        const STATUS_COLOR = { pending: '#C4841D', approved: '#5A9A6E', rejected: '#B54534' };
+        const STATUS_COLOR = { pending: '#C4841D', approved: '#5B7B8C', rejected: '#B54534' };
         c.innerHTML = '';
         mine.forEach(r => {
             c.innerHTML += `<div class="credit-claim-item" style="border-left:3px solid ${STATUS_COLOR[r.status] || '#6B5744'};">
@@ -1219,15 +1219,15 @@ async function loadCreditScoreBreakdown() {
 
         c.innerHTML = `
             <div class="credit-breakdown">
-                <div class="credit-breakdown-row"><span>👑 ${t('credit.crtd_held','CRTD Held')}</span><span>+${b.crtdHolding}${t('credit.points','pts')}</span></div>
+                <div class="credit-breakdown-row"><span><i data-lucide="crown"></i> ${t('credit.crtd_held','CRTD Held')}</span><span>+${b.crtdHolding}${t('credit.points','pts')}</span></div>
                 <div class="credit-breakdown-row"><span><i data-lucide="heart"></i> ${t('credit.donations','Donations')}</span><span>+${b.donationScore}${t('credit.points','pts')}</span></div>
                 <div class="credit-breakdown-row"><span><i data-lucide="users"></i> ${t('credit.contributions','Contributions')}</span><span>+${b.contributionScore}${t('credit.points','pts')}</span></div>
-                <div class="credit-breakdown-row"><span>💯 ${t('credit.repay_rate','Repay Rate')}</span><span>+${b.repaymentScore}${t('credit.points','pts')}</span></div>
+                <div class="credit-breakdown-row"><span><i data-lucide="percent"></i> ${t('credit.repay_rate','Repay Rate')}</span><span>+${b.repaymentScore}${t('credit.points','pts')}</span></div>
                 <div class="credit-breakdown-row"><span><i data-lucide="bar-chart"></i> ${t('credit.frequency','Frequency')}</span><span>+${b.frequencyScore}${t('credit.points','pts')}</span></div>
                 <div class="credit-breakdown-total"><span><i data-lucide="trophy"></i> ${t('credit.total_score','Total Credit Score')}</span><span>${totalScore}</span></div>
             </div>`;
         const scoreEl = document.getElementById('credit-score');
-        if (scoreEl) { scoreEl.textContent = totalScore; scoreEl.style.color = totalScore >= 700 ? '#5A9A6E' : totalScore >= 500 ? '#C4841D' : '#B54534'; }
+        if (scoreEl) { scoreEl.textContent = totalScore; scoreEl.style.color = totalScore >= 700 ? '#5B7B8C' : totalScore >= 500 ? '#C4841D' : '#B54534'; }
     } catch (e) { c.innerHTML = `<p style="color:red;">${e.message}</p>`; }
 }
 
@@ -1237,7 +1237,7 @@ async function viewBusinessDetail(id) {
     const doc = await db.collection('businesses').doc(id).get();
     if (!doc.exists) return;
     const b = doc.data();
-    const BIZ_CATS = {retail:'<i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_retail','Retail'),food:'<i data-lucide="utensils" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_food','Food & Beverage'),service:'<i data-lucide="wrench" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_service','Service'),tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_tech','Tech'),education:'<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_education','Education'),health:'<i data-lucide="pill" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_health','Health'),logistics:'<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_logistics','Logistics'),entertainment:'<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_entertainment','Entertainment'),other:'🏢 ' + t('biz.cat_other','Other')};
+    const BIZ_CATS = {retail:'<i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_retail','Retail'),food:'<i data-lucide="utensils" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_food','Food & Beverage'),service:'<i data-lucide="wrench" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_service','Service'),tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_tech','Tech'),education:'<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_education','Education'),health:'<i data-lucide="pill" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_health','Health'),logistics:'<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_logistics','Logistics'),entertainment:'<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_entertainment','Entertainment'),other:'<i data-lucide="building" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_other','Other')};
     // 투자 현황
     const investments = await db.collection('business_investments').where('businessId', '==', id).get();
     let totalInvested = 0, investorCount = 0;
@@ -1256,7 +1256,7 @@ async function viewBusinessDetail(id) {
             <h3>${b.name}</h3>
             <p style="color:var(--accent); font-size:0.85rem; margin:0.3rem 0;">${[BIZ_CATS[b.category], b.country, b.ownerNickname || b.ownerEmail].filter(Boolean).join(' · ')}</p>
             ${b.description ? `<p style="font-size:0.9rem; margin:0.8rem 0;">${b.description}</p>` : ''}
-            ${b.website ? `<a href="${b.website}" target="_blank" style="font-size:0.85rem;">🔗 ${t('biz.website','Website')}</a>` : ''}
+            ${b.website ? `<a href="${b.website}" target="_blank" style="font-size:0.85rem;"><i data-lucide="external-link" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('biz.website','Website')}</a>` : ''}
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem; margin:1rem 0;">
                 <div style="background:var(--bg); padding:0.6rem; border-radius:8px; text-align:center;">
                     <div style="font-size:0.7rem; color:var(--accent);">${t('invest.total_invested','Total invested')}</div>
@@ -1364,10 +1364,10 @@ async function viewArtistDetail(id) {
             <p style="color:var(--accent); font-size:0.85rem;">${GENRES[a.genre] || ''} · ${t('artist.fans','Fans')} ${uniqueFans.size} · ${t('artist.total_support','Total support')} ${a.totalSupport || 0}</p>
             ${a.bio ? `<p style="font-size:0.9rem; margin:0.8rem 0;">${a.bio}</p>` : ''}
             <div style="margin:1rem 0;">
-                <h4 style="font-size:0.85rem; margin-bottom:0.5rem;">💖 ${t('artist.recent_support','Recent support')}</h4>
+                <h4 style="font-size:0.85rem; margin-bottom:0.5rem;"><i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('artist.recent_support','Recent support')}</h4>
                 ${supportHtml || `<p style="font-size:0.8rem; color:var(--accent);">${t('artist.no_support','No support history')}</p>`}
             </div>
-            <button onclick="supportArtist('${id}'); document.getElementById('artist-detail-modal').remove();" style="background:#B54534; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700; width:100%; margin-bottom:0.5rem;">💖 ${t('artist.support_action','Support')}</button>
+            <button onclick="supportArtist('${id}'); document.getElementById('artist-detail-modal').remove();" style="background:#B54534; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700; width:100%; margin-bottom:0.5rem;"><i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('artist.support_action','Support')}</button>
             <button onclick="document.getElementById('artist-detail-modal').remove()" style="background:#E8E0D8; border:none; padding:0.6rem; border-radius:8px; cursor:pointer; width:100%;">${t('common.close','Close')}</button>
         </div></div>`;
     document.body.appendChild(modal);
@@ -1397,7 +1397,7 @@ async function viewBookDetail(id) {
             ${b.description ? `<p style="font-size:0.9rem; margin:0.8rem 0; line-height:1.6;">${b.description}</p>` : ''}
             <div style="display:flex; gap:0.5rem; margin-top:1rem;">
                 ${!isOwner && b.price > 0 ? `<button onclick="buyBook('${id}'); document.getElementById('book-detail-modal').remove();" style="flex:1; background:#3D2B1F; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;"><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.buy_now','Buy Now')}</button>` : ''}
-                ${!isOwner && b.price <= 0 ? `<button onclick="showToast('<i data-lucide=\\'book-open\\' style=\\'width:14px;height:14px;display:inline-block;vertical-align:middle;\\'></i> ' + t('books.free_access','Free access!'), 'info'); document.getElementById('book-detail-modal').remove();" style="flex:1; background:#5A9A6E; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;"><i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('books.free_read','Free read')}</button>` : ''}
+                ${!isOwner && b.price <= 0 ? `<button onclick="showToast('<i data-lucide=\\'book-open\\' style=\\'width:14px;height:14px;display:inline-block;vertical-align:middle;\\'></i> ' + t('books.free_access','Free access!'), 'info'); document.getElementById('book-detail-modal').remove();" style="flex:1; background:#5B7B8C; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;"><i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('books.free_read','Free read')}</button>` : ''}
                 <button onclick="addToReadingList('${id}')" style="flex:1; background:#C4841D; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;"><i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('books.want_to_read','Want to read')}</button>
             </div>
             <button onclick="document.getElementById('book-detail-modal').remove()" style="background:#E8E0D8; border:none; padding:0.6rem; border-radius:8px; cursor:pointer; width:100%; margin-top:0.5rem;">${t('common.close','Close')}</button>
@@ -1405,46 +1405,61 @@ async function viewBookDetail(id) {
     document.body.appendChild(modal);
 }
 
-async function addToReadingList(bookId) {
-    if (!currentUser) return;
-    try {
-        // 중복 체크
-        const existing = await db.collection('reading_list').where('userId', '==', currentUser.uid).where('bookId', '==', bookId).get();
-        if (!existing.empty) { showToast(t('books.already_in_list','Already in your reading list'), 'info'); return; }
-        const bookDoc = await db.collection('books').doc(bookId).get();
-        const book = bookDoc.data();
-        await db.collection('reading_list').add({
-            userId: currentUser.uid, bookId,
-            bookTitle: book.title, bookAuthor: book.author || '',
-            addedAt: new Date()
-        });
-        showToast('<i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + book.title + '" ' + t('books.added_to_reading_list','added to reading list!'), 'success');
-    } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
+// addToReadingList, loadReadingList, removeFromReadingList — migrated to REST API
+// Primary definitions now in books.js; marketplace.js provides fallback wrappers
+
+function _mpBookHeaders() {
+    const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+}
+
+if (typeof addToReadingList === 'undefined') {
+    window.addToReadingList = async function(bookId) {
+        if (!currentUser) return;
+        try {
+            const res = await fetch('/api/books/reading-list/add', {
+                method: 'POST', headers: _mpBookHeaders(),
+                body: JSON.stringify({ bookId })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                if (data.error === 'already in list') showToast(t('books.already_in_list','Already in your reading list'), 'info');
+                else showToast(t('common.fail','Failed') + ': ' + (data.error || ''), 'error');
+                return;
+            }
+            const entry = data.entry || {};
+            showToast('<i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + (entry.bookTitle || '') + '" ' + t('books.added_to_reading_list','added to reading list!'), 'success');
+        } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
+    };
 }
 
 async function loadReadingList() {
     const c = document.getElementById('reading-list');
     if (!c || !currentUser) return;
     try {
-        const docs = await db.collection('reading_list').where('userId', '==', currentUser.uid).orderBy('addedAt', 'desc').limit(20).get();
-        if (docs.empty) { c.innerHTML = `<p style="color:var(--accent); font-size:0.85rem;">${t('books.no_reading_list','No books in reading list')}</p>`; return; }
+        const res = await fetch('/api/books/reading-list', { headers: _mpBookHeaders() });
+        const data = await res.json();
+        const list = data.list || [];
+        if (!list.length) { c.innerHTML = `<p style="color:var(--accent); font-size:0.85rem;">${t('books.no_reading_list','No books in reading list')}</p>`; return; }
         c.innerHTML = '';
-        docs.forEach(d => {
-            const r = d.data();
+        list.forEach(r => {
             c.innerHTML += `<div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem; background:var(--bg); border-radius:6px; margin-bottom:0.3rem;">
                 <div><strong style="font-size:0.85rem;">${r.bookTitle}</strong> <span style="font-size:0.75rem; color:var(--accent);">${r.bookAuthor}</span></div>
-                <button onclick="removeFromReadingList('${d.id}')" style="background:none; border:none; cursor:pointer; font-size:0.8rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
+                <button onclick="removeFromReadingList('${r.id}')" style="background:none; border:none; cursor:pointer; font-size:0.8rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
             </div>`;
         });
     } catch (e) { c.innerHTML = e.message; }
 }
 
-async function removeFromReadingList(id) {
-    try {
-        await db.collection('reading_list').doc(id).delete();
-        showToast(t('books.removed_from_list','Removed from reading list'), 'info');
-        loadReadingList();
-    } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
+if (typeof removeFromReadingList === 'undefined') {
+    window.removeFromReadingList = async function(id) {
+        try {
+            const res = await fetch('/api/books/reading-list/' + id, { method: 'DELETE', headers: _mpBookHeaders() });
+            if (!res.ok) { showToast(t('common.fail','Failed'), 'error'); return; }
+            showToast(t('books.removed_from_list','Removed from reading list'), 'info');
+            loadReadingList();
+        } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
+    };
 }
 
 function showCreditTab(tab) {
@@ -1590,7 +1605,7 @@ async function loadCreditInfo() {
         const data = await resp.json();
 
         const scoreEl = document.getElementById('credit-score');
-        if (scoreEl) { scoreEl.textContent = data.score; scoreEl.style.color = data.score >= 700 ? '#5A9A6E' : data.score >= 500 ? '#C4841D' : '#B54534'; }
+        if (scoreEl) { scoreEl.textContent = data.score; scoreEl.style.color = data.score >= 700 ? '#5B7B8C' : data.score >= 500 ? '#C4841D' : '#B54534'; }
 
         const loansEl = document.getElementById('active-loans');
         if (loansEl) loansEl.textContent = data.activeLoans + t('common.count_items','');
@@ -1775,7 +1790,7 @@ async function loadMyEnergyInvestments() {
                     </div>
                     <div style="text-align:right;">
                         <div style="font-weight:700; color:${catInfo.color};">${inv.amount} ${inv.token || 'CREB'}</div>
-                        ${rate > 0 ? `<div style="font-size:0.75rem; color:#5A9A6E;">${t('invest.monthly_short','monthly')} ${monthlyReturn.toFixed(2)} CREB (${t('invest.annual_short','annual')} ${rate}%)</div>` : `<div style="font-size:0.75rem; color:#5A9A6E;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('invest.type_donation_short','Donation')}</div>`}
+                        ${rate > 0 ? `<div style="font-size:0.75rem; color:#5B7B8C;">${t('invest.monthly_short','monthly')} ${monthlyReturn.toFixed(2)} CREB (${t('invest.annual_short','annual')} ${rate}%)</div>` : `<div style="font-size:0.75rem; color:#5B7B8C;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('invest.type_donation_short','Donation')}</div>`}
                     </div>
                 </div>
             </div>`;
@@ -1784,7 +1799,7 @@ async function loadMyEnergyInvestments() {
         c.innerHTML = `
             <div style="background:#FFF8E1; padding:0.8rem; border-radius:8px; margin-bottom:0.8rem; display:flex; justify-content:space-around; text-align:center;">
                 <div><div style="font-size:0.7rem; color:var(--accent);">${t('invest.total_invested','Total invested')}</div><strong>${totalInvested.toFixed(1)}</strong></div>
-                <div><div style="font-size:0.7rem; color:var(--accent);">${t('invest.expected_monthly','Expected monthly')}</div><strong style="color:#5A9A6E;">${totalMonthly.toFixed(2)} CREB</strong></div>
+                <div><div style="font-size:0.7rem; color:var(--accent);">${t('invest.expected_monthly','Expected monthly')}</div><strong style="color:#5B7B8C;">${totalMonthly.toFixed(2)} CREB</strong></div>
                 <div><div style="font-size:0.7rem; color:var(--accent);">${t('invest.expected_annual','Expected annual')}</div><strong style="color:#8B6914;">${(totalMonthly * 12).toFixed(2)} CREB</strong></div>
             </div>
             ${rows}`;
@@ -1958,16 +1973,16 @@ async function showCampaignDetail(id) {
             ${camp.description ? `<p style="margin-bottom:1rem; font-size:0.9rem;">${camp.description}</p>` : ''}
             <div style="background:#F7F3ED; padding:1rem; border-radius:8px; margin-bottom:1rem;">
                 <div style="background:#e0e0e0; height:10px; border-radius:5px; margin-bottom:0.5rem;">
-                    <div style="background:#5A9A6E; height:100%; border-radius:5px; width:${pct}%;"></div>
+                    <div style="background:#5B7B8C; height:100%; border-radius:5px; width:${pct}%;"></div>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
                     <span style="font-weight:700;">${camp.raised} / ${camp.goal} ${camp.token}</span>
                     <span>${pct}% · ${camp.backerCount || camp.backers || 0}${t('common.count_people','')}</span>
                 </div>
-                <div style="font-size:0.8rem; color:#5A9A6E; margin-top:0.5rem;"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.fee','Fee')} ${fee}% · ${t('fund.creator_receives','Creator receives')} ${(100 - fee).toFixed(1)}%</div>
+                <div style="font-size:0.8rem; color:#5B7B8C; margin-top:0.5rem;"><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.fee','Fee')} ${fee}% · ${t('fund.creator_receives','Creator receives')} ${(100 - fee).toFixed(1)}%</div>
             </div>
-            <button onclick="donateCampaign('${id}')" style="background:#5A9A6E; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:0.8rem;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.donate_btn','Donate')}</button>
-            ${isCreator && camp.status === 'active' ? `<button onclick="closeCampaign('${id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:1rem;">🔒 ${t('fund.close_and_receive','Close campaign & receive funds')}</button>` : ''}
+            <button onclick="donateCampaign('${id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:0.8rem;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.donate_btn','Donate')}</button>
+            ${isCreator && camp.status === 'active' ? `<button onclick="closeCampaign('${id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:1rem;"><i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.close_and_receive','Close campaign & receive funds')}</button>` : ''}
             <h4 style="margin-bottom:0.5rem;">${t('fund.donor_list','Donor list')} (${donorDocs.size}${t('common.count_people','')})</h4>
             ${donorList}`;
         
@@ -2281,7 +2296,7 @@ async function renderStorePage(sellerId) {
                         <div style="display:flex; gap:1rem; margin-top:0.5rem; font-size:0.8rem; color:var(--accent);">
                             <span><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.products','Products')} ${prodDocs.size}${t('common.count_items','')}</span>
                             <span><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.total_sold','Total sold')} ${totalSold}${t('common.count_items','')}</span>
-                            <span>📋 ${t('mall.orders','Orders')} ${orderCount}${t('common.count_items','')}</span>
+                            <span><i data-lucide="clipboard-list" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.orders','Orders')} ${orderCount}${t('common.count_items','')}</span>
                         </div>
                     </div>
                 </div>
@@ -2318,7 +2333,7 @@ async function showStoreSettingsModal() {
                 <label style="font-size:0.8rem; color:var(--accent);">${t('mall.store_image','Store image')}</label>
                 <input type="file" id="store-set-image" accept="image/*" style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px;">
             </div>
-            <button onclick="saveStoreSettings()" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;">💾 ${t('common.save','Save')}</button>
+            <button onclick="saveStoreSettings()" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;"><i data-lucide="save" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('common.save','Save')}</button>
             <button onclick="document.getElementById('store-settings-modal').remove()" style="background:#E8E0D8; border:none; padding:0.6rem; border-radius:8px; cursor:pointer;">${t('common.close','Close')}</button>
         </div>
     </div>`;
@@ -2371,13 +2386,13 @@ async function loadMyShopDashboard() {
         prodDocs.forEach(d => {
             const p = d.data();
             const remaining = p.stock - (p.sold || 0);
-            const statusBadge = p.status === 'active' ? `<span style="color:#5A9A6E; font-size:0.7rem;">● ${t('mall.status_active','Active')}</span>` : `<span style="color:#6B5744; font-size:0.7rem;">● ${t('mall.status_inactive','Inactive')}</span>`;
+            const statusBadge = p.status === 'active' ? `<span style="color:#5B7B8C; font-size:0.7rem;">● ${t('mall.status_active','Active')}</span>` : `<span style="color:#6B5744; font-size:0.7rem;">● ${t('mall.status_inactive','Inactive')}</span>`;
             productsHtml += `<div style="padding:0.6rem; background:var(--bg); border-radius:8px; margin-bottom:0.4rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.3rem;">
                     <div><strong>${p.title}</strong> — ${p.price} CRGC · ${t('mall.sold','Sold')} ${p.sold||0}/${p.stock} · ${t('mall.stock','Stock')} ${remaining} ${statusBadge}</div>
                     <div style="display:flex; gap:0.3rem;">
                         <button onclick="editProductModal('${d.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.edit','Edit')}</button>
-                        <button onclick="toggleProduct('${d.id}','${p.status}')" style="background:${p.status==='active'?'#6B5744':'#5A9A6E'}; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${p.status==='active'?'<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>':'▶'}</button>
+                        <button onclick="toggleProduct('${d.id}','${p.status}')" style="background:${p.status==='active'?'#6B5744':'#5B7B8C'}; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${p.status==='active'?'<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>':'▶'}</button>
                         <button onclick="deleteProduct('${d.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
                     </div>
                 </div>
@@ -2392,7 +2407,7 @@ async function loadMyShopDashboard() {
             const statusColor = ORDER_STATUS_COLORS[o.status] || 'var(--accent)';
             const nextActions = [];
             if (o.status === 'paid') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','shipping')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem;"><i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.ship','Ship')}</button>`);
-            if (o.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','delivered')" style="background:#5A9A6E; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.complete','Complete')}</button>`);
+            if (o.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','delivered')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.complete','Complete')}</button>`);
             const shipInfo = o.shippingInfo ? `<div style="font-size:0.65rem; color:#6B5744;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${o.shippingInfo.name} · ${o.shippingInfo.phone} · ${o.shippingInfo.address}</div>` : '';
             ordersHtml += `<div style="padding:0.5rem; background:var(--bg); border-radius:6px; margin-bottom:0.3rem; font-size:0.8rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.2rem;">
@@ -2438,7 +2453,7 @@ async function loadMyShopDashboard() {
             
             <!-- 받은 주문 -->
             <div style="background:#FFF8F0; padding:1.2rem; border-radius:12px;">
-                <h3 style="margin-bottom:0.8rem;">📬 ${t('mall.received_orders','Received orders')} (${totalOrders})</h3>
+                <h3 style="margin-bottom:0.8rem;"><i data-lucide="inbox" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> ${t('mall.received_orders','Received orders')} (${totalOrders})</h3>
                 ${ordersHtml || `<p style="color:var(--accent); font-size:0.85rem;">${t('mall.no_orders_received','No orders received')}</p>`}
             </div>`;
     } catch(e) { c.innerHTML = `<p style="color:red; text-align:center;">${e.message}</p>`; }
@@ -2488,7 +2503,7 @@ async function editProductModal(id) {
                 <label style="font-size:0.8rem; color:var(--accent);">${t('mall.new_images','New images (max 5, replaces current)')}</label>
                 <input type="file" id="ep-images" accept="image/*" multiple style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px;">
             </div>
-            <button onclick="saveEditProduct('${id}')" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;">💾 ${t('common.save','Save')}</button>
+            <button onclick="saveEditProduct('${id}')" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700;"><i data-lucide="save" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('common.save','Save')}</button>
             <button onclick="document.getElementById('edit-product-modal').remove()" style="background:#E8E0D8; border:none; padding:0.6rem; border-radius:8px; cursor:pointer;">${t('common.close','Close')}</button>
         </div>
     </div>`;
@@ -2640,7 +2655,7 @@ async function loadBuyerOrders() {
         const snap = await db.collection('orders').where('buyerId','==',currentUser.uid).orderBy('createdAt','desc').limit(30).get();
         if (snap.empty) {
             c.innerHTML = `<button onclick="showPage('mall')" style="background:none;border:none;font-size:1rem;cursor:pointer;margin-bottom:0.8rem;color:var(--accent);">← ${t('mall.back_to_mall','Mall')}</button>
-                <div style="text-align:center;padding:3rem;color:var(--accent);"><div style="font-size:3rem;margin-bottom:1rem;">📋</div><p>${t('mall.no_orders','No orders yet')}</p></div>`;
+                <div style="text-align:center;padding:3rem;color:var(--accent);"><div style="font-size:3rem;margin-bottom:1rem;"><i data-lucide="clipboard-list" style="width:48px;height:48px;"></i></div><p>${t('mall.no_orders','No orders yet')}</p></div>`;
             return;
         }
         let listHtml = '';
@@ -2664,7 +2679,7 @@ async function loadBuyerOrders() {
         });
         c.innerHTML = `
             <button onclick="showPage('mall')" style="background:none;border:none;font-size:1rem;cursor:pointer;margin-bottom:0.8rem;color:var(--accent);">← ${t('mall.back_to_mall','Mall')}</button>
-            <h2 style="margin-bottom:1rem;">📋 ${t('mall.my_orders','My orders')}</h2>
+            <h2 style="margin-bottom:1rem;"><i data-lucide="clipboard-list" style="width:18px;height:18px;display:inline-block;vertical-align:middle;"></i> ${t('mall.my_orders','My orders')}</h2>
             ${listHtml}`;
     } catch(e) { c.innerHTML = `<p style="color:red;">${e.message}</p>`; }
 }
@@ -2688,7 +2703,7 @@ async function showOrderDetail(orderId) {
         let timelineHtml = '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin:1.5rem 0;position:relative;">';
         // Connector line
         timelineHtml += `<div style="position:absolute;top:14px;left:16%;right:16%;height:3px;background:#e0e0e0;z-index:0;">
-            <div style="width:${currentIdx >= 2 ? 100 : currentIdx === 1 ? 50 : 0}%;height:100%;background:#5A9A6E;transition:width 0.3s;"></div>
+            <div style="width:${currentIdx >= 2 ? 100 : currentIdx === 1 ? 50 : 0}%;height:100%;background:#5B7B8C;transition:width 0.3s;"></div>
         </div>`;
         steps.forEach((step, i) => {
             const done = i <= currentIdx;
@@ -2696,7 +2711,7 @@ async function showOrderDetail(orderId) {
             const dateStr = ts ? new Date(ts).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
             timelineHtml += `<div style="text-align:center;flex:1;z-index:1;">
                 <div style="width:28px;height:28px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:0.8rem;
-                    background:${done ? '#5A9A6E' : '#e0e0e0'};color:${done ? 'white' : '#6B5744'};">${done ? '✓' : i+1}</div>
+                    background:${done ? '#5B7B8C' : '#e0e0e0'};color:${done ? 'white' : '#6B5744'};">${done ? '✓' : i+1}</div>
                 <div style="font-size:0.7rem;font-weight:600;margin-top:0.3rem;color:${done ? '#333' : '#6B5744'};">${stepLabels[step]}</div>
                 <div style="font-size:0.6rem;color:var(--accent);">${dateStr}</div>
             </div>`;
@@ -2712,7 +2727,7 @@ async function showOrderDetail(orderId) {
         if (!returnSnap.empty) {
             const ret = returnSnap.docs[0].data();
             const retStatus = {requested:'<i data-lucide="hourglass" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_requested','Return requested'),approved:'<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_approved_label','Return approved'),rejected:'<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_rejected_label','Return rejected'),completed:'<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.refund_complete','Refund complete')};
-            const retColor = {requested:'#C4841D',approved:'#5A9A6E',rejected:'#B54534',completed:'#5B7B8C'};
+            const retColor = {requested:'#C4841D',approved:'#5B7B8C',rejected:'#B54534',completed:'#5B7B8C'};
             returnHtml = `<div style="background:${retColor[ret.status]}15;border-left:4px solid ${retColor[ret.status]};padding:0.8rem;border-radius:0 8px 8px 0;margin-bottom:1rem;">
                 <div style="font-weight:700;color:${retColor[ret.status]};">${retStatus[ret.status] || ret.status}</div>
                 <div style="font-size:0.8rem;color:#6B5744;margin-top:0.2rem;">${t('mall.reason','Reason')}: ${ret.reasonCategory} — ${ret.reasonDetail||''}</div>
@@ -2846,7 +2861,7 @@ async function loadSellerReturns() {
                 </div>
                 <div style="font-size:0.8rem;color:#6B5744;margin:0.3rem 0;">${r.buyerEmail} · ${r.reasonCategory}: ${r.reasonDetail||''}</div>
                 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-                    <button onclick="approveReturn('${d.id}')" style="flex:1;background:#5A9A6E;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.8rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.approve_refund','Approve (refund)')}</button>
+                    <button onclick="approveReturn('${d.id}')" style="flex:1;background:#5B7B8C;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.8rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.approve_refund','Approve (refund)')}</button>
                     <button onclick="rejectReturn('${d.id}')" style="flex:1;background:#B54534;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.8rem;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.reject','Reject')}</button>
                 </div>
             </div>`;
@@ -3164,7 +3179,7 @@ function showMallRecentSearches() {
     ac.style.display = 'block';
     ac.innerHTML = `<div style="padding:0.4rem 0.8rem;font-size:0.75rem;color:var(--accent);font-weight:600;">${t('mall.recent_searches','Recent searches')}</div>` +
         recent.map(s => `<div onclick="selectMallAutocomplete('${s.replace(/'/g,"\\'")}')" style="padding:0.5rem 0.8rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #F7F3ED;display:flex;justify-content:space-between;" onmouseenter="this.style.background='#F7F3ED'" onmouseleave="this.style.background='white'">
-            <span>🕐 ${s}</span>
+            <span><i data-lucide="clock" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> ${s}</span>
             <span onclick="event.stopPropagation();removeMallRecentSearch('${s.replace(/'/g,"\\'")}')" style="color:#6B5744;font-size:0.75rem;">✕</span>
         </div>`).join('');
 }

@@ -20,27 +20,35 @@
 
     // 이미 로그인 상태면 스킵
     function isLoggedIn() {
-        return !!firebase.auth().currentUser;
+        return !!(localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token') || (typeof currentUser !== 'undefined' && currentUser));
     }
 
-    // 멤버 수 가져오기 (Firestore stats)
+    // 멤버 수 가져오기
     async function getMemberCount() {
         try {
-            const doc = await db.collection('admin_config').doc('stats').get();
-            if (doc.exists && doc.data().totalUsers) return doc.data().totalUsers;
-        } catch (e) {}
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            const res = await fetch('/api/db/admin_config/stats', {
+                headers: { 'Authorization': 'Bearer ' + (token || ''), 'Content-Type': 'application/json' }
+            });
+            const doc = await res.json();
+            if (doc.exists && doc.data && doc.data.totalUsers) return doc.data.totalUsers;
+        } catch (e) { console.warn(e.message); }
         return 1200; // fallback placeholder
     }
 
     // 소개자 이름
     async function getInviterName(code) {
         try {
-            const snap = await db.collection('users').where('referralCode', '==', code).get();
-            if (!snap.empty) {
-                const d = snap.docs[0].data();
+            const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+            const res = await fetch('/api/db/users?where=referralCode,==,' + encodeURIComponent(code) + '&limit=1', {
+                headers: { 'Authorization': 'Bearer ' + (token || ''), 'Content-Type': 'application/json' }
+            });
+            const snap = await res.json();
+            if (!snap.empty && snap.docs.length > 0) {
+                const d = snap.docs[0].data;
                 return d.referralNickname || d.nickname || d.email?.split('@')[0] || '';
             }
-        } catch (e) {}
+        } catch (e) { console.warn(e.message); }
         return '';
     }
 
@@ -71,7 +79,7 @@
     <header class="landing-hero">
         <div class="landing-hero-glow"></div>
         <div class="landing-logo">
-            <span class="landing-logo-icon">👑</span>
+            <span class="landing-logo-icon"><i data-lucide="crown" style="width:32px;height:32px;"></i></span>
             <span class="landing-logo-text">CROWNY</span>
         </div>
         ${inviterName ? `<p class="landing-invited-by">${txt('초대자', 'Invited by')}: <strong>${inviterName}</strong></p>` : ''}
@@ -80,12 +88,12 @@
             <div class="landing-phone">
                 <div class="landing-phone-screen">
                     <div class="landing-phone-header">
-                        <span>👑 CROWNY</span>
+                        <span><i data-lucide="crown" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> CROWNY</span>
                         <span style="font-size:0.6rem;opacity:0.6;">PRESENT</span>
                     </div>
                     <div class="landing-phone-grid">
                         <div class="lp-icon"><i data-lucide="coins"></i></div><div class="lp-icon"><i data-lucide="message-circle"></i></div><div class="lp-icon"><i data-lucide="camera"></i></div>
-                        <div class="lp-icon">🎨</div><div class="lp-icon">🛒</div><div class="lp-icon">📈</div>
+                        <div class="lp-icon"><i data-lucide="palette"></i></div><div class="lp-icon"><i data-lucide="shopping-cart"></i></div><div class="lp-icon"><i data-lucide="trending-up"></i></div>
                     </div>
                 </div>
             </div>
@@ -97,27 +105,27 @@
         <h2 class="landing-section-title">${txt('올인원 플랫폼', 'All-in-One Platform')}</h2>
         <div class="landing-feature-grid">
             <div class="landing-feature-card">
-                <div class="landing-feat-icon">📈</div>
+                <div class="landing-feat-icon"><i data-lucide="trending-up"></i></div>
                 <h3>Trading Game</h3>
                 <p>${txt('가상 트레이딩으로 실력 향상', 'Level up with virtual trading')}</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feat-icon">🛒</div>
+                <div class="landing-feat-icon"><i data-lucide="shopping-cart"></i></div>
                 <h3>Mall</h3>
                 <p>${txt('뷰티 & 라이프스타일 쇼핑', 'Beauty & lifestyle shopping')}</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feat-icon">📸</div>
+                <div class="landing-feat-icon"><i data-lucide="camera"></i></div>
                 <h3>Social</h3>
                 <p>${txt('소셜 네트워크 & 메신저', 'Social network & messenger')}</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feat-icon">🎨</div>
+                <div class="landing-feat-icon"><i data-lucide="palette"></i></div>
                 <h3>Art</h3>
                 <p>${txt('디지털 아트 & NFT 마켓', 'Digital art & NFT market')}</p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feat-icon">🔬</div>
+                <div class="landing-feat-icon"><i data-lucide="microscope"></i></div>
                 <h3>Energy</h3>
                 <p>${txt('에코 & 바이오 기술', 'Eco & bio technology')}</p>
             </div>
