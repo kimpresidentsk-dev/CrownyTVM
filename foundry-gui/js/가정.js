@@ -16,6 +16,7 @@ class 가정앱 {
       { id: 'budget', label: '가계부' },
       { id: 'calendar', label: '가족 일정' },
       { id: 'children', label: '자녀 성장' },
+      { id: 'chores', label: '집안일' },
       { id: 'goals', label: '가족 목표' },
     ];
 
@@ -33,6 +34,7 @@ class 가정앱 {
       case 'budget': await this._budgetTab(ct); break;
       case 'calendar': await this._calendarTab(ct); break;
       case 'children': await this._childrenTab(ct); break;
+      case 'chores': await this._choresTab(ct); break;
       case 'goals': await this._goalsTab(ct); break;
     }
   }
@@ -137,6 +139,57 @@ class 가정앱 {
       f.reset();
       document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '성장 기록 완료', type: '확정' } }));
       this.렌더();
+    });
+  }
+
+  // ─── 집안일 배분 탭 ───
+  async _choresTab(el) {
+    const data = await (await fetch(`${API}/claims`)).json();
+    const chores = (data.claims || []).filter(c => c.claim?.predicate === '집안일');
+    const done = (data.claims || []).filter(c => c.claim?.predicate === '집안일완료');
+    const doneNames = new Set(done.map(d => d.claim?.object));
+
+    el.innerHTML = `
+      <div class="card" style="margin-bottom:8px">
+        <form id="_choreForm" style="display:flex;gap:3px;flex-wrap:wrap;align-items:end">
+          <input name="task" placeholder="할 일 (설거지, 청소...)" required style="flex:1;min-width:80px">
+          <input name="who" placeholder="담당자" style="width:60px">
+          <select name="freq" style="width:60px"><option>매일</option><option>주1회</option><option>월1회</option><option>수시</option></select>
+          <button type="submit" class="btn btn-p">추가</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">집안일 (${chores.length})</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          ${chores.length ? chores.map(c => {
+            const isDone = doneNames.has(c.claim?.object);
+            return `<div class="pipe" style="padding:4px 8px;${isDone ? 'opacity:.5' : ''}">
+              <div class="dot ${isDone ? '확정' : '미확인'}"></div>
+              <span style="font-weight:500;${isDone ? 'text-decoration:line-through' : ''}">${c.claim?.object || ''}</span>
+              <span style="font-size:9px;color:var(--text-3)">${c.claim?.subject || ''}</span>
+              ${!isDone ? `<button class="btn _choreDone" data-o="${c.claim?.object}" style="font-size:8px;padding:1px 5px;margin-left:auto">완료</button>` : '<span style="font-size:9px;color:var(--확정);margin-left:auto">완료</span>'}
+            </div>`;
+          }).join('') : '<div style="color:var(--text-3);font-size:10px;padding:6px">집안일을 등록하세요</div>'}
+        </div>
+      </div>`;
+
+    el.querySelector('#_choreForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      await fetch(`${API}/claims`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: f.who.value || '미배정', predicate: '집안일', object: `${f.task.value} (${f.freq.value})`, layer: 1, scope: 1 }) });
+      f.reset();
+      document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '집안일 추가', type: '확정' } }));
+      this.렌더();
+    });
+
+    el.querySelectorAll('._choreDone').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await fetch(`${API}/claims`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subject: '가족', predicate: '집안일완료', object: btn.dataset.o, layer: 1, scope: 1 }) });
+        document.dispatchEvent(new CustomEvent('알림', { detail: { msg: '완료!', type: '확정' } }));
+        this.렌더();
+      });
     });
   }
 

@@ -321,14 +321,21 @@ class 교회앱 {
         <button class="btn btn-p" id="_ckAll" style="margin-left:auto;font-size:9px">전체 출석</button>
       </div>
 
-      <!-- 주간 이력 -->
-      <div style="display:flex;gap:4px;margin-bottom:10px">
-        ${weeklyHistory.reverse().map(w => `
-          <div class="stat" style="flex:1;min-width:50px">
-            <div class="stat-v" style="font-size:14px;color:${w.rate >= 80 ? 'var(--확정)' : w.rate >= 50 ? 'var(--미확인)' : 'var(--오류)'}">${w.rate}%</div>
-            <div class="stat-l">${w.label} (${w.count}명)</div>
-          </div>
-        `).join('')}
+      <!-- 주간 출석 차트 -->
+      <div class="card" style="margin-bottom:10px;padding:10px">
+        <div style="font-size:9px;font-weight:600;color:var(--text-3);margin-bottom:6px">최근 4주 출석률</div>
+        <div style="display:flex;gap:6px;align-items:end;height:60px">
+          ${weeklyHistory.reverse().map(w => {
+            const h = Math.max(4, Math.round(w.rate * 0.55));
+            const color = w.rate >= 80 ? 'var(--확정)' : w.rate >= 50 ? 'var(--미확인)' : 'var(--오류)';
+            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+              <span style="font-size:10px;font-weight:600;color:${color}">${w.rate}%</span>
+              <div style="width:100%;height:${h}px;background:${color};border-radius:2px;opacity:.7"></div>
+              <span style="font-size:8px;color:var(--text-3)">${w.label}</span>
+              <span style="font-size:7px;color:var(--text-3)">${w.count}명</span>
+            </div>`;
+          }).join('')}
+        </div>
       </div>
 
       <div class="card">

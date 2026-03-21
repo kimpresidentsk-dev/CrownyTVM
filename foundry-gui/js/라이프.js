@@ -127,6 +127,16 @@ class 라이프앱 {
     const prayers = claims.filter(c => c.claim?.predicate === '기도제목' || c.claim?.predicate === '기도');
     const tasks = claims.filter(c => ['할일','진행중','완료'].includes(c.claim?.predicate));
     const expenses = claims.filter(c => c.claim?.predicate === '지출');
+    const journals = claims.filter(c => c.claim?.predicate === '일기');
+    const goals = claims.filter(c => c.claim?.predicate === '목표');
+    const goalsAchieved = claims.filter(c => c.claim?.predicate === '목표달성');
+
+    // 주간 집계
+    const weekMs = 7 * 86400000;
+    const now = Date.now();
+    const thisWeek = claims.filter(c => c.createdAt && (now - c.createdAt) < weekMs);
+    const lastWeek = claims.filter(c => c.createdAt && (now - c.createdAt) >= weekMs && (now - c.createdAt) < weekMs * 2);
+    const weekDelta = thisWeek.length - lastWeek.length;
     const others = claims.filter(c => !['출석','헌금','기도제목','기도','할일','진행중','완료','지출'].includes(c.claim?.predicate));
 
     // 헌금 합계
@@ -142,6 +152,22 @@ class 라이프앱 {
     const recentEmerg = (emergencies.claims||[]).slice(-3).reverse();
 
     ct.innerHTML = `
+      <!-- 주간 리뷰 -->
+      <div class="card" style="margin-bottom:10px;border-left:3px solid var(--확정)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-weight:700;font-size:12px">이번 주 리뷰</span>
+          <span style="font-size:9px;color:var(--text-3)">${thisWeek.length}건 기록 (${weekDelta >= 0 ? '+' : ''}${weekDelta} vs 지난주)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:4px;font-size:10px">
+          <div>출석 <b style="color:var(--확정)">${attendance.filter(c => c.createdAt && (now - c.createdAt) < weekMs).length}</b>회</div>
+          <div>헌금 <b>${offerings.filter(c => c.createdAt && (now - c.createdAt) < weekMs).length}</b>건</div>
+          <div>기도 <b>${prayers.filter(c => c.createdAt && (now - c.createdAt) < weekMs).length}</b>건</div>
+          <div>일기 <b>${journals.filter(c => c.createdAt && (now - c.createdAt) < weekMs).length}</b>편</div>
+          <div>태스크 <b>${tasks.filter(c => c.createdAt && (now - c.createdAt) < weekMs).length}</b>건</div>
+          <div>목표달성 <b style="color:var(--확정)">${goalsAchieved.length}</b>/${goals.length}</div>
+        </div>
+      </div>
+
       <!-- 긴급 알림 -->
       ${recentEmerg.length ? `<div class="card" style="margin-bottom:8px;border-left:3px solid var(--오류)"><div style="font-size:10px;font-weight:600;color:var(--오류);margin-bottom:4px">긴급 알림</div>${recentEmerg.map(e=>`<div style="font-size:10px">${e.claim?.predicate}: ${e.claim?.object}</div>`).join('')}</div>` : ''}
 
