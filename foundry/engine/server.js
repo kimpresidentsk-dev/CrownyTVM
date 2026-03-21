@@ -50,6 +50,16 @@ const { LifeEngine } = require('./life');
 const { CityEngine } = require('./city');
 const { SCOPES, SCOPE_NAME, SCOPE_APP, PropagationEngine } = require('./scope');
 const { generateChurchDemo } = require('./demo-church');
+const { AuditLog, CLASSIFICATION, CLASS_NAME, canRead, canWrite, createToken, verifyToken, UserStore } = require('./security');
+
+const audit = new AuditLog();
+const users = new UserStore();
+
+// 기본 관리자 계정 (최초 1회)
+if (users.listUsers().length === 0) {
+  users.register('admin', 'crowny2026', CLASSIFICATION.TOP_SECRET);
+  console.log('  기본 관리자 계정 생성: admin / crowny2026');
+}
 
 const memory = new Memory();
 const causal = new CausalEngine(memory);
@@ -410,6 +420,64 @@ route('GET', '/api/foundry/covenant/stats', async (req, res) => {
 // GET /api/foundry/covenant/slots — 27슬롯 언약 구조
 route('GET', '/api/foundry/covenant/slots', async (req, res) => {
     json(res, 200, { slots: SLOT_META, rings: RING, protocol: PROTOCOL });
+});
+
+// ═══ 인증 + 보안 API ═══
+
+// POST /api/foundry/auth/login
+route('POST', '/api/foundry/auth/login', async (req, res) => {
+    const { username, password } = await parseBody(req);
+    const user = users.authenticate(username, password);
+    if (!user) {
+      audit.log('LOGIN_FAIL', username, 'Invalid credentials');
+      return err(res, 401, '인증 실패');
+    }
+    const token = createToken(user.id, user.username, user.clearanceLevel);
+    audit.log('LOGIN', user.username, `Level: ${CLASS_NAME[user.clearanceLevel]}`);
+    json(res, 200, { token, user: { ...user, levelName: CLASS_NAME[user.clearanceLevel] } });
+});
+
+// POST /api/foundry/auth/register
+route('POST', '/api/foundry/auth/register', async (req, res) => {
+    const { username, password, clearanceLevel } = await parseBody(req);
+    if (!username || !password) return err(res, 400, 'username, password 필수');
+    const user = users.register(username, password, clearanceLevel ?? 0);
+    if (!user) return err(res, 409, '이미 존재하는 사용자');
+    audit.log('REGISTER', username, `Level: ${CLASS_NAME[user.clearanceLevel]}`);
+    json(res, 201, { ...user, levelName: CLASS_NAME[user.clearanceLevel] });
+});
+
+// GET /api/foundry/auth/users
+route('GET', '/api/foundry/auth/users', async (req, res) => {
+    json(res, 200, users.listUsers());
+});
+
+// GET /api/foundry/auth/verify
+route('GET', '/api/foundry/auth/verify', async (req, res) => {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    const data = verifyToken(token);
+    if (!data) return err(res, 401, '유효하지 않은 토큰');
+    json(res, 200, { ...data, levelName: CLASS_NAME[data.level] });
+});
+
+// GET /api/foundry/security/classifications
+route('GET', '/api/foundry/security/classifications', async (req, res) => {
+    json(res, 200, Object.entries(CLASS_NAME).map(([k, v]) => ({ level: +k, name: v })));
+});
+
+// GET /api/foundry/audit/recent
+route('GET', '/api/foundry/audit/recent', async (req, res) => {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10);
+    json(res, 200, audit.recent(limit));
+});
+
+// GET /api/foundry/audit/verify
+route('GET', '/api/foundry/audit/verify', async (req, res) => {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const date = url.searchParams.get('date');
+    json(res, 200, audit.verify(date));
 });
 
 // ═══ 데모 데이터 API ═══
