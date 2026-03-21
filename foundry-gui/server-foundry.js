@@ -191,6 +191,25 @@ function serveStatic(res, pathname) {
   fs.createReadStream(filePath).pipe(res);
 }
 
+// ═══ 일간 백업 ═══
+const BACKUP_DIR = path.join(__dirname, '..', 'data', 'backups');
+function dailyBackup() {
+  const src = path.join(__dirname, '..', 'data', 'foundry', 'memory.json');
+  if (!fs.existsSync(src)) return;
+  if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  const date = new Date().toISOString().slice(0, 10);
+  const dst = path.join(BACKUP_DIR, `${date}.json`);
+  if (fs.existsSync(dst)) return; // 오늘 이미 백업됨
+  fs.copyFileSync(src, dst);
+  // 30일 이전 삭제
+  const files = fs.readdirSync(BACKUP_DIR).sort();
+  while (files.length > 30) { fs.unlinkSync(path.join(BACKUP_DIR, files.shift())); }
+  console.log(`  백업: ${dst}`);
+}
+// 시작 시 + 매 6시간마다
+dailyBackup();
+setInterval(dailyBackup, 6 * 3600 * 1000);
+
 // ═══ 서버 시작 ═══
 server.listen(PORT, () => {
   console.log(`═══════════════════════════════════════════`);
