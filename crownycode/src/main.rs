@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
         .unwrap_or_else(|_| include_str!("../crownycode.toml").to_string());
     let config: cli::Config = toml::from_str(&content)?;
 
-    let db = cell::store::CellStore::open(&config.engine.cell_db_path)?;
+    let db = cell::store::CrownyDb::open(&config.engine.cell_db_path)?;
 
     // Seed 명령은 Engine 생성 전에 처리 (db 소유권 이전 전)
     if let cli::Command::Seed { count } = &args.command {

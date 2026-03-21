@@ -10,7 +10,7 @@
 
 pub mod net;
 pub mod signal;
-pub mod store; // 호환 레이어 — Step 3에서 제거 예정
+pub mod store;
 
 use serde::{Deserialize, Serialize};
 
@@ -258,44 +258,3 @@ impl CrownyCell {
     }
 }
 
-// ── Legacy Cell (호환용 — Step 3에서 제거) ──────────────────
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Cell {
-    pub id: String,
-    pub intent: String,
-    pub target_lang: String,
-    pub code: String,
-    pub confidence: f32,
-    pub source: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub used_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub refutation_count: u32,
-    pub use_count: u32,
-}
-
-impl Cell {
-    /// CrownyCell → 레거시 Cell 변환
-    pub fn from_crowny(cell: &CrownyCell, lang: &str) -> Option<Self> {
-        let pattern = cell.pattern_for(lang).or_else(|| cell.best_pattern())?;
-        Some(Cell {
-            id: cell.id.to_string(),
-            intent: cell.intent.clone(),
-            target_lang: pattern.target_lang.clone(),
-            code: pattern.code.clone(),
-            confidence: cell.energy,
-            source: match &pattern.source {
-                PatternSource::Generated => "generated",
-                PatternSource::LearnedFromClaude => "learned_from_claude",
-                PatternSource::UserConfirmed => "user_confirmed",
-                PatternSource::CommunityContributed => "community_contributed",
-            }.to_string(),
-            created_at: chrono::DateTime::from_timestamp(cell.birth, 0)
-                .unwrap_or_default(),
-            used_at: Some(chrono::DateTime::from_timestamp(cell.last_activated, 0)
-                .unwrap_or_default()),
-            refutation_count: cell.refutation_count,
-            use_count: cell.activation_count,
-        })
-    }
-}

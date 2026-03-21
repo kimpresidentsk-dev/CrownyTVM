@@ -6,7 +6,7 @@
 use anyhow::Result;
 use chrono::Utc;
 use rusqlite::{Connection, params};
-use crate::cell::store::CellStore;
+use crate::cell::store::CrownyDb;
 use super::quota::QuotaManager;
 
 /// 기여 보상 정책
@@ -90,7 +90,7 @@ impl<'a> ContributeManager<'a> {
     }
 
     /// 승인된 기여를 셀DB에 반영
-    pub fn apply_to_celldb(&self, db: &CellStore) -> Result<u32> {
+    pub fn apply_to_celldb(&self, db: &CrownyDb) -> Result<u32> {
         let mut stmt = self.conn.prepare(
             "SELECT id, intent, target_lang, code, confidence FROM contributions
              WHERE status = 'pending' ORDER BY id ASC LIMIT 20"
@@ -102,14 +102,17 @@ impl<'a> ContributeManager<'a> {
         let mut applied = 0u32;
         for (cid, intent, lang, code, confidence) in rows {
             // 기존 셀보다 신뢰도가 높거나 없을 때만 적용
-            let should_apply = match db.find_by_intent(&intent) {
-                Ok(Some(existing)) => confidence > existing.confidence,
-                Ok(None) => true,
-                Err(_) => false,
+            let should_apply = {
+                let net = db.cell_net();
+                match net.find_by_intent(&intent) {
+                    Some(existing) => confidence > existing.energy,
+                    None => true,
+                }
             };
 
             if should_apply {
-                db.upsert_pattern(&intent, &lang, &code, confidence)?;
+                db.cell_net_mut().upsert_pattern(&intent, &lang, &code, confidence);
+                let _ = db.save_net();
                 self.conn.execute(
                     "UPDATE contributions SET status='applied', reviewed_at=?1 WHERE id=?2",
                     params![Utc::now().to_rfc3339(), cid],
@@ -241,7 +244,7 @@ pub struct ContribStats {
 mod tests {
     use super::*;
     use rusqlite::Connection;
-    use crate::cell::store::CellStore;
+    use crate::cell::store::CrownyDb;
 
     fn temp_conn() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
@@ -250,8 +253,8 @@ mod tests {
         conn
     }
 
-    fn temp_db() -> CellStore {
-        CellStore::open(&format!("/tmp/contrib_{}.db", uuid::Uuid::new_v4())).unwrap()
+    fn temp_db() -> CrownyDb {
+        CrownyDb::open(&format!("/tmp/contrib_{}.db", uuid::Uuid::new_v4())).unwrap()
     }
 
     #[test]
@@ -314,7 +317,7 @@ mod tests {
 
         let applied = cm.apply_to_celldb(&db).unwrap();
         assert_eq!(applied, 1);
-        assert!(db.find_by_intent("cli_tool").unwrap().is_some());
+        assert!(db.cell_net().find_by_intent("cli_tool").is_some());
     }
 
     #[test]
@@ -324,7 +327,7 @@ mod tests {
         let db = temp_db();
 
         // 이미 높은 신뢰도 셀 존재
-        db.upsert_pattern("http_server", "python", "high_quality", 0.99).unwrap();
+        db.cell_net_mut().upsert_pattern("http_server", "python", "high_quality", 0.99);
 
         // 낮은 신뢰도 기여 제출
         cm.submit("dev1", "http_server", "python",

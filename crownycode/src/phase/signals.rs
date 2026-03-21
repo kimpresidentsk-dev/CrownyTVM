@@ -4,7 +4,7 @@
 // Phase 1: 4개 신호의 가중 합산 → confidence 계산
 
 use chrono::Utc;
-use crate::cell::Cell;
+use crate::cell::CrownyCell;
 
 /// 신호 추출 결과 — 4개 신호 각각의 값
 #[derive(Debug)]
@@ -47,9 +47,9 @@ impl SignalSet {
 // ── 개별 신호 계산 함수들 ──────────────────────────────────────
 
 /// 나이 신호: 생성 후 30일 이내 = 1.0, 이후 지수 감쇠
-pub fn age_signal(cell: &Cell) -> f32 {
-    let now = Utc::now();
-    let days_old = (now - cell.created_at).num_days() as f32;
+pub fn age_signal(cell: &CrownyCell) -> f32 {
+    let now = Utc::now().timestamp();
+    let days_old = ((now - cell.birth) as f32 / 86400.0).max(0.0);
     // 30일이면 0.5, 90일이면 0.22, 180일이면 0.08
     (-days_old / 43.3).exp().clamp(0.0, 1.0)
 }
@@ -92,10 +92,10 @@ pub fn similarity_signal(query_intent: &str, cell_intent: &str) -> f32 {
 }
 
 /// 셀이 있을 때 전체 신호 세트 계산
-pub fn compute_signals(query_intent: &str, cell: &Cell) -> SignalSet {
+pub fn compute_signals(query_intent: &str, cell: &CrownyCell) -> SignalSet {
     SignalSet {
         age_signal:         age_signal(cell),
-        usage_signal:       usage_signal(cell.use_count),
+        usage_signal:       usage_signal(cell.activation_count),
         refutation_signal:  refutation_signal(cell.refutation_count),
         similarity_signal:  similarity_signal(query_intent, &cell.intent),
     }
@@ -114,22 +114,18 @@ pub fn compute_seed_signals(query_intent: &str, seed_intent: &str) -> SignalSet 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cell::{CrownyCell, Pattern, PatternSource};
+
+    fn make_fresh_cell() -> CrownyCell {
+        let mut cell = CrownyCell::new("test");
+        cell.add_pattern(Pattern::new("python", "", 0.9, PatternSource::Generated));
+        cell
+    }
 
     #[test]
     fn test_age_signal_fresh() {
         // 방금 만든 셀 → 높은 점수
-        let cell = Cell {
-            id: "x".to_string(),
-            intent: "test".to_string(),
-            target_lang: "python".to_string(),
-            code: "".to_string(),
-            confidence: 0.9,
-            source: "generated".to_string(),
-            created_at: Utc::now(),
-            used_at: None,
-            refutation_count: 0,
-            use_count: 0,
-        };
+        let cell = make_fresh_cell();
         assert!(age_signal(&cell) > 0.9);
     }
 

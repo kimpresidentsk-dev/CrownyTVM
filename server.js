@@ -1870,7 +1870,12 @@ const server = http.createServer(async (req, res) => {
         path = '/api/chat/' + path.split('/')[3] + '/messages';
     }
     else if (path.startsWith('/v2/chat/')) path = '/api/chat/' + path.slice(9);
-    else if (path === '/v2/contacts' || path === '/v2/contacts/pending') path = '/api/contacts';
+    else if (path === '/v2/contacts') path = '/api/contacts';
+    else if (path === '/v2/contacts/pending') {
+        const user = getAuth(req);
+        res.end(JSON.stringify({ contacts: [] }));
+        return;
+    }
     else if (path.startsWith('/v2/contacts/')) {
         // /v2/contacts/{pubKey}/accept, /block 등
         const parts = path.split('/');
@@ -2071,9 +2076,17 @@ const server = http.createServer(async (req, res) => {
             const user = getAuth(req);
             if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
             const contacts = getContacts(user.username);
-            // v2 호환: CrownyOS는 { contacts: [...] } 형식 기대
+            // v2 호환: CrownyOS 필드 매핑
             if (isV2) {
-                res.end(JSON.stringify({ contacts }));
+                const v2contacts = contacts.map(c => ({
+                    ...c,
+                    pub_key: c.crownyUsername || c.id,
+                    username: c.crownyUsername || c.name,
+                    display_name: c.name,
+                    nickname: c.name,
+                    email: c.email || '',
+                }));
+                res.end(JSON.stringify({ contacts: v2contacts }));
             } else {
                 res.end(JSON.stringify(contacts));
             }
@@ -7167,6 +7180,1135 @@ const server = http.createServer(async (req, res) => {
         if(path==='/api/beauty/analysis-requests'&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const r=loadJSON('beauty_analysis_requests.json',[]);const rid=`bar_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;r.push({id:rid,userId:user.username,userNickname:body.userNickname||user.username,photoCount:body.photoCount||0,type:body.type||'expert',status:'pending',createdAt:Date.now(),completedAt:null,analysisId:null});saveJSON('beauty_analysis_requests.json',r);res.end(JSON.stringify({ok:true,id:rid}));return;}
         if(/^\/api\/beauty\/analysis-requests\/[^/]+$/.test(path)&&(req.method==='PATCH'||req.method==='POST')){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const rid=path.split('/')[4];const r=loadJSON('beauty_analysis_requests.json',[]);const rq=r.find(x=>x.id===rid);if(!rq){res.statusCode=404;res.end('{"error":"not found"}');return;}Object.assign(rq,body);saveJSON('beauty_analysis_requests.json',r);res.end('{"ok":true}');return;}
         if(path==='/api/beauty/notify'&&req.method==='POST'){const user=getAuth(req);if(!user){res.statusCode=401;res.end('{"error":"auth"}');return;}const n=loadJSON(`notifications_${body.userId}.json`,[]);n.push({type:'beauty',message:body.message||'Analysis result available!',read:false,createdAt:Date.now()});saveJSON(`notifications_${body.userId}.json`,n);res.end('{"ok":true}');return;}
+
+        // ═══ Marketplace REST API ═══
+        // Data stored in data/marketplace/ subdirectory
+        const MP_DIR = pathModule.join(DATA_DIR, 'marketplace');
+        if (!fs.existsSync(MP_DIR)) fs.mkdirSync(MP_DIR, { recursive: true });
+        function mpLoad(file, def = []) { const p = pathModule.join(MP_DIR, file); if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8')); return typeof def === 'function' ? def() : (Array.isArray(def) ? [...def] : {...def}); }
+        function mpSave(file, data) { fs.writeFileSync(pathModule.join(MP_DIR, file), JSON.stringify(data, null, 2)); }
+        function mpId(prefix) { return `${prefix}_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`; }
+
+        // --- PRODUCTS ---
+        // GET /api/marketplace/products?status=active&category=xxx&sellerId=xxx&limit=50
+        if (path === '/api/marketplace/products' && req.method === 'GET') {
+            let items = mpLoad('products.json', []);
+            const status = url.searchParams.get('status');
+            const category = url.searchParams.get('category');
+            const sellerId = url.searchParams.get('sellerId');
+            const sortBy = url.searchParams.get('sort') || 'newest';
+            const lim = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+            if (status) items = items.filter(p => p.status === status);
+            if (category) items = items.filter(p => p.category === category);
+            if (sellerId) items = items.filter(p => p.sellerId === sellerId);
+            if (sortBy === 'newest') items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            else if (sortBy === 'fans') items.sort((a, b) => (b.sold || 0) - (a.sold || 0));
+            else if (sortBy === 'title') items.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+            items = items.slice(0, lim);
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+        // GET /api/marketplace/products/:id
+        if (/^\/api\/marketplace\/products\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[4];
+            const items = mpLoad('products.json', []);
+            const p = items.find(x => x.id === id);
+            if (!p) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            res.end(JSON.stringify({ ok: true, item: p }));
+            return;
+        }
+        // POST /api/marketplace/products — create product
+        if (path === '/api/marketplace/products' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const items = mpLoad('products.json', []);
+            const id = mpId('prod');
+            const u = loadJSON(`user_${user.username}.json`, {});
+            const prod = {
+                id, title: body.title || '', description: body.description || '',
+                category: body.category || '', price: body.price || 0, priceToken: body.priceToken || 'CRGC',
+                stock: body.stock || 0, sold: 0, imageData: body.imageData || '',
+                images: body.images || [], avgRating: 0, reviewCount: 0,
+                sellerId: user.username, sellerEmail: user.username + '@crowny.org',
+                sellerNickname: u.nickname || user.username,
+                status: body.status || 'active', createdAt: Date.now()
+            };
+            items.push(prod);
+            mpSave('products.json', items);
+            res.end(JSON.stringify({ ok: true, id, item: prod }));
+            return;
+        }
+        // PATCH /api/marketplace/products/:id — update product
+        if (/^\/api\/marketplace\/products\/[^/]+$/.test(path) && (req.method === 'PATCH' || req.method === 'PUT')) {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const items = mpLoad('products.json', []);
+            const idx = items.findIndex(x => x.id === id);
+            if (idx < 0) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (items[idx].sellerId !== user.username && !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"forbidden"}'); return; }
+            const allowed = ['title', 'description', 'price', 'stock', 'status', 'imageData', 'images', 'category', 'sold', 'avgRating', 'reviewCount'];
+            for (const k of allowed) { if (body[k] !== undefined) items[idx][k] = body[k]; }
+            mpSave('products.json', items);
+            res.end(JSON.stringify({ ok: true, item: items[idx] }));
+            return;
+        }
+        // DELETE /api/marketplace/products/:id
+        if (/^\/api\/marketplace\/products\/[^/]+$/.test(path) && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            let items = mpLoad('products.json', []);
+            const p = items.find(x => x.id === id);
+            if (!p) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (p.sellerId !== user.username && !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"forbidden"}'); return; }
+            items = items.filter(x => x.id !== id);
+            mpSave('products.json', items);
+            res.end('{"ok":true}');
+            return;
+        }
+
+        // --- ORDERS ---
+        // GET /api/marketplace/orders?buyerId=xxx&sellerId=xxx&limit=30
+        if (path === '/api/marketplace/orders' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            let items = mpLoad('orders.json', []);
+            const buyerId = url.searchParams.get('buyerId');
+            const sellerId = url.searchParams.get('sellerId');
+            const productId = url.searchParams.get('productId');
+            const status = url.searchParams.get('status');
+            if (buyerId) items = items.filter(o => o.buyerId === buyerId);
+            if (sellerId) items = items.filter(o => o.sellerId === sellerId);
+            if (productId) items = items.filter(o => o.productId === productId);
+            if (status) items = items.filter(o => o.status === status);
+            items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            const lim = Math.min(parseInt(url.searchParams.get('limit') || '30'), 100);
+            items = items.slice(0, lim);
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+        // GET /api/marketplace/orders/:id
+        if (/^\/api\/marketplace\/orders\/[^/]+$/.test(path) && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const items = mpLoad('orders.json', []);
+            const o = items.find(x => x.id === id);
+            if (!o) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            res.end(JSON.stringify({ ok: true, item: o }));
+            return;
+        }
+        // POST /api/marketplace/orders — create order (single product buy)
+        if (path === '/api/marketplace/orders' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const products = mpLoad('products.json', []);
+            const p = products.find(x => x.id === body.productId);
+            if (!p || p.status !== 'active') { res.statusCode = 400; res.end('{"error":"product not available"}'); return; }
+            const qty = body.qty || 1;
+            const price = p.price * qty;
+            if (price <= 0 || price > 10000) { res.statusCode = 400; res.end('{"error":"invalid price"}'); return; }
+            const remaining = p.stock - (p.sold || 0);
+            if (remaining < qty) { res.statusCode = 400; res.end('{"error":"out of stock"}'); return; }
+            // Balance check & deduct
+            const buyerFile = `user_${user.username}.json`;
+            const buyerData = loadJSON(buyerFile, {});
+            const buyerBal = buyerData.offchainBalances || {};
+            if ((buyerBal.crgc || 0) < price) { res.statusCode = 400; res.end('{"error":"insufficient balance"}'); return; }
+            buyerBal.crgc = (buyerBal.crgc || 0) - price;
+            buyerData.offchainBalances = buyerBal;
+            saveJSON(buyerFile, buyerData);
+            // Pay seller
+            const sellerFile = `user_${p.sellerId}.json`;
+            const sellerData = loadJSON(sellerFile, {});
+            const sellerBal = sellerData.offchainBalances || {};
+            sellerBal.crgc = (sellerBal.crgc || 0) + price;
+            sellerData.offchainBalances = sellerBal;
+            saveJSON(sellerFile, sellerData);
+            // Update stock
+            p.sold = (p.sold || 0) + qty;
+            mpSave('products.json', products);
+            // Create order
+            const orders = mpLoad('orders.json', []);
+            const oid = mpId('order');
+            const order = {
+                id: oid, productId: body.productId, productTitle: p.title,
+                productImage: (p.images && p.images.length > 0) ? p.images[0] : (p.imageData || ''),
+                buyerId: user.username, buyerEmail: user.username + '@crowny.org',
+                sellerId: p.sellerId, sellerEmail: p.sellerEmail || '',
+                amount: price, qty, token: 'CRGC', status: 'paid',
+                shippingInfo: body.shippingInfo || null,
+                statusHistory: [{ status: 'paid', at: new Date().toISOString() }],
+                createdAt: Date.now()
+            };
+            orders.push(order);
+            mpSave('orders.json', orders);
+            // Seller notification
+            const notifs = loadJSON(`notifications_${p.sellerId}.json`, []);
+            notifs.push({ type: 'order_status', message: `New order! "${p.title}" (${price} CRGC)`, link: '#page=my-shop', read: false, createdAt: Date.now() });
+            saveJSON(`notifications_${p.sellerId}.json`, notifs);
+            res.end(JSON.stringify({ ok: true, id: oid, order }));
+            return;
+        }
+        // PATCH /api/marketplace/orders/:id — update order status
+        if (/^\/api\/marketplace\/orders\/[^/]+$/.test(path) && (req.method === 'PATCH' || req.method === 'PUT')) {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const orders = mpLoad('orders.json', []);
+            const o = orders.find(x => x.id === id);
+            if (!o) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (o.sellerId !== user.username && !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"forbidden"}'); return; }
+            const newStatus = body.status;
+            if (newStatus) {
+                o.status = newStatus;
+                o[`${newStatus}At`] = new Date().toISOString();
+                if (!o.statusHistory) o.statusHistory = [];
+                o.statusHistory.push({ status: newStatus, at: new Date().toISOString() });
+                if (body.trackingNumber) o.trackingNumber = body.trackingNumber;
+            }
+            mpSave('orders.json', orders);
+            // Buyer notification
+            const notifs = loadJSON(`notifications_${o.buyerId}.json`, []);
+            const msgMap = { shipping: `"${o.productTitle}" is now shipping!`, delivered: `"${o.productTitle}" has been delivered!` };
+            if (msgMap[newStatus]) { notifs.push({ type: 'order_status', message: msgMap[newStatus], link: '#page=buyer-orders', read: false, createdAt: Date.now() }); saveJSON(`notifications_${o.buyerId}.json`, notifs); }
+            res.end(JSON.stringify({ ok: true, item: o }));
+            return;
+        }
+
+        // --- CHECKOUT (cart batch) ---
+        if (path === '/api/marketplace/checkout' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const cartItems = body.items || [];
+            const shippingInfo = body.shippingInfo || null;
+            if (!cartItems.length) { res.statusCode = 400; res.end('{"error":"empty cart"}'); return; }
+            let total = 0;
+            cartItems.forEach(it => { total += (it.price || 0) * (it.qty || 1); });
+            if (total <= 0 || total > 10000) { res.statusCode = 400; res.end('{"error":"invalid total"}'); return; }
+            // Balance check
+            const buyerFile = `user_${user.username}.json`;
+            const buyerData = loadJSON(buyerFile, {});
+            const buyerBal = buyerData.offchainBalances || {};
+            if ((buyerBal.crgc || 0) < total) { res.statusCode = 400; res.end('{"error":"insufficient balance"}'); return; }
+            buyerBal.crgc = (buyerBal.crgc || 0) - total;
+            buyerData.offchainBalances = buyerBal;
+            saveJSON(buyerFile, buyerData);
+            const products = mpLoad('products.json', []);
+            const orders = mpLoad('orders.json', []);
+            const createdOrders = [];
+            for (const item of cartItems) {
+                const p = products.find(x => x.id === item.productId);
+                if (!p) continue;
+                const qty = item.qty || 1;
+                const subtotal = item.price * qty;
+                const remaining = p.stock - (p.sold || 0);
+                if (remaining < qty) { res.statusCode = 400; res.end(JSON.stringify({ error: `"${item.title}" out of stock` })); return; }
+                p.sold = (p.sold || 0) + qty;
+                // Pay seller
+                const sf = `user_${p.sellerId}.json`;
+                const sd = loadJSON(sf, {});
+                const sb = sd.offchainBalances || {};
+                sb.crgc = (sb.crgc || 0) + subtotal;
+                sd.offchainBalances = sb;
+                saveJSON(sf, sd);
+                const oid = mpId('order');
+                const order = {
+                    id: oid, productId: item.productId, productTitle: item.title || p.title,
+                    productImage: (p.images && p.images.length > 0) ? p.images[0] : (p.imageData || ''),
+                    buyerId: user.username, buyerEmail: user.username + '@crowny.org',
+                    sellerId: p.sellerId, sellerEmail: p.sellerEmail || '',
+                    amount: subtotal, qty, token: 'CRGC', status: 'paid', shippingInfo,
+                    statusHistory: [{ status: 'paid', at: new Date().toISOString() }], createdAt: Date.now()
+                };
+                orders.push(order);
+                createdOrders.push(order);
+                // Seller notification
+                const notifs = loadJSON(`notifications_${p.sellerId}.json`, []);
+                notifs.push({ type: 'order_status', message: `New order! "${p.title}" (${subtotal} CRGC)`, link: '#page=my-shop', read: false, createdAt: Date.now() });
+                saveJSON(`notifications_${p.sellerId}.json`, notifs);
+            }
+            mpSave('products.json', products);
+            mpSave('orders.json', orders);
+            res.end(JSON.stringify({ ok: true, orders: createdOrders }));
+            return;
+        }
+
+        // --- REVIEWS ---
+        // GET /api/marketplace/reviews?productId=xxx&buyerId=xxx
+        if (path === '/api/marketplace/reviews' && req.method === 'GET') {
+            let items = mpLoad('reviews.json', []);
+            const productId = url.searchParams.get('productId');
+            const buyerId = url.searchParams.get('buyerId');
+            if (productId) items = items.filter(r => r.productId === productId);
+            if (buyerId) items = items.filter(r => r.buyerId === buyerId);
+            items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            const lim = Math.min(parseInt(url.searchParams.get('limit') || '30'), 100);
+            items = items.slice(0, lim);
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+        // POST /api/marketplace/reviews
+        if (path === '/api/marketplace/reviews' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const reviews = mpLoad('reviews.json', []);
+            // Check if already reviewed
+            const existing = reviews.find(r => r.productId === body.productId && r.buyerId === user.username);
+            if (existing) { res.statusCode = 400; res.end('{"error":"already reviewed"}'); return; }
+            const rid = mpId('rev');
+            const review = {
+                id: rid, productId: body.productId, buyerId: user.username,
+                buyerEmail: user.username + '@crowny.org',
+                rating: body.rating || 5, comment: body.comment || '',
+                imageData: body.imageData || '', verified: body.verified || false,
+                helpful: 0, createdAt: Date.now()
+            };
+            reviews.push(review);
+            mpSave('reviews.json', reviews);
+            // Update product avg rating
+            const allRevs = reviews.filter(r => r.productId === body.productId);
+            const avg = allRevs.reduce((s, r) => s + r.rating, 0) / allRevs.length;
+            const products = mpLoad('products.json', []);
+            const prod = products.find(x => x.id === body.productId);
+            if (prod) { prod.avgRating = Math.round(avg * 10) / 10; prod.reviewCount = allRevs.length; mpSave('products.json', products); }
+            // Seller notification
+            if (prod) {
+                const notifs = loadJSON(`notifications_${prod.sellerId}.json`, []);
+                notifs.push({ type: 'order_status', message: `"${prod.title}" new review (${body.rating}/5)`, link: `#page=product-detail&id=${body.productId}`, read: false, createdAt: Date.now() });
+                saveJSON(`notifications_${prod.sellerId}.json`, notifs);
+            }
+            res.end(JSON.stringify({ ok: true, id: rid, review }));
+            return;
+        }
+        // POST /api/marketplace/reviews/:id/helpful
+        if (/^\/api\/marketplace\/reviews\/[^/]+\/helpful$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const rid = path.split('/')[4];
+            const reviews = mpLoad('reviews.json', []);
+            const rev = reviews.find(x => x.id === rid);
+            if (!rev) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            rev.helpful = (rev.helpful || 0) + 1;
+            mpSave('reviews.json', reviews);
+            res.end(JSON.stringify({ ok: true, helpful: rev.helpful }));
+            return;
+        }
+
+        // --- CAMPAIGNS (fundraising) ---
+        if (path === '/api/marketplace/campaigns' && req.method === 'GET') {
+            let items = mpLoad('campaigns.json', []);
+            const status = url.searchParams.get('status');
+            if (status) items = items.filter(c => c.status === status);
+            items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+        if (/^\/api\/marketplace\/campaigns\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[4];
+            const items = mpLoad('campaigns.json', []);
+            const c = items.find(x => x.id === id);
+            if (!c) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            res.end(JSON.stringify({ ok: true, item: c }));
+            return;
+        }
+        if (path === '/api/marketplace/campaigns' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const items = mpLoad('campaigns.json', []);
+            const u = loadJSON(`user_${user.username}.json`, {});
+            const id = mpId('camp');
+            const days = parseInt(body.days) || 30;
+            const camp = {
+                id, title: body.title || '', description: body.description || '',
+                category: body.category || '', goal: body.goal || 0, raised: 0, token: 'CRGC',
+                backers: 0, imageData: body.imageData || '',
+                platformFee: body.platformFee || 2.5,
+                creatorId: user.username, creatorEmail: user.username + '@crowny.org',
+                creatorNickname: u.nickname || user.username,
+                endDate: Date.now() + days * 86400000,
+                status: 'active', createdAt: Date.now()
+            };
+            items.push(camp);
+            mpSave('campaigns.json', items);
+            res.end(JSON.stringify({ ok: true, id, item: camp }));
+            return;
+        }
+        // POST /api/marketplace/campaigns/:id/donate
+        if (/^\/api\/marketplace\/campaigns\/[^/]+\/donate$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const campaigns = mpLoad('campaigns.json', []);
+            const camp = campaigns.find(x => x.id === id);
+            if (!camp) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const amount = body.amount || 0;
+            if (amount <= 0) { res.statusCode = 400; res.end('{"error":"invalid amount"}'); return; }
+            const tk = 'crgc';
+            const platformFee = amount * ((camp.platformFee || 2.5) / 100);
+            const creatorReceive = amount - platformFee;
+            // Deduct from donor
+            const donorFile = `user_${user.username}.json`;
+            const donorData = loadJSON(donorFile, {});
+            const donorBal = donorData.offchainBalances || {};
+            if ((donorBal[tk] || 0) < amount) { res.statusCode = 400; res.end('{"error":"insufficient balance"}'); return; }
+            donorBal[tk] = (donorBal[tk] || 0) - amount;
+            donorData.offchainBalances = donorBal;
+            saveJSON(donorFile, donorData);
+            // Pay creator
+            const creatorFile = `user_${camp.creatorId}.json`;
+            const creatorData = loadJSON(creatorFile, {});
+            const creatorBal = creatorData.offchainBalances || {};
+            creatorBal[tk] = (creatorBal[tk] || 0) + creatorReceive;
+            creatorData.offchainBalances = creatorBal;
+            saveJSON(creatorFile, creatorData);
+            // Update campaign
+            camp.raised = (camp.raised || 0) + amount;
+            camp.backers = (camp.backers || 0) + 1;
+            mpSave('campaigns.json', campaigns);
+            // Transaction log
+            const txns = mpLoad('transactions.json', []);
+            txns.push({ id: mpId('tx'), from: user.username, to: camp.creatorId, amount, token: camp.token, type: 'donation', campaignId: id, platformFee, creatorReceive, timestamp: Date.now() });
+            mpSave('transactions.json', txns);
+            // Platform fee log
+            const fees = mpLoad('platform_fees.json', []);
+            fees.push({ campaignId: id, amount: platformFee, token: camp.token, fromUser: user.username, timestamp: Date.now() });
+            mpSave('platform_fees.json', fees);
+            // Campaign donors log
+            const donors = mpLoad('campaign_donors.json', []);
+            donors.push({ campaignId: id, donorId: user.username, donorEmail: user.username + '@crowny.org', amount, token: camp.token, timestamp: Date.now() });
+            mpSave('campaign_donors.json', donors);
+            res.end(JSON.stringify({ ok: true, raised: camp.raised }));
+            return;
+        }
+        // PATCH /api/marketplace/campaigns/:id — close campaign
+        if (/^\/api\/marketplace\/campaigns\/[^/]+$/.test(path) && req.method === 'PATCH') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const campaigns = mpLoad('campaigns.json', []);
+            const camp = campaigns.find(x => x.id === id);
+            if (!camp) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (camp.creatorId !== user.username && !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"forbidden"}'); return; }
+            if (body.status) camp.status = body.status;
+            if (body.status === 'closed') camp.closedAt = Date.now();
+            // Platform fee on close
+            if (body.status === 'closed' && camp.raised > 0) {
+                const fee = camp.platformFee || 2.5;
+                const feeAmount = camp.raised * (fee / 100);
+                const fees = mpLoad('platform_fees.json', []);
+                fees.push({ campaignId: id, amount: feeAmount, token: camp.token, type: 'campaign_close', timestamp: Date.now() });
+                mpSave('platform_fees.json', fees);
+            }
+            mpSave('campaigns.json', campaigns);
+            res.end(JSON.stringify({ ok: true, item: camp }));
+            return;
+        }
+
+        // --- TRANSACTIONS (donation log for campaign detail) ---
+        if (path === '/api/marketplace/transactions' && req.method === 'GET') {
+            let items = mpLoad('transactions.json', []);
+            const campaignId = url.searchParams.get('campaignId');
+            const type = url.searchParams.get('type');
+            const artistId = url.searchParams.get('artistId');
+            const from = url.searchParams.get('from');
+            if (campaignId) items = items.filter(t => t.campaignId === campaignId);
+            if (type) items = items.filter(t => t.type === type);
+            if (artistId) items = items.filter(t => t.artistId === artistId);
+            if (from) items = items.filter(t => t.from === from);
+            items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            const lim = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+            items = items.slice(0, lim);
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+
+        // --- ENERGY PROJECTS (CREB Labs) ---
+        if (path === '/api/marketplace/energy-projects' && req.method === 'GET') {
+            let items = mpLoad('energy_projects.json', []);
+            const status = url.searchParams.get('status');
+            if (status) items = items.filter(p => p.status === status);
+            items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+        if (/^\/api\/marketplace\/energy-projects\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[4];
+            const items = mpLoad('energy_projects.json', []);
+            const p = items.find(x => x.id === id);
+            if (!p) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            res.end(JSON.stringify({ ok: true, item: p }));
+            return;
+        }
+        if (path === '/api/marketplace/energy-projects' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const items = mpLoad('energy_projects.json', []);
+            const id = mpId('eproj');
+            const proj = {
+                id, title: body.title || '', location: body.location || '',
+                capacity: body.capacity || 0, returnRate: body.returnRate || 0,
+                goal: body.goal || 0, category: body.category || 'energy',
+                investType: body.investType || 'return',
+                invested: 0, investors: 0, status: 'active',
+                milestones: body.milestones || [], teamMembers: body.teamMembers || [],
+                description: body.description || '',
+                creatorId: user.username, createdAt: Date.now()
+            };
+            items.push(proj);
+            mpSave('energy_projects.json', items);
+            res.end(JSON.stringify({ ok: true, id, item: proj }));
+            return;
+        }
+        // POST /api/marketplace/energy-projects/:id/invest
+        if (/^\/api\/marketplace\/energy-projects\/[^/]+\/invest$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const projects = mpLoad('energy_projects.json', []);
+            const proj = projects.find(x => x.id === id);
+            if (!proj) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const amount = body.amount || 0;
+            const tk = 'creb';
+            if (amount <= 0) { res.statusCode = 400; res.end('{"error":"invalid amount"}'); return; }
+            // Deduct balance
+            const uf = `user_${user.username}.json`;
+            const ud = loadJSON(uf, {});
+            const ub = ud.offchainBalances || {};
+            if ((ub[tk] || 0) < amount) { res.statusCode = 400; res.end('{"error":"insufficient balance"}'); return; }
+            ub[tk] = (ub[tk] || 0) - amount;
+            ud.offchainBalances = ub;
+            saveJSON(uf, ud);
+            // Update project
+            proj.invested = (proj.invested || 0) + amount;
+            proj.investors = (proj.investors || 0) + 1;
+            mpSave('energy_projects.json', projects);
+            // Investment log
+            const invs = mpLoad('energy_investments.json', []);
+            invs.push({ id: mpId('einv'), projectId: id, userId: user.username, amount, token: 'CREB', timestamp: Date.now() });
+            mpSave('energy_investments.json', invs);
+            res.end(JSON.stringify({ ok: true, invested: proj.invested }));
+            return;
+        }
+        // GET /api/marketplace/energy-investments?userId=xxx&projectId=xxx
+        if (path === '/api/marketplace/energy-investments' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            let items = mpLoad('energy_investments.json', []);
+            const userId = url.searchParams.get('userId');
+            const projectId = url.searchParams.get('projectId');
+            if (userId) items = items.filter(i => i.userId === userId);
+            if (projectId) items = items.filter(i => i.projectId === projectId);
+            items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+        // POST /api/marketplace/energy-projects/:id/distribute — distribute returns
+        if (/^\/api\/marketplace\/energy-projects\/[^/]+\/distribute$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const projects = mpLoad('energy_projects.json', []);
+            const proj = projects.find(x => x.id === id);
+            if (!proj) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (proj.creatorId !== user.username && !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"forbidden"}'); return; }
+            const rate = proj.returnRate || 0;
+            const investments = mpLoad('energy_investments.json', []).filter(i => i.projectId === id);
+            if (!investments.length) { res.statusCode = 400; res.end('{"error":"no investors"}'); return; }
+            let distributed = 0;
+            const txns = mpLoad('transactions.json', []);
+            for (const inv of investments) {
+                const share = inv.amount * rate / 100 / 12;
+                if (share <= 0) continue;
+                const uf = `user_${inv.userId}.json`;
+                const ud = loadJSON(uf, {});
+                const ub = ud.offchainBalances || {};
+                ub.creb = (ub.creb || 0) + share;
+                ud.offchainBalances = ub;
+                saveJSON(uf, ud);
+                txns.push({ id: mpId('tx'), from: 'energy_system', to: inv.userId, amount: share, token: 'CREB', type: 'energy_return', projectId: id, timestamp: Date.now() });
+                distributed += share;
+            }
+            mpSave('transactions.json', txns);
+            res.end(JSON.stringify({ ok: true, distributed, investorCount: investments.length }));
+            return;
+        }
+        // POST /api/marketplace/energy-projects/:id/comments
+        if (/^\/api\/marketplace\/energy-projects\/[^/]+\/comments$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const projectId = path.split('/')[4];
+            const comments = mpLoad(`energy_comments_${projectId}.json`, []);
+            const u = loadJSON(`user_${user.username}.json`, {});
+            comments.push({ id: mpId('ec'), userId: user.username, nickname: u.nickname || user.username, text: body.text || '', createdAt: Date.now() });
+            mpSave(`energy_comments_${projectId}.json`, comments);
+            res.end('{"ok":true}');
+            return;
+        }
+        // GET /api/marketplace/energy-projects/:id/comments
+        if (/^\/api\/marketplace\/energy-projects\/[^/]+\/comments$/.test(path) && req.method === 'GET') {
+            const projectId = path.split('/')[4];
+            const comments = mpLoad(`energy_comments_${projectId}.json`, []);
+            comments.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            res.end(JSON.stringify({ ok: true, items: comments.slice(0, 20) }));
+            return;
+        }
+
+        // --- BUSINESSES ---
+        if (path === '/api/marketplace/businesses' && req.method === 'GET') {
+            let items = mpLoad('businesses.json', []);
+            const status = url.searchParams.get('status');
+            if (status) items = items.filter(b => b.status === status);
+            items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+        if (/^\/api\/marketplace\/businesses\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[4];
+            const items = mpLoad('businesses.json', []);
+            const b = items.find(x => x.id === id);
+            if (!b) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            res.end(JSON.stringify({ ok: true, item: b }));
+            return;
+        }
+        if (path === '/api/marketplace/businesses' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const items = mpLoad('businesses.json', []);
+            const u = loadJSON(`user_${user.username}.json`, {});
+            const id = mpId('biz');
+            const biz = {
+                id, name: body.name || '', description: body.description || '',
+                category: body.category || 'other', country: body.country || '',
+                website: body.website || '', imageData: body.imageData || '',
+                ownerId: user.username, ownerEmail: user.username + '@crowny.org',
+                ownerNickname: u.nickname || user.username,
+                rating: 0, reviews: 0, status: 'active', createdAt: Date.now()
+            };
+            items.push(biz);
+            mpSave('businesses.json', items);
+            res.end(JSON.stringify({ ok: true, id, item: biz }));
+            return;
+        }
+        // PATCH /api/marketplace/businesses/:id
+        if (/^\/api\/marketplace\/businesses\/[^/]+$/.test(path) && req.method === 'PATCH') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const items = mpLoad('businesses.json', []);
+            const biz = items.find(x => x.id === id);
+            if (!biz) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (body.rating !== undefined) biz.rating = body.rating;
+            if (body.reviews !== undefined) biz.reviews = body.reviews;
+            mpSave('businesses.json', items);
+            res.end(JSON.stringify({ ok: true, item: biz }));
+            return;
+        }
+        // POST /api/marketplace/business-investments
+        if (path === '/api/marketplace/business-investments' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const businesses = mpLoad('businesses.json', []);
+            const biz = businesses.find(x => x.id === body.businessId);
+            if (!biz) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const amount = body.amount || 0;
+            const tk = 'crgc';
+            if (amount <= 0) { res.statusCode = 400; res.end('{"error":"invalid amount"}'); return; }
+            // Deduct from investor
+            const uf = `user_${user.username}.json`;
+            const ud = loadJSON(uf, {});
+            const ub = ud.offchainBalances || {};
+            if ((ub[tk] || 0) < amount) { res.statusCode = 400; res.end('{"error":"insufficient balance"}'); return; }
+            ub[tk] = (ub[tk] || 0) - amount;
+            ud.offchainBalances = ub;
+            saveJSON(uf, ud);
+            // Pay business owner
+            const of2 = `user_${biz.ownerId}.json`;
+            const od = loadJSON(of2, {});
+            const ob = od.offchainBalances || {};
+            ob[tk] = (ob[tk] || 0) + amount;
+            od.offchainBalances = ob;
+            saveJSON(of2, od);
+            // Log investment
+            const invs = mpLoad('business_investments.json', []);
+            invs.push({ id: mpId('binv'), businessId: body.businessId, businessName: biz.name, investorId: user.username, investorEmail: user.username + '@crowny.org', amount, token: 'CRGC', timestamp: Date.now() });
+            mpSave('business_investments.json', invs);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+        // GET /api/marketplace/business-investments?businessId=xxx
+        if (path === '/api/marketplace/business-investments' && req.method === 'GET') {
+            let items = mpLoad('business_investments.json', []);
+            const businessId = url.searchParams.get('businessId');
+            if (businessId) items = items.filter(i => i.businessId === businessId);
+            items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+
+        // --- ARTISTS ---
+        if (path === '/api/marketplace/artists' && req.method === 'GET') {
+            let items = mpLoad('artists.json', []);
+            const status = url.searchParams.get('status');
+            if (status) items = items.filter(a => a.status === status);
+            items.sort((a, b) => (b.fans || 0) - (a.fans || 0));
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+        if (/^\/api\/marketplace\/artists\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[4];
+            const items = mpLoad('artists.json', []);
+            const a = items.find(x => x.id === id);
+            if (!a) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            res.end(JSON.stringify({ ok: true, item: a }));
+            return;
+        }
+        if (path === '/api/marketplace/artists' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const items = mpLoad('artists.json', []);
+            const id = mpId('art');
+            const artist = {
+                id, name: body.name || '', bio: body.bio || '',
+                genre: body.genre || 'other', imageData: body.imageData || '',
+                userId: user.username, email: user.username + '@crowny.org',
+                fans: 0, totalSupport: 0, status: 'active', createdAt: Date.now()
+            };
+            items.push(artist);
+            mpSave('artists.json', items);
+            res.end(JSON.stringify({ ok: true, id, item: artist }));
+            return;
+        }
+        // POST /api/marketplace/artists/:id/support
+        if (/^\/api\/marketplace\/artists\/[^/]+\/support$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const artists = mpLoad('artists.json', []);
+            const artist = artists.find(x => x.id === id);
+            if (!artist) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const amount = body.amount || 0;
+            const tk = 'crac';
+            if (amount <= 0) { res.statusCode = 400; res.end('{"error":"invalid amount"}'); return; }
+            // Deduct from supporter
+            const uf = `user_${user.username}.json`;
+            const ud = loadJSON(uf, {});
+            const ub = ud.offchainBalances || {};
+            if ((ub[tk] || 0) < amount) { res.statusCode = 400; res.end('{"error":"insufficient balance"}'); return; }
+            ub[tk] = (ub[tk] || 0) - amount;
+            ud.offchainBalances = ub;
+            saveJSON(uf, ud);
+            // Pay artist
+            const af = `user_${artist.userId}.json`;
+            const ad = loadJSON(af, {});
+            const ab = ad.offchainBalances || {};
+            ab[tk] = (ab[tk] || 0) + amount;
+            ad.offchainBalances = ab;
+            saveJSON(af, ad);
+            // Unique fan check
+            const txns = mpLoad('transactions.json', []);
+            const isNewFan = !txns.some(t => t.from === user.username && t.artistId === id && t.type === 'artist_support');
+            artist.totalSupport = (artist.totalSupport || 0) + amount;
+            if (isNewFan) artist.fans = (artist.fans || 0) + 1;
+            mpSave('artists.json', artists);
+            txns.push({ id: mpId('tx'), from: user.username, to: artist.userId, amount, token: 'CRAC', type: 'artist_support', artistId: id, timestamp: Date.now() });
+            mpSave('transactions.json', txns);
+            res.end(JSON.stringify({ ok: true, fans: artist.fans, totalSupport: artist.totalSupport }));
+            return;
+        }
+
+        // --- BOOKS ---
+        if (path === '/api/marketplace/books' && req.method === 'GET') {
+            let items = mpLoad('books.json', []);
+            const status = url.searchParams.get('status');
+            if (status) items = items.filter(b => b.status === status);
+            items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+        if (/^\/api\/marketplace\/books\/[^/]+$/.test(path) && req.method === 'GET') {
+            const id = path.split('/')[4];
+            const items = mpLoad('books.json', []);
+            const b = items.find(x => x.id === id);
+            if (!b) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            res.end(JSON.stringify({ ok: true, item: b }));
+            return;
+        }
+        if (path === '/api/marketplace/books' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const items = mpLoad('books.json', []);
+            const id = mpId('book');
+            const book = {
+                id, title: body.title || '', author: body.author || '',
+                description: body.description || '', genre: body.genre || 'other',
+                price: body.price || 0, priceToken: 'CRGC',
+                imageData: body.imageData || '',
+                publisherId: user.username, publisherEmail: user.username + '@crowny.org',
+                sold: 0, rating: 0, reviews: 0, status: 'active', createdAt: Date.now()
+            };
+            items.push(book);
+            mpSave('books.json', items);
+            res.end(JSON.stringify({ ok: true, id, item: book }));
+            return;
+        }
+        // POST /api/marketplace/books/:id/buy
+        if (/^\/api\/marketplace\/books\/[^/]+\/buy$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            const books = mpLoad('books.json', []);
+            const b = books.find(x => x.id === id);
+            if (!b) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (b.publisherId === user.username) { res.statusCode = 400; res.end('{"error":"own book"}'); return; }
+            if (b.price <= 0) { res.end(JSON.stringify({ ok: true, free: true })); return; }
+            const tk = 'crgc';
+            const uf = `user_${user.username}.json`;
+            const ud = loadJSON(uf, {});
+            const ub = ud.offchainBalances || {};
+            if ((ub[tk] || 0) < b.price) { res.statusCode = 400; res.end('{"error":"insufficient balance"}'); return; }
+            ub[tk] = (ub[tk] || 0) - b.price;
+            ud.offchainBalances = ub;
+            saveJSON(uf, ud);
+            // Pay publisher
+            const pf = `user_${b.publisherId}.json`;
+            const pd = loadJSON(pf, {});
+            const pb = pd.offchainBalances || {};
+            pb[tk] = (pb[tk] || 0) + b.price;
+            pd.offchainBalances = pb;
+            saveJSON(pf, pd);
+            b.sold = (b.sold || 0) + 1;
+            mpSave('books.json', books);
+            const txns = mpLoad('transactions.json', []);
+            txns.push({ id: mpId('tx'), from: user.username, to: b.publisherId, amount: b.price, token: 'CRGC', type: 'book_purchase', bookId: id, timestamp: Date.now() });
+            mpSave('transactions.json', txns);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // --- CART ---
+        // GET /api/marketplace/cart
+        if (path === '/api/marketplace/cart' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const cart = mpLoad(`cart_${user.username}.json`, []);
+            cart.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+            res.end(JSON.stringify({ ok: true, items: cart }));
+            return;
+        }
+        // POST /api/marketplace/cart
+        if (path === '/api/marketplace/cart' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const cart = mpLoad(`cart_${user.username}.json`, []);
+            const existing = cart.find(c => c.productId === body.productId);
+            if (existing) {
+                existing.qty = (existing.qty || 1) + 1;
+            } else {
+                const products = mpLoad('products.json', []);
+                const p = products.find(x => x.id === body.productId);
+                if (!p) { res.statusCode = 404; res.end('{"error":"product not found"}'); return; }
+                cart.push({ id: mpId('cart'), productId: body.productId, title: p.title, price: p.price, token: p.token || 'CRGC', imageData: p.imageData || '', qty: 1, addedAt: Date.now() });
+            }
+            mpSave(`cart_${user.username}.json`, cart);
+            res.end(JSON.stringify({ ok: true, count: cart.reduce((s, c) => s + (c.qty || 1), 0) }));
+            return;
+        }
+        // PATCH /api/marketplace/cart/:id
+        if (/^\/api\/marketplace\/cart\/[^/]+$/.test(path) && req.method === 'PATCH') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            let cart = mpLoad(`cart_${user.username}.json`, []);
+            const item = cart.find(c => c.id === id);
+            if (!item) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            const newQty = (item.qty || 1) + (body.delta || 0);
+            if (newQty <= 0) cart = cart.filter(c => c.id !== id);
+            else item.qty = newQty;
+            mpSave(`cart_${user.username}.json`, cart);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+        // DELETE /api/marketplace/cart/:id
+        if (/^\/api\/marketplace\/cart\/[^/]+$/.test(path) && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const id = path.split('/')[4];
+            let cart = mpLoad(`cart_${user.username}.json`, []);
+            cart = cart.filter(c => c.id !== id);
+            mpSave(`cart_${user.username}.json`, cart);
+            res.end('{"ok":true}');
+            return;
+        }
+        // DELETE /api/marketplace/cart — clear cart
+        if (path === '/api/marketplace/cart' && req.method === 'DELETE') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            mpSave(`cart_${user.username}.json`, []);
+            res.end('{"ok":true}');
+            return;
+        }
+
+        // --- WISHLIST ---
+        if (path === '/api/marketplace/wishlist' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const wl = mpLoad(`wishlist_${user.username}.json`, []);
+            wl.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+            res.end(JSON.stringify({ ok: true, items: wl }));
+            return;
+        }
+        // POST /api/marketplace/wishlist/toggle
+        if (path === '/api/marketplace/wishlist/toggle' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            let wl = mpLoad(`wishlist_${user.username}.json`, []);
+            const existing = wl.find(w => w.productId === body.productId);
+            if (existing) {
+                wl = wl.filter(w => w.productId !== body.productId);
+                mpSave(`wishlist_${user.username}.json`, wl);
+                res.end(JSON.stringify({ ok: true, action: 'removed' }));
+            } else {
+                const products = mpLoad('products.json', []);
+                const p = products.find(x => x.id === body.productId);
+                if (!p) { res.statusCode = 404; res.end('{"error":"product not found"}'); return; }
+                wl.push({ id: mpId('wish'), productId: body.productId, title: p.title, price: p.price, token: p.token || 'CRGC', imageData: p.imageData || '', addedAt: Date.now() });
+                mpSave(`wishlist_${user.username}.json`, wl);
+                res.end(JSON.stringify({ ok: true, action: 'added', title: p.title }));
+            }
+            return;
+        }
+
+        // --- ADDRESSES ---
+        if (path === '/api/marketplace/addresses' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const addrs = mpLoad(`addresses_${user.username}.json`, []);
+            addrs.sort((a, b) => (b.usedAt || 0) - (a.usedAt || 0));
+            res.end(JSON.stringify({ ok: true, items: addrs.slice(0, 5) }));
+            return;
+        }
+        if (path === '/api/marketplace/addresses' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const addrs = mpLoad(`addresses_${user.username}.json`, []);
+            addrs.push({ ...body, usedAt: Date.now() });
+            if (addrs.length > 10) addrs.splice(0, addrs.length - 10);
+            mpSave(`addresses_${user.username}.json`, addrs);
+            res.end('{"ok":true}');
+            return;
+        }
+
+        // --- RETURNS ---
+        if (path === '/api/marketplace/returns' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            let items = mpLoad('returns.json', []);
+            const sellerId = url.searchParams.get('sellerId');
+            const status = url.searchParams.get('status');
+            const orderId = url.searchParams.get('orderId');
+            if (sellerId) items = items.filter(r => r.sellerId === sellerId);
+            if (status) items = items.filter(r => r.status === status);
+            if (orderId) items = items.filter(r => r.orderId === orderId);
+            items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            res.end(JSON.stringify({ ok: true, items }));
+            return;
+        }
+        if (path === '/api/marketplace/returns' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const orders = mpLoad('orders.json', []);
+            const order = orders.find(o => o.id === body.orderId);
+            if (!order) { res.statusCode = 404; res.end('{"error":"order not found"}'); return; }
+            const returns = mpLoad('returns.json', []);
+            const rid = mpId('ret');
+            returns.push({
+                id: rid, orderId: body.orderId, productId: order.productId,
+                productTitle: order.productTitle, buyerId: user.username,
+                buyerEmail: user.username + '@crowny.org',
+                sellerId: order.sellerId, sellerEmail: order.sellerEmail,
+                amount: order.amount, token: order.token || 'CRGC',
+                reasonCategory: body.reasonCategory || '', reasonDetail: body.reasonDetail || '',
+                status: 'requested', createdAt: Date.now()
+            });
+            mpSave('returns.json', returns);
+            // Seller notification
+            const notifs = loadJSON(`notifications_${order.sellerId}.json`, []);
+            notifs.push({ type: 'order_status', message: `"${order.productTitle}" return request received`, link: '#page=my-shop', read: false, createdAt: Date.now() });
+            saveJSON(`notifications_${order.sellerId}.json`, notifs);
+            res.end(JSON.stringify({ ok: true, id: rid }));
+            return;
+        }
+        // POST /api/marketplace/returns/:id/approve
+        if (/^\/api\/marketplace\/returns\/[^/]+\/approve$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const rid = path.split('/')[4];
+            const returns = mpLoad('returns.json', []);
+            const ret = returns.find(r => r.id === rid);
+            if (!ret) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            if (ret.sellerId !== user.username && !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"forbidden"}'); return; }
+            const tk = (ret.token || 'CRGC').toLowerCase();
+            // Refund buyer
+            const bf = `user_${ret.buyerId}.json`;
+            const bd = loadJSON(bf, {});
+            const bb = bd.offchainBalances || {};
+            bb[tk] = (bb[tk] || 0) + ret.amount;
+            bd.offchainBalances = bb;
+            saveJSON(bf, bd);
+            // Deduct from seller
+            const sf = `user_${ret.sellerId}.json`;
+            const sd = loadJSON(sf, {});
+            const sb = sd.offchainBalances || {};
+            sb[tk] = Math.max(0, (sb[tk] || 0) - ret.amount);
+            sd.offchainBalances = sb;
+            saveJSON(sf, sd);
+            ret.status = 'completed';
+            ret.completedAt = Date.now();
+            mpSave('returns.json', returns);
+            // Cancel order
+            const orders = mpLoad('orders.json', []);
+            const order = orders.find(o => o.id === ret.orderId);
+            if (order) {
+                order.status = 'cancelled';
+                order.cancelledAt = new Date().toISOString();
+                if (!order.statusHistory) order.statusHistory = [];
+                order.statusHistory.push({ status: 'cancelled', at: new Date().toISOString(), reason: 'return_refund' });
+                mpSave('orders.json', orders);
+            }
+            // Buyer notification
+            const notifs = loadJSON(`notifications_${ret.buyerId}.json`, []);
+            notifs.push({ type: 'order_status', message: `"${ret.productTitle}" return approved. Refund complete!`, link: '#page=buyer-orders', read: false, createdAt: Date.now() });
+            saveJSON(`notifications_${ret.buyerId}.json`, notifs);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+        // POST /api/marketplace/returns/:id/reject
+        if (/^\/api\/marketplace\/returns\/[^/]+\/reject$/.test(path) && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const rid = path.split('/')[4];
+            const returns = mpLoad('returns.json', []);
+            const ret = returns.find(r => r.id === rid);
+            if (!ret) { res.statusCode = 404; res.end('{"error":"not found"}'); return; }
+            ret.status = 'rejected';
+            ret.rejectReason = body.reason || '';
+            ret.rejectedAt = Date.now();
+            mpSave('returns.json', returns);
+            // Buyer notification
+            const notifs = loadJSON(`notifications_${ret.buyerId}.json`, []);
+            notifs.push({ type: 'order_status', message: `"${ret.productTitle}" return was rejected. Reason: ${body.reason || ''}`, link: '#page=buyer-orders', read: false, createdAt: Date.now() });
+            saveJSON(`notifications_${ret.buyerId}.json`, notifs);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        // --- REPORTS ---
+        if (path === '/api/marketplace/reports' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const reports = mpLoad('reports.json', []);
+            reports.push({
+                id: mpId('rpt'), targetType: body.targetType || 'product',
+                targetId: body.targetId || '', reporterId: user.username,
+                reporterEmail: user.username + '@crowny.org',
+                reason: body.reason || '', detail: body.detail || '',
+                status: 'pending', createdAt: Date.now()
+            });
+            mpSave('reports.json', reports);
+            res.end('{"ok":true}');
+            return;
+        }
+
+        // --- USER STORE SETTINGS ---
+        if (path === '/api/marketplace/store-settings' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const u = loadJSON(`user_${user.username}.json`, {});
+            res.end(JSON.stringify({ ok: true, storeName: u.storeName || '', storeDesc: u.storeDesc || '', storeImage: u.storeImage || '', nickname: u.nickname || '', profileImage: u.profileImage || '', email: user.username + '@crowny.org' }));
+            return;
+        }
+        if (path === '/api/marketplace/store-settings' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const u = loadJSON(`user_${user.username}.json`, {});
+            if (body.storeName !== undefined) u.storeName = body.storeName;
+            if (body.storeDesc !== undefined) u.storeDesc = body.storeDesc;
+            if (body.storeImage !== undefined) u.storeImage = body.storeImage;
+            saveJSON(`user_${user.username}.json`, u);
+            res.end('{"ok":true}');
+            return;
+        }
+        // GET /api/marketplace/user/:id — public user info for store page
+        if (/^\/api\/marketplace\/user\/[^/]+$/.test(path) && req.method === 'GET') {
+            const uid = path.split('/')[4];
+            const u = loadJSON(`user_${uid}.json`, {});
+            res.end(JSON.stringify({ ok: true, storeName: u.storeName || u.nickname || uid, storeDesc: u.storeDesc || '', storeImage: u.storeImage || u.profileImage || '', nickname: u.nickname || uid, email: uid + '@crowny.org' }));
+            return;
+        }
+
+        // GET /api/marketplace/store/:sellerId — 판매자 상점 데이터
+        if (path.startsWith('/api/marketplace/store/') && req.method === 'GET') {
+            const sellerId = path.split('/')[4];
+            if (!sellerId) { res.statusCode = 400; res.end('{"error":"missing sellerId"}'); return; }
+            const mkDir = pathModule.join(DATA_DIR, 'marketplace');
+            if (!fs.existsSync(mkDir)) fs.mkdirSync(mkDir, { recursive: true });
+            const productsFile = pathModule.join(mkDir, 'products.json');
+            const ordersFile = pathModule.join(mkDir, 'orders.json');
+            let products = []; try { products = JSON.parse(fs.readFileSync(productsFile, 'utf8')); } catch(e) {}
+            let orders = []; try { orders = JSON.parse(fs.readFileSync(ordersFile, 'utf8')); } catch(e) {}
+            const sellerProducts = products.filter(p => p.sellerId === sellerId && !p.deleted);
+            const sellerOrders = orders.filter(o => o.sellerId === sellerId);
+            const sellerInfo = users[sellerId] || {};
+            const storeSettings = loadJSON('marketplace/store_settings.json', {});
+            res.end(JSON.stringify({
+                seller: { username: sellerId, displayName: sellerInfo.displayName || sellerId, photoURL: sellerInfo.photoURL || '', storeSettings: storeSettings[sellerId] || {} },
+                products: sellerProducts,
+                orders: sellerOrders,
+                orderCount: sellerOrders.length
+            }));
+            return;
+        }
+
+        // POST /api/marketplace/cart/checkout — 장바구니 결제
+        if (path === '/api/marketplace/cart/checkout' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth"}'); return; }
+            const { items, currency } = body;
+            if (!items || !Array.isArray(items) || items.length === 0) { res.statusCode = 400; res.end('{"error":"empty cart"}'); return; }
+            const cur = currency || 'CRM';
+            const totalAmount = items.reduce((s, i) => s + (i.price || 0) * (i.qty || 1), 0);
+            // Check balance
+            const wallet = getWallet(user.username);
+            if (!wallet || (wallet.balances[cur] || 0) < totalAmount) { res.statusCode = 400; res.end(JSON.stringify({ error: `잔액 부족 (${cur})` })); return; }
+            // Deduct buyer balance
+            walletTransact(user.username, 'send', totalAmount, null, `마켓 결제 (${items.length}건)`, cur);
+            // Create orders and pay sellers
+            const mkDir = pathModule.join(DATA_DIR, 'marketplace');
+            if (!fs.existsSync(mkDir)) fs.mkdirSync(mkDir, { recursive: true });
+            const ordersFile = pathModule.join(mkDir, 'orders.json');
+            let orders = []; try { orders = JSON.parse(fs.readFileSync(ordersFile, 'utf8')); } catch(e) {}
+            const newOrders = [];
+            for (const item of items) {
+                const orderId = `ord_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+                const order = { id: orderId, buyerId: user.username, sellerId: item.sellerId, productId: item.productId, productName: item.name || '', price: item.price, qty: item.qty || 1, currency: cur, status: 'paid', createdAt: Date.now() };
+                orders.push(order);
+                newOrders.push(order);
+                // Pay seller
+                if (item.sellerId && item.sellerId !== user.username) {
+                    walletTransact(item.sellerId, 'deposit', item.price * (item.qty || 1), null, `판매 수익: ${item.name || item.productId}`, cur);
+                }
+            }
+            fs.writeFileSync(ordersFile, JSON.stringify(orders, null, 2));
+            // Clear buyer's cart
+            const cartsFile = pathModule.join(mkDir, 'carts.json');
+            let carts = {}; try { carts = JSON.parse(fs.readFileSync(cartsFile, 'utf8')); } catch(e) {}
+            carts[user.username] = [];
+            fs.writeFileSync(cartsFile, JSON.stringify(carts, null, 2));
+            res.end(JSON.stringify({ ok: true, orders: newOrders, totalPaid: totalAmount }));
+            return;
+        }
 
         // ═══ 독립 소셜 피드 ═══
 

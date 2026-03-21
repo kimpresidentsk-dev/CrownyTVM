@@ -3,11 +3,11 @@
 
 use crownycode::pipeline::{kps, ir, codegen};
 use crownycode::phase::judge::{PhaseJudge, Phase};
-use crownycode::cell::store::CellStore;
+use crownycode::cell::store::CrownyDb;
 
-fn temp_db() -> CellStore {
+fn temp_db() -> CrownyDb {
     let path = format!("/tmp/crownycode_test_{}.db", uuid::Uuid::new_v4());
-    CellStore::open(&path).unwrap()
+    CrownyDb::open(&path).unwrap()
 }
 
 // ── KPS 파서 테스트 ───────────────────────────────────────────
@@ -144,18 +144,20 @@ fn test_phase_unknown_intent() {
 #[test]
 fn test_phase_db_high_confidence() {
     let db = temp_db();
-    db.upsert_pattern("custom_tool", "python", "def run(): pass", 0.95).unwrap();
+    db.cell_net_mut().upsert_pattern("custom_tool", "python", "def run(): pass", 0.95);
     // DB에 높은 신뢰도 셀이 있으면 확정
-    let cell = db.find_by_intent("custom_tool").unwrap().unwrap();
-    assert!(cell.confidence >= 0.8);
+    let net = db.cell_net();
+    let cell = net.find_by_intent("custom_tool").unwrap();
+    assert!(cell.energy >= 0.8);
 }
 
 #[test]
 fn test_phase_db_low_confidence_uncertain() {
     let db = temp_db();
-    db.upsert_pattern("fuzzy_tool", "python", "def run(): pass", 0.5).unwrap();
-    let cell = db.find_by_intent("fuzzy_tool").unwrap().unwrap();
-    assert!(cell.confidence >= 0.4 && cell.confidence < 0.8);
+    db.cell_net_mut().upsert_pattern("fuzzy_tool", "python", "def run(): pass", 0.5);
+    let net = db.cell_net();
+    let cell = net.find_by_intent("fuzzy_tool").unwrap();
+    assert!(cell.energy >= 0.4 && cell.energy < 0.8);
 }
 
 // ── CellDB 테스트 ────────────────────────────────────────────
@@ -163,45 +165,49 @@ fn test_phase_db_low_confidence_uncertain() {
 #[test]
 fn test_celldb_upsert_and_find() {
     let db = temp_db();
-    db.upsert_pattern("http_server", "python", "app = Flask(__name__)", 0.9).unwrap();
-    let cell = db.find_by_intent("http_server").unwrap();
+    db.cell_net_mut().upsert_pattern("http_server", "python", "app = Flask(__name__)", 0.9);
+    let net = db.cell_net();
+    let cell = net.find_by_intent("http_server");
     assert!(cell.is_some());
-    assert_eq!(cell.unwrap().target_lang, "python");
+    assert_eq!(cell.unwrap().best_pattern().unwrap().target_lang, "python");
 }
 
 #[test]
 fn test_celldb_upsert_merges_confidence() {
     let db = temp_db();
-    db.upsert_pattern("merger_test", "python", "v1", 0.8).unwrap();
-    db.upsert_pattern("merger_test", "python", "v2", 0.6).unwrap();
-    let cell = db.find_by_intent("merger_test").unwrap().unwrap();
+    db.cell_net_mut().upsert_pattern("merger_test", "python", "v1", 0.8);
+    db.cell_net_mut().upsert_pattern("merger_test", "python", "v2", 0.6);
+    let net = db.cell_net();
+    let cell = net.find_by_intent("merger_test").unwrap();
     // 새 동작: 같은 언어에서 confidence가 높은 패턴만 유지 (0.8 > 0.6)
     // energy는 패턴 confidence 기반이므로 0.8 근처
-    assert!(cell.confidence >= 0.7);
+    assert!(cell.energy >= 0.7);
 }
 
 #[test]
 fn test_celldb_search() {
     let db = temp_db();
-    db.upsert_pattern("search_target", "python", "def search(): pass", 0.8).unwrap();
-    let results = db.search("search_target").unwrap();
+    db.cell_net_mut().upsert_pattern("search_target", "python", "def search(): pass", 0.8);
+    let net = db.cell_net();
+    let results = net.search("search_target");
     assert!(!results.is_empty());
 }
 
 #[test]
 fn test_celldb_refute_lowers_confidence() {
     let db = temp_db();
-    db.upsert_pattern("refute_test", "python", "code", 0.9).unwrap();
-    db.refute("refute_test", "메모리 누수 발견").unwrap();
-    let cell = db.find_by_intent("refute_test").unwrap().unwrap();
-    assert!(cell.confidence < 0.9);
+    db.cell_net_mut().upsert_pattern("refute_test", "python", "code", 0.9);
+    db.cell_net_mut().refute("refute_test");
+    let net = db.cell_net();
+    let cell = net.find_by_intent("refute_test").unwrap();
+    assert!(cell.energy < 0.9);
 }
 
 #[test]
 fn test_celldb_count() {
     let db = temp_db();
-    assert_eq!(db.cell_count().unwrap(), 0);
-    db.upsert_pattern("a", "python", "code", 0.8).unwrap();
-    db.upsert_pattern("b", "rust",   "code", 0.8).unwrap();
-    assert_eq!(db.cell_count().unwrap(), 2);
+    assert_eq!(db.cell_net().len() as i64, 0);
+    db.cell_net_mut().upsert_pattern("a", "python", "code", 0.8);
+    db.cell_net_mut().upsert_pattern("b", "rust",   "code", 0.8);
+    assert_eq!(db.cell_net().len() as i64, 2);
 }

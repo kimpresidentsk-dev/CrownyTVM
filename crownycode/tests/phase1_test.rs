@@ -5,11 +5,11 @@ use crownycode::pipeline::kps::{self, KpsKind};
 use crownycode::pipeline::ir::{self, Constraint};
 use crownycode::phase::judge::{PhaseJudge, Phase};
 use crownycode::phase::signals;
-use crownycode::cell::store::{CellStore, TrustDirection};
-use chrono::Utc;
+use crownycode::cell::store::CrownyDb;
+use crownycode::cell::signal::SignalKind;
 
-fn temp_db() -> CellStore {
-    CellStore::open(&format!("/tmp/p1_{}.db", uuid::Uuid::new_v4())).unwrap()
+fn temp_db() -> CrownyDb {
+    CrownyDb::open(&format!("/tmp/p1_{}.db", uuid::Uuid::new_v4())).unwrap()
 }
 
 // ── KPS 어댑터 자동 감지 ─────────────────────────────────────
@@ -72,19 +72,9 @@ fn test_supported_langs() {
 
 #[test]
 fn test_age_signal_fresh_cell() {
-    use crownycode::cell::Cell;
-    let cell = Cell {
-        id: "test".to_string(),
-        intent: "http_server".to_string(),
-        target_lang: "python".to_string(),
-        code: "".to_string(),
-        confidence: 0.9,
-        source: "generated".to_string(),
-        created_at: Utc::now(),
-        used_at: None,
-        refutation_count: 0,
-        use_count: 0,
-    };
+    use crownycode::cell::{CrownyCell, Pattern, PatternSource};
+    let mut cell = CrownyCell::new("http_server");
+    cell.add_pattern(Pattern::new("python", "", 0.9, PatternSource::Generated));
     assert!(signals::age_signal(&cell) > 0.95);
 }
 
@@ -139,7 +129,7 @@ fn test_judge_v2_seed_confirmed() {
 #[test]
 fn test_judge_v2_db_cell_high_confidence() {
     let db = temp_db();
-    db.upsert_pattern("rest_api", "python", "code", 0.92).unwrap();
+    db.cell_net_mut().upsert_pattern("rest_api", "python", "code", 0.92);
     let nodes = kps::parse("REST API 서버 만들어줘").unwrap();
     let tree = ir::build(&nodes).unwrap();
     let result = PhaseJudge::new(&db).evaluate(&tree).unwrap();
@@ -150,8 +140,8 @@ fn test_judge_v2_db_cell_high_confidence() {
 #[test]
 fn test_judge_v2_heavy_refutation_drops() {
     let db = temp_db();
-    db.upsert_pattern("rest_api", "python", "code", 0.9).unwrap();
-    for _ in 0..5 { db.refute("rest_api", "심각한 버그").unwrap(); }
+    db.cell_net_mut().upsert_pattern("rest_api", "python", "code", 0.9);
+    for _ in 0..5 { db.cell_net_mut().refute("rest_api"); }
     let nodes = kps::parse("REST API 만들어줘").unwrap();
     let tree = ir::build(&nodes).unwrap();
     let result = PhaseJudge::new(&db).evaluate(&tree).unwrap();
@@ -184,21 +174,25 @@ fn test_judge_v2_unknown() {
 #[test]
 fn test_fuzzy_search_by_token() {
     let db = temp_db();
-    db.upsert_pattern("http_server_auth", "python", "code", 0.85).unwrap();
-    let results = db.search_by_intent_tokens("http_server").unwrap();
+    db.cell_net_mut().upsert_pattern("http_server_auth", "python", "code", 0.85);
+    let net = db.cell_net();
+    let results = net.fuzzy_search("http_server");
     assert!(!results.is_empty(), "퍼지 검색 결과 없음");
 }
 
 #[test]
 fn test_trust_propagation_boost() {
     let db = temp_db();
-    db.upsert_pattern("http_server", "python", "code_a", 0.8).unwrap();
-    db.upsert_pattern("api_server",  "python", "code_b", 0.7).unwrap();
-    db.add_edge("http_server", "api_server", "related").unwrap();
+    db.cell_net_mut().upsert_pattern("http_server", "python", "code_a", 0.8);
+    db.cell_net_mut().upsert_pattern("api_server",  "python", "code_b", 0.7);
+    {
+        let mut net = db.cell_net_mut();
+        net.add_edge_by_intent("http_server", "api_server", crownycode::cell::Relation::Related, 1).unwrap();
+    }
 
-    let before = db.find_by_intent("api_server").unwrap().unwrap().confidence;
-    db.propagate_trust("http_server", TrustDirection::Boost, 1).unwrap();
-    let after = db.find_by_intent("api_server").unwrap().unwrap().confidence;
+    let before = db.cell_net().find_by_intent("api_server").unwrap().energy;
+    db.cell_net_mut().propagate_trust_by_intent("http_server", SignalKind::Reinforce, 1);
+    let after = db.cell_net().find_by_intent("api_server").unwrap().energy;
 
     assert!(after > before, "Boost 후 confidence가 오르지 않음 ({before} -> {after})");
 }
@@ -206,13 +200,16 @@ fn test_trust_propagation_boost() {
 #[test]
 fn test_trust_propagation_decay() {
     let db = temp_db();
-    db.upsert_pattern("buggy_server", "python", "bad_code", 0.8).unwrap();
-    db.upsert_pattern("related_server", "python", "code", 0.75).unwrap();
-    db.add_edge("buggy_server", "related_server", "related").unwrap();
+    db.cell_net_mut().upsert_pattern("buggy_server", "python", "bad_code", 0.8);
+    db.cell_net_mut().upsert_pattern("related_server", "python", "code", 0.75);
+    {
+        let mut net = db.cell_net_mut();
+        net.add_edge_by_intent("buggy_server", "related_server", crownycode::cell::Relation::Related, 1).unwrap();
+    }
 
-    let before = db.find_by_intent("related_server").unwrap().unwrap().confidence;
-    db.propagate_trust("buggy_server", TrustDirection::Decay, 1).unwrap();
-    let after = db.find_by_intent("related_server").unwrap().unwrap().confidence;
+    let before = db.cell_net().find_by_intent("related_server").unwrap().energy;
+    db.cell_net_mut().propagate_trust_by_intent("buggy_server", SignalKind::Decay, 1);
+    let after = db.cell_net().find_by_intent("related_server").unwrap().energy;
 
     assert!(after < before, "Decay 후 confidence가 내려가지 않음 ({before} -> {after})");
 }
@@ -220,14 +217,17 @@ fn test_trust_propagation_decay() {
 #[test]
 fn test_trust_propagation_refutes_edge() {
     let db = temp_db();
-    db.upsert_pattern("secure_api", "python", "good", 0.9).unwrap();
-    db.upsert_pattern("vuln_pattern", "python", "bad",  0.8).unwrap();
-    db.add_edge("secure_api", "vuln_pattern", "refutes").unwrap();
+    db.cell_net_mut().upsert_pattern("secure_api", "python", "good", 0.9);
+    db.cell_net_mut().upsert_pattern("vuln_pattern", "python", "bad",  0.8);
+    {
+        let mut net = db.cell_net_mut();
+        net.add_edge_by_intent("secure_api", "vuln_pattern", crownycode::cell::Relation::Refutes, 1).unwrap();
+    }
 
-    let before = db.find_by_intent("vuln_pattern").unwrap().unwrap().confidence;
+    let before = db.cell_net().find_by_intent("vuln_pattern").unwrap().energy;
     // secure_api가 vuln_pattern을 refutes → Decay 전파
-    db.propagate_trust("secure_api", TrustDirection::Decay, 1).unwrap();
-    let after = db.find_by_intent("vuln_pattern").unwrap().unwrap().confidence;
+    db.cell_net_mut().propagate_trust_by_intent("secure_api", SignalKind::Decay, 1);
+    let after = db.cell_net().find_by_intent("vuln_pattern").unwrap().energy;
 
     assert!(after < before, "refutes 엣지 Decay가 동작하지 않음 ({before} -> {after})");
 }
@@ -235,27 +235,33 @@ fn test_trust_propagation_refutes_edge() {
 #[test]
 fn test_trust_propagation_depth_2() {
     let db = temp_db();
-    db.upsert_pattern("root",   "python", "r", 0.9).unwrap();
-    db.upsert_pattern("middle", "python", "m", 0.7).unwrap();
-    db.upsert_pattern("leaf",   "python", "l", 0.6).unwrap();
-    db.add_edge("root",   "middle", "related").unwrap();
-    db.add_edge("middle", "leaf",   "related").unwrap();
+    db.cell_net_mut().upsert_pattern("root",   "python", "r", 0.9);
+    db.cell_net_mut().upsert_pattern("middle", "python", "m", 0.7);
+    db.cell_net_mut().upsert_pattern("leaf",   "python", "l", 0.6);
+    {
+        let mut net = db.cell_net_mut();
+        net.add_edge_by_intent("root",   "middle", crownycode::cell::Relation::Related, 1).unwrap();
+        net.add_edge_by_intent("middle", "leaf",   crownycode::cell::Relation::Related, 1).unwrap();
+    }
 
-    let leaf_before = db.find_by_intent("leaf").unwrap().unwrap().confidence;
-    let affected = db.propagate_trust("root", TrustDirection::Boost, 2).unwrap();
+    let leaf_before = db.cell_net().find_by_intent("leaf").unwrap().energy;
+    let affected = db.cell_net_mut().propagate_trust_by_intent("root", SignalKind::Reinforce, 2);
 
     assert!(affected >= 2, "depth=2에서 최소 2개 셀 영향 기대, got {affected}");
-    let leaf_after = db.find_by_intent("leaf").unwrap().unwrap().confidence;
+    let leaf_after = db.cell_net().find_by_intent("leaf").unwrap().energy;
     assert!(leaf_after > leaf_before, "depth=2 전파가 leaf에 도달하지 않음");
 }
 
 #[test]
 fn test_propagation_no_negative_confidence() {
     let db = temp_db();
-    db.upsert_pattern("target", "python", "code", 0.05).unwrap();  // 이미 낮음
-    db.upsert_pattern("source", "python", "code", 0.9).unwrap();
-    db.add_edge("source", "target", "refutes").unwrap();
-    db.propagate_trust("source", TrustDirection::Decay, 1).unwrap();
-    let after = db.find_by_intent("target").unwrap().unwrap().confidence;
+    db.cell_net_mut().upsert_pattern("target", "python", "code", 0.05);  // 이미 낮음
+    db.cell_net_mut().upsert_pattern("source", "python", "code", 0.9);
+    {
+        let mut net = db.cell_net_mut();
+        net.add_edge_by_intent("source", "target", crownycode::cell::Relation::Refutes, 1).unwrap();
+    }
+    db.cell_net_mut().propagate_trust_by_intent("source", SignalKind::Decay, 1);
+    let after = db.cell_net().find_by_intent("target").unwrap().energy;
     assert!(after >= 0.0, "confidence가 음수가 됨: {after}");
 }

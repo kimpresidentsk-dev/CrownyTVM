@@ -2,7 +2,7 @@
 // 4상 판별기 v2 — 다중 신호 가중합 기반
 
 use anyhow::Result;
-use crate::cell::store::CellStore;
+use crate::cell::store::CrownyDb;
 use crate::pipeline::ir::IrTree;
 use super::signals::{compute_signals, compute_seed_signals};
 
@@ -57,11 +57,11 @@ pub enum BreakdownSource {
 }
 
 pub struct PhaseJudge<'a> {
-    db: &'a CellStore,
+    db: &'a CrownyDb,
 }
 
 impl<'a> PhaseJudge<'a> {
-    pub fn new(db: &'a CellStore) -> Self { Self { db } }
+    pub fn new(db: &'a CrownyDb) -> Self { Self { db } }
 
     pub fn evaluate(&self, ir: &IrTree) -> Result<PhaseResult> {
         // 1. 충돌 감지
@@ -77,12 +77,15 @@ impl<'a> PhaseJudge<'a> {
             });
         }
 
+        let net = self.db.cell_net();
+
         // 2. CellDB 정확 매칭
-        if let Ok(Some(cell)) = self.db.find_by_intent(&ir.intent) {
-            let signals = compute_signals(&ir.intent, &cell);
+        if let Some(cell) = net.find_by_intent(&ir.intent) {
+            let signals = compute_signals(&ir.intent, cell);
             let confidence = signals.weighted_confidence();
             let phase = phase_from_confidence(confidence);
-            let cell_id = cell.id[..8.min(cell.id.len())].to_string();
+            let cell_id = cell.id.to_string();
+            let cell_id_short = cell_id[..8.min(cell_id.len())].to_string();
             return Ok(PhaseResult {
                 phase,
                 confidence,
@@ -93,33 +96,33 @@ impl<'a> PhaseJudge<'a> {
                     refutation: signals.refutation_signal,
                     similarity: signals.similarity_signal,
                     weighted:   confidence,
-                    source: BreakdownSource::CellDb(cell_id),
+                    source: BreakdownSource::CellDb(cell_id_short),
                 }),
             });
         }
 
         // 3. CellDB 퍼지 검색
-        if let Ok(candidates) = self.db.search_by_intent_tokens(&ir.intent) {
-            if let Some(best) = candidates.first() {
-                let signals = compute_signals(&ir.intent, best);
-                let confidence = (signals.weighted_confidence() * 0.85).clamp(0.0, 1.0);
-                if confidence >= 0.30 {
-                    let phase = phase_from_confidence(confidence);
-                    let cell_id = best.id[..8.min(best.id.len())].to_string();
-                    return Ok(PhaseResult {
-                        phase,
-                        confidence,
-                        clarifications: vec![],
-                        signal_breakdown: Some(SignalBreakdown {
-                            age:        signals.age_signal,
-                            usage:      signals.usage_signal,
-                            refutation: signals.refutation_signal,
-                            similarity: signals.similarity_signal,
-                            weighted:   confidence,
-                            source: BreakdownSource::CellDb(cell_id),
-                        }),
-                    });
-                }
+        let candidates = net.fuzzy_search(&ir.intent);
+        if let Some(best) = candidates.first() {
+            let signals = compute_signals(&ir.intent, best);
+            let confidence = (signals.weighted_confidence() * 0.85).clamp(0.0, 1.0);
+            if confidence >= 0.30 {
+                let phase = phase_from_confidence(confidence);
+                let cell_id = best.id.to_string();
+                let cell_id_short = cell_id[..8.min(cell_id.len())].to_string();
+                return Ok(PhaseResult {
+                    phase,
+                    confidence,
+                    clarifications: vec![],
+                    signal_breakdown: Some(SignalBreakdown {
+                        age:        signals.age_signal,
+                        usage:      signals.usage_signal,
+                        refutation: signals.refutation_signal,
+                        similarity: signals.similarity_signal,
+                        weighted:   confidence,
+                        source: BreakdownSource::CellDb(cell_id_short),
+                    }),
+                });
             }
         }
 

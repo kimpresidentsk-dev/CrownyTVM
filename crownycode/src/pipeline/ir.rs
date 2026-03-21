@@ -223,6 +223,139 @@ fn normalize_intent(text: &str) -> String {
         ("팩토리 패턴", "factory_pattern"), ("factory pattern", "factory_pattern"),
         ("싱글턴 패턴", "singleton_pattern"), ("singleton pattern", "singleton_pattern"),
         ("빌더 패턴", "builder_pattern"), ("builder pattern", "builder_pattern"),
+
+        // ── 스와힐리어 (Swahili) ──
+        // Web/Network
+        ("seva ya http", "http_server"), ("seva ya wavuti", "http_server"),
+        ("seva ya websocket", "websocket_server"),
+        ("seva ya tcp", "tcp_server"),
+        ("api ya rest", "rest_api"),
+        ("kuchuja wavuti", "web_scraper"),
+        ("kipanga njia", "url_router"),
+        ("seva", "http_server"),
+        // Algorithms
+        ("kazi ya kupanga", "sort_function"), ("kupanga", "sort_function"),
+        ("utafutaji wa binary", "binary_search"),
+        // File I/O
+        ("msomaji wa faili", "file_reader"), ("soma faili", "file_reader"),
+        ("mwandishi wa faili", "file_writer"),
+        // Parsers
+        ("kichanganuzi cha json", "json_parser"),
+        ("kichanganuzi cha csv", "csv_parser"),
+        ("kichanganuzi cha html", "html_parser"),
+        ("kichanganuzi cha xml", "xml_parser"),
+        ("usemi wa kawaida", "regex_matcher"),
+        // DB/Cache
+        ("mteja wa hifadhidata", "database_client"), ("hifadhidata", "database_client"),
+        ("hoja ya sql", "sql_query"),
+        ("mteja wa kashe", "cache_client"), ("kashe", "cache_client"),
+        ("mteja wa redis", "redis_client"),
+        ("muundo wa orm", "orm_model"),
+        // CLI/Config
+        ("programu ya cli", "cli_tool"), ("zana ya cli", "cli_tool"),
+        ("kichanganuzi cha hoja", "argument_parser"),
+        ("kipakiaji cha usanidi", "config_loader"), ("usanidi", "config_loader"),
+        // Auth/Security
+        ("uthibitishaji", "auth_handler"), ("uhalali", "auth_handler"),
+        ("usimbaji fiche", "encryption"),
+        ("kufinyanga", "hashing"),
+        // Async/Workers
+        ("mfanyakazi wa foleni", "queue_worker"), ("foleni", "queue_worker"),
+        ("kipanga ratiba", "task_scheduler"), ("ratiba", "task_scheduler"),
+        ("kazi ya cron", "cron_job"),
+        // Logging/Metrics
+        ("mkusanyaji wa vipimo", "metrics_collector"), ("vipimo", "metrics_collector"),
+        ("rekodi", "logger"),
+        // Data Processing
+        ("kichanganuzi data", "data_processor"),
+        ("kubadilisha kuwa mfuatano", "serializer"),
+        ("ukandamizaji", "compression"),
+        // Middleware/Web
+        ("kipunguza kasi", "rate_limiter"),
+        ("kithibitishaji", "validator"),
+        // Output
+        ("mtumaji barua pepe", "email_sender"), ("barua pepe", "email_sender"),
+        ("kichanganuzi picha", "image_processor"),
+        ("kizazi cha pdf", "pdf_generator"),
+        // Testing
+        ("jaribio la ujumuishaji", "integration_test"),
+        ("jaribio la kitengo", "unit_test"), ("majaribio", "unit_test"),
+        // Design Patterns
+        ("injini ya templeti", "template_engine"), ("templeti", "template_engine"),
+        ("mashine ya hali", "state_machine"),
+        ("kitumaji tukio", "event_emitter"), ("tukio", "event_emitter"),
+        ("muundo wa mwangalizi", "observer_pattern"),
+        ("muundo wa kiwanda", "factory_pattern"),
+        ("muundo wa singleton", "singleton_pattern"),
+        ("muundo wa mjenzi", "builder_pattern"),
+
+        // ── 힌디어 (Hindi) ──
+        // Web/Network
+        ("वेबसॉकेट सर्वर", "websocket_server"), ("वेबसॉकेट", "websocket_server"),
+        ("वेब सर्वर", "http_server"), ("http सर्वर", "http_server"),
+        ("tcp सर्वर", "tcp_server"),
+        ("rest api", "rest_api"),
+        ("वेब स्क्रैपर", "web_scraper"), ("स्क्रैपर", "web_scraper"),
+        ("url राउटर", "url_router"), ("राउटर", "url_router"),
+        ("सर्वर", "http_server"),
+        // Algorithms
+        ("सॉर्ट फ़ंक्शन", "sort_function"), ("क्रमबद्ध", "sort_function"), ("सॉर्ट", "sort_function"),
+        ("बाइनरी सर्च", "binary_search"), ("खोज", "binary_search"),
+        // File I/O
+        ("फ़ाइल रीडर", "file_reader"), ("फ़ाइल पढ़ो", "file_reader"), ("फाइल पढ़ो", "file_reader"),
+        ("फ़ाइल राइटर", "file_writer"), ("फ़ाइल लिखो", "file_writer"), ("फाइल लिखो", "file_writer"),
+        // Parsers
+        ("json पार्सर", "json_parser"), ("जेसन पार्सर", "json_parser"),
+        ("csv पार्सर", "csv_parser"),
+        ("html पार्सर", "html_parser"),
+        ("xml पार्सर", "xml_parser"),
+        ("रेगेक्स", "regex_matcher"),
+        // DB/Cache
+        ("डेटाबेस क्लाइंट", "database_client"), ("डेटाबेस", "database_client"),
+        ("sql क्वेरी", "sql_query"),
+        ("कैश क्लाइंट", "cache_client"),
+        ("रेडिस क्लाइंट", "redis_client"), ("रेडिस", "redis_client"),
+        ("orm मॉडल", "orm_model"),
+        // CLI/Config
+        ("cli टूल", "cli_tool"),
+        ("आर्गुमेंट पार्सर", "argument_parser"),
+        ("कॉन्फ़िग लोडर", "config_loader"), ("सेटिंग", "config_loader"),
+        // Auth/Security
+        ("प्रमाणीकरण", "auth_handler"), ("ऑथ", "auth_handler"), ("लॉगिन", "auth_handler"),
+        ("jwt हैंडलर", "jwt_handler"),
+        ("एन्क्रिप्शन", "encryption"), ("गोपनीयता", "encryption"),
+        ("हैशिंग", "hashing"),
+        // Async/Workers
+        ("क्यू वर्कर", "queue_worker"), ("कतार", "queue_worker"),
+        ("टास्क शेड्यूलर", "task_scheduler"), ("शेड्यूलर", "task_scheduler"),
+        ("क्रॉन जॉब", "cron_job"),
+        // Logging/Metrics
+        ("मेट्रिक्स कलेक्टर", "metrics_collector"),
+        ("लॉगर", "logger"), ("लॉगिंग", "logger"),
+        // Data Processing
+        ("डेटा प्रोसेसर", "data_processor"), ("डेटा प्रोसेसिंग", "data_processor"),
+        ("डीसीरियलाइज़र", "deserializer"),
+        ("सीरियलाइज़र", "serializer"),
+        ("कम्प्रेशन", "compression"), ("संपीड़न", "compression"),
+        // Middleware/Web
+        ("मिडलवेयर", "middleware"),
+        ("रेट लिमिटर", "rate_limiter"),
+        ("वैलिडेटर", "validator"), ("सत्यापन", "validator"),
+        // Output
+        ("ईमेल भेजो", "email_sender"), ("ईमेल", "email_sender"),
+        ("इमेज प्रोसेसर", "image_processor"), ("चित्र", "image_processor"),
+        ("pdf जनरेटर", "pdf_generator"),
+        // Testing
+        ("इंटीग्रेशन टेस्ट", "integration_test"),
+        ("यूनिट टेस्ट", "unit_test"), ("परीक्षण", "unit_test"),
+        // Design Patterns
+        ("टेम्पलेट इंजन", "template_engine"),
+        ("स्टेट मशीन", "state_machine"),
+        ("इवेंट एमिटर", "event_emitter"),
+        ("ऑब्ज़र्वर पैटर्न", "observer_pattern"),
+        ("फ़ैक्टरी पैटर्न", "factory_pattern"),
+        ("सिंगलटन पैटर्न", "singleton_pattern"),
+        ("बिल्डर पैटर्न", "builder_pattern"),
     ];
 
     let lower = text.to_lowercase();
@@ -254,6 +387,8 @@ pub fn split_compound_intents(text: &str) -> Vec<String> {
         " and ", " then ", " that ", " which ", " to ",
         " with ", " from ", " into ",
     ];
+    const CONNECTORS_SW: &[&str] = &["na ", "kisha ", "halafu ", "kwenye ", "kutoka "];
+    const CONNECTORS_HI: &[&str] = &["और ", "फिर ", "करके ", "में ", "से "];
 
     // 구성 요소별 키워드 → 의도 매핑
     const COMPONENT_KO: &[(&str, &str)] = &[
@@ -296,6 +431,40 @@ pub fn split_compound_intents(text: &str) -> Vec<String> {
         ("websocket", "websocket_server"),
         ("sort", "sort_function"), ("search", "binary_search"),
     ];
+    const COMPONENT_SW: &[(&str, &str)] = &[
+        ("kithibitishaji", "validator"), ("thibitisha", "validator"),
+        ("hifadhidata", "database_client"), ("database", "database_client"),
+        ("api", "rest_api"), ("seva", "http_server"),
+        ("kichanganuzi", "json_parser"),
+        ("uthibitishaji", "auth_handler"), ("uhalali", "auth_handler"),
+        ("barua pepe", "email_sender"),
+        ("kashe", "cache_client"),
+        ("rekodi", "logger"), ("kumbukumbu", "logger"),
+        ("usimbaji", "encryption"), ("hashing", "hashing"),
+        ("soma faili", "file_reader"), ("andika faili", "file_writer"),
+        ("picha", "image_processor"),
+        ("pdf", "pdf_generator"),
+        ("foleni", "queue_worker"), ("ratiba", "task_scheduler"),
+        ("websocket", "websocket_server"),
+        ("kupanga", "sort_function"), ("tafuta", "binary_search"),
+    ];
+    const COMPONENT_HI: &[(&str, &str)] = &[
+        ("सत्यापन", "validator"), ("वैलिडेटर", "validator"),
+        ("डेटाबेस", "database_client"),
+        ("api", "rest_api"), ("सर्वर", "http_server"),
+        ("पार्सर", "json_parser"),
+        ("प्रमाणीकरण", "auth_handler"), ("ऑथ", "auth_handler"), ("लॉगिन", "auth_handler"),
+        ("ईमेल", "email_sender"),
+        ("कैश", "cache_client"),
+        ("लॉगर", "logger"), ("लॉगिंग", "logger"),
+        ("एन्क्रिप्शन", "encryption"), ("हैशिंग", "hashing"),
+        ("फ़ाइल पढ़ो", "file_reader"), ("फ़ाइल लिखो", "file_writer"),
+        ("चित्र", "image_processor"), ("इमेज", "image_processor"),
+        ("pdf", "pdf_generator"),
+        ("कतार", "queue_worker"), ("शेड्यूलर", "task_scheduler"),
+        ("वेबसॉकेट", "websocket_server"),
+        ("सॉर्ट", "sort_function"), ("खोज", "binary_search"),
+    ];
 
     // 먼저 단일 의도로 정규화 시도
     let single = normalize_intent(text);
@@ -303,7 +472,9 @@ pub fn split_compound_intents(text: &str) -> Vec<String> {
     if !single.contains(' ') && single != lower.split_whitespace().collect::<Vec<_>>().join("_") {
         // 복합 키워드가 없으면 단일 반환
         let has_connector = CONNECTORS_KO.iter().any(|c| lower.contains(c))
-            || CONNECTORS_EN.iter().any(|c| lower.contains(c));
+            || CONNECTORS_EN.iter().any(|c| lower.contains(c))
+            || CONNECTORS_SW.iter().any(|c| lower.contains(c))
+            || CONNECTORS_HI.iter().any(|c| lower.contains(c));
         if !has_connector {
             return vec![single];
         }
@@ -311,8 +482,18 @@ pub fn split_compound_intents(text: &str) -> Vec<String> {
 
     // 복합 구성 요소 추출
     let mut intents = Vec::new();
-    let components = if lower.chars().any(|c| ('\u{AC00}'..='\u{D7A3}').contains(&c)) {
+    let has_korean = lower.chars().any(|c| ('\u{AC00}'..='\u{D7A3}').contains(&c));
+    let has_devanagari = lower.chars().any(|c| ('\u{0900}'..='\u{097F}').contains(&c));
+    // Swahili detection: check for common Swahili keywords
+    let sw_markers = ["seva", "unda", "tengeneza", "hifadhidata", "faili",
+                       "kichanganuzi", "foleni", "barua", "kupanga", "kashe"];
+    let has_swahili = sw_markers.iter().any(|m| lower.contains(m));
+    let components: &[(&str, &str)] = if has_korean {
         COMPONENT_KO
+    } else if has_devanagari {
+        COMPONENT_HI
+    } else if has_swahili {
+        COMPONENT_SW
     } else {
         COMPONENT_EN
     };
@@ -637,6 +818,180 @@ mod tests {
         let ir = build(&nodes).unwrap();
         assert_eq!(ir.sub_intents, vec!["http_server"]);
         assert_eq!(ir.intent, "http_server");
+    }
+
+    // ── normalize_intent: Swahili ──
+
+    #[test]
+    fn test_normalize_swahili_intents() {
+        let cases = [
+            ("seva ya http", "http_server"),
+            ("seva ya wavuti", "http_server"),
+            ("api ya rest", "rest_api"),
+            ("seva ya websocket", "websocket_server"),
+            ("seva ya tcp", "tcp_server"),
+            ("kuchuja wavuti", "web_scraper"),
+            ("kipanga njia", "url_router"),
+            ("kazi ya kupanga", "sort_function"),
+            ("utafutaji wa binary", "binary_search"),
+            ("msomaji wa faili", "file_reader"),
+            ("soma faili", "file_reader"),
+            ("mwandishi wa faili", "file_writer"),
+            ("kichanganuzi cha json", "json_parser"),
+            ("kichanganuzi cha csv", "csv_parser"),
+            ("kichanganuzi cha html", "html_parser"),
+            ("kichanganuzi cha xml", "xml_parser"),
+            ("usemi wa kawaida", "regex_matcher"),
+            ("mteja wa hifadhidata", "database_client"),
+            ("hoja ya sql", "sql_query"),
+            ("mteja wa kashe", "cache_client"),
+            ("mteja wa redis", "redis_client"),
+            ("muundo wa orm", "orm_model"),
+            ("programu ya cli", "cli_tool"),
+            ("zana ya cli", "cli_tool"),
+            ("kichanganuzi cha hoja", "argument_parser"),
+            ("kipakiaji cha usanidi", "config_loader"),
+            ("uthibitishaji", "auth_handler"),
+            ("usimbaji fiche", "encryption"),
+            ("kufinyanga", "hashing"),
+            ("mfanyakazi wa foleni", "queue_worker"),
+            ("kipanga ratiba", "task_scheduler"),
+            ("kazi ya cron", "cron_job"),
+            ("mkusanyaji wa vipimo", "metrics_collector"),
+            ("rekodi", "logger"),
+            ("kichanganuzi data", "data_processor"),
+            ("kubadilisha kuwa mfuatano", "serializer"),
+            ("ukandamizaji", "compression"),
+            ("kipunguza kasi", "rate_limiter"),
+            ("kithibitishaji", "validator"),
+            ("mtumaji barua pepe", "email_sender"),
+            ("kichanganuzi picha", "image_processor"),
+            ("kizazi cha pdf", "pdf_generator"),
+            ("jaribio la kitengo", "unit_test"),
+            ("jaribio la ujumuishaji", "integration_test"),
+            ("injini ya templeti", "template_engine"),
+            ("mashine ya hali", "state_machine"),
+            ("kitumaji tukio", "event_emitter"),
+            ("muundo wa mwangalizi", "observer_pattern"),
+            ("muundo wa kiwanda", "factory_pattern"),
+            ("muundo wa singleton", "singleton_pattern"),
+            ("muundo wa mjenzi", "builder_pattern"),
+        ];
+        for (sw, expected) in &cases {
+            assert_eq!(
+                normalize_intent(sw), *expected,
+                "normalize_intent({:?}) should be {:?}", sw, expected
+            );
+        }
+    }
+
+    // ── normalize_intent: Hindi ──
+
+    #[test]
+    fn test_normalize_hindi_intents() {
+        let cases = [
+            ("वेब सर्वर", "http_server"),
+            ("HTTP सर्वर", "http_server"),
+            ("वेबसॉकेट सर्वर", "websocket_server"),
+            ("TCP सर्वर", "tcp_server"),
+            ("वेब स्क्रैपर", "web_scraper"),
+            ("URL राउटर", "url_router"),
+            ("सॉर्ट फ़ंक्शन", "sort_function"),
+            ("बाइनरी सर्च", "binary_search"),
+            ("फ़ाइल रीडर", "file_reader"),
+            ("फ़ाइल राइटर", "file_writer"),
+            ("JSON पार्सर", "json_parser"),
+            ("CSV पार्सर", "csv_parser"),
+            ("HTML पार्सर", "html_parser"),
+            ("XML पार्सर", "xml_parser"),
+            ("रेगेक्स", "regex_matcher"),
+            ("डेटाबेस क्लाइंट", "database_client"),
+            ("SQL क्वेरी", "sql_query"),
+            ("कैश क्लाइंट", "cache_client"),
+            ("रेडिस क्लाइंट", "redis_client"),
+            ("ORM मॉडल", "orm_model"),
+            ("CLI टूल", "cli_tool"),
+            ("आर्गुमेंट पार्सर", "argument_parser"),
+            ("कॉन्फ़िग लोडर", "config_loader"),
+            ("प्रमाणीकरण", "auth_handler"),
+            ("JWT हैंडलर", "jwt_handler"),
+            ("एन्क्रिप्शन", "encryption"),
+            ("हैशिंग", "hashing"),
+            ("क्यू वर्कर", "queue_worker"),
+            ("टास्क शेड्यूलर", "task_scheduler"),
+            ("क्रॉन जॉब", "cron_job"),
+            ("मेट्रिक्स कलेक्टर", "metrics_collector"),
+            ("लॉगर", "logger"),
+            ("डेटा प्रोसेसर", "data_processor"),
+            ("सीरियलाइज़र", "serializer"),
+            ("डीसीरियलाइज़र", "deserializer"),
+            ("कम्प्रेशन", "compression"),
+            ("मिडलवेयर", "middleware"),
+            ("रेट लिमिटर", "rate_limiter"),
+            ("वैलिडेटर", "validator"),
+            ("ईमेल भेजो", "email_sender"),
+            ("इमेज प्रोसेसर", "image_processor"),
+            ("PDF जनरेटर", "pdf_generator"),
+            ("यूनिट टेस्ट", "unit_test"),
+            ("इंटीग्रेशन टेस्ट", "integration_test"),
+            ("टेम्पलेट इंजन", "template_engine"),
+            ("स्टेट मशीन", "state_machine"),
+            ("इवेंट एमिटर", "event_emitter"),
+            ("ऑब्ज़र्वर पैटर्न", "observer_pattern"),
+            ("फ़ैक्टरी पैटर्न", "factory_pattern"),
+            ("सिंगलटन पैटर्न", "singleton_pattern"),
+            ("बिल्डर पैटर्न", "builder_pattern"),
+        ];
+        for (hi, expected) in &cases {
+            assert_eq!(
+                normalize_intent(hi), *expected,
+                "normalize_intent({:?}) should be {:?}", hi, expected
+            );
+        }
+    }
+
+    // ── split_compound_intents: Swahili ──
+
+    #[test]
+    fn test_compound_swahili_file_db() {
+        let intents = split_compound_intents("soma faili na uhifadhi kwenye hifadhidata");
+        assert!(intents.contains(&"file_reader".to_string()),
+            "got: {:?}", intents);
+        assert!(intents.contains(&"database_client".to_string()),
+            "got: {:?}", intents);
+    }
+
+    #[test]
+    fn test_compound_swahili_auth_api() {
+        let intents = split_compound_intents("seva na uthibitishaji na kashe");
+        assert!(intents.contains(&"http_server".to_string()),
+            "got: {:?}", intents);
+        assert!(intents.contains(&"auth_handler".to_string()),
+            "got: {:?}", intents);
+        assert!(intents.contains(&"cache_client".to_string()),
+            "got: {:?}", intents);
+    }
+
+    // ── split_compound_intents: Hindi ──
+
+    #[test]
+    fn test_compound_hindi_file_db() {
+        let intents = split_compound_intents("फ़ाइल पढ़ो और डेटाबेस में सेव करो");
+        assert!(intents.contains(&"file_reader".to_string()),
+            "got: {:?}", intents);
+        assert!(intents.contains(&"database_client".to_string()),
+            "got: {:?}", intents);
+    }
+
+    #[test]
+    fn test_compound_hindi_auth_api() {
+        let intents = split_compound_intents("सर्वर और प्रमाणीकरण और कैश");
+        assert!(intents.contains(&"http_server".to_string()),
+            "got: {:?}", intents);
+        assert!(intents.contains(&"auth_handler".to_string()),
+            "got: {:?}", intents);
+        assert!(intents.contains(&"cache_client".to_string()),
+            "got: {:?}", intents);
     }
 
     #[test]

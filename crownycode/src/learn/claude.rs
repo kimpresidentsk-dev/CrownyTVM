@@ -7,7 +7,7 @@ use reqwest::Client;
 use serde_json::{json, Value};
 
 use crate::cli::ClaudeConfig;
-use crate::cell::store::CellStore;
+use crate::cell::store::CrownyDb;
 use crate::pipeline::ir::{IrTree, IrNode};
 
 pub struct ClaudeLearner {
@@ -27,7 +27,7 @@ impl ClaudeLearner {
     pub async fn learn_and_ingest(
         &self,
         input: &str,
-        db: &CellStore,
+        db: &CrownyDb,
     ) -> Result<IrTree> {
         let api_key = std::env::var("ANTHROPIC_API_KEY")
             .map_err(|_| anyhow::anyhow!("ANTHROPIC_API_KEY 환경변수가 없습니다"))?;
@@ -76,11 +76,17 @@ JSON 외에 어떤 텍스트도 출력하지 마세요.
 
         // 셀DB에 저장
         if !python_code.is_empty() {
-            db.upsert_pattern(&intent, "python", &python_code, confidence)?;
+            let mut net = db.cell_net_mut();
+            net.upsert_pattern(&intent, "python", &python_code, confidence);
+            drop(net);
+            db.save_net()?;
             println!("  셀 저장: {} [python] 신뢰도 {:.0}%", intent, confidence * 100.0);
         }
         if !rust_code.is_empty() {
-            db.upsert_pattern(&intent, "rust", &rust_code, confidence)?;
+            let mut net = db.cell_net_mut();
+            net.upsert_pattern(&intent, "rust", &rust_code, confidence);
+            drop(net);
+            db.save_net()?;
             println!("  셀 저장: {} [rust] 신뢰도 {:.0}%", intent, confidence * 100.0);
         }
 
@@ -97,7 +103,7 @@ JSON 외에 어떤 텍스트도 출력하지 마세요.
     }
 
     /// 주제를 직접 학습 (crownycode learn "..." 커맨드)
-    pub async fn learn_topic(&self, topic: &str, db: &CellStore) -> Result<String> {
+    pub async fn learn_topic(&self, topic: &str, db: &CrownyDb) -> Result<String> {
         let ir = self.learn_and_ingest(topic, db).await?;
         Ok(ir.intent)
     }

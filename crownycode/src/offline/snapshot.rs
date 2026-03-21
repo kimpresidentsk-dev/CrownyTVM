@@ -11,11 +11,11 @@ use std::io::{BufRead, BufReader, Write, BufWriter};
 use std::fs::{File, create_dir_all};
 use std::path::Path;
 
-use crate::cell::store::CellStore;
-use crate::cell::Cell;
+use crate::cell::store::CrownyDb;
+use crate::cell::CrownyCell;
 
 /// 셀DB → 스냅샷 파일 (JSON Lines)
-pub fn export(db: &CellStore, path: &str) -> Result<()> {
+pub fn export(db: &CrownyDb, path: &str) -> Result<()> {
     // 디렉터리 보장
     if let Some(parent) = Path::new(path).parent() {
         create_dir_all(parent)?;
@@ -25,19 +25,21 @@ pub fn export(db: &CellStore, path: &str) -> Result<()> {
         .with_context(|| format!("스냅샷 파일 생성 실패: {path}"))?;
     let mut writer = BufWriter::new(file);
 
+    let net = db.cell_net();
+
     // 헤더
     let header = SnapshotHeader {
         version: "crownycode-snapshot-v1".to_string(),
         exported_at: chrono::Utc::now().to_rfc3339(),
-        cell_count: db.cell_count().unwrap_or(0),
+        cell_count: net.len() as i64,
     };
     writeln!(writer, "{}", serde_json::to_string(&header)?)?;
 
     // 셀 레코드
-    let cells = db.search("")?;
+    let cells = net.search("");
     let mut written = 0u64;
     for cell in &cells {
-        let record = CellRecord::from_cell(cell);
+        let record = CellRecord::from_crowny(cell);
         writeln!(writer, "{}", serde_json::to_string(&record)?)?;
         written += 1;
     }
@@ -49,7 +51,7 @@ pub fn export(db: &CellStore, path: &str) -> Result<()> {
 
 /// 스냅샷 파일 → 셀DB 복원
 /// 반환값: 실제로 임포트된 셀 수
-pub fn import(db: &CellStore, path: &str) -> Result<u64> {
+pub fn import(db: &CrownyDb, path: &str) -> Result<u64> {
     let file = File::open(path)
         .with_context(|| format!("스냅샷 파일 없음: {path}"))?;
     let reader = BufReader::new(file);
@@ -85,19 +87,26 @@ pub fn import(db: &CellStore, path: &str) -> Result<u64> {
         };
 
         // 기존 셀보다 신뢰도가 낮으면 덮어쓰지 않음
-        if let Ok(Some(existing)) = db.find_by_intent(&record.intent) {
-            if existing.confidence >= record.confidence {
-                skipped += 1;
-                continue;
+        {
+            let net = db.cell_net();
+            if let Some(existing) = net.find_by_intent(&record.intent) {
+                if existing.energy >= record.confidence {
+                    skipped += 1;
+                    continue;
+                }
             }
         }
 
-        db.upsert_pattern(
-            &record.intent,
-            &record.target_lang,
-            &record.code,
-            record.confidence,
-        )?;
+        {
+            let mut net = db.cell_net_mut();
+            net.upsert_pattern(
+                &record.intent,
+                &record.target_lang,
+                &record.code,
+                record.confidence,
+            );
+        }
+        db.save_net()?;
         imported += 1;
     }
 
@@ -109,7 +118,7 @@ pub fn import(db: &CellStore, path: &str) -> Result<u64> {
 }
 
 /// 여러 스냅샷 파일을 병합 (커뮤니티 패턴 합산용)
-pub fn merge(db: &CellStore, paths: &[&str]) -> Result<u64> {
+pub fn merge(db: &CrownyDb, paths: &[&str]) -> Result<u64> {
     let mut total = 0u64;
     for path in paths {
         match import(db, path) {
@@ -143,14 +152,17 @@ struct CellRecord {
 }
 
 impl CellRecord {
-    fn from_cell(cell: &Cell) -> Self {
+    fn from_crowny(cell: &CrownyCell) -> Self {
+        let (target_lang, code) = cell.best_pattern()
+            .map(|p| (p.target_lang.clone(), p.code.clone()))
+            .unwrap_or_default();
         Self {
             intent: cell.intent.clone(),
-            target_lang: cell.target_lang.clone(),
-            code: cell.code.clone(),
-            confidence: cell.confidence,
+            target_lang,
+            code,
+            confidence: cell.energy,
             refutation_count: cell.refutation_count,
-            use_count: cell.use_count,
+            use_count: cell.activation_count,
         }
     }
 }
@@ -158,10 +170,10 @@ impl CellRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cell::store::CellStore;
+    use crate::cell::store::CrownyDb;
 
-    fn temp_db() -> CellStore {
-        CellStore::open(&format!("/tmp/snap_test_{}.db", uuid::Uuid::new_v4())).unwrap()
+    fn temp_db() -> CrownyDb {
+        CrownyDb::open(&format!("/tmp/snap_test_{}.db", uuid::Uuid::new_v4())).unwrap()
     }
 
     fn temp_path() -> String {
@@ -171,8 +183,8 @@ mod tests {
     #[test]
     fn test_export_creates_file() {
         let db = temp_db();
-        db.upsert_pattern("http_server", "python", "code_a", 0.9).unwrap();
-        db.upsert_pattern("sort_fn", "rust", "code_b", 0.8).unwrap();
+        db.cell_net_mut().upsert_pattern("http_server", "python", "code_a", 0.9);
+        db.cell_net_mut().upsert_pattern("sort_fn", "rust", "code_b", 0.8);
         let path = temp_path();
         export(&db, &path).unwrap();
         assert!(std::path::Path::new(&path).exists());
@@ -181,8 +193,8 @@ mod tests {
     #[test]
     fn test_roundtrip() {
         let db_src = temp_db();
-        db_src.upsert_pattern("http_server", "python", "flask_code", 0.9).unwrap();
-        db_src.upsert_pattern("cli_tool",    "rust",   "clap_code",  0.85).unwrap();
+        db_src.cell_net_mut().upsert_pattern("http_server", "python", "flask_code", 0.9);
+        db_src.cell_net_mut().upsert_pattern("cli_tool",    "rust",   "clap_code",  0.85);
 
         let path = temp_path();
         export(&db_src, &path).unwrap();
@@ -191,15 +203,16 @@ mod tests {
         let imported = import(&db_dst, &path).unwrap();
         assert_eq!(imported, 2);
 
-        let cell = db_dst.find_by_intent("http_server").unwrap().unwrap();
-        assert_eq!(cell.target_lang, "python");
-        assert!((cell.confidence - 0.9).abs() < 0.01);
+        let net = db_dst.cell_net();
+        let cell = net.find_by_intent("http_server").unwrap();
+        assert_eq!(cell.best_pattern().unwrap().target_lang, "python");
+        assert!((cell.energy - 0.9).abs() < 0.01);
     }
 
     #[test]
     fn test_import_skips_lower_confidence() {
         let db = temp_db();
-        db.upsert_pattern("http_server", "python", "good_code", 0.95).unwrap();
+        db.cell_net_mut().upsert_pattern("http_server", "python", "good_code", 0.95);
 
         // 낮은 신뢰도 스냅샷
         let path = temp_path();
@@ -213,14 +226,15 @@ mod tests {
         assert_eq!(imported, 0, "낮은 신뢰도는 건너뜀");
 
         // 기존 코드 유지됨
-        let cell = db.find_by_intent("http_server").unwrap().unwrap();
-        assert_eq!(cell.code, "good_code");
+        let net = db.cell_net();
+        let cell = net.find_by_intent("http_server").unwrap();
+        assert_eq!(cell.best_pattern().unwrap().code, "good_code");
     }
 
     #[test]
     fn test_import_higher_confidence_overwrites() {
         let db = temp_db();
-        db.upsert_pattern("sort_fn", "python", "old_code", 0.5).unwrap();
+        db.cell_net_mut().upsert_pattern("sort_fn", "python", "old_code", 0.5);
 
         let path = temp_path();
         {

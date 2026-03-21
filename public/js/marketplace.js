@@ -1,4 +1,14 @@
 // ===== marketplace.js - 쇼핑몰, 모금, 에너지, 비즈니스, 아티스트, 출판, P2P크레딧 =====
+// Migrated from Firestore to server REST APIs
+
+function _mpHeaders() {
+    const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+}
+async function _mpGet(url) { const r = await fetch(url, { headers: _mpHeaders() }); if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || 'Request failed'); } return r.json(); }
+async function _mpPost(url, data) { const r = await fetch(url, { method: 'POST', headers: _mpHeaders(), body: JSON.stringify(data) }); if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || 'Request failed'); } return r.json(); }
+async function _mpPatch(url, data) { const r = await fetch(url, { method: 'PATCH', headers: _mpHeaders(), body: JSON.stringify(data) }); if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || 'Request failed'); } return r.json(); }
+async function _mpDelete(url) { const r = await fetch(url, { method: 'DELETE', headers: _mpHeaders() }); if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || 'Request failed'); } return r.json(); }
 
 const ORDER_STATUS_LABELS = { paid:t('mall.status_paid','<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Paid'), shipping:t('mall.status_shipping','<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Shipping'), delivered:t('mall.status_delivered','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delivered'), cancelled:t('mall.status_cancelled','<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Cancelled') };
 const ORDER_STATUS_COLORS = { paid:'#C4841D', shipping:'#5B7B8C', delivered:'#5B7B8C', cancelled:'#B54534' };
@@ -42,13 +52,11 @@ async function loadMallProducts() {
     container.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${t('mall.loading','Loading...')}</p>`;
     try {
         const brandFilter = window._mallBrandFilter || null;
-        let query = db.collection('products').where('status', '==', 'active');
-        if (brandFilter) query = query.where('category', '==', brandFilter);
-        const docs = await query.orderBy('createdAt', 'desc').limit(50).get();
-        if (docs.empty) { container.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${t('mall.no_products','No products registered')}</p>`; return; }
-
-        let items = [];
-        docs.forEach(d => items.push({ id: d.id, ...d.data() }));
+        let apiUrl = '/api/marketplace/products?status=active&limit=50';
+        if (brandFilter) apiUrl += '&category=' + encodeURIComponent(brandFilter);
+        const data = await _mpGet(apiUrl);
+        let items = data.items || [];
+        if (!items.length) { container.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${t('mall.no_products','No products registered')}</p>`; return; }
 
         // 검색 필터 (상품명 + 설명 + 브랜드 + 카테고리 통합)
         const searchVal = (document.getElementById('mall-search')?.value || '').trim().toLowerCase();
@@ -126,32 +134,34 @@ async function renderProductDetail(id) {
     if (!c) return;
     c.innerHTML = `<p style="text-align:center; color:var(--accent); padding:2rem;">${t('common.loading','Loading...')}</p>`;
     try {
-        const doc = await db.collection('products').doc(id).get();
-        if (!doc.exists) { c.innerHTML = `<p style="text-align:center; color:red;">${t('mall.product_not_found','Product not found')}</p>`; return; }
-        const p = doc.data();
+        const pData = await _mpGet('/api/marketplace/products/' + id);
+        const p = pData.item;
+        if (!p) { c.innerHTML = `<p style="text-align:center; color:red;">${t('mall.product_not_found','Product not found')}</p>`; return; }
         const isOwner = currentUser?.uid === p.sellerId;
         const remaining = p.stock - (p.sold || 0);
 
         // Check wishlist status
         let isWished = false;
         if (currentUser) {
-            const wSnap = await db.collection('users').doc(currentUser.uid).collection('wishlist').where('productId','==',id).limit(1).get();
-            isWished = !wSnap.empty;
+            try {
+                const wData = await _mpGet('/api/marketplace/wishlist');
+                isWished = (wData.items || []).some(w => w.productId === id);
+            } catch(e) {}
         }
 
-        // Reviews - enhanced with photos, verified badge, helpful, rating distribution
+        // Reviews
         let reviewsHtml = '';
         try {
-            const revSnap = await db.collection('product_reviews').where('productId','==',id).orderBy('createdAt','desc').limit(30).get();
-            if (!revSnap.empty) {
-                // Rating distribution
+            const revData = await _mpGet('/api/marketplace/reviews?productId=' + id + '&limit=30');
+            const revs = revData.items || [];
+            if (revs.length > 0) {
                 const dist = [0,0,0,0,0];
                 let totalR = 0;
-                revSnap.forEach(r => { const rt = r.data().rating||5; dist[rt-1]++; totalR += rt; });
-                const avgR = (totalR / revSnap.size).toFixed(1);
+                revs.forEach(rv => { const rt = rv.rating||5; dist[rt-1]++; totalR += rt; });
+                const avgR = (totalR / revs.length).toFixed(1);
                 let distHtml = '';
                 for (let i = 5; i >= 1; i--) {
-                    const pct = revSnap.size > 0 ? Math.round(dist[i-1] / revSnap.size * 100) : 0;
+                    const pct = revs.length > 0 ? Math.round(dist[i-1] / revs.length * 100) : 0;
                     distHtml += `<div style="display:flex;align-items:center;gap:0.3rem;font-size:0.75rem;">
                         <span>${i}★</span>
                         <div style="flex:1;background:#e0e0e0;height:6px;border-radius:3px;"><div style="background:#8B6914;height:100%;border-radius:3px;width:${pct}%;"></div></div>
@@ -160,19 +170,18 @@ async function renderProductDetail(id) {
                 }
 
                 reviewsHtml = `<div style="margin-top:1.5rem; background:#FFF8F0; padding:1.2rem; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-                    <h4 style="margin-bottom:0.8rem;"><i data-lucide="file-text" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.reviews','Reviews')} (${revSnap.size})</h4>
+                    <h4 style="margin-bottom:0.8rem;"><i data-lucide="file-text" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.reviews','Reviews')} (${revs.length})</h4>
                     <div style="display:flex;gap:1.5rem;align-items:center;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid #E8E0D8;">
                         <div style="text-align:center;">
                             <div style="font-size:2rem;font-weight:800;color:#8B6914;">${avgR}</div>
                             <div>${renderStars(parseFloat(avgR),'1rem')}</div>
-                            <div style="font-size:0.75rem;color:var(--accent);">${revSnap.size} ${t('mall.reviews','Reviews')}</div>
+                            <div style="font-size:0.75rem;color:var(--accent);">${revs.length} ${t('mall.reviews','Reviews')}</div>
                         </div>
                         <div style="flex:1;">${distHtml}</div>
                     </div>`;
-                revSnap.forEach(r => {
-                    const rv = r.data();
+                revs.forEach(rv => {
                     const verifiedBadge = rv.verified ? `<span style="background:#F7F3ED;color:#5B7B8C;font-size:0.7rem;padding:0.1rem 0.4rem;border-radius:4px;margin-left:0.3rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.verified_purchase','Verified')}</span>` : '';
-                    const dateStr = rv.createdAt?.toDate ? rv.createdAt.toDate().toLocaleDateString('ko-KR') : '';
+                    const dateStr = rv.createdAt ? new Date(rv.createdAt).toLocaleDateString('ko-KR') : '';
                     reviewsHtml += `<div style="background:var(--bg); padding:0.8rem; border-radius:8px; margin-bottom:0.5rem;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="font-size:0.85rem; font-weight:600;">${rv.buyerEmail?.split('@')[0] || t('mall.buyer','Buyer')}${verifiedBadge}</span>
@@ -182,8 +191,8 @@ async function renderProductDetail(id) {
                         ${rv.comment ? `<p style="font-size:0.85rem; margin-top:0.3rem; color:#6B5744;">${rv.comment}</p>` : ''}
                         ${rv.imageData ? `<img src="${rv.imageData}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;margin-top:0.4rem;cursor:pointer;" onclick="window.open(this.src)">` : ''}
                         <div style="margin-top:0.4rem;display:flex;gap:0.4rem;">
-                            <button onclick="helpfulReview('${r.id}')" style="background:none;border:1px solid #E8E0D8;border-radius:12px;padding:0.2rem 0.6rem;cursor:pointer;font-size:0.75rem;color:var(--accent);"><i data-lucide="thumbs-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.helpful','Helpful')} ${rv.helpful||0}</button>
-                            ${currentUser && rv.buyerId !== currentUser.uid ? `<button onclick="event.stopPropagation();reportReview('${r.id}')" style="background:none;border:1px solid #E8E0D8;border-radius:12px;padding:0.2rem 0.6rem;cursor:pointer;font-size:0.7rem;color:#B54534;"><i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>` : ''}
+                            <button onclick="helpfulReview('${rv.id}')" style="background:none;border:1px solid #E8E0D8;border-radius:12px;padding:0.2rem 0.6rem;cursor:pointer;font-size:0.75rem;color:var(--accent);"><i data-lucide="thumbs-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.helpful','Helpful')} ${rv.helpful||0}</button>
+                            ${currentUser && rv.buyerId !== currentUser.uid ? `<button onclick="event.stopPropagation();reportReview('${rv.id}')" style="background:none;border:1px solid #E8E0D8;border-radius:12px;padding:0.2rem 0.6rem;cursor:pointer;font-size:0.7rem;color:#B54534;"><i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>` : ''}
                         </div>
                     </div>`;
                 });
@@ -195,10 +204,10 @@ async function renderProductDetail(id) {
         let reviewBtnHtml = '';
         if (currentUser && !isOwner) {
             try {
-                const myOrders = await db.collection('orders').where('buyerId','==',currentUser.uid).where('productId','==',id).where('status','==','delivered').limit(1).get();
-                if (!myOrders.empty) {
-                    const existingReview = await db.collection('product_reviews').where('productId','==',id).where('buyerId','==',currentUser.uid).limit(1).get();
-                    if (existingReview.empty) {
+                const ordData = await _mpGet('/api/marketplace/orders?buyerId=' + currentUser.uid + '&productId=' + id + '&status=delivered&limit=1');
+                if ((ordData.items || []).length > 0) {
+                    const revData = await _mpGet('/api/marketplace/reviews?productId=' + id + '&buyerId=' + currentUser.uid);
+                    if (!(revData.items || []).length) {
                         reviewBtnHtml = `<button onclick="writeReview('${id}')" style="background:#C4841D; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; font-weight:600; width:100%; margin-top:0.5rem;"><i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.write_review','Write a review')}</button>`;
                     }
                 }
@@ -319,24 +328,13 @@ async function writeReview(productId) {
                 if (photoFile) imageData = await fileToBase64Resized(photoFile, 400);
 
                 // Check verified purchase
-                const myOrders = await db.collection('orders').where('buyerId','==',currentUser.uid).where('productId','==',productId).where('status','==','delivered').limit(1).get();
-                const verified = !myOrders.empty;
+                const myOrders = await _mpGet('/api/marketplace/orders?buyerId=' + currentUser.uid + '&productId=' + productId + '&status=delivered&limit=1');
+                const verified = (myOrders.items || []).length > 0;
 
-                await db.collection('product_reviews').add({
-                    productId, buyerId: currentUser.uid, buyerEmail: currentUser.email,
-                    rating: selectedRating, comment: comment || '', imageData, verified, helpful: 0,
-                    createdAt: new Date()
+                await _mpPost('/api/marketplace/reviews', {
+                    productId, rating: selectedRating, comment: comment || '',
+                    imageData, verified
                 });
-                // Update product avg rating
-                const allRevs = await db.collection('product_reviews').where('productId','==',productId).get();
-                let total = 0; allRevs.forEach(r => total += r.data().rating);
-                const avg = total / allRevs.size;
-                await db.collection('products').doc(productId).update({ avgRating: Math.round(avg * 10) / 10, reviewCount: allRevs.size });
-                // 판매자 알림
-                const prodForReview = await db.collection('products').doc(productId).get();
-                if (prodForReview.exists && typeof createNotification === 'function') {
-                    await createNotification(prodForReview.data().sellerId, 'order_status', { message: `<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${prodForReview.data().title}" ${t('mall.new_review','new review')} (${selectedRating}/5)`, link: `#page=product-detail&id=${productId}` });
-                }
                 showToast(`<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.review_done','Review submitted!')}`, 'success');
                 overlay.remove();
                 viewProduct(productId);
@@ -354,75 +352,26 @@ async function buyProduct(id, btn) {
     if (_orderInProgress) { showToast(t('mall.order_in_progress','Order is being processed. Please wait.'), 'warning'); return; }
     _orderInProgress = true;
     try {
-        const tk = 'crgc';
-        
         // 1차 확인
-        const doc = await db.collection('products').doc(id).get();
-        const p = doc.data();
+        const pData = await _mpGet('/api/marketplace/products/' + id);
+        const p = pData.item;
         if (!p || p.status !== 'active') { showToast(t('mall.cannot_buy','Cannot purchase this product'), 'warning'); return; }
         const price = p.price;
         if (!price || price <= 0 || !Number.isFinite(price)) { showToast(t('mall.invalid_price','Invalid price'), 'error'); return; }
-        // 주문 금액 상한 검증
         if (price > MAX_ORDER_AMOUNT) { showToast(t('mall.max_order_exceeded',`Maximum order amount is ${MAX_ORDER_AMOUNT} CRGC`), 'warning'); return; }
-        // 클라이언트 잔액 사전 검증
-        const preCheck = await db.collection('users').doc(currentUser.uid).get();
-        const preBal = preCheck.data()?.offchainBalances || {};
-        if ((preBal[tk] || 0) < price) { showToast(t('mall.insufficient_balance','Insufficient CRGC balance'), 'warning'); return; }
         if ((p.stock - (p.sold||0)) <= 0) { showToast(t('mall.sold_out','Sold Out'), 'warning'); return; }
-        
+
         if (!await showConfirmModal(t('mall.confirm_buy','Confirm Purchase'), `"${p.title}"\n${price} CRGC — ${t('mall.confirm_buy_msg','Proceed with purchase?')}`)) return;
-        
-        // 배송지 입력
+
         const shippingInfo = await showShippingModal();
         if (!shippingInfo) return;
-        
-        // Firestore 트랜잭션으로 원자적 처리 (잔액 차감 + 재고 감소)
-        const orderRef = db.collection('orders').doc(); // pre-generate ID
-        await db.runTransaction(async (tx) => {
-            // 실시간 잔액 재확인
-            const buyerDoc = await tx.get(db.collection('users').doc(currentUser.uid));
-            const buyerBal = buyerDoc.data()?.offchainBalances || {};
-            if ((buyerBal[tk] || 0) < price) throw new Error(t('mall.insufficient_balance','Insufficient balance'));
-            
-            // 재고 재확인
-            const prodDoc = await tx.get(db.collection('products').doc(id));
-            const pNow = prodDoc.data();
-            if ((pNow.stock - (pNow.sold||0)) <= 0) throw new Error(t('mall.sold_out','Sold Out'));
-            
-            // 잔액 차감
-            tx.update(db.collection('users').doc(currentUser.uid), {
-                [`offchainBalances.${tk}`]: (buyerBal[tk] || 0) - price
-            });
-            
-            // 판매자에게 지급
-            const sellerDoc = await tx.get(db.collection('users').doc(pNow.sellerId));
-            const sellerBal = sellerDoc.data()?.offchainBalances || {};
-            tx.update(db.collection('users').doc(pNow.sellerId), {
-                [`offchainBalances.${tk}`]: (sellerBal[tk] || 0) + price
-            });
-            
-            // 재고 감소
-            tx.update(db.collection('products').doc(id), { sold: (pNow.sold||0) + 1 });
-            
-            // 주문 생성
-            tx.set(orderRef, {
-                productId:id, productTitle:pNow.title, productImage: getProductThumb(pNow),
-                buyerId:currentUser.uid, buyerEmail:currentUser.email,
-                sellerId:pNow.sellerId, sellerEmail:pNow.sellerEmail||'',
-                amount:price, qty:1, token:'CRGC', status:'paid', shippingInfo,
-                statusHistory:[{status:'paid', at:new Date().toISOString()}], createdAt:new Date()
-            });
-        });
-        
-        // 트랜잭션 성공 후 부가 처리
+
+        // Server handles balance check, deduction, seller payment, stock update, order creation
+        await _mpPost('/api/marketplace/orders', { productId: id, qty: 1, shippingInfo });
+
         if (typeof autoGivingPoolContribution === 'function') await autoGivingPoolContribution(price);
         if (typeof distributeReferralReward === 'function') await distributeReferralReward(currentUser.uid, price, 'CRGC');
-        
-        // 판매자 알림
-        if (typeof createNotification === 'function') {
-            await createNotification(p.sellerId, 'order_status', { message: `<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.new_order','New order!')} "${p.title}" (${price} CRGC)`, link: '#page=my-shop' });
-        }
-        
+
         showToast(`<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${p.title}" ${t('mall.purchase_done','Purchase complete!')}`, 'success');
         document.getElementById('product-modal')?.remove();
         loadMallProducts(); loadUserWallet();
@@ -432,11 +381,11 @@ async function buyProduct(id, btn) {
 async function loadMyOrders() {
     const c = document.getElementById('mall-my-list'); if (!c||!currentUser) return; c.innerHTML=t('common.loading','Loading...');
     try {
-        const o = await db.collection('orders').where('buyerId','==',currentUser.uid).orderBy('createdAt','desc').limit(20).get();
-        if (o.empty) { c.innerHTML=`<p style="color:var(--accent);">${t('mall.no_orders','No orders yet')}</p>`; return; }
+        const oData = await _mpGet('/api/marketplace/orders?buyerId=' + currentUser.uid + '&limit=20');
+        const oItems = oData.items || [];
+        if (!oItems.length) { c.innerHTML=`<p style="color:var(--accent);">${t('mall.no_orders','No orders yet')}</p>`; return; }
         c.innerHTML='';
-        o.forEach(d => {
-            const x = d.data();
+        oItems.forEach(x => {
             const statusLabel = ORDER_STATUS_LABELS[x.status] || x.status;
             const statusColor = ORDER_STATUS_COLORS[x.status] || 'var(--accent)';
             const reviewBtn = x.status === 'delivered' ? `<button onclick="event.stopPropagation(); writeReview('${x.productId}')" style="background:#C4841D; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:0.5rem;"><i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.reviews','Reviews')}</button>` : '';
@@ -451,19 +400,19 @@ async function loadMyOrders() {
 async function loadMyProducts() {
     const c = document.getElementById('mall-my-list'); if (!c||!currentUser) return; c.innerHTML=t('common.loading','Loading...');
     try {
-        const o = await db.collection('products').where('sellerId','==',currentUser.uid).orderBy('createdAt','desc').limit(20).get();
-        if (o.empty) { c.innerHTML=`<p style="color:var(--accent);">${t('mall.no_products','No products registered')}</p>`; return; }
+        const oData = await _mpGet('/api/marketplace/products?sellerId=' + currentUser.uid + '&limit=20');
+        const oItems = oData.items || [];
+        if (!oItems.length) { c.innerHTML=`<p style="color:var(--accent);">${t('mall.no_products','No products registered')}</p>`; return; }
         c.innerHTML='';
-        o.forEach(d => {
-            const x = d.data();
+        oItems.forEach(x => {
             const statusBadge = x.status === 'active' ? `<span style="color:#5B7B8C; font-size:0.75rem;">● ${t('mall.status_active','Active')}</span>` : x.status === 'pending' ? `<span style="color:#C4841D; font-size:0.75rem;">● ${t('mall.status_pending','Pending')}</span>` : x.status === 'rejected' ? `<span style="color:#B54534; font-size:0.75rem;">● ${t('mall.status_rejected','Rejected')}</span>` : `<span style="color:#6B5744; font-size:0.75rem;">● ${t('mall.status_inactive','Inactive')}</span>`;
             c.innerHTML += `<div style="padding:0.6rem; background:var(--bg); border-radius:6px; margin-bottom:0.4rem; font-size:0.85rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.3rem;">
                     <div><strong>${x.title}</strong> — ${x.price} CRGC · ${t('mall.sold','Sold')}: ${x.sold||0}/${x.stock} ${statusBadge}</div>
                     <div style="display:flex; gap:0.3rem;">
-                        <button onclick="editProduct('${d.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.edit_btn','<i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Edit')}</button>
-                        <button onclick="toggleProduct('${d.id}','${x.status}')" style="background:${x.status==='active'?'#6B5744':'#5B7B8C'}; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${x.status==='active'?t('mall.deactivate','<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Deactivate'):t('mall.activate','▶ Activate')}</button>
-                        <button onclick="deleteProduct('${d.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
+                        <button onclick="editProduct('${x.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.edit_btn','<i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Edit')}</button>
+                        <button onclick="toggleProduct('${x.id}','${x.status}')" style="background:${x.status==='active'?'#6B5744':'#5B7B8C'}; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${x.status==='active'?t('mall.deactivate','<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Deactivate'):t('mall.activate','▶ Activate')}</button>
+                        <button onclick="deleteProduct('${x.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
                     </div>
                 </div>
             </div>`;
@@ -472,9 +421,9 @@ async function loadMyProducts() {
 }
 
 async function editProduct(id) {
-    const doc = await db.collection('products').doc(id).get();
-    if (!doc.exists) return;
-    const p = doc.data();
+    const pData = await _mpGet('/api/marketplace/products/' + id);
+    if (!pData.item) return;
+    const p = pData.item;
     const newPrice = await showPromptModal(t('mall.edit_price','Edit Price'), `${t('mall.current_price','Current price')}: ${p.price} ${p.priceToken}`, String(p.price));
     if (newPrice === null) return;
     const newStock = await showPromptModal(t('mall.edit_stock','Edit Stock'), `${t('mall.current_stock','Current stock')}: ${p.stock}`, String(p.stock));
@@ -486,7 +435,7 @@ async function editProduct(id) {
         const parsedStock = parseInt(newStock);
         if (parsedPrice <= 0 || !Number.isFinite(parsedPrice)) { showToast(t('mall.price_must_positive','Price must be greater than 0'), 'warning'); return; }
         if (parsedStock < 0 || !Number.isFinite(parsedStock)) { showToast(t('mall.stock_must_positive','Stock must be 0 or more'), 'warning'); return; }
-        await db.collection('products').doc(id).update({
+        await _mpPatch('/api/marketplace/products/' + id, {
             price: parsedPrice,
             stock: parsedStock,
             description: newDesc
@@ -501,7 +450,7 @@ async function toggleProduct(id, currentStatus) {
     const label = newStatus === 'active' ? t('mall.activate_label','Activate') : t('mall.deactivate_label','Deactivate');
     if (!await showConfirmModal(t('mall.product_status','Product Status'), `${t('mall.confirm_status_change','Change this product to')} ${label}?`)) return;
     try {
-        await db.collection('products').doc(id).update({ status: newStatus });
+        await _mpPatch('/api/marketplace/products/' + id, { status: newStatus });
         showToast(`${t('mall.product_status','Product')} ${label} ${t('common.done','done')}`, 'success');
         loadMyProducts();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -510,7 +459,7 @@ async function toggleProduct(id, currentStatus) {
 async function deleteProduct(id) {
     if (!await showConfirmModal(t('mall.delete_product','Delete Product'), t('mall.confirm_delete_product','Are you sure you want to delete this product? This cannot be undone.'))) return;
     try {
-        await db.collection('products').doc(id).delete();
+        await _mpDelete('/api/marketplace/products/' + id);
         showToast(t('mall.deleted','<i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Product deleted'), 'success');
         loadMyProducts();
     } catch (e) { showToast(t('mall.delete_fail','Delete failed') + ': ' + e.message, 'error'); }
@@ -519,18 +468,17 @@ async function deleteProduct(id) {
 async function loadSellerOrders() {
     const c = document.getElementById('mall-my-list'); if (!c||!currentUser) return; c.innerHTML=t('common.loading','Loading...');
     try {
-        // Load return requests first
         const returnsHtml = await loadSellerReturns() || '';
-        const o = await db.collection('orders').where('sellerId','==',currentUser.uid).orderBy('createdAt','desc').limit(30).get();
-        if (o.empty && !returnsHtml) { c.innerHTML=`<p style="color:var(--accent);">${t('mall.no_orders_received','No orders received')}</p>`; return; }
+        const oData = await _mpGet('/api/marketplace/orders?sellerId=' + currentUser.uid + '&limit=30');
+        const oItems = oData.items || [];
+        if (!oItems.length && !returnsHtml) { c.innerHTML=`<p style="color:var(--accent);">${t('mall.no_orders_received','No orders received')}</p>`; return; }
         c.innerHTML = returnsHtml;
-        o.forEach(d => {
-            const x = d.data();
+        oItems.forEach(x => {
             const statusLabel = ORDER_STATUS_LABELS[x.status] || x.status;
             const statusColor = ORDER_STATUS_COLORS[x.status] || 'var(--accent)';
             const nextActions = [];
-            if (x.status === 'paid') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','shipping')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.process_shipping','<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Ship')}</button>`);
-            if (x.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','delivered')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.mark_delivered','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delivered')}</button>`);
+            if (x.status === 'paid') nextActions.push(`<button onclick="updateOrderStatus('${x.id}','shipping')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.process_shipping','<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Ship')}</button>`);
+            if (x.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${x.id}','delivered')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${t('mall.mark_delivered','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delivered')}</button>`);
             const shipInfo = x.shippingInfo ? `<div style="font-size:0.7rem; color:#6B5744; margin-top:0.2rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${x.shippingInfo.name} · ${x.shippingInfo.phone} · ${x.shippingInfo.address}${x.shippingInfo.memo ? ' · '+x.shippingInfo.memo : ''}</div>` : '';
             c.innerHTML += `<div style="padding:0.6rem; background:var(--bg); border-radius:6px; margin-bottom:0.4rem; font-size:0.85rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.3rem;">
@@ -551,33 +499,16 @@ async function updateOrderStatus(orderId, newStatus) {
         const trackingNo = await showPromptModal(t('mall.tracking_number','Tracking Number'), t('mall.enter_tracking','Enter tracking number (optional)'), '');
         if (!await showConfirmModal(t('mall.change_status','Change Order Status'), `${t('mall.change_to','Change to')} ${label}?`)) return;
         try {
-            const updateData = { status: newStatus, [`${newStatus}At`]: new Date(),
-                statusHistory: firebase.firestore.FieldValue.arrayUnion({ status: newStatus, at: new Date().toISOString() })
-            };
-            if (trackingNo) updateData.trackingNumber = trackingNo;
-            await db.collection('orders').doc(orderId).update(updateData);
-            // 구매자 알림
-            const orderDoc = await db.collection('orders').doc(orderId).get();
-            const o = orderDoc.data();
-            if (typeof createNotification === 'function') {
-                await createNotification(o.buyerId, 'order_status', { message: `<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${o.productTitle}" ${t('mall.order_shipping','is now shipping!')}`, link: '#page=buyer-orders' });
-            }
+            const patchData = { status: newStatus };
+            if (trackingNo) patchData.trackingNumber = trackingNo;
+            await _mpPatch('/api/marketplace/orders/' + orderId, patchData);
             showToast(`${label} ${t('common.done','done')}`, 'success');
             loadSellerOrders();
         } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
     } else {
         if (!await showConfirmModal(t('mall.change_status','Change Order Status'), `${t('mall.change_to','Change to')} ${label}?`)) return;
         try {
-            await db.collection('orders').doc(orderId).update({ status: newStatus, [`${newStatus}At`]: new Date(),
-                statusHistory: firebase.firestore.FieldValue.arrayUnion({ status: newStatus, at: new Date().toISOString() })
-            });
-            // 구매자 알림
-            const orderDoc = await db.collection('orders').doc(orderId).get();
-            const o = orderDoc.data();
-            if (typeof createNotification === 'function') {
-                const msg = newStatus === 'delivered' ? `<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${o.productTitle}" ${t('mall.order_delivered','has been delivered!')}` : `<i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${o.productTitle}" ${t('mall.order_status_changed','order status has changed')}`;
-                await createNotification(o.buyerId, 'order_status', { message: msg, link: '#page=buyer-orders' });
-            }
+            await _mpPatch('/api/marketplace/orders/' + orderId, { status: newStatus });
             showToast(`${label} ${t('common.done','done')}`, 'success');
             loadSellerOrders();
         } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -596,19 +527,12 @@ async function createCampaign() {
     try {
         let imageData = '';
         if (imageFile) imageData = await fileToBase64Resized(imageFile, 600);
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const days = parseInt(document.getElementById('fund-days').value) || 30;
-        
         const platformFee = parseFloat(document.getElementById('fund-fee')?.value) || 2.5;
-        await db.collection('campaigns').add({
+        await _mpPost('/api/marketplace/campaigns', {
             title, description: document.getElementById('fund-desc').value.trim(),
             category: document.getElementById('fund-category').value,
-            goal, raised: 0, token: 'CRGC',
-            backers: 0, imageData, platformFee,
-            creatorId: currentUser.uid, creatorEmail: currentUser.email,
-            creatorNickname: userDoc.data()?.nickname || '',
-            endDate: new Date(Date.now() + days * 86400000),
-            status: 'active', createdAt: new Date()
+            goal, imageData, platformFee, days
         });
         
         showToast(`<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${title}" ${t('fund.campaign_started','campaign started!')}`, 'success');
@@ -622,15 +546,15 @@ async function loadCampaigns() {
     const c = document.getElementById('fund-campaigns');
     if (!c) return; c.innerHTML = t('common.loading','Loading...');
     try {
-        const docs = await db.collection('campaigns').where('status','==','active').orderBy('createdAt','desc').limit(20).get();
-        if (docs.empty) { c.innerHTML = `<p style="color:var(--accent);">${t('fund.no_campaigns','No campaigns yet. Create the first one!')}</p>`; return; }
+        const cData = await _mpGet('/api/marketplace/campaigns?status=active');
+        const cItems = cData.items || [];
+        if (!cItems.length) { c.innerHTML = `<p style="color:var(--accent);">${t('fund.no_campaigns','No campaigns yet. Create the first one!')}</p>`; return; }
         c.innerHTML = '';
-        docs.forEach(d => {
-            const x = d.data();
+        cItems.forEach(x => {
             const pct = Math.min(100, Math.round((x.raised / x.goal) * 100));
             const isCreator = currentUser?.uid === x.creatorId;
             c.innerHTML += `
-                <div style="background:#FFF8F0; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08); cursor:pointer;" onclick="showCampaignDetail('${d.id}')">
+                <div style="background:#FFF8F0; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08); cursor:pointer;" onclick="showCampaignDetail('${x.id}')">
                     ${x.imageData ? `<img src="${x.imageData}" loading="lazy" style="width:100%; height:180px; object-fit:cover;">` : ''}
                     <div style="padding:1rem;">
                         <h4 style="margin-bottom:0.3rem;">${x.title}</h4>
@@ -644,8 +568,8 @@ async function loadCampaigns() {
                             <span style="color:var(--accent);">${pct}%</span>
                         </div>
                         <div style="display:flex; gap:0.5rem; margin-top:0.8rem;">
-                            <button onclick="event.stopPropagation(); donateCampaign('${d.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; flex:1; font-weight:700;">${t('fundraise.donate_btn','<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Donate')}</button>
-                            ${isCreator ? `<button onclick="event.stopPropagation(); closeCampaign('${d.id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem;">${t('fund.close','Close')}</button>` : ''}
+                            <button onclick="event.stopPropagation(); donateCampaign('${x.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; flex:1; font-weight:700;">${t('fundraise.donate_btn','<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Donate')}</button>
+                            ${isCreator ? `<button onclick="event.stopPropagation(); closeCampaign('${x.id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem;">${t('fund.close','Close')}</button>` : ''}
                         </div>
                     </div>
                 </div>`;
@@ -658,33 +582,9 @@ async function donateCampaign(id) {
     const amount = parseFloat(amountStr);
     if (!amount || amount <= 0) return;
     try {
-        const doc = await db.collection('campaigns').doc(id).get();
-        const camp = doc.data();
-        const tk = 'crgc';
-        const platformFee = amount * ((camp.platformFee || 2.5) / 100);
-        const creatorReceive = amount - platformFee;
-        
-        if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, amount, t('fund.donation_desc','Donation') + ': ' + camp.title);
-            if (!success) return;
-            const creatorOff = (await db.collection('users').doc(camp.creatorId).get()).data()?.offchainBalances || {};
-            await db.collection('users').doc(camp.creatorId).update({
-                [`offchainBalances.${tk}`]: (creatorOff[tk] || 0) + creatorReceive
-            });
-        } else {
-            const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-            const bal = wallets.docs[0]?.data()?.balances || {};
-            if ((bal[tk]||0) < amount) { showToast(t('mall.insufficient','Insufficient balance'), 'error'); return; }
-            await wallets.docs[0].ref.update({ [`balances.${tk}`]: bal[tk] - amount });
-            const creatorW = await db.collection('users').doc(camp.creatorId).collection('wallets').limit(1).get();
-            if (!creatorW.empty) { const cb = creatorW.docs[0].data().balances||{}; await creatorW.docs[0].ref.update({ [`balances.${tk}`]: (cb[tk]||0) + creatorReceive }); }
-        }
-        
-        await db.collection('campaigns').doc(id).update({ raised: camp.raised + amount, backers: camp.backers + 1 });
-        await db.collection('transactions').add({ from:currentUser.uid, to:camp.creatorId, amount, token:camp.token, type:'donation', campaignId:id, platformFee, creatorReceive, timestamp:new Date() });
-        await db.collection('campaign_donors').add({ campaignId:id, donorId:currentUser.uid, donorEmail:currentUser.email, amount, token:camp.token, timestamp:new Date() });
-        await db.collection('platform_fees').add({ campaignId:id, amount:platformFee, token:camp.token, fromUser:currentUser.uid, timestamp:new Date() });
-        showToast(`<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${amount} ${camp.token} ${t('fund.donated','donated!')}`, 'success');
+        // Server handles balance check, deduction, creator payment, campaign update, transaction logs
+        await _mpPost('/api/marketplace/campaigns/' + id + '/donate', { amount });
+        showToast(`<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${amount} CRGC ${t('fund.donated','donated!')}`, 'success');
         loadCampaigns(); loadUserWallet();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
@@ -747,11 +647,11 @@ async function loadEnergyProjects() {
     const c = document.getElementById('energy-projects');
     if (!c) return; c.innerHTML = t('common.loading','Loading...');
     try {
-        let query = db.collection('energy_projects').where('status','==','active').orderBy('createdAt','desc').limit(20);
-        const docs = await query.get();
-        if (docs.empty) { c.innerHTML = `<p style="color:var(--accent);">${t('energy.no_projects','No projects registered')}</p>`; return; }
+        const epData = await _mpGet('/api/marketplace/energy-projects?status=active');
+        const epItems = epData.items || [];
+        if (!epItems.length) { c.innerHTML = `<p style="color:var(--accent);">${t('energy.no_projects','No projects registered')}</p>`; return; }
         c.innerHTML = '';
-        docs.forEach(d => { const x = d.data();
+        epItems.forEach(x => {
             const cat = x.category || 'energy';
             if (_crebCurrentFilter !== 'all' && cat !== _crebCurrentFilter) return;
             const catInfo = CREB_CATEGORIES[cat] || CREB_CATEGORIES.energy;
@@ -764,7 +664,7 @@ async function loadEnergyProjects() {
             const exMonthly = (100 * rate / 100 / 12).toFixed(2);
             const isAdmin = currentUser && (currentUser.email === 'admin@crowny.org' || currentUser.uid === x.creatorId);
             const itype = getInvestType(x);
-            c.innerHTML += `<div style="background:var(--bg); padding:1rem; border-radius:8px; margin-bottom:0.8rem; border-left:4px solid ${catInfo.color};" onclick="openProjectDetail('${d.id}')" data-category="${cat}">
+            c.innerHTML += `<div style="background:var(--bg); padding:1rem; border-radius:8px; margin-bottom:0.8rem; border-left:4px solid ${catInfo.color};" onclick="openProjectDetail('${x.id}')" data-category="${cat}">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.3rem;">
                     <h4 style="margin:0;">${catInfo.icon} ${xTitle}</h4>
                     <span style="font-size:0.7rem; padding:0.15rem 0.5rem; border-radius:10px; background:${catInfo.color}15; color:${catInfo.color}; font-weight:600;">${catInfo.label}</span>
@@ -779,8 +679,8 @@ async function loadEnergyProjects() {
                 <div style="display:flex; justify-content:space-between; font-size:0.85rem;"><span>${xInvested}/${xGoal} CREB</span><span>${pct}%</span></div>
                 ${renderMilestones(x.milestones)}
                 <div style="display:flex; gap:0.5rem; margin-top:0.5rem;" onclick="event.stopPropagation();">
-                    <button onclick="investEnergy('${d.id}')" style="background:${catInfo.color}; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; flex:1;">${t('energy.invest_btn','Invest')}</button>
-                    ${isAdmin ? `<button onclick="distributeEnergyReturns('${d.id}')" style="background:#8B6914; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; flex:1; font-size:0.8rem;">${t('energy.distribute','<i data-lucide="bar-chart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Distribute Returns')}</button>` : ''}
+                    <button onclick="investEnergy('${x.id}')" style="background:${catInfo.color}; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; flex:1;">${t('energy.invest_btn','Invest')}</button>
+                    ${isAdmin ? `<button onclick="distributeEnergyReturns('${x.id}')" style="background:#8B6914; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; flex:1; font-size:0.8rem;">${t('energy.distribute','<i data-lucide="bar-chart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Distribute Returns')}</button>` : ''}
                 </div>
             </div>`; });
         if (!c.innerHTML.trim()) c.innerHTML = `<p style="color:var(--accent);">${t('energy.no_projects_category','No projects in this category')}</p>`;
@@ -790,9 +690,9 @@ async function loadEnergyProjects() {
 // 프로젝트 상세 모달
 async function openProjectDetail(projectId) {
     try {
-        const doc = await db.collection('energy_projects').doc(projectId).get();
-        if (!doc.exists) return;
-        const x = doc.data();
+        const epData = await _mpGet('/api/marketplace/energy-projects/' + projectId);
+        if (!epData.item) return;
+        const x = epData.item;
         const cat = x.category || 'energy';
         const catInfo = CREB_CATEGORIES[cat] || CREB_CATEGORIES.energy;
         const rate = x.returnRate || 0;
@@ -817,11 +717,11 @@ async function openProjectDetail(projectId) {
         // Load comments
         let commentsHtml = '';
         try {
-            const comments = await db.collection('energy_projects').doc(projectId).collection('energy_comments').orderBy('createdAt','desc').limit(20).get();
-            if (!comments.empty) {
-                commentsHtml = comments.docs.map(c => {
-                    const cd = c.data();
-                    const date = cd.createdAt?.toDate ? cd.createdAt.toDate().toLocaleDateString('ko-KR') : '';
+            const cmtData = await _mpGet('/api/marketplace/energy-projects/' + projectId + '/comments');
+            const cmtItems = cmtData.items || [];
+            if (cmtItems.length) {
+                commentsHtml = cmtItems.map(cd => {
+                    const date = cd.createdAt ? new Date(cd.createdAt).toLocaleDateString('ko-KR') : '';
                     return `<div style="padding:0.5rem; background:var(--bg); border-radius:6px; margin-bottom:0.4rem;"><div style="font-size:0.75rem; color:var(--accent);">${cd.nickname || t('common.anonymous','Anonymous')} · ${date}</div><div style="font-size:0.85rem;">${cd.text}</div></div>`;
                 }).join('');
             }
@@ -830,10 +730,10 @@ async function openProjectDetail(projectId) {
         // Load investors
         let investorsHtml = '';
         try {
-            const invs = await db.collection('energy_investments').where('projectId','==',projectId).orderBy('timestamp','desc').limit(10).get();
-            if (!invs.empty) {
-                investorsHtml = `<div style="margin-top:1rem;"><h4><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('energy.recent_investors','Recent investors')}</h4>${invs.docs.map(i => {
-                    const id = i.data();
+            const invData = await _mpGet('/api/marketplace/energy-investments?projectId=' + projectId);
+            const invItems = invData.items || [];
+            if (invItems.length) {
+                investorsHtml = `<div style="margin-top:1rem;"><h4><i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('energy.recent_investors','Recent investors')}</h4>${invItems.slice(0,10).map(id => {
                     return `<div style="font-size:0.8rem; padding:0.2rem 0;">${t('common.anonymous','Anonymous')} · ${id.amount} CREB</div>`;
                 }).join('')}</div>`;
             }
@@ -874,11 +774,7 @@ async function postCrebComment(projectId) {
     const text = input?.value.trim();
     if (!text) return;
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        await db.collection('energy_projects').doc(projectId).collection('energy_comments').add({
-            userId: currentUser.uid, nickname: userDoc.data()?.nickname || t('common.anonymous','Anonymous'),
-            text, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        await _mpPost('/api/marketplace/energy-projects/' + projectId + '/comments', { text });
         showToast(t('common.comment_posted','Comment posted!'), 'success');
         document.getElementById('creb-project-modal')?.remove();
         openProjectDetail(projectId);
@@ -892,19 +788,8 @@ async function investEnergy(id) {
     const amount = parseFloat(amountStr);
     if (!amount || amount <= 0) return;
     try {
-        if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, amount, t('invest.energy_invest','Energy investment') + ': ' + id);
-            if (!success) return;
-        } else {
-            const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-            const bal = wallets.docs[0]?.data()?.balances || {};
-            if ((bal[tk]||0) < amount) { showToast(`${tkName} ${t('mall.insufficient_balance','Insufficient balance')}`, 'error'); return; }
-            await wallets.docs[0].ref.update({ [`balances.${tk}`]: bal[tk] - amount });
-        }
-        const doc = await db.collection('energy_projects').doc(id).get();
-        const epData = doc.data();
-        await db.collection('energy_projects').doc(id).update({ invested: (epData.invested || epData.currentAmount || 0) + amount, investors: (epData.investors || epData.investorCount || 0) + 1 });
-        await db.collection('energy_investments').add({ projectId:id, userId:currentUser.uid, amount, token:tkName, timestamp:new Date() });
+        // Server handles balance deduction, project update, investment logging
+        await _mpPost('/api/marketplace/energy-projects/' + id + '/invest', { amount });
         showToast(`${amount} ${tkName} ${t('energy.invested','invested!')}`, 'success'); loadEnergyProjects(); loadUserWallet();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
@@ -919,15 +804,12 @@ async function registerBusiness() {
         const imageFile = document.getElementById('biz-image').files[0];
         let imageData = '';
         if (imageFile) imageData = await fileToBase64Resized(imageFile, 600);
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        await db.collection('businesses').add({
+        await _mpPost('/api/marketplace/businesses', {
             name, description: document.getElementById('biz-desc').value.trim(),
             category: document.getElementById('biz-category').value,
             country: document.getElementById('biz-country').value.trim(),
             website: document.getElementById('biz-website').value.trim(),
-            imageData, ownerId: currentUser.uid, ownerEmail: currentUser.email,
-            ownerNickname: userDoc.data()?.nickname || '',
-            rating: 0, reviews: 0, status: 'active', createdAt: new Date()
+            imageData
         });
         showToast(`"${name}" ${t('common.registered','registered!')}`, 'success');
         document.getElementById('biz-name').value = '';
@@ -939,12 +821,13 @@ async function loadBusinessList() {
     const c = document.getElementById('business-list');
     if (!c) return; c.innerHTML = t('common.loading','Loading...');
     try {
-        const docs = await db.collection('businesses').where('status','==','active').orderBy('createdAt','desc').limit(20).get();
-        if (docs.empty) { c.innerHTML = `<p style="color:var(--accent);">${t('biz.no_businesses','No businesses registered')}</p>`; return; }
+        const bizData = await _mpGet('/api/marketplace/businesses?status=active');
+        const bizItems = bizData.items || [];
+        if (!bizItems.length) { c.innerHTML = `<p style="color:var(--accent);">${t('biz.no_businesses','No businesses registered')}</p>`; return; }
         const BIZ_CATS = {retail:'<i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',food:'<i data-lucide="utensils" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',service:'<i data-lucide="wrench" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',education:'<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',health:'<i data-lucide="pill" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',logistics:'<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',entertainment:'<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',other:'<i data-lucide="building" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'};
         c.innerHTML = '';
-        docs.forEach(d => { const x = d.data();
-            c.innerHTML += `<div onclick="viewBusinessDetail('${d.id}')" style="background:#FFF8F0; padding:1rem; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); display:flex; gap:1rem; align-items:center; cursor:pointer;">
+        bizItems.forEach(x => {
+            c.innerHTML += `<div onclick="viewBusinessDetail('${x.id}')" style="background:#FFF8F0; padding:1rem; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); display:flex; gap:1rem; align-items:center; cursor:pointer;">
                 ${x.imageData ? `<img src="${x.imageData}" loading="lazy" style="width:70px; height:70px; border-radius:8px; object-fit:cover;">` : `<div style="width:70px; height:70px; background:var(--bg); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">${BIZ_CATS[x.category]||'<i data-lucide="building" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'}</div>`}
                 <div style="flex:1;"><h4>${x.name}</h4><p style="font-size:0.8rem; color:var(--accent);">${[BIZ_CATS[x.category], x.country, x.ownerNickname || x.ownerEmail].filter(Boolean).join(' · ')}</p>
                 ${x.description ? `<p style="font-size:0.85rem; margin-top:0.3rem;">${x.description.slice(0,80)}${x.description.length>80?'...':''}</p>` : ''}
@@ -962,11 +845,10 @@ async function registerArtist() {
         const imageFile = document.getElementById('artist-photo').files[0];
         let imageData = '';
         if (imageFile) imageData = await fileToBase64Resized(imageFile, 400);
-        await db.collection('artists').add({
+        await _mpPost('/api/marketplace/artists', {
             name, bio: document.getElementById('artist-bio').value.trim(),
             genre: document.getElementById('artist-genre').value,
-            imageData, userId: currentUser.uid, email: currentUser.email,
-            fans: 0, totalSupport: 0, status: 'active', createdAt: new Date()
+            imageData
         });
         showToast(`<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${name}" ${t('common.registered','registered!')}`, 'success');
         document.getElementById('artist-name').value = '';
@@ -978,17 +860,18 @@ async function loadArtistList() {
     const c = document.getElementById('artist-list');
     if (!c) return; c.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${t('common.loading','Loading...')}</p>`;
     try {
-        const docs = await db.collection('artists').where('status','==','active').orderBy('fans','desc').limit(20).get();
-        if (docs.empty) { c.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${t('artist.no_artists','No artists registered')}</p>`; return; }
+        const artData = await _mpGet('/api/marketplace/artists?status=active');
+        const artItems = artData.items || [];
+        if (!artItems.length) { c.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${t('artist.no_artists','No artists registered')}</p>`; return; }
         const GENRES = {music:'<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',dance:'<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',acting:'<i data-lucide="film" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',comedy:'<i data-lucide="smile" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',creator:'<i data-lucide="video" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',model:'<i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',dj:'<i data-lucide="headphones" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',other:'<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'};
         c.innerHTML = '';
-        docs.forEach(d => { const x = d.data();
-            c.innerHTML += `<div onclick="viewArtistDetail('${d.id}')" style="background:#FFF8F0; border-radius:10px; overflow:hidden; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.08); cursor:pointer;">
+        artItems.forEach(x => {
+            c.innerHTML += `<div onclick="viewArtistDetail('${x.id}')" style="background:#FFF8F0; border-radius:10px; overflow:hidden; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.08); cursor:pointer;">
                 <div style="height:160px; overflow:hidden; background:linear-gradient(135deg,#8B6914,#6B5744);">
                 ${x.imageData ? `<img src="${x.imageData}" loading="lazy" style="width:100%; height:100%; object-fit:cover;">` : `<div style="height:100%; display:flex; align-items:center; justify-content:center; font-size:3rem; color:#FFF8F0;">${GENRES[x.genre]||'<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'}</div>`}</div>
                 <div style="padding:0.6rem;"><div style="font-weight:700;">${x.name}</div>
                 <div style="font-size:0.75rem; color:var(--accent);">${GENRES[x.genre]||''} · ${t('artist.fans','Fans')} ${x.fans}</div>
-                <button onclick="event.stopPropagation(); supportArtist('${d.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; margin-top:0.4rem; font-size:0.8rem;">${t('artist.support_btn','<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Support')}</button>
+                <button onclick="event.stopPropagation(); supportArtist('${x.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; margin-top:0.4rem; font-size:0.8rem;">${t('artist.support_btn','<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Support')}</button>
                 </div></div>`; });
     } catch (e) { c.innerHTML = e.message; }
 }
@@ -1000,30 +883,9 @@ async function supportArtist(id) {
     const amount = parseFloat(amountStr);
     if (!amount || amount <= 0) return;
     try {
-        if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, amount, t('artist.support_desc','Artist support') + ': ' + id);
-            if (!success) return;
-            const doc = await db.collection('artists').doc(id).get(); const artist = doc.data();
-            const artistOff = (await db.collection('users').doc(artist.userId).get()).data()?.offchainBalances || {};
-            await db.collection('users').doc(artist.userId).update({
-                [`offchainBalances.${tk}`]: (artistOff[tk] || 0) + amount
-            });
-        } else {
-            const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-            const bal = wallets.docs[0]?.data()?.balances || {};
-            if ((bal[tk]||0) < amount) { showToast(`${tkName} ${t('mall.insufficient_balance','Insufficient balance')}`, 'error'); return; }
-            await wallets.docs[0].ref.update({ [`balances.${tk}`]: bal[tk] - amount });
-            const doc = await db.collection('artists').doc(id).get(); const artist = doc.data();
-            const artistW = await db.collection('users').doc(artist.userId).collection('wallets').limit(1).get();
-            if (!artistW.empty) { const ab = artistW.docs[0].data().balances||{}; await artistW.docs[0].ref.update({ [`balances.${tk}`]: (ab[tk]||0) + amount }); }
-        }
-        const doc2 = await db.collection('artists').doc(id).get(); const artist2 = doc2.data();
-        // 유니크 팬 체크
-        const existingSupport = await db.collection('transactions').where('from', '==', currentUser.uid).where('artistId', '==', id).where('type', '==', 'artist_support').limit(1).get();
-        const isNewFan = existingSupport.empty;
-        await db.collection('artists').doc(id).update({ totalSupport: (artist2.totalSupport||0) + amount, fans: (artist2.fans||0) + (isNewFan ? 1 : 0) });
-        await db.collection('transactions').add({ from:currentUser.uid, to:artist2.userId, amount, token:tkName, type:'artist_support', artistId:id, timestamp:new Date() });
-        showToast(`${amount} ${tkName} ${t('artist.supported','supported')} ${artist2.name}!`, 'success'); loadArtistList(); loadUserWallet();
+        // Server handles balance deduction, artist payment, fan tracking, transaction logging
+        const result = await _mpPost('/api/marketplace/artists/' + id + '/support', { amount });
+        showToast(`${amount} ${tkName} ${t('artist.supported','supported')}!`, 'success'); loadArtistList(); loadUserWallet();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
 
@@ -1038,13 +900,11 @@ async function registerBook() {
         const coverFile = document.getElementById('book-cover').files[0];
         let imageData = '';
         if (coverFile) imageData = await fileToBase64Resized(coverFile, 400);
-        await db.collection('books').add({
+        await _mpPost('/api/marketplace/books', {
             title, author: document.getElementById('book-author').value.trim(),
             description: document.getElementById('book-desc').value.trim(),
             genre: document.getElementById('book-genre').value,
-            price: price || 0, priceToken: 'CRGC',
-            imageData, publisherId: currentUser.uid, publisherEmail: currentUser.email,
-            sold: 0, rating: 0, reviews: 0, status: 'active', createdAt: new Date()
+            price: price || 0, imageData
         });
         showToast(`<i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${title}" ${t('common.registered','registered!')}`, 'success');
         document.getElementById('book-title').value = '';
@@ -1056,12 +916,13 @@ async function loadBooksList() {
     const c = document.getElementById('books-list');
     if (!c) return; c.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${t('common.loading','Loading...')}</p>`;
     try {
-        const docs = await db.collection('books').where('status','==','active').orderBy('createdAt','desc').limit(20).get();
-        if (docs.empty) { c.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${t('books.no_books','No books registered')}</p>`; return; }
+        const bkData = await _mpGet('/api/marketplace/books?status=active');
+        const bkItems = bkData.items || [];
+        if (!bkItems.length) { c.innerHTML = `<p style="text-align:center; color:var(--accent); grid-column:1/-1;">${t('books.no_books','No books registered')}</p>`; return; }
         const GENRES = {novel:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',essay:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',selfhelp:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',business:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',poetry:'<i data-lucide="pen-tool" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',children:'<i data-lucide="users" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',comic:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>',other:'<i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'};
         c.innerHTML = '';
-        docs.forEach(d => { const x = d.data();
-            c.innerHTML += `<div onclick="viewBookDetail('${d.id}')" style="background:#FFF8F0; border-radius:10px; overflow:hidden; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        bkItems.forEach(x => {
+            c.innerHTML += `<div onclick="viewBookDetail('${x.id}')" style="background:#FFF8F0; border-radius:10px; overflow:hidden; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
                 <div style="height:180px; overflow:hidden; background:#f5f0e8;">
                 ${x.imageData ? `<img src="${x.imageData}" loading="lazy" style="width:100%; height:100%; object-fit:contain;">` : `<div style="height:100%; display:flex; align-items:center; justify-content:center; font-size:3rem;">${GENRES[x.genre]||'<i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'}</div>`}</div>
                 <div style="padding:0.5rem;"><div style="font-weight:600; font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${x.title}</div>
@@ -1071,26 +932,14 @@ async function loadBooksList() {
 }
 
 async function buyBook(id) {
-    const doc = await db.collection('books').doc(id).get();
-    if (!doc.exists) return; const b = doc.data();
+    const bkData = await _mpGet('/api/marketplace/books/' + id);
+    if (!bkData.item) return; const b = bkData.item;
     if (b.publisherId === currentUser?.uid) { showToast(t('books.own_book','This is your own book'), 'info'); return; }
     if (b.price <= 0) { showToast(`<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${b.title}" — ${t('books.free_read','Free to read!')}`, 'info'); return; }
-    const tk = 'crgc';
     if (!await showConfirmModal(t('books.buy_book','Buy Book'), `"${b.title}"\n${b.price} CRGC — ${t('mall.confirm_buy_msg','Proceed with purchase?')}`)) return;
     try {
-        if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, b.price, t('books.purchase_desc','Book purchase') + ': ' + b.title);
-            if (!success) return;
-            const pubOff = (await db.collection('users').doc(b.publisherId).get()).data()?.offchainBalances || {};
-            await db.collection('users').doc(b.publisherId).update({
-                [`offchainBalances.${tk}`]: (pubOff[tk] || 0) + b.price
-            });
-        } else {
-            // BOOKS는 CRGC(오프체인) 전용이므로 온체인 경로 불필요
-            showToast(t('mall.insufficient_balance','Insufficient balance'), 'error'); return;
-        }
-        await db.collection('books').doc(id).update({ sold: (b.sold||0) + 1 });
-        await db.collection('transactions').add({ from:currentUser.uid, to:b.publisherId, amount:b.price, token:'CRGC', type:'book_purchase', bookId:id, timestamp:new Date() });
+        // Server handles balance deduction, publisher payment, sold increment, transaction log
+        await _mpPost('/api/marketplace/books/' + id + '/buy', {});
         if (typeof distributeReferralReward === 'function') await distributeReferralReward(currentUser.uid, b.price, 'CRGC');
         showToast(`<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${b.title}" ${t('mall.purchase_done','Purchase complete!')}`, 'success'); loadUserWallet();
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -1234,14 +1083,15 @@ async function loadCreditScoreBreakdown() {
 // ========== BUSINESS 투자 & 상세 ==========
 
 async function viewBusinessDetail(id) {
-    const doc = await db.collection('businesses').doc(id).get();
-    if (!doc.exists) return;
-    const b = doc.data();
+    const bizData = await _mpGet('/api/marketplace/businesses/' + id);
+    if (!bizData.item) return;
+    const b = bizData.item;
     const BIZ_CATS = {retail:'<i data-lucide="store" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_retail','Retail'),food:'<i data-lucide="utensils" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_food','Food & Beverage'),service:'<i data-lucide="wrench" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_service','Service'),tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_tech','Tech'),education:'<i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_education','Education'),health:'<i data-lucide="pill" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_health','Health'),logistics:'<i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_logistics','Logistics'),entertainment:'<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_entertainment','Entertainment'),other:'<i data-lucide="building" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('biz.cat_other','Other')};
     // 투자 현황
-    const investments = await db.collection('business_investments').where('businessId', '==', id).get();
+    const invData = await _mpGet('/api/marketplace/business-investments?businessId=' + id);
+    const investments = invData.items || [];
     let totalInvested = 0, investorCount = 0;
-    investments.forEach(d => { totalInvested += d.data().amount || 0; investorCount++; });
+    investments.forEach(inv => { totalInvested += inv.amount || 0; investorCount++; });
     // 평점
     const avgRating = b.reviews > 0 ? (b.rating / b.reviews).toFixed(1) : t('common.none','N/A');
     const stars = b.reviews > 0 ? '<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>'.repeat(Math.round(b.rating / b.reviews)) : '';
@@ -1285,32 +1135,8 @@ async function investBusiness(id) {
     const amount = parseFloat(amountStr);
     if (!amount || amount <= 0) return;
     try {
-        if (isOffchainToken(tk)) {
-            const success = await spendOffchainPoints(tk, amount, t('biz.invest_desc','Business investment') + ': ' + id);
-            if (!success) return;
-        } else {
-            const wallets = await db.collection('users').doc(currentUser.uid).collection('wallets').limit(1).get();
-            const bal = wallets.docs[0]?.data()?.balances || {};
-            if ((bal[tk] || 0) < amount) { showToast(`${tkName} ${t('mall.insufficient_balance','Insufficient balance')}`, 'error'); return; }
-            await wallets.docs[0].ref.update({ [`balances.${tk}`]: bal[tk] - amount });
-        }
-        const bizDoc = await db.collection('businesses').doc(id).get();
-        const biz = bizDoc.data();
-        // 사업주에게 투자금 전달
-        if (isOffchainToken(tk)) {
-            const ownerOff = (await db.collection('users').doc(biz.ownerId).get()).data()?.offchainBalances || {};
-            await db.collection('users').doc(biz.ownerId).update({
-                [`offchainBalances.${tk}`]: (ownerOff[tk] || 0) + amount
-            });
-        } else {
-            const ownerW = await db.collection('users').doc(biz.ownerId).collection('wallets').limit(1).get();
-            if (!ownerW.empty) { const ob = ownerW.docs[0].data().balances || {}; await ownerW.docs[0].ref.update({ [`balances.${tk}`]: (ob[tk] || 0) + amount }); }
-        }
-        await db.collection('business_investments').add({
-            businessId: id, businessName: biz.name,
-            investorId: currentUser.uid, investorEmail: currentUser.email,
-            amount, token: tkName, timestamp: new Date()
-        });
+        // Server handles balance deduction, owner payment, investment logging
+        await _mpPost('/api/marketplace/business-investments', { businessId: id, amount });
         showToast('<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + amount + ' ' + tkName + ' ' + t('invest.invested_in','invested in') + ' ' + biz.name + '!', 'success');
         document.getElementById('biz-detail-modal')?.remove();
         loadBusinessList(); loadUserWallet();
@@ -1322,9 +1148,9 @@ async function rateBusinessAfterInvest(businessId) {
     const rating = parseInt(ratingStr);
     if (!rating || rating < 1 || rating > 5) return;
     try {
-        const bizDoc = await db.collection('businesses').doc(businessId).get();
-        const biz = bizDoc.data();
-        await db.collection('businesses').doc(businessId).update({
+        const bizData = await _mpGet('/api/marketplace/businesses/' + businessId);
+        const biz = bizData.item;
+        await _mpPatch('/api/marketplace/businesses/' + businessId, {
             rating: (biz.rating || 0) + rating,
             reviews: (biz.reviews || 0) + 1
         });
@@ -1335,21 +1161,20 @@ async function rateBusinessAfterInvest(businessId) {
 // ========== ARTIST 상세 & 팬 추적 ==========
 
 async function viewArtistDetail(id) {
-    const doc = await db.collection('artists').doc(id).get();
-    if (!doc.exists) return;
-    const a = doc.data();
+    const artData = await _mpGet('/api/marketplace/artists/' + id);
+    if (!artData.item) return;
+    const a = artData.item;
     const GENRES = {music:'<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_music','Music'),dance:'<i data-lucide="music" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_dance','Dance'),acting:'<i data-lucide="film" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_acting','Acting'),comedy:'<i data-lucide="smile" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_comedy','Comedy'),creator:'<i data-lucide="video" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_creator','Creator'),model:'<i data-lucide="camera" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_model','Model'),dj:'<i data-lucide="headphones" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> DJ',other:'<i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('artist.genre_other','Other')};
     // Support history
-    const supports = await db.collection('transactions').where('artistId', '==', id).where('type', '==', 'artist_support').orderBy('timestamp', 'desc').limit(10).get();
+    const txData = await _mpGet('/api/marketplace/transactions?artistId=' + id + '&type=artist_support&limit=50');
+    const txItems = txData.items || [];
     let supportHtml = '';
-    supports.forEach(d => {
-        const s = d.data();
-        supportHtml += `<div style="font-size:0.8rem; padding:0.3rem 0; border-bottom:1px solid #E8E0D8;">${s.amount} ${s.token} · ${s.timestamp?.toDate?.()?.toLocaleDateString?.() || ''}</div>`;
+    txItems.slice(0, 10).forEach(s => {
+        supportHtml += `<div style="font-size:0.8rem; padding:0.3rem 0; border-bottom:1px solid #E8E0D8;">${s.amount} ${s.token} · ${s.timestamp ? new Date(s.timestamp).toLocaleDateString() : ''}</div>`;
     });
     // 유니크 팬 수
     const uniqueFans = new Set();
-    const allSupports = await db.collection('transactions').where('artistId', '==', id).where('type', '==', 'artist_support').get();
-    allSupports.forEach(d => uniqueFans.add(d.data().from));
+    txItems.forEach(s => uniqueFans.add(s.from));
 
     const modal = document.createElement('div');
     modal.id = 'artist-detail-modal';
@@ -1376,9 +1201,9 @@ async function viewArtistDetail(id) {
 // ========== BOOKS 상세 & 읽고 싶은 책 ==========
 
 async function viewBookDetail(id) {
-    const doc = await db.collection('books').doc(id).get();
-    if (!doc.exists) return;
-    const b = doc.data();
+    const bkData = await _mpGet('/api/marketplace/books/' + id);
+    if (!bkData.item) return;
+    const b = bkData.item;
     const GENRES = {novel:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_novel','Novel'),essay:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_essay','Essay'),selfhelp:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_selfhelp','Self-help'),business:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_business','Business'),tech:'<i data-lucide="laptop" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_tech','Technology'),poetry:'<i data-lucide="pen-tool" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_poetry','Poetry'),children:'<i data-lucide="users" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_children','Children'),comic:'<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_comic','Comics'),other:'<i data-lucide="books" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('books.genre_other','Other')};
     const isOwner = currentUser?.uid === b.publisherId;
 
@@ -1632,12 +1457,8 @@ async function createEnergyProject() {
     const investType = document.getElementById('energy-invest-type')?.value || 'return';
     if (!title || !goal) { showToast(t('energy.enter_title_goal','Please enter project name and goal amount'), 'warning'); return; }
     try {
-        await db.collection('energy_projects').add({
-            title, location, capacity, returnRate, goal, category, investType,
-            invested: 0, investors: 0, status: 'active',
-            milestones: [], teamMembers: [],
-            creatorId: currentUser.uid,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        await _mpPost('/api/marketplace/energy-projects', {
+            title, location, capacity, returnRate, goal, category, investType
         });
         const catInfo = CREB_CATEGORIES[category] || CREB_CATEGORIES.energy;
         showToast(`${catInfo.icon} "${title}" ${t('energy.project_registered','project registered!')}`, 'success');
@@ -1754,22 +1575,19 @@ async function loadMyEnergyInvestments() {
     if (!c) return;
     c.innerHTML = `<p style="text-align:center; color:var(--accent);">${t('common.loading','Loading...')}</p>`;
     try {
-        const docs = await db.collection('energy_investments').where('userId', '==', currentUser.uid).orderBy('timestamp', 'desc').get();
-        if (docs.empty) { c.innerHTML = `<p style="color:var(--accent);">${t('energy.no_investments','No investments yet')}</p>`; document.getElementById('creb-impact-dashboard').style.display = 'none'; return; }
-        
+        const eiData = await _mpGet('/api/marketplace/energy-investments?userId=' + currentUser.uid);
+        const eiItems = eiData.items || [];
+        if (!eiItems.length) { c.innerHTML = `<p style="color:var(--accent);">${t('energy.no_investments','No investments yet')}</p>`; document.getElementById('creb-impact-dashboard').style.display = 'none'; return; }
         const projCache = {};
         let totalInvested = 0, totalMonthly = 0;
         const catTotals = { energy: 0, genetics: 0, biotech: 0, ai_robotics: 0 };
         const projectIds = new Set();
         let rows = '';
-        
-        for (const d of docs.docs) {
-            const inv = d.data();
+        for (const inv of eiItems) {
             if (!projCache[inv.projectId]) {
-                const pDoc = await db.collection('energy_projects').doc(inv.projectId).get();
-                const pData = pDoc.exists ? pDoc.data() : { title: t('energy.deleted_project','Deleted project'), returnRate: 0, category: 'energy' };
-                if (!pData.title) pData.title = pData.name || t('energy.project','Project');
-                projCache[inv.projectId] = pData;
+                try { const pr = await _mpGet('/api/marketplace/energy-projects/' + inv.projectId); projCache[inv.projectId] = pr.item || { title: 'Deleted', returnRate: 0, category: 'energy' }; }
+                catch(e) { projCache[inv.projectId] = { title: 'Deleted', returnRate: 0, category: 'energy' }; }
+                if (!projCache[inv.projectId].title) projCache[inv.projectId].title = projCache[inv.projectId].name || 'Project';
             }
             const proj = projCache[inv.projectId];
             const cat = proj.category || 'energy';
@@ -1780,7 +1598,7 @@ async function loadMyEnergyInvestments() {
             totalMonthly += monthlyReturn;
             catTotals[cat] = (catTotals[cat] || 0) + inv.amount;
             projectIds.add(inv.projectId);
-            const dateStr = inv.timestamp?.toDate ? inv.timestamp.toDate().toLocaleDateString('ko-KR') : '-';
+            const dateStr = inv.timestamp ? new Date(inv.timestamp).toLocaleDateString('ko-KR') : '-';
             
             rows += `<div style="background:var(--bg); padding:0.8rem; border-radius:8px; margin-bottom:0.5rem; border-left:3px solid ${catInfo.color};">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -1859,43 +1677,20 @@ async function loadMyEnergyInvestments() {
 async function distributeEnergyReturns(projectId) {
     if (!currentUser) return;
     try {
-        const projDoc = await db.collection('energy_projects').doc(projectId).get();
-        if (!projDoc.exists) { showToast(t('energy.project_not_found','Project not found'), 'error'); return; }
-        const proj = projDoc.data();
+        const projData = await _mpGet('/api/marketplace/energy-projects/' + projectId);
+        if (!projData.item) { showToast(t('energy.project_not_found','Project not found'), 'error'); return; }
+        const proj = projData.item;
         const rate = proj.returnRate || 0;
-        
-        const investments = await db.collection('energy_investments').where('projectId', '==', projectId).get();
-        if (investments.empty) { showToast(t('energy.no_investors','No investors'), 'info'); return; }
-        
+        const eiData = await _mpGet('/api/marketplace/energy-investments?projectId=' + projectId);
+        const investments = eiData.items || [];
+        if (!investments.length) { showToast(t('energy.no_investors','No investors'), 'info'); return; }
         let totalInvested = 0;
-        investments.forEach(d => totalInvested += d.data().amount);
-        
-        const confirmed = await showConfirmModal(t('invest.confirm_distribute','Confirm Distribution'), t('invest.project','Project') + ': ' + (proj.name || proj.title) + '\n' + t('invest.total_invested','Total invested') + ': ' + totalInvested + '\n' + t('energy.return_rate','Return rate') + ': ' + rate + '%\n' + t('invest.monthly_total','Monthly total') + ': ' + (totalInvested * rate / 100 / 12).toFixed(2) + ' CREB\n\n' + t('invest.distribute_to','Distribute to') + ' ' + investments.size + t('common.count_people','') + '?');
+        investments.forEach(i => totalInvested += i.amount);
+        const confirmed = await showConfirmModal(t('invest.confirm_distribute','Confirm Distribution'), t('invest.project','Project') + ': ' + (proj.name || proj.title) + '\n' + t('invest.total_invested','Total invested') + ': ' + totalInvested + '\n' + t('energy.return_rate','Return rate') + ': ' + rate + '%\n' + t('invest.monthly_total','Monthly total') + ': ' + (totalInvested * rate / 100 / 12).toFixed(2) + ' CREB\n\n' + t('invest.distribute_to','Distribute to') + ' ' + investments.length + t('common.count_people','') + '?');
         if (!confirmed) return;
-        
-        let distributed = 0;
-        for (const d of investments.docs) {
-            const inv = d.data();
-            const share = inv.amount * rate / 100 / 12; // 월간 수익
-            if (share <= 0) continue;
-            
-            // CREB을 오프체인 잔액에 적립
-            const userDoc = await db.collection('users').doc(inv.userId).get();
-            if (userDoc.exists) {
-                const uOff = userDoc.data()?.offchainBalances || {};
-                await db.collection('users').doc(inv.userId).update({
-                    ['offchainBalances.creb']: (uOff.creb || 0) + share
-                });
-                await db.collection('transactions').add({
-                    from: 'energy_system', to: inv.userId,
-                    amount: share, token: 'CREB', type: 'energy_return',
-                    projectId, timestamp: new Date()
-                });
-                distributed += share;
-            }
-        }
-        
-        showToast('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + distributed.toFixed(2) + ' CREB ' + t('invest.distributed_to','distributed to') + ' ' + investments.size + t('common.count_people','') + '!', 'success');
+        // Server handles distribution to all investors
+        const result = await _mpPost('/api/marketplace/energy-projects/' + projectId + '/distribute', {});
+        showToast('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + (result.distributed || 0).toFixed(2) + ' CREB ' + t('invest.distributed_to','distributed to') + ' ' + (result.investorCount || 0) + t('common.count_people','') + '!', 'success');
     } catch (e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
 
@@ -1904,27 +1699,16 @@ async function distributeEnergyReturns(projectId) {
 async function closeCampaign(id) {
     if (!currentUser) return;
     try {
-        const doc = await db.collection('campaigns').doc(id).get();
-        if (!doc.exists) { showToast(t('fund.campaign_not_found','Campaign not found'), 'error'); return; }
-        const camp = doc.data();
+        const campData = await _mpGet('/api/marketplace/campaigns/' + id);
+        if (!campData.item) { showToast(t('fund.campaign_not_found','Campaign not found'), 'error'); return; }
+        const camp = campData.item;
         if (camp.creatorId !== currentUser.uid) { showToast(t('fund.creator_only','Only the campaign creator can close it'), 'error'); return; }
-        
         const fee = camp.platformFee || 2.5;
         const feeAmount = camp.raised * (fee / 100);
         const creatorAmount = camp.raised - feeAmount;
-        
         const confirmed = await showConfirmModal(t('fund.close_campaign','Close Campaign'), '"' + camp.title + '"\n\n' + t('fund.total_raised','Total raised') + ': ' + camp.raised + ' ' + camp.token + '\n' + t('fund.fee','Fee') + ' (' + fee + '%): ' + feeAmount.toFixed(2) + ' ' + camp.token + '\n' + t('fund.creator_receives','Creator receives') + ': ' + creatorAmount.toFixed(2) + ' ' + camp.token + '\n\n' + t('common.confirm_proceed','Proceed?'));
         if (!confirmed) return;
-        
-        // 수수료 기록
-        if (feeAmount > 0) {
-            await db.collection('platform_fees').add({
-                campaignId: id, amount: feeAmount, token: camp.token,
-                type: 'campaign_close', timestamp: new Date()
-            });
-        }
-        
-        await db.collection('campaigns').doc(id).update({ status: 'closed', closedAt: new Date() });
+        await _mpPatch('/api/marketplace/campaigns/' + id, { status: 'closed' });
         showToast('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + camp.title + '" ' + t('fund.campaign_closed','Campaign closed!') + ' ' + creatorAmount.toFixed(2) + ' ' + camp.token + ' ' + t('fund.received','received'), 'success');
         loadCampaigns();
         // 모달 닫기
@@ -1935,23 +1719,20 @@ async function closeCampaign(id) {
 
 async function showCampaignDetail(id) {
     try {
-        const doc = await db.collection('campaigns').doc(id).get();
-        if (!doc.exists) return;
-        const camp = doc.data();
+        const campRes = await _mpGet('/api/marketplace/campaigns/' + id);
+        const camp = campRes.item;
+        if (!camp) return;
         const pct = Math.min(100, Math.round((camp.raised / camp.goal) * 100));
         const isCreator = currentUser?.uid === camp.creatorId;
-        
+
         // 후원자 목록 로드
-        const donorDocs = await db.collection('transactions')
-            .where('campaignId', '==', id)
-            .where('type', '==', 'donation')
-            .orderBy('timestamp', 'desc').limit(50).get();
-        
+        const txRes = await _mpGet('/api/marketplace/transactions?campaignId=' + id + '&type=donation');
+        const donorTxs = txRes.items || txRes;
+
         let donorList = '';
-        if (!donorDocs.empty) {
-            donorDocs.forEach(d => {
-                const tx = d.data();
-                const dateStr = tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleDateString('ko-KR') : '-';
+        if (donorTxs.length > 0) {
+            donorTxs.forEach(tx => {
+                const dateStr = tx.timestamp ? new Date(tx.timestamp).toLocaleDateString('ko-KR') : '-';
                 donorList += `<div style="display:flex; justify-content:space-between; padding:0.4rem 0; border-bottom:1px solid #F7F3ED; font-size:0.82rem;">
                     <span style="color:var(--accent);">${dateStr}</span>
                     <span style="font-weight:600;">${tx.amount} ${tx.token}</span>
@@ -1960,7 +1741,7 @@ async function showCampaignDetail(id) {
         } else {
             donorList = `<p style="color:var(--accent); font-size:0.85rem;">${t('fund.no_donors','No donors yet')}</p>`;
         }
-        
+
         const fee = camp.platformFee || 2.5;
         const content = document.getElementById('campaign-detail-content');
         content.innerHTML = `
@@ -1983,9 +1764,9 @@ async function showCampaignDetail(id) {
             </div>
             <button onclick="donateCampaign('${id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:0.8rem;"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.donate_btn','Donate')}</button>
             ${isCreator && camp.status === 'active' ? `<button onclick="closeCampaign('${id}')" style="background:#e53935; color:#FFF8F0; border:none; padding:0.7rem; border-radius:8px; cursor:pointer; width:100%; font-weight:700; margin-bottom:1rem;"><i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('fund.close_and_receive','Close campaign & receive funds')}</button>` : ''}
-            <h4 style="margin-bottom:0.5rem;">${t('fund.donor_list','Donor list')} (${donorDocs.size}${t('common.count_people','')})</h4>
+            <h4 style="margin-bottom:0.5rem;">${t('fund.donor_list','Donor list')} (${donorTxs.length}${t('common.count_people','')})</h4>
             ${donorList}`;
-        
+
         const modal = document.getElementById('campaign-detail-modal');
         modal.style.display = 'flex';
         modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
@@ -1997,23 +1778,8 @@ async function showCampaignDetail(id) {
 async function addToCart(productId) {
     if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
     try {
-        // Check if already in cart
-        const existing = await db.collection('users').doc(currentUser.uid).collection('cart').where('productId','==',productId).limit(1).get();
-        if (!existing.empty) {
-            // Increment quantity
-            const cartDoc = existing.docs[0];
-            await cartDoc.ref.update({ qty: (cartDoc.data().qty || 1) + 1 });
-            showToast(`<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.qty_updated','Quantity updated')}`, 'success');
-        } else {
-            const pDoc = await db.collection('products').doc(productId).get();
-            if (!pDoc.exists) return;
-            const p = pDoc.data();
-            await db.collection('users').doc(currentUser.uid).collection('cart').add({
-                productId, title: p.title, price: p.price, token: p.token || 'CRGC',
-                imageData: p.imageData || '', qty: 1, addedAt: new Date()
-            });
-            showToast('<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + p.title + '" ' + t('mall.added_to_cart','added to cart'), 'success');
-        }
+        const result = await _mpPost('/api/marketplace/cart', { productId });
+        showToast('<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + (result.message || t('mall.added_to_cart','added to cart')), 'success');
         updateCartBadge();
     } catch(e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
@@ -2022,9 +1788,10 @@ async function updateCartBadge() {
     const badge = document.getElementById('cart-badge');
     if (!badge || !currentUser) return;
     try {
-        const snap = await db.collection('users').doc(currentUser.uid).collection('cart').get();
+        const cartRes = await _mpGet('/api/marketplace/cart');
+        const items = cartRes.items || cartRes;
         let total = 0;
-        snap.forEach(d => total += (d.data().qty || 1));
+        items.forEach(item => total += (item.qty || 1));
         if (total > 0) { badge.textContent = total; badge.style.display = 'block'; }
         else { badge.style.display = 'none'; }
     } catch(e) { badge.style.display = 'none'; }
@@ -2037,16 +1804,16 @@ async function loadCart() {
     if (!currentUser) { c.innerHTML = `<p style="color:var(--accent); text-align:center;">${t('common.login_required','Login required')}</p>`; if(summary) summary.style.display='none'; return; }
     c.innerHTML = `<p style="text-align:center; color:var(--accent);">${t('common.loading','Loading...')}</p>`;
     try {
-        const snap = await db.collection('users').doc(currentUser.uid).collection('cart').orderBy('addedAt','desc').get();
-        if (snap.empty) {
+        const cartRes = await _mpGet('/api/marketplace/cart');
+        const items = cartRes.items || cartRes;
+        if (items.length === 0) {
             c.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--accent);"><div style="font-size:3rem; margin-bottom:1rem;"><i data-lucide="shopping-cart"></i></div><p>${t('mall.cart_empty','Your cart is empty')}</p><button onclick="showPage('mall')" style="margin-top:1rem; background:#3D2B1F; color:#FFF8F0; border:none; padding:0.7rem 1.5rem; border-radius:8px; cursor:pointer;">${t('mall.go_shopping','Go shopping')}</button></div>`;
             if(summary) summary.style.display='none';
             return;
         }
         let total = 0;
         c.innerHTML = '';
-        snap.forEach(d => {
-            const item = d.data();
+        items.forEach(item => {
             const subtotal = item.price * (item.qty || 1);
             total += subtotal;
             c.innerHTML += `<div style="background:#FFF8F0; padding:0.8rem; border-radius:10px; margin-bottom:0.6rem; display:flex; gap:0.8rem; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
@@ -2057,10 +1824,10 @@ async function loadCart() {
                     <div style="font-weight:600; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.title}</div>
                     <div style="color:#3D2B1F; font-weight:700; font-size:0.85rem;">${item.price} CRGC</div>
                     <div style="display:flex; align-items:center; gap:0.5rem; margin-top:0.3rem;">
-                        <button onclick="updateCartQty('${d.id}', -1)" style="width:26px; height:26px; border:1px solid #E8E0D8; border-radius:4px; background:#FFF8F0; cursor:pointer; font-size:0.9rem;">−</button>
+                        <button onclick="updateCartQty('${item.id}', -1)" style="width:26px; height:26px; border:1px solid #E8E0D8; border-radius:4px; background:#FFF8F0; cursor:pointer; font-size:0.9rem;">−</button>
                         <span style="font-weight:600; min-width:20px; text-align:center;">${item.qty || 1}</span>
-                        <button onclick="updateCartQty('${d.id}', 1)" style="width:26px; height:26px; border:1px solid #E8E0D8; border-radius:4px; background:#FFF8F0; cursor:pointer; font-size:0.9rem;">+</button>
-                        <button onclick="removeFromCart('${d.id}')" style="background:none; border:none; cursor:pointer; color:#B54534; font-size:0.85rem; margin-left:auto;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
+                        <button onclick="updateCartQty('${item.id}', 1)" style="width:26px; height:26px; border:1px solid #E8E0D8; border-radius:4px; background:#FFF8F0; cursor:pointer; font-size:0.9rem;">+</button>
+                        <button onclick="removeFromCart('${item.id}')" style="background:none; border:none; cursor:pointer; color:#B54534; font-size:0.85rem; margin-left:auto;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
                     </div>
                 </div>
             </div>`;
@@ -2075,12 +1842,7 @@ async function loadCart() {
 async function updateCartQty(cartDocId, delta) {
     if (!currentUser) return;
     try {
-        const ref = db.collection('users').doc(currentUser.uid).collection('cart').doc(cartDocId);
-        const doc = await ref.get();
-        if (!doc.exists) return;
-        const newQty = (doc.data().qty || 1) + delta;
-        if (newQty <= 0) { await ref.delete(); }
-        else { await ref.update({ qty: newQty }); }
+        await _mpPatch('/api/marketplace/cart/' + cartDocId, { delta });
         loadCart(); updateCartBadge();
     } catch(e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
@@ -2088,7 +1850,7 @@ async function updateCartQty(cartDocId, delta) {
 async function removeFromCart(cartDocId) {
     if (!currentUser) return;
     try {
-        await db.collection('users').doc(currentUser.uid).collection('cart').doc(cartDocId).delete();
+        await _mpDelete('/api/marketplace/cart/' + cartDocId);
         showToast(t('mall.removed_from_cart','Removed from cart'), 'info');
         loadCart(); updateCartBadge();
     } catch(e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -2102,71 +1864,22 @@ async function checkoutCart(btn) {
     if (_orderInProgress) { showToast(t('mall.order_in_progress','Order is being processed. Please wait.'), 'warning'); return; }
     _orderInProgress = true;
     try {
-        const snap = await db.collection('users').doc(currentUser.uid).collection('cart').get();
-        if (snap.empty) { showToast(t('mall.cart_empty','Your cart is empty'), 'warning'); return; }
+        const cartRes2 = await _mpGet('/api/marketplace/cart');
+        const items = cartRes2.items || cartRes2;
+        if (items.length === 0) { showToast(t('mall.cart_empty','Your cart is empty'), 'warning'); return; }
         let total = 0;
-        const items = [];
-        snap.forEach(d => { const it = d.data(); total += it.price * (it.qty || 1); items.push({ ...it, cartDocId: d.id }); });
-        
+        items.forEach(it => { total += it.price * (it.qty || 1); });
+
         if (total <= 0 || !Number.isFinite(total)) { showToast(t('mall.invalid_price','Invalid price'), 'error'); return; }
         if (total > MAX_ORDER_AMOUNT) { showToast(t('mall.max_order_exceeded',`Maximum order amount is ${MAX_ORDER_AMOUNT} CRGC`), 'warning'); return; }
         if (!await showConfirmModal(t('mall.checkout','Checkout'), `${t('mall.cart_items','Cart items')}: ${items.length}\n${t('mall.total','Total')}: ${total} CRGC — ${t('common.confirm_proceed','Proceed?')}`)) return;
-        
+
         const shippingInfo = await showShippingModal();
         if (!shippingInfo) return;
-        
-        const tk = 'crgc';
-        
-        // 트랜잭션으로 잔액 확인 + 차감
-        await db.runTransaction(async (tx) => {
-            const buyerDoc = await tx.get(db.collection('users').doc(currentUser.uid));
-            const buyerBal = buyerDoc.data()?.offchainBalances || {};
-            if ((buyerBal[tk] || 0) < total) throw new Error(t('mall.insufficient_balance','Insufficient balance'));
-            tx.update(db.collection('users').doc(currentUser.uid), {
-                [`offchainBalances.${tk}`]: (buyerBal[tk] || 0) - total
-            });
-        });
 
-        // Process each item (seller payment + order creation)
-        for (const item of items) {
-            const pDoc = await db.collection('products').doc(item.productId).get();
-            if (!pDoc.exists) continue;
-            const p = pDoc.data();
-            const qty = item.qty || 1;
-            const subtotal = item.price * qty;
-            
-            // 재고 재확인 + 판매자 지급
-            await db.runTransaction(async (tx) => {
-                const prodDoc = await tx.get(db.collection('products').doc(item.productId));
-                const pNow = prodDoc.data();
-                if ((pNow.stock - (pNow.sold||0)) < qty) throw new Error('"' + item.title + '" ' + t('mall.out_of_stock','out of stock'));
-                tx.update(db.collection('products').doc(item.productId), { sold: (pNow.sold||0) + qty });
-                
-                const sellerDoc = await tx.get(db.collection('users').doc(p.sellerId));
-                const sellerBal = sellerDoc.data()?.offchainBalances || {};
-                tx.update(db.collection('users').doc(p.sellerId), {
-                    [`offchainBalances.${tk}`]: (sellerBal[tk] || 0) + subtotal
-                });
-            });
-            
-            await db.collection('orders').add({
-                productId: item.productId, productTitle: item.title, productImage: getProductThumb(p),
-                buyerId: currentUser.uid, buyerEmail: currentUser.email,
-                sellerId: p.sellerId, sellerEmail: p.sellerEmail || '',
-                amount: subtotal, qty, token: 'CRGC', status: 'paid', shippingInfo,
-                statusHistory:[{status:'paid', at:new Date().toISOString()}], createdAt: new Date()
-            });
-            
-            // 판매자 알림
-            if (typeof createNotification === 'function') {
-                await createNotification(p.sellerId, 'order_status', { message: `<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.new_order','New order!')} "${item.title}" (${subtotal} CRGC)`, link: '#page=my-shop' });
-            }
-            
-            if (typeof autoGivingPoolContribution === 'function') await autoGivingPoolContribution(subtotal);
-            if (typeof distributeReferralReward === 'function') await distributeReferralReward(currentUser.uid, subtotal, 'CRGC');
-            await db.collection('users').doc(currentUser.uid).collection('cart').doc(item.cartDocId).delete();
-        }
-        showToast('<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + items.length + ' ' + t('mall.items_checkout_done','items checkout complete!'), 'success');
+        // Server handles balance check, deduction, seller payment, order creation, cart clearing
+        const result = await _mpPost('/api/marketplace/cart/checkout', { shippingInfo });
+        showToast('<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + (result.orderCount || items.length) + ' ' + t('mall.items_checkout_done','items checkout complete!'), 'success');
         loadCart(); updateCartBadge(); loadUserWallet();
     } catch(e) { showToast(t('mall.checkout_fail','Checkout failed') + ': ' + e.message, 'error'); } finally { _orderInProgress = false; }
 }
@@ -2176,24 +1889,11 @@ async function checkoutCart(btn) {
 async function toggleWishlist(productId) {
     if (!currentUser) { showToast(t('common.login_required','Login required'), 'warning'); return; }
     try {
-        const ref = db.collection('users').doc(currentUser.uid).collection('wishlist');
-        const existing = await ref.where('productId','==',productId).limit(1).get();
-        if (!existing.empty) {
-            await existing.docs[0].ref.delete();
+        const result = await _mpPost('/api/marketplace/wishlist/toggle', { productId });
+        if (result.action === 'removed') {
             showToast(t('mall.wishlist_removed','Removed from wishlist'), 'info');
-            const btn = document.getElementById(`wish-btn-${productId}`);
-            if (btn) btn.textContent = '<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>';
         } else {
-            const pDoc = await db.collection('products').doc(productId).get();
-            if (!pDoc.exists) return;
-            const p = pDoc.data();
-            await ref.add({
-                productId, title: p.title, price: p.price, token: p.token || 'CRGC',
-                imageData: p.imageData || '', addedAt: new Date()
-            });
-            showToast('<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + p.title + '" ' + t('mall.wishlisted','added to wishlist'), 'success');
-            const btn = document.getElementById(`wish-btn-${productId}`);
-            if (btn) btn.textContent = '<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>';
+            showToast('<i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + (result.title ? '"' + result.title + '" ' : '') + t('mall.wishlisted','added to wishlist'), 'success');
         }
     } catch(e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
@@ -2204,14 +1904,14 @@ async function loadWishlist() {
     if (!currentUser) { c.innerHTML = `<p style="color:var(--accent); text-align:center;">${t('common.login_required','Login required')}</p>`; return; }
     c.innerHTML = `<p style="text-align:center; color:var(--accent);">${t('common.loading','Loading...')}</p>`;
     try {
-        const snap = await db.collection('users').doc(currentUser.uid).collection('wishlist').orderBy('addedAt','desc').get();
-        if (snap.empty) {
+        const wlRes = await _mpGet('/api/marketplace/wishlist');
+        const items = wlRes.items || wlRes;
+        if (items.length === 0) {
             c.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--accent);"><div style="font-size:3rem; margin-bottom:1rem;"><i data-lucide="heart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></div><p>${t('mall.wishlist_empty','No wishlist items')}</p></div>`;
             return;
         }
         c.innerHTML = '';
-        snap.forEach(d => {
-            const item = d.data();
+        items.forEach(item => {
             c.innerHTML += `<div style="background:#FFF8F0; padding:0.8rem; border-radius:10px; margin-bottom:0.6rem; display:flex; gap:0.8rem; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,0.06); cursor:pointer;" onclick="viewProduct('${item.productId}')">
                 <div style="width:60px; height:60px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#F7F3ED; display:flex; align-items:center; justify-content:center;">
                     ${item.imageData ? `<img src="${item.imageData}" loading="lazy" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size:1.5rem; color:#E8E0D8;"><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></span>'}
@@ -2255,22 +1955,21 @@ async function renderStorePage(sellerId) {
     if (!c) return;
     c.innerHTML = `<p style="text-align:center; color:var(--accent); padding:2rem;">${t('common.loading','Loading...')}</p>`;
     try {
-        const sellerDoc = await db.collection('users').doc(sellerId).get();
-        const seller = sellerDoc.exists ? sellerDoc.data() : {};
+        const storeData = await _mpGet('/api/marketplace/store/' + sellerId);
+        const seller = storeData.seller || {};
         const storeName = seller.storeName || seller.nickname || seller.email?.split('@')[0] || t('mall.seller','Seller');
         const storeDesc = seller.storeDesc || '';
         const storeImage = seller.storeImage || seller.profileImage || '';
         const isOwner = currentUser?.uid === sellerId;
 
-        // Load seller products
-        const prodDocs = await db.collection('products').where('sellerId', '==', sellerId).where('status', '==', 'active').orderBy('createdAt', 'desc').limit(50).get();
+        // Products from server
+        const prodItems = storeData.products || [];
         let totalSold = 0;
         let productsHtml = '';
-        prodDocs.forEach(d => {
-            const p = d.data();
+        prodItems.forEach(p => {
             totalSold += (p.sold || 0);
             const thumb = getProductThumb(p);
-            productsHtml += `<div onclick="viewProduct('${d.id}')" style="background:#FFF8F0; border-radius:10px; overflow:hidden; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+            productsHtml += `<div onclick="viewProduct('${p.id}')" style="background:#FFF8F0; border-radius:10px; overflow:hidden; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
                 <div style="height:130px; overflow:hidden; background:#F7F3ED;">${thumb ? `<img src="${thumb}" loading="lazy" style="width:100%; height:100%; object-fit:cover;">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#E8E0D8;"><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></div>`}</div>
                 <div style="padding:0.5rem;">
                     <div style="font-weight:600; font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.title}</div>
@@ -2279,9 +1978,7 @@ async function renderStorePage(sellerId) {
             </div>`;
         });
 
-        // Seller avg rating from reviews
-        const orderDocs = await db.collection('orders').where('sellerId', '==', sellerId).get();
-        let orderCount = orderDocs.size;
+        let orderCount = storeData.orderCount || 0;
 
         c.innerHTML = `
             <button onclick="showPage('mall')" style="background:none; border:none; font-size:1rem; cursor:pointer; margin-bottom:0.8rem; color:var(--accent);">← ${t('mall.back_to_list','Back to list')}</button>
@@ -2294,7 +1991,7 @@ async function renderStorePage(sellerId) {
                         <h2 style="margin:0; font-size:1.3rem;">${storeName}</h2>
                         ${storeDesc ? `<p style="color:var(--accent); font-size:0.85rem; margin-top:0.3rem;">${storeDesc}</p>` : ''}
                         <div style="display:flex; gap:1rem; margin-top:0.5rem; font-size:0.8rem; color:var(--accent);">
-                            <span><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.products','Products')} ${prodDocs.size}${t('common.count_items','')}</span>
+                            <span><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.products','Products')} ${prodItems.length}${t('common.count_items','')}</span>
                             <span><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.total_sold','Total sold')} ${totalSold}${t('common.count_items','')}</span>
                             <span><i data-lucide="clipboard-list" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.orders','Orders')} ${orderCount}${t('common.count_items','')}</span>
                         </div>
@@ -2311,8 +2008,7 @@ async function renderStorePage(sellerId) {
 
 async function showStoreSettingsModal() {
     if (!currentUser) return;
-    const userDoc = await db.collection('users').doc(currentUser.uid).get();
-    const data = userDoc.data() || {};
+    const data = await _mpGet('/api/marketplace/store-settings');
 
     const overlay = document.createElement('div');
     overlay.id = 'store-settings-modal';
@@ -2351,7 +2047,7 @@ async function saveStoreSettings() {
         if (imageFile) {
             updateData.storeImage = await fileToBase64Resized(imageFile, 400);
         }
-        await db.collection('users').doc(currentUser.uid).update(updateData);
+        await _mpPost('/api/marketplace/store-settings', updateData);
         showToast(t('mall.store_settings_saved','Store settings saved!'), 'success');
         document.getElementById('store-settings-modal')?.remove();
         renderStorePage(currentUser.uid);
@@ -2365,35 +2061,33 @@ async function loadMyShopDashboard() {
     if (!c || !currentUser) { if(c) c.innerHTML = `<p style="text-align:center; color:var(--accent);">${t('common.login_required','Login required')}</p>`; return; }
     c.innerHTML = `<p style="text-align:center; color:var(--accent);">${t('common.loading','Loading...')}</p>`;
     try {
-        // Load my products
-        const prodDocs = await db.collection('products').where('sellerId', '==', currentUser.uid).orderBy('createdAt', 'desc').limit(50).get();
-        // Load seller orders
-        const orderDocs = await db.collection('orders').where('sellerId', '==', currentUser.uid).orderBy('createdAt', 'desc').limit(50).get();
+        // Load my products and orders from server
+        const shopData = await _mpGet('/api/marketplace/store/' + currentUser.uid);
+        const prodItems = shopData.products || [];
+        const orderItems = shopData.orders || [];
 
         let totalRevenue = 0, monthlyRevenue = 0, totalOrders = 0;
         const now = new Date();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        orderDocs.forEach(d => {
-            const o = d.data();
+        orderItems.forEach(o => {
             totalRevenue += o.amount || 0;
             totalOrders++;
-            const oDate = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+            const oDate = new Date(o.createdAt);
             if (oDate >= monthStart) monthlyRevenue += o.amount || 0;
         });
 
         // Products list
         let productsHtml = '';
-        prodDocs.forEach(d => {
-            const p = d.data();
+        prodItems.forEach(p => {
             const remaining = p.stock - (p.sold || 0);
             const statusBadge = p.status === 'active' ? `<span style="color:#5B7B8C; font-size:0.7rem;">● ${t('mall.status_active','Active')}</span>` : `<span style="color:#6B5744; font-size:0.7rem;">● ${t('mall.status_inactive','Inactive')}</span>`;
             productsHtml += `<div style="padding:0.6rem; background:var(--bg); border-radius:8px; margin-bottom:0.4rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.3rem;">
                     <div><strong>${p.title}</strong> — ${p.price} CRGC · ${t('mall.sold','Sold')} ${p.sold||0}/${p.stock} · ${t('mall.stock','Stock')} ${remaining} ${statusBadge}</div>
                     <div style="display:flex; gap:0.3rem;">
-                        <button onclick="editProductModal('${d.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.edit','Edit')}</button>
-                        <button onclick="toggleProduct('${d.id}','${p.status}')" style="background:${p.status==='active'?'#6B5744':'#5B7B8C'}; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${p.status==='active'?'<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>':'▶'}</button>
-                        <button onclick="deleteProduct('${d.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
+                        <button onclick="editProductModal('${p.id}')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.edit','Edit')}</button>
+                        <button onclick="toggleProduct('${p.id}','${p.status}')" style="background:${p.status==='active'?'#6B5744':'#5B7B8C'}; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">${p.status==='active'?'<i data-lucide="pause" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>':'▶'}</button>
+                        <button onclick="deleteProduct('${p.id}')" style="background:#B54534; color:#FFF8F0; border:none; padding:0.25rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></button>
                     </div>
                 </div>
             </div>`;
@@ -2401,13 +2095,12 @@ async function loadMyShopDashboard() {
 
         // Orders list
         let ordersHtml = '';
-        orderDocs.forEach(d => {
-            const o = d.data();
+        orderItems.forEach(o => {
             const statusLabel = ORDER_STATUS_LABELS[o.status] || o.status;
             const statusColor = ORDER_STATUS_COLORS[o.status] || 'var(--accent)';
             const nextActions = [];
-            if (o.status === 'paid') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','shipping')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem;"><i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.ship','Ship')}</button>`);
-            if (o.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${d.id}','delivered')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.complete','Complete')}</button>`);
+            if (o.status === 'paid') nextActions.push(`<button onclick="updateOrderStatus('${o.id}','shipping')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem;"><i data-lucide="truck" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.ship','Ship')}</button>`);
+            if (o.status === 'shipping') nextActions.push(`<button onclick="updateOrderStatus('${o.id}','delivered')" style="background:#5B7B8C; color:#FFF8F0; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.complete','Complete')}</button>`);
             const shipInfo = o.shippingInfo ? `<div style="font-size:0.65rem; color:#6B5744;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${o.shippingInfo.name} · ${o.shippingInfo.phone} · ${o.shippingInfo.address}</div>` : '';
             ordersHtml += `<div style="padding:0.5rem; background:var(--bg); border-radius:6px; margin-bottom:0.3rem; font-size:0.8rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.2rem;">
@@ -2447,7 +2140,7 @@ async function loadMyShopDashboard() {
             
             <!-- 내 상품 -->
             <div style="background:#FFF8F0; padding:1.2rem; border-radius:12px; margin-bottom:1rem;">
-                <h3 style="margin-bottom:0.8rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.my_products','My products')} (${prodDocs.size})</h3>
+                <h3 style="margin-bottom:0.8rem;"><i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.my_products','My products')} (${prodItems.length})</h3>
                 ${productsHtml || `<p style="color:var(--accent); font-size:0.85rem;">${t('mall.no_products','No products registered')}</p>`}
             </div>
             
@@ -2462,9 +2155,9 @@ async function loadMyShopDashboard() {
 // ========== PRODUCT EDIT MODAL (Enhanced) ==========
 
 async function editProductModal(id) {
-    const doc = await db.collection('products').doc(id).get();
-    if (!doc.exists) return;
-    const p = doc.data();
+    const pData = await _mpGet('/api/marketplace/products/' + id);
+    const p = pData.item;
+    if (!p) return;
 
     const overlay = document.createElement('div');
     overlay.id = 'edit-product-modal';
@@ -2531,22 +2224,7 @@ async function saveEditProduct(id) {
             updateData.images = images;
             updateData.imageData = images[0];
         }
-        await db.collection('products').doc(id).update(updateData);
-        // 가격 변동 시 위시리스트 사용자에게 알림
-        if (typeof createNotification === 'function') {
-            const oldDoc = await db.collection('products').doc(id).get();
-            // Already updated, check if price changed by looking at updateData vs title (price already written)
-            // We notify all wishlist holders
-            try {
-                const wishSnap = await db.collectionGroup('wishlist').where('productId', '==', id).get();
-                wishSnap.forEach(async (wDoc) => {
-                    const userId = wDoc.ref.parent.parent.id;
-                    if (userId !== currentUser.uid) {
-                        await createNotification(userId, 'order_status', { message: '<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.wishlist_price_changed','Wishlisted product price changed') + ': "' + updateData.title + '" → ' + updateData.price + ' CRGC', link: '#page=product-detail&id=' + id });
-                    }
-                });
-            } catch(e) { /* collectionGroup may need index */ }
-        }
+        await _mpPatch('/api/marketplace/products/' + id, updateData);
         showToast(t('mall.edit_done','<i data-lucide="edit" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Product updated'), 'success');
         document.getElementById('edit-product-modal')?.remove();
         if (typeof loadMyShopDashboard === 'function') loadMyShopDashboard();
@@ -2561,8 +2239,9 @@ async function showShippingModal() {
     let lastAddr = {};
     if (currentUser) {
         try {
-            const addrSnap = await db.collection('users').doc(currentUser.uid).collection('addresses').orderBy('usedAt', 'desc').limit(1).get();
-            if (!addrSnap.empty) lastAddr = addrSnap.docs[0].data();
+            const addrRes = await _mpGet('/api/marketplace/addresses');
+            const addrs = addrRes.items || addrRes;
+            if (addrs.length > 0) lastAddr = addrs[0];
         } catch(e) { console.warn("[catch]", e); }
     }
 
@@ -2599,7 +2278,7 @@ async function showShippingModal() {
             // Save address if checked
             if (document.getElementById('ship-save').checked && currentUser) {
                 try {
-                    await db.collection('users').doc(currentUser.uid).collection('addresses').add({ ...info, usedAt: new Date() });
+                    await _mpPost('/api/marketplace/addresses', info);
                 } catch(e) { console.warn("[catch]", e); }
             }
             document.body.removeChild(overlay);
@@ -2638,9 +2317,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function helpfulReview(reviewId) {
     if (!currentUser) { showToast(t('common.login_required','Login required'),'warning'); return; }
     try {
-        await db.collection('product_reviews').doc(reviewId).update({
-            helpful: firebase.firestore.FieldValue.increment(1)
-        });
+        await _mpPost('/api/marketplace/reviews/' + reviewId + '/helpful', {});
         showToast(`<i data-lucide="thumbs-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('common.thanks','Thank you!')}`,'success');
     } catch(e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
 }
@@ -2652,20 +2329,20 @@ async function loadBuyerOrders() {
     if (!c || !currentUser) return;
     c.innerHTML = `<p style="text-align:center; color:var(--accent); padding:2rem;">${t('common.loading','Loading...')}</p>`;
     try {
-        const snap = await db.collection('orders').where('buyerId','==',currentUser.uid).orderBy('createdAt','desc').limit(30).get();
-        if (snap.empty) {
+        const ordRes = await _mpGet('/api/marketplace/orders?buyerId=' + currentUser.uid);
+        const orders = ordRes.items || ordRes;
+        if (orders.length === 0) {
             c.innerHTML = `<button onclick="showPage('mall')" style="background:none;border:none;font-size:1rem;cursor:pointer;margin-bottom:0.8rem;color:var(--accent);">← ${t('mall.back_to_mall','Mall')}</button>
                 <div style="text-align:center;padding:3rem;color:var(--accent);"><div style="font-size:3rem;margin-bottom:1rem;"><i data-lucide="clipboard-list" style="width:48px;height:48px;"></i></div><p>${t('mall.no_orders','No orders yet')}</p></div>`;
             return;
         }
         let listHtml = '';
-        snap.forEach(d => {
-            const o = d.data();
+        orders.forEach(o => {
             const statusLabel = ORDER_STATUS_LABELS[o.status] || o.status;
             const statusColor = ORDER_STATUS_COLORS[o.status] || 'var(--accent)';
             const thumb = o.productImage || '';
-            const dateStr = o.createdAt?.toDate ? o.createdAt.toDate().toLocaleDateString('ko-KR') : '';
-            listHtml += `<div onclick="showOrderDetail('${d.id}')" style="background:#FFF8F0;padding:0.8rem;border-radius:10px;margin-bottom:0.6rem;display:flex;gap:0.8rem;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,0.06);cursor:pointer;">
+            const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleDateString('ko-KR') : '';
+            listHtml += `<div onclick="showOrderDetail('${o.id}')" style="background:#FFF8F0;padding:0.8rem;border-radius:10px;margin-bottom:0.6rem;display:flex;gap:0.8rem;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,0.06);cursor:pointer;">
                 <div style="width:60px;height:60px;border-radius:8px;overflow:hidden;flex-shrink:0;background:#F7F3ED;display:flex;align-items:center;justify-content:center;">
                     ${thumb ? `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;">` : '<span style="font-size:1.5rem;color:#E8E0D8;"><i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></span>'}
                 </div>
@@ -2686,9 +2363,8 @@ async function loadBuyerOrders() {
 
 async function showOrderDetail(orderId) {
     try {
-        const doc = await db.collection('orders').doc(orderId).get();
-        if (!doc.exists) return;
-        const o = doc.data();
+        const o = await _mpGet('/api/marketplace/orders/' + orderId);
+        if (!o) return;
         const statusLabel = ORDER_STATUS_LABELS[o.status] || o.status;
         const statusColor = ORDER_STATUS_COLORS[o.status] || 'var(--accent)';
 
@@ -2723,9 +2399,11 @@ async function showOrderDetail(orderId) {
 
         // Return status check
         let returnHtml = '';
-        const returnSnap = await db.collection('returns').where('orderId','==',orderId).limit(1).get();
-        if (!returnSnap.empty) {
-            const ret = returnSnap.docs[0].data();
+        const retRes2 = await _mpGet('/api/marketplace/returns?orderId=' + orderId);
+        const returnsList = retRes2.items || retRes2;
+        const hasReturn = returnsList.length > 0;
+        if (hasReturn) {
+            const ret = returnsList[0];
             const retStatus = {requested:'<i data-lucide="hourglass" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_requested','Return requested'),approved:'<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_approved_label','Return approved'),rejected:'<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_rejected_label','Return rejected'),completed:'<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.refund_complete','Refund complete')};
             const retColor = {requested:'#C4841D',approved:'#5B7B8C',rejected:'#B54534',completed:'#5B7B8C'};
             returnHtml = `<div style="background:${retColor[ret.status]}15;border-left:4px solid ${retColor[ret.status]};padding:0.8rem;border-radius:0 8px 8px 0;margin-bottom:1rem;">
@@ -2736,7 +2414,7 @@ async function showOrderDetail(orderId) {
 
         // Return button (delivered within 7 days, no existing return)
         let returnBtnHtml = '';
-        if (o.status === 'delivered' && returnSnap.empty) {
+        if (o.status === 'delivered' && !hasReturn) {
             const deliveredAt = o.deliveredAt?.toDate ? o.deliveredAt.toDate() : (historyMap.delivered ? new Date(historyMap.delivered) : null);
             if (deliveredAt && (Date.now() - deliveredAt.getTime()) < 7 * 86400000) {
                 returnBtnHtml = `<button onclick="requestReturn('${orderId}')" style="background:#B54534;color:#FFF8F0;border:none;padding:0.7rem;border-radius:8px;cursor:pointer;font-weight:600;width:100%;margin-bottom:0.5rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.request_return','Request return/refund')}</button>`;
@@ -2746,8 +2424,9 @@ async function showOrderDetail(orderId) {
         // Review button
         let reviewBtnHtml = '';
         if (o.status === 'delivered') {
-            const existingReview = await db.collection('product_reviews').where('productId','==',o.productId).where('buyerId','==',currentUser.uid).limit(1).get();
-            if (existingReview.empty) {
+            const revRes = await _mpGet('/api/marketplace/reviews?productId=' + o.productId + '&buyerId=' + currentUser.uid);
+            const existingReviews = revRes.items || revRes;
+            if (existingReviews.length === 0) {
                 reviewBtnHtml = `<button onclick="writeReview('${o.productId}')" style="background:#C4841D;color:#FFF8F0;border:none;padding:0.7rem;border-radius:8px;cursor:pointer;font-weight:600;width:100%;margin-bottom:0.5rem;"><i data-lucide="star" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.write_review','Write review')}</button>`;
             }
         }
@@ -2821,19 +2500,7 @@ async function requestReturn(orderId) {
             const reasonDetail = overlay.querySelector('#return-detail').value.trim();
             if (!reasonDetail) { showToast(t('mall.enter_reason','Please enter a reason'),'warning'); return; }
             try {
-                const orderDoc = await db.collection('orders').doc(orderId).get();
-                const order = orderDoc.data();
-                await db.collection('returns').add({
-                    orderId, productId: order.productId, productTitle: order.productTitle,
-                    buyerId: currentUser.uid, buyerEmail: currentUser.email,
-                    sellerId: order.sellerId, sellerEmail: order.sellerEmail,
-                    amount: order.amount, token: order.token || 'CRGC',
-                    reasonCategory, reasonDetail, status: 'requested', createdAt: new Date()
-                });
-                // 판매자 알림
-                if (typeof createNotification === 'function') {
-                    await createNotification(order.sellerId, 'order_status', { message: '<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + order.productTitle + '" ' + t('mall.return_request_received','return request received'), link: '#page=my-shop' });
-                }
+                await _mpPost('/api/marketplace/returns', { orderId, reasonCategory, reasonDetail });
                 showToast(`<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.return_submitted','Return request submitted')}`,'success');
                 overlay.remove();
                 document.getElementById('order-detail-modal')?.remove();
@@ -2848,12 +2515,12 @@ async function requestReturn(orderId) {
 async function loadSellerReturns() {
     if (!currentUser) return;
     try {
-        const snap = await db.collection('returns').where('sellerId','==',currentUser.uid).where('status','==','requested').orderBy('createdAt','desc').limit(20).get();
-        if (snap.empty) return '';
-        let html = '<div style="margin-top:1rem;"><h4 style="color:#B54534;margin-bottom:0.5rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_requests','Return requests') + ' ('+snap.size+')</h4>';
-        snap.forEach(d => {
-            const r = d.data();
-            const dateStr = r.createdAt?.toDate ? r.createdAt.toDate().toLocaleDateString('ko-KR') : '';
+        const retRes = await _mpGet('/api/marketplace/returns?sellerId=' + currentUser.uid + '&status=requested');
+        const returns = retRes.items || retRes;
+        if (returns.length === 0) return '';
+        let html = '<div style="margin-top:1rem;"><h4 style="color:#B54534;margin-bottom:0.5rem;"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('mall.return_requests','Return requests') + ' ('+returns.length+')</h4>';
+        returns.forEach(r => {
+            const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleDateString('ko-KR') : '';
             html += `<div style="background:#F7F3ED;padding:0.8rem;border-radius:8px;margin-bottom:0.5rem;border-left:4px solid #C4841D;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                     <div><strong>${r.productTitle}</strong> — ${r.amount} ${r.token}</div>
@@ -2861,8 +2528,8 @@ async function loadSellerReturns() {
                 </div>
                 <div style="font-size:0.8rem;color:#6B5744;margin:0.3rem 0;">${r.buyerEmail} · ${r.reasonCategory}: ${r.reasonDetail||''}</div>
                 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-                    <button onclick="approveReturn('${d.id}')" style="flex:1;background:#5B7B8C;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.8rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.approve_refund','Approve (refund)')}</button>
-                    <button onclick="rejectReturn('${d.id}')" style="flex:1;background:#B54534;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.8rem;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.reject','Reject')}</button>
+                    <button onclick="approveReturn('${r.id}')" style="flex:1;background:#5B7B8C;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.8rem;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.approve_refund','Approve (refund)')}</button>
+                    <button onclick="rejectReturn('${r.id}')" style="flex:1;background:#B54534;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.8rem;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.reject','Reject')}</button>
                 </div>
             </div>`;
         });
@@ -2874,39 +2541,7 @@ async function loadSellerReturns() {
 async function approveReturn(returnId) {
     if (!await showConfirmModal(t('mall.approve_return','Approve Return'),t('mall.confirm_refund','Approve return and process refund?'))) return;
     try {
-        const retDoc = await db.collection('returns').doc(returnId).get();
-        const ret = retDoc.data();
-        const tk = (ret.token || 'CRGC').toLowerCase();
-
-        // 원래 주문 금액 검증 후 트랜잭션으로 원자적 환불
-        await db.runTransaction(async (tx) => {
-            // 주문 원본 확인 — 환불 금액이 원래 주문 금액과 일치하는지 검증
-            const orderDoc = await tx.get(db.collection('orders').doc(ret.orderId));
-            if (!orderDoc.exists) throw new Error(t('mall.order_not_found','Original order not found'));
-            const order = orderDoc.data();
-            if (order.amount !== ret.amount) throw new Error(t('mall.refund_mismatch','Refund amount mismatch') + ': ' + ret.amount + ' vs ' + order.amount);
-            if (order.status === 'cancelled') throw new Error(t('mall.already_cancelled','Order already cancelled'));
-
-            if (typeof isOffchainToken === 'function' && isOffchainToken(tk)) {
-                const buyerDoc = await tx.get(db.collection('users').doc(ret.buyerId));
-                const buyerBal = buyerDoc.data()?.offchainBalances || {};
-                tx.update(db.collection('users').doc(ret.buyerId), {
-                    [`offchainBalances.${tk}`]: (buyerBal[tk]||0) + ret.amount
-                });
-                const sellerDoc = await tx.get(db.collection('users').doc(ret.sellerId));
-                const sellerBal = sellerDoc.data()?.offchainBalances || {};
-                tx.update(db.collection('users').doc(ret.sellerId), {
-                    [`offchainBalances.${tk}`]: Math.max(0, (sellerBal[tk]||0) - ret.amount)
-                });
-            }
-            tx.update(db.collection('returns').doc(returnId), { status:'completed', completedAt: new Date() });
-            tx.update(db.collection('orders').doc(ret.orderId), { status:'cancelled', cancelledAt: new Date(),
-                statusHistory: firebase.firestore.FieldValue.arrayUnion({status:'cancelled', at: new Date().toISOString(), reason:'return_refund'})
-            });
-        });
-        if (typeof createNotification === 'function') {
-            await createNotification(ret.buyerId, 'order_status', { message: '<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + ret.productTitle + '" ' + t('mall.return_approved_msg','return approved. Refund complete!'), link: '#page=buyer-orders' });
-        }
+        await _mpPost('/api/marketplace/returns/' + returnId + '/approve', {});
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.return_approved','Return approved and refund completed')}`,'success');
         loadSellerOrders();
     } catch(e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -2916,12 +2551,7 @@ async function rejectReturn(returnId) {
     const reason = await showPromptModal(t('mall.reject_reason','Rejection Reason'),t('mall.enter_reject_reason','Enter reason for rejection'),'');
     if (!reason) return;
     try {
-        const rDoc = await db.collection('returns').doc(returnId).get();
-        const ret = rDoc.data();
-        await db.collection('returns').doc(returnId).update({ status:'rejected', rejectReason: reason, rejectedAt: new Date() });
-        if (typeof createNotification === 'function') {
-            await createNotification(ret.buyerId, 'order_status', { message: '<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "' + ret.productTitle + '" ' + t('mall.return_rejected_msg','return was rejected. Reason') + ': ' + reason, link: '#page=buyer-orders' });
-        }
+        await _mpPost('/api/marketplace/returns/' + returnId + '/reject', { reason });
         showToast(t('mall.return_rejected','Return request rejected'),'info');
         loadSellerOrders();
     } catch(e) { showToast(t('common.fail','Failed') + ': ' + e.message, 'error'); }
@@ -2947,9 +2577,8 @@ async function renderBrandLanding(brand) {
         const icon = BRAND_ICONS[brand] || '<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>';
 
         // Fetch all products in this category
-        const snap = await db.collection('products').where('status','==','active').where('category','==',brand).orderBy('createdAt','desc').limit(50).get();
-        let items = [];
-        snap.forEach(d => items.push({id:d.id, ...d.data()}));
+        const prodRes = await _mpGet('/api/marketplace/products?status=active&category=' + encodeURIComponent(brand));
+        const items = prodRes.items || [];
 
         // Popular (top 4 by sold)
         const popular = [...items].sort((a,b) => (b.sold||0)-(a.sold||0)).slice(0,4);
@@ -3028,12 +2657,10 @@ async function reportProduct(productId) {
         document.body.appendChild(overlay);
         overlay.querySelector('#report-submit-btn').onclick = async () => {
             try {
-                await db.collection('reports').add({
+                await _mpPost('/api/marketplace/reports', {
                     targetType: 'product', targetId: productId,
-                    reporterId: currentUser.uid, reporterEmail: currentUser.email,
                     reason: overlay.querySelector('#report-reason').value,
-                    detail: overlay.querySelector('#report-detail').value.trim(),
-                    status: 'pending', createdAt: new Date()
+                    detail: overlay.querySelector('#report-detail').value.trim()
                 });
                 showToast(`<i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('mall.report_submitted','<i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Report submitted')}`, 'success');
                 overlay.remove(); resolve();
@@ -3077,12 +2704,10 @@ function _showReportModal(targetType, targetId, title) {
         document.body.appendChild(overlay);
         overlay.querySelector('#report-submit-gen').onclick = async () => {
             try {
-                await db.collection('reports').add({
+                await _mpPost('/api/marketplace/reports', {
                     targetType, targetId,
-                    reporterId: currentUser.uid, reporterEmail: currentUser.email,
                     reason: overlay.querySelector('#report-reason-gen').value,
-                    detail: overlay.querySelector('#report-detail-gen').value.trim(),
-                    status: 'pending', createdAt: new Date()
+                    detail: overlay.querySelector('#report-detail-gen').value.trim()
                 });
                 showToast(t('mall.report_submitted','<i data-lucide="alert-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Report submitted'), 'success');
                 overlay.remove(); resolve();
@@ -3140,11 +2765,11 @@ async function mallAutocomplete(query) {
     if (!query || query.length < 1) { showMallRecentSearches(); return; }
     
     try {
-        const snap = await db.collection('products').where('status', '==', 'active').orderBy('title').limit(100).get();
+        const prodRes2 = await _mpGet('/api/marketplace/products?status=active');
+        const products = prodRes2.items || [];
         const q = query.toLowerCase();
         const matches = [];
-        snap.forEach(d => {
-            const p = d.data();
+        products.forEach(p => {
             if (p.title.toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q) || (MALL_CATEGORIES[p.category]||'').toLowerCase().includes(q)) matches.push(p.title);
         });
         const unique = [...new Set(matches)].slice(0, 8);
@@ -3235,4 +2860,6516 @@ async function fileToBase64Resized(file, maxSize) {
     const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
     return resizeImage(dataUrl, maxSize);
 }
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+${min} ~ ${max === '10000' ? '∞' : max} CRGC`;
+}
+
+function applyMallFilters() {
+    _mallFilters.category = document.getElementById('mall-filter-category')?.value || '';
+    const minEl = document.getElementById('mall-filter-price-min');
+    const maxEl = document.getElementById('mall-filter-price-max');
+    _mallFilters.priceMin = (minEl && minEl.value !== '0') ? minEl.value : '';
+    _mallFilters.priceMax = (maxEl && maxEl.value !== '10000') ? maxEl.value : '';
+    _mallFilters.ratingMin = document.getElementById('mall-filter-rating')?.value || '';
+    _mallFilters.inStockOnly = document.getElementById('mall-filter-instock')?.checked || false;
+    loadMallProducts();
+}
+
+function resetMallFilters() {
+    _mallFilters = { category: '', priceMin: '', priceMax: '', ratingMin: '', inStockOnly: false };
+    const el = (id) => document.getElementById(id);
+    if (el('mall-filter-category')) el('mall-filter-category').value = '';
+    if (el('mall-filter-price-min')) el('mall-filter-price-min').value = '';
+    if (el('mall-filter-price-max')) el('mall-filter-price-max').value = '';
+    if (el('mall-filter-rating')) el('mall-filter-rating').value = '';
+    if (el('mall-filter-instock')) el('mall-filter-instock').checked = false;
+    loadMallProducts();
+}
+
+// 공통 이미지 리사이즈 유틸
+async function fileToBase64Resized(file, maxSize) {
+    const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+lse;
+    loadMallProducts();
+}
+
+// 공통 이미지 리사이즈 유틸
+async function fileToBase64Resized(file, maxSize) {
+    const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+lters.category = document.getElementById('mall-filter-category')?.value || '';
+    const minEl = document.getElementById('mall-filter-price-min');
+    const maxEl = document.getElementById('mall-filter-price-max');
+    _mallFilters.priceMin = (minEl && minEl.value !== '0') ? minEl.value : '';
+    _mallFilters.priceMax = (maxEl && maxEl.value !== '10000') ? maxEl.value : '';
+    _mallFilters.ratingMin = document.getElementById('mall-filter-rating')?.value || '';
+    _mallFilters.inStockOnly = document.getElementById('mall-filter-instock')?.checked || false;
+    loadMallProducts();
+}
+
+function resetMallFilters() {
+    _mallFilters = { category: '', priceMin: '', priceMax: '', ratingMin: '', inStockOnly: false };
+    const el = (id) => document.getElementById(id);
+    if (el('mall-filter-category')) el('mall-filter-category').value = '';
+    if (el('mall-filter-price-min')) el('mall-filter-price-min').value = '';
+    if (el('mall-filter-price-max')) el('mall-filter-price-max').value = '';
+    if (el('mall-filter-rating')) el('mall-filter-rating').value = '';
+    if (el('mall-filter-instock')) el('mall-filter-instock').checked = false;
+    loadMallProducts();
+}
+
+// 공통 이미지 리사이즈 유틸
+async function fileToBase64Resized(file, maxSize) {
+    const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+lse;
+    loadMallProducts();
+}
+
+// 공통 이미지 리사이즈 유틸
+async function fileToBase64Resized(file, maxSize) {
+    const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+rror = rej; r.readAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+lse;
+    loadMallProducts();
+}
+
+// 공통 이미지 리사이즈 유틸
+async function fileToBase64Resized(file, maxSize) {
+    const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+rror = rej; r.readAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+adAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+sult); r.onerror = rej; r.readAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+rror = rej; r.readAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+lse;
+    loadMallProducts();
+}
+
+// 공통 이미지 리사이즈 유틸
+async function fileToBase64Resized(file, maxSize) {
+    const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+rror = rej; r.readAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+adAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+xSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+adAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+xSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+axSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+adAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+xSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+adAsDataURL(file); });
+    return resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+urn resizeImage(dataUrl, maxSize);
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+xSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+xSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+taUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+taUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+taUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+taUrl, maxSize);
+}
+
+;
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+;
+}
+
+;
+}
+
+
+
+}
+
+;
+}
+
+Image(dataUrl, maxSize);
+}
+
+;
+}
+
+
+
+Size);
+}
+
+;
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+;
+}
+
+
+
+
+}
+
+
+
+}
+
+;
+}
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+}
+
+
+
 

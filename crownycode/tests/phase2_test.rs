@@ -5,10 +5,10 @@ use crownycode::pipeline::kps::{self, KpsKind};
 use crownycode::developer::profile::{DeveloperProfile, StepPriority};
 use crownycode::developer::store::DevStore;
 use crownycode::developer::level::DevLevel;
-use crownycode::cell::store::CellStore;
+use crownycode::cell::store::CrownyDb;
 
-fn temp_db() -> CellStore {
-    CellStore::open(&format!("/tmp/p2_{}.db", uuid::Uuid::new_v4())).unwrap()
+fn temp_db() -> CrownyDb {
+    CrownyDb::open(&format!("/tmp/p2_{}.db", uuid::Uuid::new_v4())).unwrap()
 }
 
 // ── use_count 분리 ────────────────────────────────────────────
@@ -16,32 +16,34 @@ fn temp_db() -> CellStore {
 #[test]
 fn test_use_count_increments() {
     let db = temp_db();
-    db.upsert_pattern("http_server", "python", "code", 0.9).unwrap();
-    let before = db.find_by_intent("http_server").unwrap().unwrap().use_count;
-    db.record_usage("http_server").unwrap();
-    db.record_usage("http_server").unwrap();
-    let after = db.find_by_intent("http_server").unwrap().unwrap().use_count;
+    db.cell_net_mut().upsert_pattern("http_server", "python", "code", 0.9);
+    let before = db.cell_net().find_by_intent("http_server").unwrap().activation_count;
+    db.cell_net_mut().record_usage("http_server");
+    db.cell_net_mut().record_usage("http_server");
+    let after = db.cell_net().find_by_intent("http_server").unwrap().activation_count;
     assert_eq!(after, before + 2);
 }
 
 #[test]
 fn test_use_count_independent_from_refutation() {
     let db = temp_db();
-    db.upsert_pattern("test_intent", "python", "code", 0.8).unwrap();
-    db.refute("test_intent", "버그").unwrap();
-    db.record_usage("test_intent").unwrap();
-    let cell = db.find_by_intent("test_intent").unwrap().unwrap();
+    db.cell_net_mut().upsert_pattern("test_intent", "python", "code", 0.8);
+    db.cell_net_mut().refute("test_intent");
+    db.cell_net_mut().record_usage("test_intent");
+    let net = db.cell_net();
+    let cell = net.find_by_intent("test_intent").unwrap();
     // 반박은 confidence를 낮추지만 use_count는 따로 유지
-    assert!(cell.confidence < 0.8);
-    assert_eq!(cell.use_count, 1);
+    assert!(cell.energy < 0.8);
+    assert_eq!(cell.activation_count, 1);
 }
 
 #[test]
 fn test_use_count_zero_on_new_cell() {
     let db = temp_db();
-    db.upsert_pattern("fresh_cell", "rust", "fn main(){}", 0.7).unwrap();
-    let cell = db.find_by_intent("fresh_cell").unwrap().unwrap();
-    assert_eq!(cell.use_count, 0);
+    db.cell_net_mut().upsert_pattern("fresh_cell", "rust", "fn main(){}", 0.7);
+    let net = db.cell_net();
+    let cell = net.find_by_intent("fresh_cell").unwrap();
+    assert_eq!(cell.activation_count, 0);
 }
 
 // ── 개발자 레벨 시스템 ────────────────────────────────────────

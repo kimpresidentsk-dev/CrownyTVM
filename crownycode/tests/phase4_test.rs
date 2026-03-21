@@ -4,11 +4,11 @@ use crownycode::pipeline::kps::{self, KpsKind};
 use crownycode::gateway::{is_free_country, country_name, FREE_COUNTRIES};
 use crownycode::gateway::quota::{QuotaManager, BASE_FREE_QUOTA};
 use crownycode::gateway::contribute::{ContributeManager, ContribStatus, BONUS_PER_CONTRIBUTION};
-use crownycode::cell::store::CellStore;
+use crownycode::cell::store::CrownyDb;
 use rusqlite::Connection;
 
-fn temp_db() -> CellStore {
-    CellStore::open(&format!("/tmp/p4_{}.db", uuid::Uuid::new_v4())).unwrap()
+fn temp_db() -> CrownyDb {
+    CrownyDb::open(&format!("/tmp/p4_{}.db", uuid::Uuid::new_v4())).unwrap()
 }
 
 fn mem_conn() -> Connection {
@@ -267,7 +267,7 @@ fn test_contribution_applies_to_celldb() {
 
     let applied = cm.apply_to_celldb(&db).unwrap();
     assert_eq!(applied, 1);
-    assert!(db.find_by_intent("json_parser").unwrap().is_some());
+    assert!(db.cell_net().find_by_intent("json_parser").is_some());
 }
 
 #[test]
@@ -276,7 +276,7 @@ fn test_contribution_skips_higher_confidence_existing() {
     let cm = ContributeManager::new(&conn);
     let db = temp_db();
 
-    db.upsert_pattern("http_server", "python", "premium_code", 0.99).unwrap();
+    db.cell_net_mut().upsert_pattern("http_server", "python", "premium_code", 0.99);
 
     cm.submit("dev1", "http_server", "python",
         "from flask import Flask  # basic version is long enough to be submitted").unwrap();
@@ -284,8 +284,9 @@ fn test_contribution_skips_higher_confidence_existing() {
     let applied = cm.apply_to_celldb(&db).unwrap();
     assert_eq!(applied, 0);
 
-    let cell = db.find_by_intent("http_server").unwrap().unwrap();
-    assert_eq!(cell.code, "premium_code", "기존 고품질 코드 보호됨");
+    let net = db.cell_net();
+    let cell = net.find_by_intent("http_server").unwrap();
+    assert_eq!(cell.best_pattern().unwrap().code, "premium_code", "기존 고품질 코드 보호됨");
 }
 
 #[test]

@@ -1,13 +1,13 @@
 // crownycode/tests/phase3_test.rs
 
-use crownycode::cell::store::CellStore;
+use crownycode::cell::store::CrownyDb;
 use crownycode::developer::store::DevStore;
 use crownycode::developer::profile::DeveloperProfile;
 use crownycode::developer::level::DevLevel;
 use crownycode::offline::snapshot;
 
-fn temp_db() -> CellStore {
-    let db = CellStore::open(&format!("/tmp/p3_{}.db", uuid::Uuid::new_v4())).unwrap();
+fn temp_db() -> CrownyDb {
+    let db = CrownyDb::open(&format!("/tmp/p3_{}.db", uuid::Uuid::new_v4())).unwrap();
     let ds = DevStore::new(db.connection());
     ds.init_schema().unwrap();
     db
@@ -21,7 +21,7 @@ fn temp_path() -> String {
 
 #[test]
 fn test_devstore_init_on_engine_new() {
-    // DevStore 스키마가 CellStore DB에 자동 생성되는지 확인
+    // DevStore 스키마가 CrownyDb DB에 자동 생성되는지 확인
     let db = temp_db();
     let ds = DevStore::new(db.connection());
     // 오류 없이 기본 개발자 생성 가능한지
@@ -32,13 +32,14 @@ fn test_devstore_init_on_engine_new() {
 #[test]
 fn test_use_count_and_record_request_independent() {
     let db = temp_db();
-    db.upsert_pattern("http_server", "python", "code", 0.9).unwrap();
+    db.cell_net_mut().upsert_pattern("http_server", "python", "code", 0.9);
 
     // use_count: 셀 사용 횟수
-    db.record_usage("http_server").unwrap();
-    db.record_usage("http_server").unwrap();
-    let cell = db.find_by_intent("http_server").unwrap().unwrap();
-    assert_eq!(cell.use_count, 2);
+    db.cell_net_mut().record_usage("http_server");
+    db.cell_net_mut().record_usage("http_server");
+    let net = db.cell_net();
+    let cell = net.find_by_intent("http_server").unwrap();
+    assert_eq!(cell.activation_count, 2);
 
     // record_request: 개발자 요청 횟수
     let ds = DevStore::new(db.connection());
@@ -106,9 +107,9 @@ fn test_profile_persist_and_reload() {
 #[test]
 fn test_snapshot_export_import_roundtrip() {
     let src = temp_db();
-    src.upsert_pattern("http_server", "python", "flask_app", 0.92).unwrap();
-    src.upsert_pattern("sort_fn",    "rust",   "sort_impl", 0.88).unwrap();
-    src.upsert_pattern("cli_tool",   "rust",   "clap_app",  0.75).unwrap();
+    src.cell_net_mut().upsert_pattern("http_server", "python", "flask_app", 0.92);
+    src.cell_net_mut().upsert_pattern("sort_fn",    "rust",   "sort_impl", 0.88);
+    src.cell_net_mut().upsert_pattern("cli_tool",   "rust",   "clap_app",  0.75);
 
     let path = temp_path();
     snapshot::export(&src, &path).unwrap();
@@ -117,15 +118,16 @@ fn test_snapshot_export_import_roundtrip() {
     let n = snapshot::import(&dst, &path).unwrap();
     assert_eq!(n, 3);
 
-    let cell = dst.find_by_intent("http_server").unwrap().unwrap();
-    assert_eq!(cell.target_lang, "python");
-    assert!((cell.confidence - 0.92).abs() < 0.02);
+    let net = dst.cell_net();
+    let cell = net.find_by_intent("http_server").unwrap();
+    assert_eq!(cell.best_pattern().unwrap().target_lang, "python");
+    assert!((cell.energy - 0.92).abs() < 0.02);
 }
 
 #[test]
 fn test_snapshot_skips_lower_confidence() {
     let db = temp_db();
-    db.upsert_pattern("test_intent", "python", "high_quality", 0.95).unwrap();
+    db.cell_net_mut().upsert_pattern("test_intent", "python", "high_quality", 0.95);
 
     let path = temp_path();
     {
@@ -138,14 +140,15 @@ fn test_snapshot_skips_lower_confidence() {
     let imported = snapshot::import(&db, &path).unwrap();
     assert_eq!(imported, 0);
 
-    let cell = db.find_by_intent("test_intent").unwrap().unwrap();
-    assert_eq!(cell.code, "high_quality", "기존 고신뢰 코드 보존됨");
+    let net = db.cell_net();
+    let cell = net.find_by_intent("test_intent").unwrap();
+    assert_eq!(cell.best_pattern().unwrap().code, "high_quality", "기존 고신뢰 코드 보존됨");
 }
 
 #[test]
 fn test_snapshot_overwrites_lower_confidence() {
     let db = temp_db();
-    db.upsert_pattern("weak_cell", "python", "old_code", 0.4).unwrap();
+    db.cell_net_mut().upsert_pattern("weak_cell", "python", "old_code", 0.4);
 
     let path = temp_path();
     {
@@ -180,8 +183,8 @@ fn test_snapshot_merge_two_files() {
 
     let total = snapshot::merge(&db, &[p1.as_str(), p2.as_str()]).unwrap();
     assert_eq!(total, 2);
-    assert!(db.find_by_intent("merge_a").unwrap().is_some());
-    assert!(db.find_by_intent("merge_b").unwrap().is_some());
+    assert!(db.cell_net().find_by_intent("merge_a").is_some());
+    assert!(db.cell_net().find_by_intent("merge_b").is_some());
 }
 
 #[test]
@@ -236,9 +239,9 @@ fn test_auto_snapshot_creates_dir() {
     let db = temp_db();
     // 50개 셀 생성
     for i in 0..50 {
-        db.upsert_pattern(&format!("intent_{i}"), "python", "code", 0.8).unwrap();
+        db.cell_net_mut().upsert_pattern(&format!("intent_{i}"), "python", "code", 0.8);
     }
-    assert_eq!(db.cell_count().unwrap(), 50);
+    assert_eq!(db.cell_net().len() as i64, 50);
 
     let snap_dir = format!("/tmp/auto_snap_{}", uuid::Uuid::new_v4());
     let path = format!("{}/snap_50.bin", snap_dir);

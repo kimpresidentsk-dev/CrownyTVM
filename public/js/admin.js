@@ -1,15 +1,56 @@
 // ===== admin.js - 관리자 패널 (레벨/탭/오프체인/온체인/챌린지/회원/기부풀/로그) =====
+
+// ========== Auth helper for all admin API calls ==========
+function _adminHeaders() {
+    const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+    return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+}
+
+// Generic DB API helpers
+async function _dbGet(collection, docId) {
+    const url = docId ? `/api/db/${collection}/${docId}` : `/api/db/${collection}`;
+    const res = await fetch(url, { headers: _adminHeaders() });
+    return res.json();
+}
+async function _dbQuery(collection, params = {}) {
+    const qs = new URLSearchParams();
+    if (params.where) {
+        const w = Array.isArray(params.where[0]) ? params.where : [params.where];
+        w.forEach(c => qs.append('where', c.join(',')));
+    }
+    if (params.orderBy) qs.append('orderBy', params.orderBy);
+    if (params.limit) qs.append('limit', params.limit);
+    const res = await fetch(`/api/db/${collection}?${qs.toString()}`, { headers: _adminHeaders() });
+    return res.json();
+}
+async function _dbAdd(collection, data) {
+    const res = await fetch(`/api/db/${collection}`, { method: 'POST', headers: _adminHeaders(), body: JSON.stringify(data) });
+    return res.json();
+}
+async function _dbSet(collection, docId, data, merge = false) {
+    const url = `/api/db/${collection}/${docId}${merge ? '?merge=true' : ''}`;
+    const res = await fetch(url, { method: 'PUT', headers: _adminHeaders(), body: JSON.stringify(data) });
+    return res.json();
+}
+async function _dbUpdate(collection, docId, data) {
+    return _dbSet(collection, docId, data, true);
+}
+async function _dbDelete(collection, docId) {
+    const res = await fetch(`/api/db/${collection}/${docId}`, { method: 'DELETE', headers: _adminHeaders() });
+    return res.json();
+}
+
 // ========== ADMIN FUNCTIONS ==========
 async function loadTransferRequests() {
     if (currentUser.email !== 'kps@crowny.org') return;
-    
-    const requests = await db.collection('transfer_requests')
-        .where('status', '==', 'pending')
-        .orderBy('requestedAt', 'desc')
-        .get();
-    
-    requests.forEach(doc => {
-        const req = doc.data();
+
+    const results = await _dbQuery('transfer_requests', {
+        where: ['status', '==', 'pending'],
+        orderBy: 'requestedAt,desc'
+    });
+
+    (results || []).forEach(doc => {
+        const req = doc;
     });
 }
 
@@ -28,28 +69,28 @@ async function adminMintTokens() {
         return;
     }
     
-    const users = await db.collection('users').where('email', '==', email).get();
-    
-    if (users.empty) {
+    const users = await _dbQuery('users', { where: ['email', '==', email] });
+
+    if (!users || users.length === 0) {
         showToast(t('social.user_not_found','User not found'), 'error');
         return;
     }
-    
-    const userDoc = users.docs[0];
-    const userData = userDoc.data();
+
+    const userDoc = users[0];
+    const userData = userDoc;
     const tokenKey = token.toLowerCase();
-    
-    await db.collection('users').doc(userDoc.id).update({
-        [`balances.${tokenKey}`]: userData.balances[tokenKey] + amount
+
+    await _dbUpdate('users', userDoc.id, {
+        [`balances.${tokenKey}`]: (userData.balances?.[tokenKey] || 0) + amount
     });
-    
-    await db.collection('transactions').add({
+
+    await _dbAdd('transactions', {
         from: 'admin',
         to: userDoc.id,
         amount: amount,
         token: token,
         type: 'mint',
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
     });
     
     showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${amount} ${token} Issued!`, 'success');
@@ -168,9 +209,9 @@ async function setUserAdminLevel(targetEmail, level) {
     // 강등은 자기 레벨 미만만 가능 (수퍼는 전부)
     if (!isSuperAdmin()) {
         // 대상의 현재 레벨 확인
-        const users = await db.collection('users').where('email', '==', targetEmail).get();
-        if (users.empty) { showToast('User not found: ' + targetEmail, 'error'); return; }
-        const targetLevel = users.docs[0].data().adminLevel ?? -1;
+        const users = await _dbQuery('users', { where: ['email', '==', targetEmail] });
+        if (!users || users.length === 0) { showToast('User not found: ' + targetEmail, 'error'); return; }
+        const targetLevel = users[0].adminLevel ?? -1;
         if (targetLevel >= currentUserLevel) {
             showToast(`<i data-lucide="octagon" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Cannot modify admin of equal or higher level (Target: Lv${targetLevel})`, 'error');
             return;
@@ -187,21 +228,21 @@ async function setUserAdminLevel(targetEmail, level) {
     }
     
     try {
-        const users = await db.collection('users').where('email', '==', targetEmail).get();
-        if (users.empty) {
+        const users = await _dbQuery('users', { where: ['email', '==', targetEmail] });
+        if (!users || users.length === 0) {
             showToast('User not found: ' + targetEmail, 'error');
             return;
         }
 
-        const targetDoc = users.docs[0];
-        const targetData = targetDoc.data();
+        const targetDoc = users[0];
+        const targetData = targetDoc;
         const prevLevel = targetData.adminLevel ?? -1;
-        
-        const updateData = { 
+
+        const updateData = {
             adminLevel: level,
             appointedBy: currentUser.email,
             appointedByLevel: currentUserLevel,
-            appointedAt: new Date()
+            appointedAt: new Date().toISOString()
         };
         // Preserve existing admin assignment fields (normalize to arrays)
         if (targetData.adminCountry) updateData.adminCountry = normalizeToArray(targetData.adminCountry);
@@ -209,12 +250,12 @@ async function setUserAdminLevel(targetEmail, level) {
         if (targetData.adminService) updateData.adminService = normalizeToArray(targetData.adminService);
         if (targetData.adminStartDate) updateData.adminStartDate = targetData.adminStartDate;
         if (targetData.adminEndDate !== undefined) updateData.adminEndDate = targetData.adminEndDate;
-        
-        await targetDoc.ref.update(updateData);
-        
+
+        await _dbUpdate('users', targetDoc.id, updateData);
+
         const info = getLevelInfo(level);
-        
-        await db.collection('admin_log').add({
+
+        await _dbAdd('admin_log', {
             action: 'set_admin_level',
             adminEmail: currentUser.email,
             adminLevel: currentUserLevel,
@@ -222,7 +263,7 @@ async function setUserAdminLevel(targetEmail, level) {
             prevLevel: prevLevel,
             newLevel: level,
             levelName: info.name,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${targetEmail} → ${info.icon} ${info.name} (Lv${level})`, 'success');
@@ -367,21 +408,21 @@ async function showAdminEditModal(userId, userData) {
                 adminCountry: countryArr,
                 adminBusiness: businessArr,
                 adminService: serviceArr,
-                adminStartDate: startDate ? firebase.firestore.Timestamp.fromDate(new Date(startDate)) : firebase.firestore.FieldValue.serverTimestamp(),
+                adminStartDate: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
                 appointedBy: currentUser.email,
                 appointedByLevel: currentUserLevel,
-                appointedAt: firebase.firestore.FieldValue.serverTimestamp()
+                appointedAt: new Date().toISOString()
             };
             if (endDate) {
-                updateData.adminEndDate = firebase.firestore.Timestamp.fromDate(new Date(endDate + 'T23:59:59'));
+                updateData.adminEndDate = new Date(endDate + 'T23:59:59').toISOString();
             } else {
                 updateData.adminEndDate = null;
             }
-            
-            await db.collection('users').doc(userId).update(updateData);
-            
+
+            await _dbUpdate('users', userId, updateData);
+
             const info = getLevelInfo(newLevel);
-            await db.collection('admin_log').add({
+            await _dbAdd('admin_log', {
                 action: 'admin_edit',
                 adminEmail: currentUser.email,
                 adminLevel: currentUserLevel,
@@ -391,7 +432,7 @@ async function showAdminEditModal(userId, userData) {
                 country: countryArr, business: businessArr, service: serviceArr,
                 startDate: startDate || null,
                 endDate: endDate || null,
-                timestamp: new Date()
+                timestamp: new Date().toISOString()
             });
             
             overlay.remove();
@@ -409,16 +450,17 @@ async function showAdminEditModal(userId, userData) {
 // ★ 전체 쿼터 체크 (해당 레벨의 총 관리자 수)
 async function checkAdminQuota(level) {
     try {
-        const configDoc = await db.collection('admin_config').doc('settings').get();
-        const quotas = configDoc.exists ? (configDoc.data().quotas || {}) : {};
+        const configDoc = await _dbGet('admin_config', 'settings');
+        const quotas = (configDoc && !configDoc.error) ? (configDoc.quotas || {}) : {};
         const levelQuota = quotas[`level${level}`] || {};
         const maxTotal = levelQuota.max || 999;
-        
+
         // 현재 해당 레벨 관리자 수
-        const current = await db.collection('users').where('adminLevel', '==', level).get();
-        
-        if (current.size >= maxTotal) {
-            showToast(`<i data-lucide="octagon" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Lv${level} quota exceeded\n\nMax: ${maxTotal}\nCurrent: ${current.size}\n\nRequest quota increase from Super Admin.`, 'error');
+        const current = await _dbQuery('users', { where: ['adminLevel', '==', level] });
+        const currentCount = (current || []).length;
+
+        if (currentCount >= maxTotal) {
+            showToast(`<i data-lucide="octagon" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Lv${level} quota exceeded\n\nMax: ${maxTotal}\nCurrent: ${currentCount}\n\nRequest quota increase from Super Admin.`, 'error');
             return false;
         }
         return true;
@@ -433,19 +475,19 @@ async function checkPersonalQuota(level) {
     if (isSuperAdmin()) return true; // 수퍼는 무제한
     
     try {
-        const configDoc = await db.collection('admin_config').doc('settings').get();
-        const quotas = configDoc.exists ? (configDoc.data().quotas || {}) : {};
+        const configDoc = await _dbGet('admin_config', 'settings');
+        const quotas = (configDoc && !configDoc.error) ? (configDoc.quotas || {}) : {};
         const levelQuota = quotas[`level${level}`] || {};
         const perAdmin = levelQuota.perAdmin || 999;
-        
+
         // 내가 임명한 해당 레벨 수
-        const myAppointed = await db.collection('users')
-            .where('appointedBy', '==', currentUser.email)
-            .where('adminLevel', '==', level)
-            .get();
-        
-        if (myAppointed.size >= perAdmin) {
-            showToast(`<i data-lucide="octagon" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Personal appointment quota exceeded\n\nLv${level} max appointments: ${perAdmin}\nAlready appointed: ${myAppointed.size}`, 'error');
+        const myAppointed = await _dbQuery('users', {
+            where: [['appointedBy', '==', currentUser.email], ['adminLevel', '==', level]]
+        });
+        const appointedCount = (myAppointed || []).length;
+
+        if (appointedCount >= perAdmin) {
+            showToast(`<i data-lucide="octagon" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Personal appointment quota exceeded\n\nLv${level} max appointments: ${perAdmin}\nAlready appointed: ${appointedCount}`, 'error');
             return false;
         }
         return true;
@@ -472,7 +514,7 @@ async function saveAdminQuotas() {
     }
     
     try {
-        await db.collection('admin_config').doc('settings').set({ quotas }, { merge: true });
+        await _dbSet('admin_config', 'settings', { quotas }, true);
         showToast('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Admin quota saved', 'success');
         loadAdminUserList();
     } catch (e) {
@@ -485,8 +527,8 @@ async function loadAdminStats() {
     const stats = {};
     for (let lv = 1; lv <= 5; lv++) {
         try {
-            const q = await db.collection('users').where('adminLevel', '==', lv).get();
-            stats[lv] = q.size;
+            const q = await _dbQuery('users', { where: ['adminLevel', '==', lv] });
+            stats[lv] = (q || []).length;
         } catch (e) { stats[lv] = '?'; }
     }
     return stats;
@@ -499,37 +541,35 @@ async function generateReferralCode() {
     if (!currentUser) return;
     
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const userData = userDoc.data();
-        
+        const userData = await _dbGet('users', currentUser.uid);
+
         if (userData.referralCode) {
             const nick = userData.referralNickname || userData.nickname || '';
             const display = nick ? `${nick} (${userData.referralCode})` : userData.referralCode;
             showToast(`Referral code already exists: ${display}`, 'info');
-            // 소개코드 표시 업데이트
             const codeEl = document.getElementById('my-referral-code');
             if (codeEl) codeEl.textContent = userData.referralCode;
             return userData.referralCode;
         }
-        
+
         // CR-XXXXXX 형식 고유 코드 생성 (변경 불가)
         let code;
         let exists = true;
         while (exists) {
             const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
             code = 'CR-' + rand;
-            const dup = await db.collection('users').where('referralCode', '==', code).get();
-            exists = !dup.empty;
+            const dup = await _dbQuery('users', { where: ['referralCode', '==', code] });
+            exists = dup && dup.length > 0;
         }
-        
+
         // 소개 닉네임 입력
         const nickname = await showPromptModal(
             t('social.referral_nick_title', 'Set Referral Nickname'),
             t('social.referral_nick_desc', 'Enter a nickname to display with your referral code:\n(Can be changed later)'),
             userData.nickname || ''
         );
-        
-        await db.collection('users').doc(currentUser.uid).update({
+
+        await _dbUpdate('users', currentUser.uid, {
             referralCode: code,
             referralNickname: (nickname || '').trim() || userData.nickname || '',
             referralCount: 0,
@@ -553,32 +593,33 @@ async function applyReferralCode(newUserId, referralCode) {
     if (!referralCode) return;
     
     try {
-        const referrers = await db.collection('users')
-            .where('referralCode', '==', referralCode.toUpperCase()).get();
-        
-        if (referrers.empty) {
+        const referrers = await _dbQuery('users', {
+            where: ['referralCode', '==', referralCode.toUpperCase()]
+        });
+
+        if (!referrers || referrers.length === 0) {
             console.warn(t('admin.invalid_referral','Invalid referral code') + ':', referralCode);
             return;
         }
-        
-        const referrer = referrers.docs[0];
+
+        const referrer = referrers[0];
         const referrerId = referrer.id;
-        
+
         // 신규 사용자에 소개자 기록
-        await db.collection('users').doc(newUserId).update({
+        await _dbUpdate('users', newUserId, {
             referredBy: referrerId,
-            referredByEmail: referrer.data().email,
+            referredByEmail: referrer.email,
             referredByCode: referralCode.toUpperCase()
         });
-        
+
         // 소개자 카운트 증가
-        await referrer.ref.update({
-            referralCount: (referrer.data().referralCount || 0) + 1
+        await _dbUpdate('users', referrerId, {
+            referralCount: (referrer.referralCount || 0) + 1
         });
-        
+
         // ★ 소개자 보상 자동 지급 (Firestore 설정값 기반)
-        await distributeSignupReferralReward(referrerId, newUserId, referrer.data().email);
-        
+        await distributeSignupReferralReward(referrerId, newUserId, referrer.email);
+
     } catch (error) {
         console.error(t('admin.referral_apply_fail','Referral code apply failed') + ':', error);
     }
@@ -587,32 +628,31 @@ async function applyReferralCode(newUserId, referralCode) {
 // ★ 회원가입 시 소개자 보상 자동 지급 (설정값 기반)
 async function distributeSignupReferralReward(referrerId, newUserId, referrerEmail) {
     try {
-        // Firestore에서 보상 설정 로드
-        const configDoc = await db.collection('admin_config').doc('referral_rewards').get();
-        const config = configDoc.exists ? configDoc.data() : {};
+        // 보상 설정 로드
+        const configDoc = await _dbGet('admin_config', 'referral_rewards');
+        const config = (configDoc && !configDoc.error) ? configDoc : {};
         const rewards = config.signupRewards || { crtd: 30, crac: 20, crgc: 30, creb: 20 };
-        
-        const referrerDoc = await db.collection('users').doc(referrerId).get();
-        if (!referrerDoc.exists) return;
-        const referrerData = referrerDoc.data();
+
+        const referrerData = await _dbGet('users', referrerId);
+        if (!referrerData || referrerData.error) return;
         const off = referrerData.offchainBalances || {};
         const earnings = referrerData.referralEarnings || {};
-        
+
         const updates = {};
         const tokenEntries = Object.entries(rewards).filter(([_, v]) => v > 0);
-        
+
         for (const [token, amount] of tokenEntries) {
             updates[`offchainBalances.${token}`] = (off[token] || 0) + amount;
             updates[`referralEarnings.${token}`] = (earnings[token] || 0) + amount;
         }
-        
+
         if (Object.keys(updates).length > 0) {
-            await db.collection('users').doc(referrerId).update(updates);
+            await _dbUpdate('users', referrerId, updates);
         }
-        
+
         // 거래 로그
         for (const [token, amount] of tokenEntries) {
-            await db.collection('transactions').add({
+            await _dbAdd('transactions', {
                 from: 'system:referral_signup',
                 to: referrerId,
                 toEmail: referrerEmail || '',
@@ -621,10 +661,10 @@ async function distributeSignupReferralReward(referrerId, newUserId, referrerEma
                 type: 'referral_signup_reward',
                 referredUser: newUserId,
                 rewardConfig: rewards,
-                timestamp: new Date()
+                timestamp: new Date().toISOString()
             });
         }
-        
+
     } catch (e) {
         console.error(t('admin.referral_reward_fail','Referral signup reward failed') + ':', e);
     }
@@ -633,8 +673,8 @@ async function distributeSignupReferralReward(referrerId, newUserId, referrerEma
 // ★ 소개자 보상 설정 UI (수퍼관리자)
 async function loadReferralRewardConfig() {
     try {
-        const doc = await db.collection('admin_config').doc('referral_rewards').get();
-        const config = doc.exists ? doc.data() : {};
+        const configDoc = await _dbGet('admin_config', 'referral_rewards');
+        const config = (configDoc && !configDoc.error) ? configDoc : {};
         const rewards = config.signupRewards || { crtd: 30, crac: 20, crgc: 30, creb: 20 };
         ['crtd','crac','crgc','creb'].forEach(tk => {
             const el = document.getElementById('referral-cfg-' + tk);
@@ -663,17 +703,17 @@ async function saveReferralRewardConfig() {
     );
     if (!confirmed) return;
     try {
-        await db.collection('admin_config').doc('referral_rewards').set({
+        await _dbSet('admin_config', 'referral_rewards', {
             signupRewards,
-            updatedAt: new Date(),
+            updatedAt: new Date().toISOString(),
             updatedBy: currentUser.email
-        }, { merge: true });
-        await db.collection('admin_logs').add({
+        }, true);
+        await _dbAdd('admin_logs', {
             action: 'referral_reward_config_change',
             newConfig: signupRewards,
             adminEmail: currentUser.email,
             adminUid: currentUser.uid,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         showToast('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Referral reward settings saved', 'success');
     } catch (e) {
@@ -685,63 +725,58 @@ async function saveReferralRewardConfig() {
 // async function distributeReferralReward — deprecated
 async function distributeReferralReward_DISABLED(userId, amount, token) {
     try {
-        const userDoc = await db.collection('users').doc(userId).get();
-        if (!userDoc.exists) return;
-        
-        const referredBy = userDoc.data().referredBy;
+        const userData = await _dbGet('users', userId);
+        if (!userData || userData.error) return;
+
+        const referredBy = userData.referredBy;
         if (!referredBy) return;
-        
+
         const rewardAmount = Math.floor(amount);
         if (rewardAmount <= 0) return;
-        
+
         const tokenKey = token.toLowerCase();
-        
+
         // 소개자 문서 로드
-        const referrerDoc = await db.collection('users').doc(referredBy).get();
-        if (!referrerDoc.exists) return;
-        const referrerData = referrerDoc.data();
-        
+        const referrerData = await _dbGet('users', referredBy);
+        if (!referrerData || referrerData.error) return;
+
         if (tokenKey === 'crtd') {
-            // CRTD → 즉시 오프체인 지급
             const off = referrerData.offchainBalances || {};
-            await db.collection('users').doc(referredBy).update({
+            await _dbUpdate('users', referredBy, {
                 [`offchainBalances.crtd`]: (off.crtd || 0) + rewardAmount,
                 [`referralEarnings.crtd`]: ((referrerData.referralEarnings || {}).crtd || 0) + rewardAmount
             });
-            
+
         } else if (tokenKey === 'crny') {
-            // CRNY → 30일 후 자동 지급 (pendingRewards)
             const releaseDate = new Date();
             releaseDate.setDate(releaseDate.getDate() + 30);
-            
-            await db.collection('users').doc(referredBy)
-                .collection('pendingRewards').add({
-                    token: 'crny',
-                    amount: rewardAmount,
-                    sourceUser: userId,
-                    sourceAmount: amount,
-                    type: 'referral_commission',
-                    released: false,
-                    releaseDate: releaseDate,
-                    createdAt: new Date()
-                });
-            
-            // 누적 수익에도 기록 (대기 표시)
+
+            // subcollection via generic DB API path
+            await _dbAdd(`users/${referredBy}/pendingRewards`, {
+                token: 'crny',
+                amount: rewardAmount,
+                sourceUser: userId,
+                sourceAmount: amount,
+                type: 'referral_commission',
+                released: false,
+                releaseDate: releaseDate.toISOString(),
+                createdAt: new Date().toISOString()
+            });
+
             const earnings = referrerData.referralEarnings || {};
-            await db.collection('users').doc(referredBy).update({
+            await _dbUpdate('users', referredBy, {
                 [`referralEarnings.crny`]: (earnings.crny || 0) + rewardAmount
             });
-            
+
         } else {
-            // 기타 토큰: 오프체인 즉시 지급
             const off = referrerData.offchainBalances || {};
-            await db.collection('users').doc(referredBy).update({
+            await _dbUpdate('users', referredBy, {
                 [`offchainBalances.${tokenKey}`]: (off[tokenKey] || 0) + rewardAmount,
                 [`referralEarnings.${tokenKey}`]: ((referrerData.referralEarnings || {}).tokenKey || 0) + rewardAmount
             });
         }
-        
-        await db.collection('transactions').add({
+
+        await _dbAdd('transactions', {
             from: 'system:referral_commission',
             to: referredBy,
             amount: rewardAmount,
@@ -751,7 +786,7 @@ async function distributeReferralReward_DISABLED(userId, amount, token) {
             sourceAmount: amount,
             commission: '10%',
             isPending: tokenKey === 'crny',
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
     } catch (error) {
         console.error(t('admin.referral_commission_fail','Referral commission distribution failed') + ':', error);
@@ -768,12 +803,8 @@ async function adminForceCloseAll(targetUserId, targetParticipantId, challengeId
     if (!window.confirm('<i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Admin Force Close\n\nAll positions for this user will be force closed.\nProceed?')) return;
     
     try {
-        const docRef = db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(targetParticipantId);
-        const doc = await docRef.get();
-        if (!doc.exists) { showToast('Participant not found', 'error'); return; }
-        
-        const data = doc.data();
+        const data = await _dbGet(`prop_challenges/${challengeId}/participants`, targetParticipantId);
+        if (!data || data.error) { showToast('Participant not found', 'error'); return; }
         const trades = data.trades || [];
         let totalPnL = 0;
         
@@ -797,20 +828,20 @@ async function adminForceCloseAll(targetUserId, targetParticipantId, challengeId
         
         const newBalance = (data.currentBalance || 0) + totalPnL;
         
-        await docRef.update({
+        await _dbUpdate(`prop_challenges/${challengeId}/participants`, targetParticipantId, {
             trades: trades,
             currentBalance: newBalance
         });
-        
+
         // 관리자 로그
-        await db.collection('admin_log').add({
+        await _dbAdd('admin_log', {
             action: 'force_close_all',
             adminEmail: currentUser.email,
             targetUserId: targetUserId,
             targetParticipantId: targetParticipantId,
             challengeId: challengeId,
             totalPnL: totalPnL,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Force close complete!\nPnL: $${totalPnL.toFixed(2)}`, 'success');
@@ -830,23 +861,21 @@ async function adminSuspendTrading(targetParticipantId, challengeId, reason) {
     if (!suspendReason) return;
     
     try {
-        await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(targetParticipantId)
-            .update({
-                dailyLocked: true,
-                adminSuspended: true,
-                suspendReason: suspendReason,
-                suspendedAt: new Date(),
-                suspendedBy: currentUser.email
-            });
-        
-        await db.collection('admin_log').add({
+        await _dbUpdate(`prop_challenges/${challengeId}/participants`, targetParticipantId, {
+            dailyLocked: true,
+            adminSuspended: true,
+            suspendReason: suspendReason,
+            suspendedAt: new Date().toISOString(),
+            suspendedBy: currentUser.email
+        });
+
+        await _dbAdd('admin_log', {
             action: 'suspend_trading',
             adminEmail: currentUser.email,
             targetParticipantId: targetParticipantId,
             challengeId: challengeId,
             reason: suspendReason,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('admin.suspended','Trading suspended')}\n${t('admin.reason','Reason')}: ${suspendReason}`, 'success');
@@ -863,22 +892,20 @@ async function adminResumeTrading(targetParticipantId, challengeId) {
     }
     
     try {
-        await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(targetParticipantId)
-            .update({
-                dailyLocked: false,
-                adminSuspended: false,
-                suspendReason: null,
-                suspendedAt: null,
-                suspendedBy: null
-            });
-        
-        await db.collection('admin_log').add({
+        await _dbUpdate(`prop_challenges/${challengeId}/participants`, targetParticipantId, {
+            dailyLocked: false,
+            adminSuspended: false,
+            suspendReason: null,
+            suspendedAt: null,
+            suspendedBy: null
+        });
+
+        await _dbAdd('admin_log', {
             action: 'resume_trading',
             adminEmail: currentUser.email,
             targetParticipantId: targetParticipantId,
             challengeId: challengeId,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(t('admin.resumed','<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Trading resumed'), 'success');
@@ -1010,10 +1037,10 @@ async function adminLookupOffchain() {
     if (!email) { resultEl.innerHTML = `<span style="color:red;">${t('admin.enter_email','Enter email')}</span>`; return; }
     
     try {
-        const users = await db.collection('users').where('email', '==', email).get();
-        if (users.empty) { resultEl.innerHTML = `<span style="color:red;">${t('admin.user_not_found','User not found')}</span>`; return; }
-        
-        const data = users.docs[0].data();
+        const users = await _dbQuery('users', { where: ['email', '==', email] });
+        if (!users || users.length === 0) { resultEl.innerHTML = `<span style="color:red;">${t('admin.user_not_found','User not found')}</span>`; return; }
+
+        const data = users[0];
         const off = data.offchainBalances || {};
         const nick = data.nickname || data.displayName || t('admin.unnamed','Unnamed');
         
@@ -1060,36 +1087,36 @@ async function adminMintOffchain() {
     if (!email || !amount || amount <= 0) { showToast(t('admin.enter_email_amount','Enter email and amount'), 'info'); return; }
     
     try {
-        const users = await db.collection('users').where('email', '==', email).get();
-        if (users.empty) { showToast('User not found: ' + email, 'error'); return; }
-        
-        const targetDoc = users.docs[0];
-        const data = targetDoc.data();
+        const users = await _dbQuery('users', { where: ['email', '==', email] });
+        if (!users || users.length === 0) { showToast('User not found: ' + email, 'error'); return; }
+
+        const targetDoc = users[0];
+        const data = targetDoc;
         const off = data.offchainBalances || {};
         const curBal = off[tokenKey] || 0;
-        
+
         if (!confirm(`<i data-lucide="trending-up" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Mint Points\n\nTarget: ${email}\nToken: ${tokenKey.toUpperCase()}\nAmount: +${amount.toLocaleString()}\nReason: ${reason}\n\nCurrent balance: ${curBal.toLocaleString()} → ${(curBal + amount).toLocaleString()}`)) return;
-        
-        await targetDoc.ref.update({
+
+        await _dbUpdate('users', targetDoc.id, {
             [`offchainBalances.${tokenKey}`]: curBal + amount
         });
-        
+
         // 트랜잭션 로그
-        await db.collection('offchain_transactions').add({
+        await _dbAdd('offchain_transactions', {
             from: 'ADMIN', fromEmail: currentUser.email,
             to: targetDoc.id, toEmail: email,
             token: tokenKey, amount, type: 'admin_mint', reason,
             adminLevel: currentUserLevel,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            timestamp: new Date().toISOString()
         });
-        
+
         // 관리자 활동 로그
-        await db.collection('admin_log').add({
+        await _dbAdd('admin_log', {
             action: 'offchain_mint', adminEmail: currentUser.email,
             adminLevel: currentUserLevel,
             targetEmail: email, token: tokenKey.toUpperCase(),
             amount, reason,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${amount.toLocaleString()} ${tokenKey.toUpperCase()} minted → ${email}`, 'success');
@@ -1113,39 +1140,39 @@ async function adminBurnOffchain() {
     if (!email || !amount || amount <= 0) { showToast(t('admin.enter_email_amount','Enter email and amount'), 'info'); return; }
     
     try {
-        const users = await db.collection('users').where('email', '==', email).get();
-        if (users.empty) { showToast('User not found: ' + email, 'error'); return; }
-        
-        const targetDoc = users.docs[0];
-        const data = targetDoc.data();
+        const users = await _dbQuery('users', { where: ['email', '==', email] });
+        if (!users || users.length === 0) { showToast('User not found: ' + email, 'error'); return; }
+
+        const targetDoc = users[0];
+        const data = targetDoc;
         const off = data.offchainBalances || {};
         const curBal = off[tokenKey] || 0;
-        
+
         if (amount > curBal) {
             showToast(`<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Insufficient balance!\n${email} ${tokenKey.toUpperCase()}: ${curBal.toLocaleString()} pt\nBurn requested: ${amount.toLocaleString()} pt`, 'error');
             return;
         }
-        
+
         if (!confirm(`<i data-lucide="trending-down" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Burn Points\n\nTarget: ${email}\nToken: ${tokenKey.toUpperCase()}\nAmount: -${amount.toLocaleString()}\nReason: ${reason}\n\nCurrent balance: ${curBal.toLocaleString()} → ${(curBal - amount).toLocaleString()}`)) return;
-        
-        await targetDoc.ref.update({
+
+        await _dbUpdate('users', targetDoc.id, {
             [`offchainBalances.${tokenKey}`]: curBal - amount
         });
-        
-        await db.collection('offchain_transactions').add({
+
+        await _dbAdd('offchain_transactions', {
             from: targetDoc.id, fromEmail: email,
             to: 'ADMIN', toEmail: currentUser.email,
             token: tokenKey, amount: -amount, type: 'admin_burn', reason,
             adminLevel: currentUserLevel,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            timestamp: new Date().toISOString()
         });
-        
-        await db.collection('admin_log').add({
+
+        await _dbAdd('admin_log', {
             action: 'offchain_burn', adminEmail: currentUser.email,
             adminLevel: currentUserLevel,
             targetEmail: email, token: tokenKey.toUpperCase(),
             amount: -amount, reason,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${amount.toLocaleString()} ${tokenKey.toUpperCase()} burned ← ${email}`, 'success');
@@ -1221,20 +1248,20 @@ async function createCustomToken() {
     if (!confirm(`<i data-lucide="coins" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Create New Off-chain Token\n\nKEY: ${key}\nName: ${icon} ${name}\nDescription: ${fullName}\n\nProceed?`)) return;
     
     try {
-        // Firestore에 저장
-        await db.collection('admin_config').doc('tokens').set({
+        // 서버에 저장
+        await _dbSet('admin_config', 'tokens', {
             [`registry.${key}`]: tokenData
-        }, { merge: true });
-        
+        }, true);
+
         // 로컬 레지스트리 업데이트
         OFFCHAIN_TOKEN_REGISTRY[key] = tokenData;
         OFFCHAIN_TOKENS_LIST = Object.keys(OFFCHAIN_TOKEN_REGISTRY);
         OFFCHAIN_TOKEN_NAMES[key] = `${name} (${fullName})`;
-        
+
         // 관리자 로그
-        await db.collection('admin_log').add({
+        await _dbAdd('admin_log', {
             action: 'create_token', adminEmail: currentUser.email,
-            tokenKey: key, tokenName: name, timestamp: new Date()
+            tokenKey: key, tokenName: name, timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${icon} ${name} (${key}) token created!`, 'success');
@@ -1259,17 +1286,17 @@ async function deleteCustomToken(key) {
     if (!confirm(`<i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delete ${info.icon} ${info.name} (${key})\n\nExisting balances will be kept, but new minting/trading will be disabled.\nProceed?`)) return;
     
     try {
-        await db.collection('admin_config').doc('tokens').update({
-            [`registry.${key}`]: firebase.firestore.FieldValue.delete()
+        await _dbUpdate('admin_config', 'tokens', {
+            [`registry.${key}`]: { __fieldValue: 'delete' }
         });
-        
+
         delete OFFCHAIN_TOKEN_REGISTRY[key];
         OFFCHAIN_TOKENS_LIST = Object.keys(OFFCHAIN_TOKEN_REGISTRY);
         delete OFFCHAIN_TOKEN_NAMES[key];
-        
-        await db.collection('admin_log').add({
+
+        await _dbAdd('admin_log', {
             action: 'delete_token', adminEmail: currentUser.email,
-            tokenKey: key, tokenName: info.name, timestamp: new Date()
+            tokenKey: key, tokenName: info.name, timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${info.icon} ${info.name} deleted`, 'success');
@@ -1309,40 +1336,40 @@ async function adminBatchDistribute() {
     
     for (const email of emails) {
         try {
-            const users = await db.collection('users').where('email', '==', email).get();
-            if (users.empty) { fail++; failList.push(`${email} (user not found)`); continue; }
-            
-            const targetDoc = users.docs[0];
-            const off = targetDoc.data().offchainBalances || {};
+            const users = await _dbQuery('users', { where: ['email', '==', email] });
+            if (!users || users.length === 0) { fail++; failList.push(`${email} (user not found)`); continue; }
+
+            const targetDoc = users[0];
+            const off = targetDoc.offchainBalances || {};
             const curBal = off[tokenKey] || 0;
-            
-            await targetDoc.ref.update({
+
+            await _dbUpdate('users', targetDoc.id, {
                 [`offchainBalances.${tokenKey}`]: curBal + amount
             });
-            
-            await db.collection('offchain_transactions').add({
+
+            await _dbAdd('offchain_transactions', {
                 from: 'ADMIN', fromEmail: currentUser.email,
                 to: targetDoc.id, toEmail: email,
                 token: tokenKey, amount, type: 'admin_batch_mint', reason,
                 adminLevel: currentUserLevel,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                timestamp: new Date().toISOString()
             });
-            
+
             success++;
         } catch (e) {
             fail++;
             failList.push(`${email} (${e.message})`);
         }
     }
-    
+
     // 관리자 로그 (한번에)
-    await db.collection('admin_log').add({
+    await _dbAdd('admin_log', {
         action: 'batch_distribute', adminEmail: currentUser.email,
         adminLevel: currentUserLevel,
         token: tokenKey.toUpperCase(), amountPerUser: amount,
         totalAmount: amount * success, targetCount: emails.length,
         successCount: success, failCount: fail, reason,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
     });
     
     resultEl.innerHTML = `
@@ -1368,16 +1395,15 @@ async function adminDistributeToAll() {
     const ti = getTokenInfo(tokenKey);
     
     // 전체 사용자 수 확인
-    const allUsers = await db.collection('users').get();
-    const count = allUsers.size;
-    
+    const allUsers = await _dbQuery('users', {});
+    const count = (allUsers || []).length;
+
     if (!confirm(`<i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Distribute to All Users\n\n${ti.icon} ${ti.name}: ${amount.toLocaleString()} x ${count} users\nTotal mint: ${(amount * count).toLocaleString()}\n\nDistribute to all ${count} users?`)) return;
-    
+
     // 이메일 목록 추출 → 기존 배치 함수 활용
     const emails = [];
-    allUsers.forEach(doc => {
-        const email = doc.data().email;
-        if (email) emails.push(email);
+    (allUsers || []).forEach(u => {
+        if (u.email) emails.push(u.email);
     });
     
     document.getElementById('admin-dist-emails').value = emails.join('\n');
@@ -1391,10 +1417,11 @@ async function adminLoadOffchainTxLog() {
     container.innerHTML = '<p style="color:var(--accent); font-size:0.8rem;">Loading...</p>';
 
     try {
-        const txs = await db.collection('offchain_transactions')
-            .orderBy('timestamp', 'desc').limit(30).get();
+        const txs = await _dbQuery('offchain_transactions', {
+            orderBy: 'timestamp,desc', limit: 30
+        });
 
-        if (txs.empty) { container.innerHTML = '<p style="font-size:0.8rem;">No transaction history</p>'; return; }
+        if (!txs || txs.length === 0) { container.innerHTML = '<p style="font-size:0.8rem;">No transaction history</p>'; return; }
 
         const typeLabels = {
             'transfer': 'Transfer', 'earn': 'Earn', 'spend': 'Spend',
@@ -1406,11 +1433,10 @@ async function adminLoadOffchainTxLog() {
             'earn': '#5B7B8C', 'spend': '#ff6f00',
             'transfer': '#455a64', 'swap_offchain': '#6a1b9a'
         };
-        
+
         let html = '';
-        txs.forEach(doc => {
-            const tx = doc.data();
-            const time = tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleString('ko-KR') : '--';
+        txs.forEach(tx => {
+            const time = tx.timestamp ? new Date(tx.timestamp).toLocaleString('ko-KR') : '--';
             const label = typeLabels[tx.type] || tx.type;
             const color = typeColors[tx.type] || '#6B5744';
             const fromLabel = tx.fromEmail === 'ADMIN' ? '<i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Admin' : (tx.fromEmail || '--');
@@ -1445,10 +1471,9 @@ async function adminLoadGivingPool() {
     
     try {
         // 기부풀 현황
-        const poolDoc = await db.collection('giving_pool').doc('global').get();
-        if (poolDoc.exists) {
-            const pool = poolDoc.data();
-            const updated = pool.lastUpdated?.toDate ? pool.lastUpdated.toDate().toLocaleString('ko-KR') : '--';
+        const pool = await _dbGet('giving_pool', 'global');
+        if (pool && !pool.error) {
+            const updated = pool.lastUpdated ? new Date(pool.lastUpdated).toLocaleString('ko-KR') : '--';
             infoEl.innerHTML = `
                 <div style="text-align:center;">
                     <div style="font-size:0.8rem; color:var(--accent);"><i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Global Giving Pool Balance</div>
@@ -1460,15 +1485,15 @@ async function adminLoadGivingPool() {
         }
         
         // 기부풀 로그
-        const logs = await db.collection('giving_pool_logs')
-            .orderBy('timestamp', 'desc').limit(20).get();
-        
-        if (logs.empty) { logEl.innerHTML = '<p style="font-size:0.8rem;">No donation logs</p>'; return; }
-        
+        const logs = await _dbQuery('giving_pool_logs', {
+            orderBy: 'timestamp,desc', limit: 20
+        });
+
+        if (!logs || logs.length === 0) { logEl.innerHTML = '<p style="font-size:0.8rem;">No donation logs</p>'; return; }
+
         let html = '';
-        logs.forEach(doc => {
-            const log = doc.data();
-            const time = log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString('ko-KR') : '--';
+        logs.forEach(log => {
+            const time = log.timestamp ? new Date(log.timestamp).toLocaleString('ko-KR') : '--';
             html += `<div style="padding:0.4rem; border-bottom:1px solid #E8E0D8; font-size:0.78rem;">
                 <span style="color:#5B7B8C; font-weight:600;">+${(log.givingAmount||0).toLocaleString()}</span>
                 <span style="color:var(--accent);"> from ${log.email||'--'}</span>
@@ -1491,9 +1516,8 @@ async function adminDistributeGivingPool() {
     
     try {
         // 기부풀 잔액 확인
-        const poolRef = db.collection('giving_pool').doc('global');
-        const poolDoc = await poolRef.get();
-        const poolBal = poolDoc.exists ? (poolDoc.data().totalAmount || 0) : 0;
+        const poolData = await _dbGet('giving_pool', 'global');
+        const poolBal = (poolData && !poolData.error) ? (poolData.totalAmount || 0) : 0;
         
         if (amount > poolBal) {
             showToast(`<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Insufficient giving pool balance!\nCurrent: ${poolBal.toLocaleString()} pt\nRequested: ${amount.toLocaleString()} pt`, 'error');
@@ -1501,38 +1525,38 @@ async function adminDistributeGivingPool() {
         }
         
         // 수신자 확인
-        const users = await db.collection('users').where('email', '==', email).get();
-        if (users.empty) { showToast('User not found: ' + email, 'error'); return; }
-        
+        const users = await _dbQuery('users', { where: ['email', '==', email] });
+        if (!users || users.length === 0) { showToast('User not found: ' + email, 'error'); return; }
+
         if (!confirm(`<i data-lucide="gift" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Giving Pool Distribution\n\nTarget: ${email}\nAmount: ${amount.toLocaleString()} CRGC pt\nPool balance: ${poolBal.toLocaleString()} → ${(poolBal - amount).toLocaleString()}`)) return;
-        
-        const targetDoc = users.docs[0];
-        const off = targetDoc.data().offchainBalances || {};
-        
+
+        const targetDoc = users[0];
+        const off = targetDoc.offchainBalances || {};
+
         // 기부풀 차감
-        await poolRef.update({
+        await _dbUpdate('giving_pool', 'global', {
             totalAmount: poolBal - amount,
-            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            lastUpdated: new Date().toISOString()
         });
-        
+
         // 수신자에게 CRGC 지급
-        await targetDoc.ref.update({
+        await _dbUpdate('users', targetDoc.id, {
             [`offchainBalances.crgc`]: (off.crgc || 0) + amount
         });
-        
+
         // 로그
-        await db.collection('offchain_transactions').add({
+        await _dbAdd('offchain_transactions', {
             from: 'GIVING_POOL', fromEmail: 'giving_pool',
             to: targetDoc.id, toEmail: email,
             token: 'crgc', amount, type: 'giving_distribute',
             adminEmail: currentUser.email, adminLevel: currentUserLevel,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            timestamp: new Date().toISOString()
         });
-        
-        await db.collection('admin_log').add({
+
+        await _dbAdd('admin_log', {
             action: 'giving_distribute', adminEmail: currentUser.email,
             adminLevel: currentUserLevel,
-            targetEmail: email, amount, timestamp: new Date()
+            targetEmail: email, amount, timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${amount.toLocaleString()} CRGC distributed from giving pool to ${email}`, 'success');
@@ -1556,9 +1580,9 @@ async function loadAdminUserList() {
         const stats = await loadAdminStats();
         let configDoc = null;
         try {
-            configDoc = await db.collection('admin_config').doc('settings').get();
+            configDoc = await _dbGet('admin_config', 'settings');
         } catch(e) { console.warn("[catch]", e); }
-        const quotas = configDoc?.exists ? (configDoc.data().quotas || {}) : {};
+        const quotas = (configDoc && !configDoc.error) ? (configDoc.quotas || {}) : {};
         
         // ★ 수퍼관리자: 쿼터 설정 UI
         let quotaHTML = '';
@@ -1618,14 +1642,14 @@ async function loadAdminUserList() {
         </div>`;
         
         // ★ 관리자 목록 (관리자인 사용자만 + 최근 가입)
-        const admins = await db.collection('users').where('adminLevel', '>=', 1).get();
-        const recentUsers = await db.collection('users').orderBy('createdAt', 'desc').limit(20).get();
-        
+        const admins = await _dbQuery('users', { where: ['adminLevel', '>=', 1] });
+        const recentUsers = await _dbQuery('users', { orderBy: 'createdAt,desc', limit: 20 });
+
         // 중복 제거
         const seenIds = new Set();
         const allUsers = [];
-        admins.forEach(doc => { seenIds.add(doc.id); allUsers.push({ id: doc.id, ...doc.data() }); });
-        recentUsers.forEach(doc => { if (!seenIds.has(doc.id)) { seenIds.add(doc.id); allUsers.push({ id: doc.id, ...doc.data() }); } });
+        (admins || []).forEach(u => { seenIds.add(u.id); allUsers.push(u); });
+        (recentUsers || []).forEach(u => { if (!seenIds.has(u.id)) { seenIds.add(u.id); allUsers.push(u); } });
         
         // 레벨 내림차순 정렬
         allUsers.sort((a, b) => (b.adminLevel ?? -1) - (a.adminLevel ?? -1));
@@ -1690,29 +1714,25 @@ async function adminAdjustDailyLimit(participantId, challengeId) {
     
     try {
         // 기존 값 조회
-        const doc = await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId).get();
-        
-        if (!doc.exists) { showToast('Participant not found', 'error'); return; }
-        const data = doc.data();
+        const data = await _dbGet(`prop_challenges/${challengeId}/participants`, participantId);
+
+        if (!data || data.error) { showToast('Participant not found', 'error'); return; }
         const currentLimit = data.dailyLossLimit || 500;
         const email = data.email || data.userId || participantId;
-        
+
         const newLimit = prompt(`[${email}]\nCurrent daily loss limit: $${currentLimit}\n\nNew daily loss limit ($):`, currentLimit);
         if (!newLimit || isNaN(newLimit)) return;
-        
-        await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId)
-            .update({ dailyLossLimit: Math.abs(parseFloat(newLimit)) });
-        
-        await db.collection('admin_log').add({
+
+        await _dbUpdate(`prop_challenges/${challengeId}/participants`, participantId, { dailyLossLimit: Math.abs(parseFloat(newLimit)) });
+
+        await _dbAdd('admin_log', {
             action: 'adjust_daily_limit',
             adminEmail: currentUser.email,
             adminLevel: currentUserLevel,
             participantId, challengeId,
             prevLimit: currentLimit,
             newLimit: Math.abs(parseFloat(newLimit)),
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Daily limit $${currentLimit} → $${newLimit} updated`, 'success');
@@ -1728,32 +1748,28 @@ async function adminUnlockTrading(participantId, challengeId) {
     if (!hasLevel(3)) return;
     
     try {
-        const doc = await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId).get();
-        
-        if (!doc.exists) { showToast('Participant not found', 'error'); return; }
-        const data = doc.data();
+        const data = await _dbGet(`prop_challenges/${challengeId}/participants`, participantId);
+
+        if (!data || data.error) { showToast('Participant not found', 'error'); return; }
         const email = data.email || data.userId || participantId;
         const locked = data.dailyLocked ? '<i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Locked' : '<i data-lucide="unlock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Normal';
         const suspended = data.adminSuspended ? '<i data-lucide="octagon" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Suspended' : 'Active';
-        
+
         if (!confirm(`[${email}]\nStatus: ${locked} / ${suspended}\nDaily PnL: $${(data.dailyPnL||0).toFixed(2)}\n\nUnlock + reset daily PnL?`)) return;
-        
-        await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId)
-            .update({ 
-                dailyLocked: false,
-                adminSuspended: false,
-                suspendReason: null,
-                dailyPnL: 0
-            });
-        
-        await db.collection('admin_log').add({
+
+        await _dbUpdate(`prop_challenges/${challengeId}/participants`, participantId, {
+            dailyLocked: false,
+            adminSuspended: false,
+            suspendReason: null,
+            dailyPnL: 0
+        });
+
+        await _dbAdd('admin_log', {
             action: 'unlock_trading',
             adminEmail: currentUser.email,
             adminLevel: currentUserLevel,
             participantId, challengeId,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Trading unlocked + daily PnL reset', 'success');
@@ -1769,31 +1785,27 @@ async function adminAdjustBalance(participantId, challengeId) {
     if (!hasLevel(4)) return;
     
     try {
-        const doc = await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId).get();
-        
-        if (!doc.exists) { showToast('Participant not found', 'error'); return; }
-        const data = doc.data();
+        const data = await _dbGet(`prop_challenges/${challengeId}/participants`, participantId);
+
+        if (!data || data.error) { showToast('Participant not found', 'error'); return; }
         const currentBalance = data.currentBalance || 0;
         const email = data.email || data.userId || participantId;
-        
+
         const newBalance = prompt(`[${email}]\nCurrent balance: $${currentBalance.toLocaleString()}\nPnL: $${((data.currentBalance||0) - (data.initialBalance||0)).toFixed(2)}\n\nNew balance ($):`, currentBalance);
         if (!newBalance || isNaN(newBalance)) return;
-        
+
         if (!confirm(`Confirm balance change\n$${currentBalance.toLocaleString()} → $${parseFloat(newBalance).toLocaleString()}`)) return;
-        
-        await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId)
-            .update({ currentBalance: parseFloat(newBalance) });
-        
-        await db.collection('admin_log').add({
+
+        await _dbUpdate(`prop_challenges/${challengeId}/participants`, participantId, { currentBalance: parseFloat(newBalance) });
+
+        await _dbAdd('admin_log', {
             action: 'adjust_balance',
             adminEmail: currentUser.email,
             adminLevel: currentUserLevel,
             participantId, challengeId,
             prevBalance: currentBalance,
             newBalance: parseFloat(newBalance),
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Balance $${currentBalance.toLocaleString()} → $${parseFloat(newBalance).toLocaleString()} updated`, 'success');
@@ -1809,31 +1821,27 @@ async function adminAdjustMaxDrawdown(participantId, challengeId) {
     if (!hasLevel(3)) return;
     
     try {
-        const doc = await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId).get();
-        
-        if (!doc.exists) { showToast('Participant not found', 'error'); return; }
-        const data = doc.data();
+        const data = await _dbGet(`prop_challenges/${challengeId}/participants`, participantId);
+
+        if (!data || data.error) { showToast('Participant not found', 'error'); return; }
         const currentDD = data.maxDrawdown || 3000;
         const email = data.email || data.userId || participantId;
         const balance = data.currentBalance || 0;
         const pnl = balance - (data.initialBalance || 0);
-        
+
         const newDD = prompt(`[${email}]\nCurrent balance: $${balance.toLocaleString()} (PnL: $${pnl.toFixed(0)})\nCurrent liquidation limit: -$${currentDD.toLocaleString()}\n\nNew liquidation limit ($):`, currentDD);
         if (!newDD || isNaN(newDD)) return;
-        
-        await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId)
-            .update({ maxDrawdown: Math.abs(parseFloat(newDD)) });
-        
-        await db.collection('admin_log').add({
+
+        await _dbUpdate(`prop_challenges/${challengeId}/participants`, participantId, { maxDrawdown: Math.abs(parseFloat(newDD)) });
+
+        await _dbAdd('admin_log', {
             action: 'adjust_max_drawdown',
             adminEmail: currentUser.email,
             adminLevel: currentUserLevel,
             participantId, challengeId,
             prevDrawdown: currentDD,
             newDrawdown: Math.abs(parseFloat(newDD)),
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Liquidation limit -$${currentDD.toLocaleString()} → -$${parseFloat(newDD).toLocaleString()} updated`, 'success');
@@ -1849,31 +1857,27 @@ async function adminAdjustCopyAccounts(participantId, challengeId) {
     if (!hasLevel(3)) return;
     
     try {
-        const doc = await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId).get();
-        
-        if (!doc.exists) { showToast('Participant not found', 'error'); return; }
-        const data = doc.data();
+        const data = await _dbGet(`prop_challenges/${challengeId}/participants`, participantId);
+
+        if (!data || data.error) { showToast('Participant not found', 'error'); return; }
         const currentCopy = data.copyAccounts || 1;
         const email = data.email || data.userId || participantId;
-        
+
         const newCopy = prompt(`[${email}]\nCurrent copy trading accounts: ${currentCopy}\n\nNew copy account count (1~10):`, currentCopy);
         if (!newCopy || isNaN(newCopy)) return;
-        
+
         const val = Math.min(10, Math.max(1, parseInt(newCopy)));
-        
-        await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId)
-            .update({ copyAccounts: val });
-        
-        await db.collection('admin_log').add({
+
+        await _dbUpdate(`prop_challenges/${challengeId}/participants`, participantId, { copyAccounts: val });
+
+        await _dbAdd('admin_log', {
             action: 'adjust_copy_accounts',
             adminEmail: currentUser.email,
             adminLevel: currentUserLevel,
             participantId, challengeId,
             prevCopyAccounts: currentCopy,
             newCopyAccounts: val,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Copy accounts ${currentCopy} → ${val} updated\n(Effective contracts = input contracts x ${val})`, 'success');
@@ -1888,14 +1892,12 @@ async function adminAdjustTradingTier(participantId, challengeId) {
     if (!hasLevel(3)) return;
     
     try {
-        const doc = await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId).get();
-        
-        if (!doc.exists) { showToast('Participant not found', 'error'); return; }
-        const data = doc.data();
+        const data = await _dbGet(`prop_challenges/${challengeId}/participants`, participantId);
+
+        if (!data || data.error) { showToast('Participant not found', 'error'); return; }
         const currentTier = data.tradingTier || { MNQ: 1, NQ: 0 };
         const email = data.email || data.userId || participantId;
-        
+
         const mnqMax = prompt(`[${email}]\nCurrent MNQ max: ${currentTier.MNQ || 0}\nNQ max: ${currentTier.NQ || 0}\n\nMNQ max contracts:`, currentTier.MNQ || 1);
         if (mnqMax === null) return;
         
@@ -1904,18 +1906,16 @@ async function adminAdjustTradingTier(participantId, challengeId) {
         
         const newTier = { MNQ: parseInt(mnqMax) || 0, NQ: parseInt(nqMax) || 0 };
         
-        await db.collection('prop_challenges').doc(challengeId)
-            .collection('participants').doc(participantId)
-            .update({ tradingTier: newTier });
-        
-        await db.collection('admin_log').add({
+        await _dbUpdate(`prop_challenges/${challengeId}/participants`, participantId, { tradingTier: newTier });
+
+        await _dbAdd('admin_log', {
             action: 'adjust_trading_tier',
             adminEmail: currentUser.email,
             adminLevel: currentUserLevel,
             participantId, challengeId,
             prevTier: currentTier,
             newTier: newTier,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Trading tier updated\nMNQ: ${currentTier.MNQ||0} → ${newTier.MNQ}\nNQ: ${currentTier.NQ||0} → ${newTier.NQ}`, 'success');
@@ -1937,28 +1937,25 @@ async function adminLoadDeletedWallets() {
     container.innerHTML = '<p style="color:var(--accent);">Loading deleted wallets...</p>';
     
     try {
-        const users = await db.collection('users').get();
+        const users = await _dbQuery('users', {});
         let html = '';
         let count = 0;
-        
-        for (const userDoc of users.docs) {
-            const userData = userDoc.data();
-            const wallets = await db.collection('users').doc(userDoc.id)
-                .collection('wallets').where('status', '==', 'deleted').get();
-            
-            for (const wDoc of wallets.docs) {
-                const w = wDoc.data();
+
+        for (const userData of (users || [])) {
+            const wallets = await _dbQuery(`users/${userData.id}/wallets`, { where: ['status', '==', 'deleted'] });
+
+            for (const w of (wallets || [])) {
                 count++;
-                const deletedAt = w.deletedAt?.toDate ? w.deletedAt.toDate().toLocaleString('ko-KR') : (w.deletedAt ? new Date(w.deletedAt).toLocaleString('ko-KR') : '--');
+                const deletedAt = w.deletedAt ? new Date(w.deletedAt).toLocaleString('ko-KR') : '--';
                 html += `<div style="padding:0.6rem;background:#FFF8F0;border-radius:6px;margin-bottom:0.4rem;border-left:3px solid #B54534;">
                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.3rem;">
                         <div>
                             <strong style="font-size:0.85rem;">${w.name || 'Wallet'}</strong>
-                            <span style="font-size:0.7rem;color:#6B5744;margin-left:0.3rem;">${userData.email || userDoc.id}</span>
+                            <span style="font-size:0.7rem;color:#6B5744;margin-left:0.3rem;">${userData.email || userData.id}</span>
                             <div style="font-size:0.72rem;color:#6B5744;font-family:monospace;">${w.walletAddress || '--'}</div>
                             <div style="font-size:0.68rem;color:#B54534;">Deleted: ${deletedAt}</div>
                         </div>
-                        ${hasLevel(4) ? `<button onclick="adminRestoreWallet('${userDoc.id}','${wDoc.id}')" style="background:#5B7B8C;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;"><i data-lucide="rotate-ccw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Restore</button>` : ''}
+                        ${hasLevel(4) ? `<button onclick="adminRestoreWallet('${userData.id}','${w.id}')" style="background:#5B7B8C;color:#FFF8F0;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;"><i data-lucide="rotate-ccw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Restore</button>` : ''}
                     </div>
                 </div>`;
             }
@@ -1976,16 +1973,16 @@ async function adminRestoreWallet(userId, walletId) {
     if (!hasLevel(4)) return;
     if (!confirm('Restore this wallet?')) return;
     try {
-        await db.collection('users').doc(userId).collection('wallets').doc(walletId).update({
-            status: firebase.firestore.FieldValue.delete(),
-            deletedAt: firebase.firestore.FieldValue.delete(),
-            restoredAt: new Date(),
+        await _dbUpdate(`users/${userId}/wallets`, walletId, {
+            status: { __fieldValue: 'delete' },
+            deletedAt: { __fieldValue: 'delete' },
+            restoredAt: new Date().toISOString(),
             restoredBy: currentUser.email
         });
-        await db.collection('admin_log').add({
+        await _dbAdd('admin_log', {
             action: 'restore_wallet', adminEmail: currentUser.email,
             adminLevel: currentUserLevel, targetUserId: userId, walletId,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         showToast('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Wallet restored', 'success');
         adminLoadDeletedWallets();
@@ -2003,16 +2000,15 @@ async function loadAdminWallet() {
     container.innerHTML = '<p style="color:var(--accent);"><i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Loading on-chain balances... (v4.0)</p>';
     
     try {
-        // 1. Firestore에서 관리자 지갑 주소
-        const wallets = await db.collection('users').doc(currentUser.uid)
-            .collection('wallets').limit(1).get();
-        
-        if (wallets.empty) {
-            container.innerHTML = '<p style="color:red;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> No wallet in Firestore</p>';
+        // 1. 서버에서 관리자 지갑 주소
+        const wallets = await _dbQuery(`users/${currentUser.uid}/wallets`, { limit: 1 });
+
+        if (!wallets || wallets.length === 0) {
+            container.innerHTML = '<p style="color:red;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> No wallet found</p>';
             return;
         }
-        
-        const adminWalletData = wallets.docs[0].data();
+
+        const adminWalletData = wallets[0];
         const adminAddress = adminWalletData.walletAddress;
         
         if (!adminAddress) {
@@ -2055,7 +2051,7 @@ async function loadAdminWallet() {
         
         // 전역에 저장
         window.adminWalletAddress = adminAddress;
-        window.adminWalletId = wallets.docs[0].id;
+        window.adminWalletId = wallets[0].id;
         
     } catch (error) {
         console.error('Admin wallet load error:', error);
@@ -2079,25 +2075,24 @@ async function adminSendToken() {
     
     try {
         // 받는 사람 찾기
-        const users = await db.collection('users').where('email', '==', email).get();
-        if (users.empty) {
+        const users = await _dbQuery('users', { where: ['email', '==', email] });
+        if (!users || users.length === 0) {
             showToast('User not found: ' + email, 'info');
             return;
         }
-        
-        const targetUser = users.docs[0];
+
+        const targetUser = users[0];
         const targetUserId = targetUser.id;
-        
+
         // 받는 사람의 지갑 주소 찾기
-        const wallets = await db.collection('users').doc(targetUserId)
-            .collection('wallets').limit(1).get();
-        
-        if (wallets.empty) {
+        const wallets = await _dbQuery(`users/${targetUserId}/wallets`, { limit: 1 });
+
+        if (!wallets || wallets.length === 0) {
             showToast('User wallet not found', 'error');
             return;
         }
-        
-        const targetWalletData = wallets.docs[0].data();
+
+        const targetWalletData = wallets[0];
         const toAddress = targetWalletData.walletAddress;
         
         if (!toAddress) {
@@ -2106,15 +2101,14 @@ async function adminSendToken() {
         }
         
         // 관리자 private key 가져오기
-        const adminWallets = await db.collection('users').doc(currentUser.uid)
-            .collection('wallets').limit(1).get();
-        
-        if (adminWallets.empty) {
+        const adminWallets = await _dbQuery(`users/${currentUser.uid}/wallets`, { limit: 1 });
+
+        if (!adminWallets || adminWallets.length === 0) {
             showToast('Admin wallet not found', 'error');
             return;
         }
-        
-        const adminWalletData = adminWallets.docs[0].data();
+
+        const adminWalletData = adminWallets[0];
         const fromPrivateKey = adminWalletData.privateKey;
         const fromAddress = adminWalletData.walletAddress;
         
@@ -2159,16 +2153,14 @@ async function adminSendToken() {
         // 온체인 전송
         const receipt = await sendOnchainToken(fromPrivateKey, toAddress, tokenKey, amount);
         
-        // Firestore에도 기록 (내부 잔액 동기화)
+        // 서버에도 기록 (내부 잔액 동기화)
         const targetBalances = targetWalletData.balances || {};
-        await db.collection('users').doc(targetUserId)
-            .collection('wallets').doc(wallets.docs[0].id)
-            .update({
-                [`balances.${tokenKey}`]: (targetBalances[tokenKey] || 0) + amount
-            });
-        
+        await _dbUpdate(`users/${targetUserId}/wallets`, wallets[0].id, {
+            [`balances.${tokenKey}`]: (targetBalances[tokenKey] || 0) + amount
+        });
+
         // 거래 기록
-        await db.collection('transactions').add({
+        await _dbAdd('transactions', {
             from: currentUser.uid,
             fromEmail: ADMIN_EMAIL,
             fromAddress: fromAddress,
@@ -2180,17 +2172,17 @@ async function adminSendToken() {
             type: 'onchain_transfer',
             txHash: receipt.transactionHash,
             chain: 'polygon',
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
-        
-        await db.collection('admin_log').add({
+
+        await _dbAdd('admin_log', {
             action: 'onchain_send_token',
             adminEmail: currentUser.email,
             targetEmail: email,
             token: tokenSymbol,
             amount: amount,
             txHash: receipt.transactionHash,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> On-chain transfer complete! ${amount} ${tokenSymbol} → ${email}`, 'success');
@@ -2220,39 +2212,34 @@ async function loadAdminParticipants() {
 
     try {
         // 모든 챌린지 가져오기
-        const challenges = await db.collection('prop_challenges')
-            .orderBy('createdAt', 'desc')
-            .limit(5)
-            .get();
-        
-        if (challenges.empty) {
+        const challenges = await _dbQuery('prop_challenges', {
+            orderBy: 'createdAt,desc', limit: 5
+        });
+
+        if (!challenges || challenges.length === 0) {
             container.innerHTML = '<p style="color:var(--accent);">No challenges found.</p>';
             return;
         }
-        
+
         let html = '';
-        
-        for (const challengeDoc of challenges.docs) {
-            const challenge = challengeDoc.data();
-            const challengeId = challengeDoc.id;
-            
+
+        for (const challenge of challenges) {
+            const challengeId = challenge.id;
+
             // 해당 챌린지의 참가자 가져오기
-            const participants = await db.collection('prop_challenges').doc(challengeId)
-                .collection('participants')
-                .get();
+            const participants = await _dbQuery(`prop_challenges/${challengeId}/participants`, {});
             
             html += `
                 <div style="border:1px solid var(--border); border-radius:8px; padding:1rem; margin-bottom:1rem;">
                     <h4 style="margin-bottom:0.5rem;"><i data-lucide="bar-chart-3" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${challenge.title || 'Challenge'} <span style="font-size:0.75rem; color:var(--accent);">(${challengeId.slice(0,8)})</span></h4>
-                    <p style="font-size:0.8rem; color:var(--accent); margin-bottom:0.8rem;">Participants: ${participants.size}</p>
+                    <p style="font-size:0.8rem; color:var(--accent); margin-bottom:0.8rem;">Participants: ${(participants || []).length}</p>
             `;
-            
-            if (participants.empty) {
+
+            if (!participants || participants.length === 0) {
                 html += '<p style="font-size:0.85rem; color:var(--accent);">No participants</p>';
             } else {
-                for (const pDoc of participants.docs) {
-                    const p = pDoc.data();
-                    const participantId = pDoc.id;
+                for (const p of participants) {
+                    const participantId = p.id;
                     const openTrades = (p.trades || []).filter(t => t.status === 'open');
                     const initial = p.initialBalance || 100000;
                     const current = p.currentBalance || 100000;
@@ -2354,20 +2341,18 @@ async function loadAdminLog() {
     container.innerHTML = '<p style="color:var(--accent);">Loading...</p>';
 
     try {
-        const logs = await db.collection('admin_log')
-            .orderBy('timestamp', 'desc')
-            .limit(20)
-            .get();
-        
-        if (logs.empty) {
+        const logs = await _dbQuery('admin_log', {
+            orderBy: 'timestamp,desc', limit: 20
+        });
+
+        if (!logs || logs.length === 0) {
             container.innerHTML = '<p style="color:var(--accent);">No logs found.</p>';
             return;
         }
-        
+
         let html = '';
-        logs.forEach(doc => {
-            const log = doc.data();
-            const time = log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString('ko-KR') : '-';
+        logs.forEach(log => {
+            const time = log.timestamp ? new Date(log.timestamp).toLocaleString('ko-KR') : '-';
             
             let actionText = '';
             let actionColor = '';
@@ -2740,18 +2725,18 @@ async function registerProduct() {
             const resized = await fileToBase64Resized(imageFiles[i], 400);
             images.push(resized);
         }
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        
-        await db.collection('products').add({
+        const userData = await _dbGet('users', currentUser.uid);
+
+        await _dbAdd('products', {
             title, description: document.getElementById('product-desc').value.trim(),
             category: document.getElementById('product-category').value,
             price, priceToken: 'CRGC',
             stock: parseInt(document.getElementById('product-stock').value) || 1,
-            images, // 다중 이미지 배열
-            imageData: images[0], // 하위 호환: 첫번째 이미지
+            images,
+            imageData: images[0],
             sellerId: currentUser.uid, sellerEmail: currentUser.email,
-            sellerNickname: userDoc.data()?.nickname || '',
-            sold: 0, status: (currentUser.email === 'kps@crowny.org') ? 'active' : 'pending', createdAt: new Date()
+            sellerNickname: userData?.nickname || '',
+            sold: 0, status: (currentUser.email === 'kps@crowny.org') ? 'active' : 'pending', createdAt: new Date().toISOString()
         });
         
         showToast(`<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${title}" registered!`, 'success');
@@ -2769,9 +2754,8 @@ async function registerProduct() {
 // 현재 비율 로드 (토큰별 개별 비율)
 async function loadExchangeRate() {
     try {
-        const doc = await db.collection('admin_config').doc('exchange_rate').get();
-        if (doc.exists) {
-            const data = doc.data();
+        const data = await _dbGet('admin_config', 'exchange_rate');
+        if (data && !data.error) {
             const legacyRate = data.rate || 100;
             
             // Per-token rates
@@ -2789,7 +2773,7 @@ async function loadExchangeRate() {
                 const histEl = document.getElementById('admin-rate-history');
                 if (histEl) {
                     histEl.innerHTML = data.history.slice(-20).reverse().map(h => {
-                        const date = h.timestamp?.toDate ? h.timestamp.toDate().toLocaleString('ko-KR') : new Date(h.timestamp).toLocaleString('ko-KR');
+                        const date = h.timestamp ? new Date(h.timestamp).toLocaleString('ko-KR') : '--';
                         const tokenLabel = h.token ? h.token.toUpperCase() : 'All';
                         return `<div style="padding:0.5rem; background:var(--bg); border-radius:6px; margin-bottom:0.3rem; font-size:0.8rem;">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -2844,8 +2828,8 @@ async function requestRateChange() {
     if (code !== 'RATE') { showToast('Confirmation code mismatch. Change cancelled.', 'error'); return; }
     
     try {
-        const doc = await db.collection('admin_config').doc('exchange_rate').get();
-        const existingHistory = doc.exists ? (doc.data().history || []) : [];
+        const rateDoc = await _dbGet('admin_config', 'exchange_rate');
+        const existingHistory = (rateDoc && !rateDoc.error) ? (rateDoc.history || []) : [];
         
         for (const c of changes) {
             existingHistory.push({
@@ -2855,25 +2839,25 @@ async function requestRateChange() {
                 reason: reason,
                 adminEmail: currentUser.email,
                 adminLevel: currentUserLevel,
-                timestamp: new Date()
+                timestamp: new Date().toISOString()
             });
         }
-        
-        await db.collection('admin_config').doc('exchange_rate').set({
+
+        await _dbSet('admin_config', 'exchange_rate', {
             rates: newRates,
-            rate: newRates.crtd, // legacy compat
+            rate: newRates.crtd,
             lastChangedBy: currentUser.email,
-            lastChangedAt: new Date(),
+            lastChangedAt: new Date().toISOString(),
             history: existingHistory
         });
-        
-        await db.collection('admin_log').add({
+
+        await _dbAdd('admin_log', {
             action: 'exchange_rate_change',
             adminEmail: currentUser.email,
             adminLevel: currentUserLevel,
             changes: changes,
             reason: reason,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
         
         window.OFFCHAIN_RATES = newRates;
@@ -2907,19 +2891,19 @@ async function createCoupon() {
     if (!amount || amount <= 0) { showToast('Enter a valid amount', 'error'); return; }
 
     try {
-        const existing = await db.collection('coupons').where('code', '==', code).get();
-        if (!existing.empty) { showToast('Coupon code already exists', 'error'); return; }
+        const existing = await _dbQuery('coupons', { where: ['code', '==', code] });
+        if (existing && existing.length > 0) { showToast('Coupon code already exists', 'error'); return; }
 
-        await db.collection('coupons').add({
+        await _dbAdd('coupons', {
             name: name,
             code: code,
             tokenKey: tokenKey,
             amount: amount,
             maxUses: maxUses,
             usedCount: 0,
-            expiresAt: expiryVal ? firebase.firestore.Timestamp.fromDate(new Date(expiryVal)) : null,
+            expiresAt: expiryVal ? new Date(expiryVal).toISOString() : null,
             createdBy: currentUser.uid,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: new Date().toISOString(),
             enabled: true,
             description: description
         });
@@ -2941,15 +2925,14 @@ async function loadCouponList() {
     listEl.innerHTML = '<p>Loading...</p>';
 
     try {
-        const snap = await db.collection('coupons').orderBy('createdAt', 'desc').get();
-        if (snap.empty) { listEl.innerHTML = '<p style="color:#6B5744;">No coupons created</p>'; return; }
+        const coupons = await _dbQuery('coupons', { orderBy: 'createdAt,desc' });
+        if (!coupons || coupons.length === 0) { listEl.innerHTML = '<p style="color:#6B5744;">No coupons created</p>'; return; }
 
         const tokenNames = { crtd: 'CRTD', crac: 'CRAC', crgc: 'CRGC', creb: 'CREB' };
         let html = '<table style="width:100%; border-collapse:collapse; font-size:0.8rem;"><tr style="background:#F7F3ED;"><th style="padding:0.5rem; text-align:left;">Coupon</th><th>Token</th><th>Amount</th><th>Used</th><th>Status</th><th>Manage</th></tr>';
 
-        snap.forEach(doc => {
-            const c = doc.data();
-            const expiry = c.expiresAt ? c.expiresAt.toDate().toLocaleDateString('en-US') : 'Unlimited';
+        coupons.forEach(c => {
+            const expiry = c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('en-US') : 'Unlimited';
             const usageText = c.maxUses > 0 ? `${c.usedCount}/${c.maxUses}` : `${c.usedCount}/∞`;
             const statusColor = c.enabled ? '#5B7B8C' : '#B54534';
             const statusText = c.enabled ? 'Active' : 'Inactive';
@@ -2965,9 +2948,9 @@ async function loadCouponList() {
                 <td style="text-align:center; color:${statusColor}; font-weight:600;">${statusText}</td>
                 <td style="text-align:center;">
                     <div style="display:flex; flex-direction:column; gap:3px; align-items:center;">
-                        <button onclick="toggleCoupon('${doc.id}', ${!c.enabled})" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:${c.enabled ? '#F7F3ED' : '#F7F3ED'}; color:${c.enabled ? '#B54534' : '#5B7B8C'}; width:100%;">${c.enabled ? 'Disable' : 'Enable'}</button>
-                        <button onclick="viewCouponLog('${doc.id}','${c.code}')" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:#F7F3ED; color:#5B7B8C; width:100%;"><i data-lucide="scroll-text" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> Log</button>
-                        <button onclick="deleteCoupon('${doc.id}','${c.code}')" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:#F7F3ED; color:#B54534; width:100%;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delete</button>
+                        <button onclick="toggleCoupon('${c.id}', ${!c.enabled})" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:${c.enabled ? '#F7F3ED' : '#F7F3ED'}; color:${c.enabled ? '#B54534' : '#5B7B8C'}; width:100%;">${c.enabled ? 'Disable' : 'Enable'}</button>
+                        <button onclick="viewCouponLog('${c.id}','${c.code}')" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:#F7F3ED; color:#5B7B8C; width:100%;"><i data-lucide="scroll-text" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> Log</button>
+                        <button onclick="deleteCoupon('${c.id}','${c.code}')" style="padding:0.3rem 0.6rem; border:none; border-radius:4px; cursor:pointer; font-size:0.7rem; background:#F7F3ED; color:#B54534; width:100%;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Delete</button>
                     </div>
                 </td>
             </tr>`;
@@ -2984,7 +2967,7 @@ async function loadCouponList() {
 
 async function toggleCoupon(couponId, enabled) {
     try {
-        await db.collection('coupons').doc(couponId).update({ enabled: enabled });
+        await _dbUpdate('coupons', couponId, { enabled: enabled });
         loadCouponList();
     } catch (e) {
         showToast('Status change failed: ' + e.message, 'error');
@@ -2995,7 +2978,7 @@ async function deleteCoupon(couponId, code) {
     if (typeof showConfirmModal === 'function') {
         showConfirmModal(`Delete coupon "${code}"?\nUsage logs will be kept.`, async () => {
             try {
-                await db.collection('coupons').doc(couponId).delete();
+                await _dbDelete('coupons', couponId);
                 showToast('<i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Coupon deleted', 'success');
                 loadCouponList();
             } catch (e) { showToast('Delete failed: ' + e.message, 'error'); }
@@ -3003,7 +2986,7 @@ async function deleteCoupon(couponId, code) {
     } else {
         if (!confirm(`Delete coupon "${code}"?`)) return;
         try {
-            await db.collection('coupons').doc(couponId).delete();
+            await _dbDelete('coupons', couponId);
             showToast('<i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Coupon deleted', 'success');
             loadCouponList();
         } catch (e) { showToast('Delete failed: ' + e.message, 'error'); }
@@ -3020,21 +3003,18 @@ async function viewCouponLog(couponId, code) {
 
     try {
         // coupon_logs 컬렉션에서 조회
-        const snap = await db.collection('coupon_logs').where('couponId', '==', couponId).orderBy('usedAt', 'desc').limit(100).get();
-        if (snap.empty) {
+        let logs = await _dbQuery('coupon_logs', { where: ['couponId', '==', couponId], orderBy: 'usedAt,desc', limit: 100 });
+        if (!logs || logs.length === 0) {
             // fallback: coupons/{id}/usage 서브컬렉션
-            const snap2 = await db.collection('coupons').doc(couponId).collection('usage').orderBy('usedAt', 'desc').limit(100).get();
-            if (snap2.empty) { listEl.innerHTML = `<p style="color:#6B5744;"><i data-lucide="scroll-text" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> "${code}" has no usage history.</p>`; return; }
-            renderCouponLog(snap2, listEl, code);
-            return;
+            logs = await _dbQuery(`coupons/${couponId}/usage`, { orderBy: 'usedAt,desc', limit: 100 });
+            if (!logs || logs.length === 0) { listEl.innerHTML = `<p style="color:#6B5744;"><i data-lucide="scroll-text" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> "${code}" has no usage history.</p>`; return; }
         }
-        renderCouponLog(snap, listEl, code);
+        renderCouponLogFromArray(logs, listEl, code);
     } catch (e) {
-        // index 없을 수 있으므로 orderBy 없이 재시도
         try {
-            const snap = await db.collection('coupon_logs').where('couponId', '==', couponId).limit(100).get();
-            if (snap.empty) { listEl.innerHTML = `<p style="color:#6B5744;"><i data-lucide="scroll-text" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> "${code}" has no usage history.</p>`; return; }
-            renderCouponLog(snap, listEl, code);
+            const logs = await _dbQuery('coupon_logs', { where: ['couponId', '==', couponId], limit: 100 });
+            if (!logs || logs.length === 0) { listEl.innerHTML = `<p style="color:#6B5744;"><i data-lucide="scroll-text" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> "${code}" has no usage history.</p>`; return; }
+            renderCouponLogFromArray(logs, listEl, code);
         } catch (e2) {
             listEl.innerHTML = `<p style="color:red;">Log lookup failed: ${e2.message}</p>`;
         }
@@ -3042,11 +3022,17 @@ async function viewCouponLog(couponId, code) {
 }
 
 function renderCouponLog(snap, listEl, code) {
-    let html = `<p style="font-weight:700; margin-bottom:0.5rem;"><i data-lucide="scroll-text" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> "${code}" Usage Log (${snap.size} entries)</p>`;
+    // Legacy compatibility wrapper
+    const items = [];
+    snap.forEach(doc => items.push(doc.data ? doc.data() : doc));
+    renderCouponLogFromArray(items, listEl, code);
+}
+
+function renderCouponLogFromArray(items, listEl, code) {
+    let html = `<p style="font-weight:700; margin-bottom:0.5rem;"><i data-lucide="scroll-text" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> "${code}" Usage Log (${items.length} entries)</p>`;
     html += '<table style="width:100%; border-collapse:collapse; font-size:0.75rem;"><tr style="background:#F7F3ED;"><th style="padding:0.4rem;">Date</th><th>User</th><th>Amount</th></tr>';
-    snap.forEach(doc => {
-        const d = doc.data();
-        const date = d.usedAt ? (d.usedAt.toDate ? d.usedAt.toDate() : new Date(d.usedAt)) : null;
+    items.forEach(d => {
+        const date = d.usedAt ? new Date(d.usedAt) : null;
         const dateStr = date ? date.toLocaleString('ko-KR') : '-';
         const user = d.userEmail || d.userId || '-';
         const amt = d.amount ? d.amount.toLocaleString() : '-';
@@ -3075,23 +3061,23 @@ async function loadSuperAdminWallets() {
     
     try {
         const uid = currentUser.uid;
-        const walletsRef = db.collection('users').doc(uid).collection('wallets');
-        
+        const walletsPath = `users/${uid}/wallets`;
+
         // Load or create wallet docs
         const [originalDoc, operatingDoc, defaultDoc] = await Promise.all([
-            walletsRef.doc('original').get(),
-            walletsRef.doc('operating').get(),
-            walletsRef.doc('default').get()
+            _dbGet(walletsPath, 'original'),
+            _dbGet(walletsPath, 'operating'),
+            _dbGet(walletsPath, 'default')
         ]);
-        
+
         // Get active wallet setting
-        const userDoc = await db.collection('users').doc(uid).get();
-        const activeWallet = userDoc.data()?.activeWallet || 'default';
-        
+        const userDoc = await _dbGet('users', uid);
+        const activeWallet = userDoc?.activeWallet || 'default';
+
         const wallets = {
-            original: originalDoc.exists ? originalDoc.data() : null,
-            operating: operatingDoc.exists ? operatingDoc.data() : null,
-            default: defaultDoc.exists ? defaultDoc.data() : null
+            original: (originalDoc && !originalDoc.error) ? originalDoc : null,
+            operating: (operatingDoc && !operatingDoc.error) ? operatingDoc : null,
+            default: (defaultDoc && !defaultDoc.error) ? defaultDoc : null
         };
         
         // Format balances
@@ -3157,11 +3143,11 @@ async function createSuperWallet(type) {
     if (!confirmed) return;
     
     try {
-        await db.collection('users').doc(currentUser.uid).collection('wallets').doc(type).set({
+        await _dbSet(`users/${currentUser.uid}/wallets`, type, {
             type: type,
             offchainBalances: {},
             balances: {},
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: new Date().toISOString(),
             createdBy: currentUser.email
         });
         showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${labels[type]} created`, 'success');
@@ -3174,7 +3160,7 @@ async function createSuperWallet(type) {
 async function switchActiveWallet(type) {
     if (!isSuperAdmin()) return;
     try {
-        await db.collection('users').doc(currentUser.uid).update({ activeWallet: type });
+        await _dbUpdate('users', currentUser.uid, { activeWallet: type });
         showToast(`<i data-lucide="refresh-cw" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Active account → ${type}`, 'success');
         loadSuperAdminWallets();
     } catch (e) {
@@ -3230,9 +3216,9 @@ async function showInternalTransfer(fromType) {
         if (!tokenKey || !amount || amount <= 0) { showToast('Please enter token and amount', 'warning'); return; }
         
         // Check balance
-        const fromDoc = await db.collection('users').doc(currentUser.uid).collection('wallets').doc(fromType).get();
-        if (!fromDoc.exists) { showToast('Source account not found', 'error'); return; }
-        const fromBal = (fromDoc.data().offchainBalances || {})[tokenKey] || 0;
+        const fromDoc = await _dbGet(`users/${currentUser.uid}/wallets`, fromType);
+        if (!fromDoc || fromDoc.error) { showToast('Source account not found', 'error'); return; }
+        const fromBal = (fromDoc.offchainBalances || {})[tokenKey] || 0;
         if (fromBal < amount) { showToast(`Insufficient balance: ${tokenKey.toUpperCase()} ${fromBal} < ${amount}`, 'error'); return; }
         
         // 2-step confirm for original account
@@ -3245,34 +3231,35 @@ async function showInternalTransfer(fromType) {
         
         try {
             const uid = currentUser.uid;
-            const toDoc = await db.collection('users').doc(uid).collection('wallets').doc(toType).get();
-            const toBal = toDoc.exists ? ((toDoc.data().offchainBalances || {})[tokenKey] || 0) : 0;
-            
+            const walletsPath = `users/${uid}/wallets`;
+            const toDoc = await _dbGet(walletsPath, toType);
+            const toBal = (toDoc && !toDoc.error) ? ((toDoc.offchainBalances || {})[tokenKey] || 0) : 0;
+
             // If target wallet doesn't exist, create it
-            if (!toDoc.exists) {
-                await db.collection('users').doc(uid).collection('wallets').doc(toType).set({
+            if (!toDoc || toDoc.error) {
+                await _dbSet(walletsPath, toType, {
                     type: toType, offchainBalances: {}, balances: {},
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    createdAt: new Date().toISOString()
                 });
             }
-            
+
             // Update both wallets
-            await db.collection('users').doc(uid).collection('wallets').doc(fromType).update({
+            await _dbUpdate(walletsPath, fromType, {
                 [`offchainBalances.${tokenKey}`]: fromBal - amount
             });
-            await db.collection('users').doc(uid).collection('wallets').doc(toType).update({
+            await _dbUpdate(walletsPath, toType, {
                 [`offchainBalances.${tokenKey}`]: toBal + amount
             });
-            
+
             // Log
-            await db.collection('admin_log').add({
+            await _dbAdd('admin_log', {
                 action: 'super_internal_transfer',
                 adminEmail: currentUser.email,
                 fromWallet: fromType,
                 toWallet: toType,
                 token: tokenKey,
                 amount: amount,
-                timestamp: new Date()
+                timestamp: new Date().toISOString()
             });
             
             overlay.remove();
@@ -3289,17 +3276,17 @@ async function loadSuperWalletLog() {
     if (!container) return;
     
     try {
-        const logs = await db.collection('admin_log')
-            .where('action', '==', 'super_internal_transfer')
-            .orderBy('timestamp', 'desc').limit(20).get();
-        
-        if (logs.empty) { container.innerHTML = '<p style="font-size:0.8rem;color:#6B5744;">No transfer history</p>'; return; }
-        
+        const logs = await _dbQuery('admin_log', {
+            where: ['action', '==', 'super_internal_transfer'],
+            orderBy: 'timestamp,desc', limit: 20
+        });
+
+        if (!logs || logs.length === 0) { container.innerHTML = '<p style="font-size:0.8rem;color:#6B5744;">No transfer history</p>'; return; }
+
         const labels = { original: '<i data-lucide="lock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Original', operating: '<i data-lucide="zap" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Operating', default: '<i data-lucide="briefcase" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Default' };
         let html = '';
-        logs.forEach(doc => {
-            const d = doc.data();
-            const time = d.timestamp?.toDate ? d.timestamp.toDate().toLocaleString('ko-KR') : '--';
+        logs.forEach(d => {
+            const time = d.timestamp ? new Date(d.timestamp).toLocaleString('ko-KR') : '--';
             html += `<div style="padding:0.5rem;border-bottom:1px solid #E8E0D8;font-size:0.8rem;">
                 <div style="display:flex;justify-content:space-between;">
                     <span><strong>${d.amount?.toLocaleString()} ${(d.token||'').toUpperCase()}</strong> ${labels[d.fromWallet]||d.fromWallet} → ${labels[d.toWallet]||d.toWallet}</span>
@@ -3332,13 +3319,12 @@ async function loadAdminDashboardStats(forceRefresh = false) {
         return;
     }
 
-    // Firestore 캐시 체크
+    // 서버 캐시 체크
     if (!forceRefresh) {
         try {
-            const cacheDoc = await db.collection('admin_config').doc('dashboard_cache').get();
-            if (cacheDoc.exists) {
-                const cached = cacheDoc.data();
-                const cachedAt = cached.cachedAt?.toMillis?.() || 0;
+            const cached = await _dbGet('admin_config', 'dashboard_cache');
+            if (cached && !cached.error) {
+                const cachedAt = cached.cachedAt ? new Date(cached.cachedAt).getTime() : 0;
                 if (now - cachedAt < DASHBOARD_CACHE_TTL) {
                     _dashboardCache = cached;
                     _dashboardCacheTime = cachedAt;
@@ -3361,12 +3347,11 @@ async function loadAdminDashboardStats(forceRefresh = false) {
         const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
 
         // 1) 사용자 통계
-        const usersSnap = await db.collection('users').get();
-        stats.totalUsers = usersSnap.size;
+        const usersSnap = await _dbQuery('users', {});
+        stats.totalUsers = (usersSnap || []).length;
         let todayUsers = 0, weekUsers = 0;
-        usersSnap.forEach(doc => {
-            const d = doc.data();
-            const created = d.createdAt?.toDate?.() || (d.createdAt ? new Date(d.createdAt) : null);
+        (usersSnap || []).forEach(d => {
+            const created = d.createdAt ? new Date(d.createdAt) : null;
             if (created) {
                 if (created >= todayStart) todayUsers++;
                 if (created >= weekStart) weekUsers++;
@@ -3381,9 +3366,8 @@ async function loadAdminDashboardStats(forceRefresh = false) {
             const d = new Date(todayStart); d.setDate(d.getDate() - i);
             signups7d[d.toISOString().slice(0,10)] = 0;
         }
-        usersSnap.forEach(doc => {
-            const d = doc.data();
-            const created = d.createdAt?.toDate?.() || (d.createdAt ? new Date(d.createdAt) : null);
+        (usersSnap || []).forEach(d => {
+            const created = d.createdAt ? new Date(d.createdAt) : null;
             if (created) {
                 const key = created.toISOString().slice(0,10);
                 if (key in signups7d) signups7d[key]++;
@@ -3392,13 +3376,12 @@ async function loadAdminDashboardStats(forceRefresh = false) {
         stats.signups7d = signups7d;
 
         // 2) 거래 통계
-        const txSnap = await db.collection('offchain_transactions').get();
-        stats.totalTx = txSnap.size;
+        const txSnap = await _dbQuery('offchain_transactions', {});
+        stats.totalTx = (txSnap || []).length;
         let todayTx = 0;
         const txByToken = {};
-        txSnap.forEach(doc => {
-            const d = doc.data();
-            const ts = d.timestamp?.toDate?.() || null;
+        (txSnap || []).forEach(d => {
+            const ts = d.timestamp ? new Date(d.timestamp) : null;
             if (ts && ts >= todayStart) todayTx++;
             const tk = (d.token || 'unknown').toUpperCase();
             txByToken[tk] = (txByToken[tk] || 0) + Math.abs(d.amount || 0);
@@ -3410,22 +3393,22 @@ async function loadAdminDashboardStats(forceRefresh = false) {
         const sections = {};
 
         // MALL
-        const productsSnap = await db.collection('products').get();
-        const ordersSnap = await db.collection('orders').get();
+        const productsSnap = await _dbQuery('products', {});
+        const ordersSnap = await _dbQuery('orders', {});
         let mallRevenue = 0;
-        ordersSnap.forEach(doc => { mallRevenue += doc.data().totalPrice || doc.data().price || 0; });
+        (ordersSnap || []).forEach(d => { mallRevenue += d.totalPrice || d.price || 0; });
         sections.mall = { icon: '<i data-lucide="shopping-cart" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: 'MALL', items: [
-            { label: t('admin.dash.total_products','Total Products'), value: productsSnap.size },
-            { label: t('admin.dash.total_orders','Total Orders'), value: ordersSnap.size },
+            { label: t('admin.dash.total_products','Total Products'), value: (productsSnap || []).length },
+            { label: t('admin.dash.total_orders','Total Orders'), value: (ordersSnap || []).length },
             { label: t('admin.dash.total_revenue','Total Revenue'), value: mallRevenue.toLocaleString() + ' pt' }
         ]};
 
         // ART
         let artCount = 0, artSold = 0;
         try {
-            const artSnap = await db.collection('artworks').get();
-            artCount = artSnap.size;
-            artSnap.forEach(doc => { artSold += doc.data().sold || 0; });
+            const artSnap = await _dbQuery('artworks', {});
+            artCount = (artSnap || []).length;
+            (artSnap || []).forEach(d => { artSold += d.sold || 0; });
         } catch(e) { console.warn("[catch]", e); }
         sections.art = { icon: '<i data-lucide="theater" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: 'ART', items: [
             { label: t('admin.dash.total_artworks','Total Artworks'), value: artCount },
@@ -3435,9 +3418,9 @@ async function loadAdminDashboardStats(forceRefresh = false) {
         // BOOKS
         let bookCount = 0, bookSold = 0;
         try {
-            const bookSnap = await db.collection('books').get();
-            bookCount = bookSnap.size;
-            bookSnap.forEach(doc => { bookSold += doc.data().sold || 0; });
+            const bookSnap = await _dbQuery('books', {});
+            bookCount = (bookSnap || []).length;
+            (bookSnap || []).forEach(d => { bookSold += d.sold || 0; });
         } catch(e) { console.warn("[catch]", e); }
         sections.books = { icon: '<i data-lucide="book" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: 'BOOKS', items: [
             { label: t('admin.dash.total_books','Total Books'), value: bookCount },
@@ -3447,10 +3430,10 @@ async function loadAdminDashboardStats(forceRefresh = false) {
         // TRADING
         let activeChallenges = 0, totalParticipants = 0;
         try {
-            const chSnap = await db.collection('prop_challenges').where('status', '==', 'active').get();
-            activeChallenges = chSnap.size;
-            for (const doc of chSnap.docs) {
-                totalParticipants += doc.data().participants || 0;
+            const chSnap = await _dbQuery('prop_challenges', { where: ['status', '==', 'active'] });
+            activeChallenges = (chSnap || []).length;
+            for (const ch of (chSnap || [])) {
+                totalParticipants += ch.participants || 0;
             }
         } catch(e) { console.warn("[catch]", e); }
         sections.trading = { icon: '<i data-lucide="bar-chart-3" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>', label: 'TRADING', items: [
@@ -3461,12 +3444,12 @@ async function loadAdminDashboardStats(forceRefresh = false) {
         // SOCIAL
         let postCount = 0, commentCount = 0;
         try {
-            const postSnap = await db.collection('posts').get();
-            postCount = postSnap.size;
+            const postSnap = await _dbQuery('posts', {});
+            postCount = (postSnap || []).length;
             // 댓글은 서브컬렉션이므로 대략적으로 카운트
-            for (const doc of postSnap.docs) {
-                const comments = await doc.ref.collection('comments').get();
-                commentCount += comments.size;
+            for (const post of (postSnap || [])) {
+                const comments = await _dbQuery(`posts/${post.id}/comments`, {});
+                commentCount += (comments || []).length;
                 if (commentCount > 500) break; // 성능 보호
             }
         } catch(e) { console.warn("[catch]", e); }
@@ -3477,11 +3460,11 @@ async function loadAdminDashboardStats(forceRefresh = false) {
 
         stats.sections = sections;
 
-        // Firestore에 캐시 저장
+        // 서버에 캐시 저장
         try {
-            await db.collection('admin_config').doc('dashboard_cache').set({
+            await _dbSet('admin_config', 'dashboard_cache', {
                 ...stats,
-                cachedAt: firebase.firestore.FieldValue.serverTimestamp()
+                cachedAt: new Date().toISOString()
             });
         } catch (e) { console.warn(t('admin.dash_cache_save_fail','Dashboard cache save failed') + ':', e); }
 
@@ -3589,13 +3572,12 @@ async function loadAdminPendingProducts() {
     if (!c) return;
     c.innerHTML = 'Loading...';
     try {
-        const snap = await db.collection('products').where('status', '==', 'pending').orderBy('createdAt', 'desc').limit(50).get();
-        if (snap.empty) { c.innerHTML = '<p style="color:var(--accent);">No pending products <i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></p>'; return; }
+        const prods = await _dbQuery('products', { where: ['status', '==', 'pending'], orderBy: 'createdAt,desc', limit: 50 });
+        if (!prods || prods.length === 0) { c.innerHTML = '<p style="color:var(--accent);">No pending products <i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></p>'; return; }
         c.innerHTML = '';
-        snap.forEach(d => {
-            const p = d.data();
+        prods.forEach(p => {
             const thumb = p.images?.[0] || p.imageData || '';
-            const dateStr = p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString('ko-KR') : '';
+            const dateStr = p.createdAt ? new Date(p.createdAt).toLocaleDateString('ko-KR') : '';
             c.innerHTML += `<div style="background:var(--bg);padding:0.8rem;border-radius:8px;margin-bottom:0.5rem;border-left:4px solid #C4841D;">
                 <div style="display:flex;gap:0.8rem;align-items:center;">
                     <div style="width:60px;height:60px;border-radius:8px;overflow:hidden;background:#F7F3ED;flex-shrink:0;">
@@ -3608,8 +3590,8 @@ async function loadAdminPendingProducts() {
                     </div>
                 </div>
                 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-                    <button onclick="approveProduct('${d.id}')" style="flex:1;background:#5B7B8C;color:#FFF8F0;border:none;padding:0.5rem;border-radius:6px;cursor:pointer;font-weight:600;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Approve</button>
-                    <button onclick="rejectProduct('${d.id}')" style="flex:1;background:#B54534;color:#FFF8F0;border:none;padding:0.5rem;border-radius:6px;cursor:pointer;font-weight:600;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Reject</button>
+                    <button onclick="approveProduct('${p.id}')" style="flex:1;background:#5B7B8C;color:#FFF8F0;border:none;padding:0.5rem;border-radius:6px;cursor:pointer;font-weight:600;"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Approve</button>
+                    <button onclick="rejectProduct('${p.id}')" style="flex:1;background:#B54534;color:#FFF8F0;border:none;padding:0.5rem;border-radius:6px;cursor:pointer;font-weight:600;"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Reject</button>
                 </div>
             </div>`;
         });
@@ -3618,10 +3600,9 @@ async function loadAdminPendingProducts() {
 
 async function approveProduct(productId) {
     try {
-        await db.collection('products').doc(productId).update({ status: 'active', approvedAt: new Date(), approvedBy: currentUser.uid });
+        await _dbUpdate('products', productId, { status: 'active', approvedAt: new Date().toISOString(), approvedBy: currentUser.uid });
         // 판매자에게 알림
-        const pDoc = await db.collection('products').doc(productId).get();
-        const p = pDoc.data();
+        const p = await _dbGet('products', productId);
         if (typeof createNotification === 'function') {
             await createNotification(p.sellerId, 'order_status', { message: `<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${p.title}" has been approved!`, link: `#page=product-detail&id=${productId}` });
         }
@@ -3634,9 +3615,8 @@ async function rejectProduct(productId) {
     const reason = await showPromptModal('Rejection Reason', 'Enter reason for rejection', '');
     if (!reason) return;
     try {
-        await db.collection('products').doc(productId).update({ status: 'rejected', rejectedAt: new Date(), rejectedBy: currentUser.uid, rejectReason: reason });
-        const pDoc = await db.collection('products').doc(productId).get();
-        const p = pDoc.data();
+        await _dbUpdate('products', productId, { status: 'rejected', rejectedAt: new Date().toISOString(), rejectedBy: currentUser.uid, rejectReason: reason });
+        const p = await _dbGet('products', productId);
         if (typeof createNotification === 'function') {
             await createNotification(p.sellerId, 'order_status', { message: `<i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> "${p.title}" has been rejected. Reason: ${reason}`, link: '' });
         }
@@ -3652,14 +3632,13 @@ async function loadAdminReports() {
     if (!c) return;
     c.innerHTML = 'Loading...';
     try {
-        const snap = await db.collection('reports').where('status', '==', 'pending').orderBy('createdAt', 'desc').limit(50).get();
-        if (snap.empty) { c.innerHTML = '<p style="color:var(--accent);">No pending reports <i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></p>'; return; }
+        const reports = await _dbQuery('reports', { where: ['status', '==', 'pending'], orderBy: 'createdAt,desc', limit: 50 });
+        if (!reports || reports.length === 0) { c.innerHTML = '<p style="color:var(--accent);">No pending reports <i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i></p>'; return; }
         c.innerHTML = '';
         const REPORT_REASONS = { fake: 'Counterfeit', inappropriate: 'Inappropriate', scam: 'Suspected Scam', fraud: 'Fraud', nondelivery: 'Non-delivery', fake_review: 'Fake Review', spam: 'Spam', other: 'Other' };
         const TARGET_TYPE_LABELS = { product: '<i data-lucide="package" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Product', review: '<i data-lucide="file-text" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Review', seller: 'Seller' };
-        snap.forEach(d => {
-            const r = d.data();
-            const dateStr = r.createdAt?.toDate ? r.createdAt.toDate().toLocaleDateString('ko-KR') : '';
+        reports.forEach(r => {
+            const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleDateString('ko-KR') : '';
             c.innerHTML += `<div style="background:#F7F3ED;padding:0.8rem;border-radius:8px;margin-bottom:0.5rem;border-left:4px solid #B54534;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                     <div>
@@ -3671,8 +3650,8 @@ async function loadAdminReports() {
                 <div style="font-size:0.8rem;color:#6B5744;margin:0.3rem 0;">Reporter: ${r.reporterEmail || r.reporterId?.slice(0,8)}</div>
                 ${r.detail ? `<div style="font-size:0.8rem;color:#6B5744;">Details: ${r.detail}</div>` : ''}
                 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-                    <button onclick="handleReport('${d.id}','confirmed')" style="flex:1;background:#B54534;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Remove</button>
-                    <button onclick="handleReport('${d.id}','dismissed')" style="flex:1;background:#6B5744;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-size:0.8rem;">Dismiss</button>
+                    <button onclick="handleReport('${r.id}','confirmed')" style="flex:1;background:#B54534;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-size:0.8rem;"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Remove</button>
+                    <button onclick="handleReport('${r.id}','dismissed')" style="flex:1;background:#6B5744;color:#FFF8F0;border:none;padding:0.4rem;border-radius:6px;cursor:pointer;font-size:0.8rem;">Dismiss</button>
                 </div>
             </div>`;
         });
@@ -3681,17 +3660,16 @@ async function loadAdminReports() {
 
 async function handleReport(reportId, action) {
     try {
-        const rDoc = await db.collection('reports').doc(reportId).get();
-        const r = rDoc.data();
-        await db.collection('reports').doc(reportId).update({ status: action, handledBy: currentUser.uid, handledAt: new Date() });
+        const r = await _dbGet('reports', reportId);
+        await _dbUpdate('reports', reportId, { status: action, handledBy: currentUser.uid, handledAt: new Date().toISOString() });
         if (action === 'confirmed' && r.targetId) {
             if (r.targetType === 'product') {
-                await db.collection('products').doc(r.targetId).update({ status: 'removed', removedAt: new Date(), removedReason: 'Report confirmed' });
+                await _dbUpdate('products', r.targetId, { status: 'removed', removedAt: new Date().toISOString(), removedReason: 'Report confirmed' });
             } else if (r.targetType === 'review') {
-                await db.collection('product_reviews').doc(r.targetId).delete();
+                await _dbDelete('product_reviews', r.targetId);
             } else if (r.targetType === 'seller') {
                 // 판매자 경고 기록
-                await db.collection('users').doc(r.targetId).update({ reportWarnings: firebase.firestore.FieldValue.increment(1), lastWarningAt: new Date() });
+                await _dbUpdate('users', r.targetId, { reportWarnings: { __fieldValue: 'increment', operand: 1 }, lastWarningAt: new Date().toISOString() });
             }
         }
         showToast(action === 'confirmed' ? '<i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Report confirmed and removed' : 'Report dismissed', action === 'confirmed' ? 'warning' : 'info');
@@ -3713,18 +3691,18 @@ async function loadRewardSettingsTab() {
     let is = {};
     try {
         const [rwDoc, invDoc] = await Promise.all([
-            db.collection('admin_config').doc('reward_settings').get(),
-            db.collection('admin_config').doc('invite_settings').get()
+            _dbGet('admin_config', 'reward_settings'),
+            _dbGet('admin_config', 'invite_settings')
         ]);
-        if (rwDoc.exists) rs = { ...rs, ...rwDoc.data() };
-        if (invDoc.exists) is = invDoc.data();
+        if (rwDoc && !rwDoc.error) rs = { ...rs, ...rwDoc };
+        if (invDoc && !invDoc.error) is = invDoc;
     } catch(e) { console.warn("[catch]", e); }
 
     // 최근 로그
     let logs = [];
     try {
-        const logSnap = await db.collection('reward_logs').orderBy('createdAt','desc').limit(50).get();
-        logs = logSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const logSnap = await _dbQuery('reward_logs', { orderBy: 'createdAt,desc', limit: 50 });
+        logs = logSnap || [];
     } catch(e) { console.warn("[catch]", e); }
 
     const tiersHTML = (rs.signupTiers || []).map((tier, i) => `
@@ -3746,7 +3724,7 @@ async function loadRewardSettingsTab() {
                 <td style="padding:0.4rem;font-family:monospace;font-size:0.7rem;">${(l.uid||'').slice(0,12)}…</td>
                 <td style="text-align:center;">${l.type === 'signup' ? '<i data-lucide="user-plus" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Signup' : '<i data-lucide="handshake" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Invite'}</td>
                 <td style="text-align:center;font-weight:600;">${l.amount} CRTD</td>
-                <td style="text-align:center;font-size:0.7rem;">${l.createdAt?.toDate ? l.createdAt.toDate().toLocaleDateString() : '—'}</td>
+                <td style="text-align:center;font-size:0.7rem;">${l.createdAt ? new Date(l.createdAt).toLocaleDateString() : '—'}</td>
             </tr>`).join('')}
         </table></div>`;
 
@@ -3852,21 +3830,21 @@ async function saveRewardSettings() {
     const facebookAppId = document.getElementById('rw-fb-id')?.value.trim() || '';
 
     try {
-        await db.collection('admin_config').doc('reward_settings').set({
+        await _dbSet('admin_config', 'reward_settings', {
             signupEnabled, signupTiers, inviteEnabled, inviteAmount, inviteMaxPerUser,
-            updatedAt: new Date(), updatedBy: currentUser.email
-        }, { merge: true });
+            updatedAt: new Date().toISOString(), updatedBy: currentUser.email
+        }, true);
 
-        await db.collection('admin_config').doc('invite_settings').set({
+        await _dbSet('admin_config', 'invite_settings', {
             kakaoAppKey, facebookAppId,
-            updatedAt: new Date(), updatedBy: currentUser.email
-        }, { merge: true });
+            updatedAt: new Date().toISOString(), updatedBy: currentUser.email
+        }, true);
 
-        await db.collection('admin_logs').add({
+        await _dbAdd('admin_logs', {
             action: 'reward_settings_change',
             adminEmail: currentUser.email,
             adminUid: currentUser.uid,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
 
         showToast('<i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Reward settings saved', 'success');

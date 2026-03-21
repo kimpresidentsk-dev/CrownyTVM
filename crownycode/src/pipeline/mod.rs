@@ -18,7 +18,7 @@ use anyhow::Result;
 use colored::*;
 
 use crate::cli::Config;
-use crate::cell::store::CellStore;
+use crate::cell::store::CrownyDb;
 use crate::developer::store::DevStore;
 use crate::developer::profile::{DeveloperProfile, StepPriority};
 use crate::phase::judge::Phase;
@@ -27,11 +27,11 @@ use crate::crownycore::{CrownyCore, CelAction};
 
 pub struct Engine {
     config: Config,
-    db: CellStore,
+    db: CrownyDb,
 }
 
 impl Engine {
-    pub fn new(config: Config, db: CellStore) -> Self {
+    pub fn new(config: Config, db: CrownyDb) -> Self {
         let dev_store = DevStore::new(db.connection());
         let _ = dev_store.init_schema();
         Self { config, db }
@@ -124,7 +124,7 @@ impl Engine {
                 "─".repeat(60).dimmed(), &combined_code, "─".repeat(60).dimmed());
 
             for (intent, _, energy) in &direct_hits {
-                self.db.record_usage(intent)?;
+                self.db.cell_net_mut().record_usage(intent);
                 let mut prof = profile.clone();
                 prof.learn_intent(intent, *energy);
                 dev_store.upsert_developer(&prof)?;
@@ -185,7 +185,7 @@ impl Engine {
                 && think_result.stats.computed_cells == 0
                 && think_result.stats.unknown_cells == 0
             {
-                self.db.record_usage(&ir_tree.intent)?;
+                self.db.cell_net_mut().record_usage(&ir_tree.intent);
                 dev_store.record_request("default", false)?;
                 return Ok(());
             }
@@ -233,12 +233,17 @@ impl Engine {
 
         // ── 5b. CellNet에 패턴 저장 ──
         print!("{}", "  [5/5] 셀 저장...".dimmed());
-        self.db.upsert_pattern(&ir_tree.intent, &target, &code, think_result.confidence)?;
+        {
+            let mut net = self.db.cell_net_mut();
+            net.upsert_pattern(&ir_tree.intent, &target, &code, think_result.confidence);
+            drop(net);
+            self.db.save_net()?;
+        }
         println!(" {}", "완료".green());
 
         // ── 개발자 성장 기록 ──
         let success = think_result.confidence > 0.0;
-        self.db.record_usage(&ir_tree.intent)?;
+        self.db.cell_net_mut().record_usage(&ir_tree.intent);
         dev_store.record_request("default", success)?;
 
         if success {
@@ -270,13 +275,16 @@ impl Engine {
     }
 
     pub fn search_cells(&self, query: Option<&str>) -> Result<()> {
-        let cells = self.db.search(query.unwrap_or(""))?;
+        let net = self.db.cell_net();
+        let cells = net.search(query.unwrap_or(""));
         if cells.is_empty() { println!("{}", "저장된 셀 없음".dimmed()); return Ok(()); }
         println!("{}", format!("셀 {}개:", cells.len()).bold());
         for c in &cells {
+            let id_str = c.id.to_string();
+            let lang = c.best_pattern().map(|p| p.target_lang.as_str()).unwrap_or("?");
             println!("  {} {} [신뢰:{:.2}] [사용:{}]  {}",
-                c.id[..8.min(c.id.len())].dimmed(), c.intent.bold(),
-                c.confidence, c.use_count, c.target_lang.bright_cyan());
+                id_str[..8.min(id_str.len())].dimmed(), c.intent.bold(),
+                c.energy, c.activation_count, lang.bright_cyan());
         }
         Ok(())
     }
@@ -311,7 +319,7 @@ impl Engine {
     }
 
     pub fn status(&self) -> Result<()> {
-        let count = self.db.cell_count()?;
+        let count = self.db.cell_net().len() as i64;
         let ds = DevStore::new(self.db.connection());
         let devs = ds.developer_count().unwrap_or(0);
         let learned = ds.total_learned_intents().unwrap_or(0);
@@ -341,7 +349,7 @@ impl Engine {
     fn maybe_auto_snapshot(&self) -> Result<()> {
         let every = self.config.snapshot.auto_every;
         if every == 0 { return Ok(()); }
-        let count = self.db.cell_count()?;
+        let count = self.db.cell_net().len() as i64;
         if count > 0 && count % every as i64 == 0 {
             std::fs::create_dir_all(&self.config.snapshot.path)?;
             let path = format!("{}/snap_{count}.bin", self.config.snapshot.path);

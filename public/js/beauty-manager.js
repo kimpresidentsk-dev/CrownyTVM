@@ -1,4 +1,5 @@
 // ===== beauty-manager.js - 뷰티매니저: 피부 분석 & 변화 추적 (v1.0) =====
+// Migrated to Server REST API — zero Firebase/Firestore references
 
 const BEAUTY = (() => {
     const ZONES = [
@@ -15,6 +16,15 @@ const BEAUTY = (() => {
 
     let currentZone = null;
 
+    function _headers() {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    }
+    function _authHeaders() {
+        const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
+        return { 'Authorization': 'Bearer ' + token };
+    }
+
     async function init() {
         const container = document.getElementById('beauty-manager-content');
         if (!container || !currentUser) {
@@ -25,17 +35,18 @@ const BEAUTY = (() => {
         // 최근 분석 결과 가져오기
         let latestAnalysis = null;
         try {
-            const snap = await db.collection('users').doc(currentUser.uid)
-                .collection('skin_analyses').orderBy('createdAt', 'desc').limit(1).get();
-            if (!snap.empty) latestAnalysis = { id: snap.docs[0].id, ...snap.docs[0].data() };
+            const res = await fetch('/api/beauty/skin-analyses?limit=1', { headers: _authHeaders() });
+            const data = await res.json();
+            const analyses = data.analyses || [];
+            if (analyses.length > 0) latestAnalysis = analyses[0];
         } catch (e) { console.warn(e.message); }
 
         // 촬영 기록 개수
         let photoCount = 0;
         try {
-            const pSnap = await db.collection('users').doc(currentUser.uid)
-                .collection('skin_photos').get();
-            photoCount = pSnap.size;
+            const res = await fetch('/api/beauty/skin-photos?limit=999', { headers: _authHeaders() });
+            const data = await res.json();
+            photoCount = (data.photos || []).length;
         } catch (e) { console.warn(e.message); }
 
         container.innerHTML = `
@@ -46,7 +57,7 @@ const BEAUTY = (() => {
                     <div style="font-size:0.8rem;opacity:0.9;">camera ${t('beauty.photo_records','Photo Records')}</div>
                 </div>
                 <div style="background:linear-gradient(135deg,#8B6914,#F0C060);padding:1rem;border-radius:12px;color:#FFF8F0;text-align:center;">
-                    <div style="font-size:2rem;font-weight:800;">${latestAnalysis ? '' : '—'}</div>
+                    <div style="font-size:2rem;font-weight:800;">${latestAnalysis ? '📊' : '—'}</div>
                     <div style="font-size:0.8rem;opacity:0.9;">${latestAnalysis ? t('beauty.analysis_exists','Recent analysis available') : t('beauty.analysis_pending','Awaiting analysis')}</div>
                 </div>
             </div>
@@ -57,7 +68,7 @@ const BEAUTY = (() => {
                 <p style="font-size:0.8rem;color:var(--accent);margin-bottom:1rem;">${t('beauty.zone_photo_desc','Take close-up photos of each zone. Natural light gives more accurate results.')}</p>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;">
                     ${ZONES.map(z => `
-                        <button onclick="BEAUTY.captureZone('${z.id}')" 
+                        <button onclick="BEAUTY.captureZone('${z.id}')"
                             style="padding:0.8rem 0.4rem;border:2px solid var(--border,#e0e0e0);border-radius:10px;background:var(--card-bg,#F7F3ED);cursor:pointer;text-align:center;transition:all 0.2s;">
                             <div style="font-size:1.5rem;">${z.emoji}</div>
                             <div style="font-size:0.75rem;font-weight:600;margin-top:0.2rem;">${z.name}</div>
@@ -68,7 +79,7 @@ const BEAUTY = (() => {
 
             <!-- 전체 얼굴 촬영 -->
             <div style="background:var(--card-bg,#F7F3ED);border-radius:12px;padding:1.2rem;margin-bottom:1.2rem;">
-                <button onclick="BEAUTY.captureZone('full')" 
+                <button onclick="BEAUTY.captureZone('full')"
                     style="width:100%;padding:1rem;border:2px dashed var(--primary,#B54534);border-radius:10px;background:transparent;cursor:pointer;font-size:0.9rem;font-weight:600;color:var(--primary,#B54534);">
                     smartphone ${t('beauty.full_face_capture','Full Face Capture')}
                 </button>
@@ -78,11 +89,11 @@ const BEAUTY = (() => {
             <div style="background:var(--card-bg,#F7F3ED);border-radius:12px;padding:1.2rem;margin-bottom:1.2rem;">
                 <h3 style="margin:0 0 0.8rem 0;font-size:1rem;">${t('beauty.get_analysis_title','Get Skin Analysis')}</h3>
                 <div style="display:grid;gap:0.5rem;">
-                    <button onclick="BEAUTY.requestExpertAnalysis()" 
+                    <button onclick="BEAUTY.requestExpertAnalysis()"
                         style="width:100%;padding:0.8rem;border:none;border-radius:10px;background:linear-gradient(135deg,#8B6914,#F0C060);color:#3D2B1F;font-weight:700;cursor:pointer;font-size:0.85rem;">
                         ${t('beauty.request_expert','Get Expert Analysis')}
                     </button>
-                    <button onclick="BEAUTY.requestAIAnalysis()" 
+                    <button onclick="BEAUTY.requestAIAnalysis()"
                         style="width:100%;padding:0.8rem;border:none;border-radius:10px;background:linear-gradient(135deg,#8B6914,#F0C060);color:#FFF8F0;font-weight:700;cursor:pointer;font-size:0.85rem;">
                         <i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ${t('beauty.request_ai','CrownyGirl AI Analysis')}
                     </button>
@@ -212,27 +223,18 @@ const BEAUTY = (() => {
         showLoading('camera ' + t('beauty.saving','Saving...'));
 
         try {
-            // Firebase Storage에 업로드
-            const storageRef = firebase.storage().ref();
-            const path = `skin_photos/${currentUser.uid}/${currentZone}_${Date.now()}.jpg`;
-            const photoRef = storageRef.child(path);
+            // Extract base64 from dataURL
+            const photoBase64 = dataUrl.split(',')[1];
 
-            // dataURL → blob
-            const res = await fetch(dataUrl);
-            const blob = await res.blob();
-            await photoRef.put(blob);
-            const downloadURL = await photoRef.getDownloadURL();
-
-            // Firestore에 메타 저장
-            await db.collection('users').doc(currentUser.uid)
-                .collection('skin_photos').add({
+            const res = await fetch('/api/beauty/skin-photos', {
+                method: 'POST', headers: _headers(),
+                body: JSON.stringify({
                     zone: currentZone,
-                    photoURL: downloadURL,
-                    storagePath: path,
-                    createdAt: new Date(),
-                    analyzed: false,
-                    analysisResult: null
-                });
+                    photoBase64,
+                    ext: 'jpg'
+                })
+            });
+            if (!res.ok) throw new Error('Save failed: ' + res.status);
 
             hideLoading();
             showToast('camera ' + t('beauty.capture_done','Capture complete! Try requesting an analysis.'), 'success');
@@ -257,10 +259,14 @@ const BEAUTY = (() => {
         if (!currentUser) return;
 
         // 촬영 기록 확인
-        const photos = await db.collection('users').doc(currentUser.uid)
-            .collection('skin_photos').orderBy('createdAt', 'desc').limit(6).get();
+        let photoCount = 0;
+        try {
+            const res = await fetch('/api/beauty/skin-photos?limit=6', { headers: _authHeaders() });
+            const data = await res.json();
+            photoCount = (data.photos || []).length;
+        } catch (e) {}
 
-        if (photos.empty) {
+        if (photoCount === 0) {
             showToast(t('beauty.take_photos_first','Please take skin photos first!'), 'warning');
             return;
         }
@@ -268,15 +274,13 @@ const BEAUTY = (() => {
         showLoading(t('beauty.requesting_analysis','Requesting analysis...'));
         try {
             const userInfo = await getUserDisplayInfo(currentUser.uid);
-            await db.collection('skin_analysis_requests').add({
-                userId: currentUser.uid,
-                userNickname: userInfo.nickname,
-                photoCount: photos.size,
-                type: 'expert',
-                status: 'pending', // pending → in_progress → completed
-                createdAt: new Date(),
-                completedAt: null,
-                analysisId: null
+            await fetch('/api/beauty/analysis-requests', {
+                method: 'POST', headers: _headers(),
+                body: JSON.stringify({
+                    userNickname: userInfo.nickname,
+                    photoCount,
+                    type: 'expert'
+                })
             });
             hideLoading();
             showToast(t('beauty.expert_requested','Expert analysis requested! Results will be sent via notification.'), 'success');
@@ -290,10 +294,14 @@ const BEAUTY = (() => {
     async function requestAIAnalysis() {
         if (!currentUser) return;
 
-        const photos = await db.collection('users').doc(currentUser.uid)
-            .collection('skin_photos').orderBy('createdAt', 'desc').limit(6).get();
+        let photos = [];
+        try {
+            const res = await fetch('/api/beauty/skin-photos?limit=6', { headers: _authHeaders() });
+            const data = await res.json();
+            photos = data.photos || [];
+        } catch (e) {}
 
-        if (photos.empty) {
+        if (photos.length === 0) {
             showToast(t('beauty.take_photos_first','Please take skin photos first!'), 'warning');
             return;
         }
@@ -301,8 +309,8 @@ const BEAUTY = (() => {
         showLoading('<i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('beauty.ai_analyzing','CrownyGirl is analyzing...'));
         try {
             // 최근 사진 URL 수집
-            const photoURLs = photos.docs.map(d => d.data().photoURL).filter(Boolean);
-            const zones = photos.docs.map(d => d.data().zone);
+            const photoURLs = photos.map(p => p.photoURL).filter(Boolean);
+            const zones = photos.map(p => p.zone);
 
             // Gemini Vision으로 분석
             const lang = (typeof currentLang !== 'undefined') ? currentLang : 'ko';
@@ -335,7 +343,7 @@ JSON만 출력하세요.`;
             // Gemini API 호출 (서버 프록시 사용)
             const parts = [{ text: prompt }];
             const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
-            const res = await fetch('/api/ai/gemini', {
+            const aiRes = await fetch('/api/ai/gemini', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({
@@ -343,8 +351,8 @@ JSON만 출력하세요.`;
                     generationConfig: { temperature: 0.7, maxOutputTokens: 800 }
                 })
             });
-            const data = await res.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+            const aiData = await aiRes.json();
+            const text = aiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 
             // JSON 파싱
             let analysis;
@@ -361,23 +369,25 @@ JSON만 출력하세요.`;
                 };
             }
 
-            // Firestore에 저장
-            const analysisDoc = await db.collection('users').doc(currentUser.uid)
-                .collection('skin_analyses').add({
+            // 서버에 저장
+            const saveRes = await fetch('/api/beauty/skin-analyses', {
+                method: 'POST', headers: _headers(),
+                body: JSON.stringify({
                     type: 'ai',
                     analyzer: 'crownygirl',
                     ...analysis,
                     photoCount: photoURLs.length,
-                    zones,
-                    createdAt: new Date()
-                });
+                    zones
+                })
+            });
+            const saveData = await saveRes.json();
 
             hideLoading();
             showToast('<i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('beauty.ai_complete','CrownyGirl analysis complete!'), 'success');
 
             // 결과 표시
             const resultEl = document.getElementById('beauty-result-content');
-            if (resultEl) resultEl.innerHTML = renderAnalysis({ id: analysisDoc.id, ...analysis, createdAt: new Date(), type: 'ai' });
+            if (resultEl) resultEl.innerHTML = renderAnalysis({ id: saveData.id, ...analysis, createdAt: new Date().toISOString(), type: 'ai' });
 
         } catch (e) {
             hideLoading();
@@ -392,7 +402,7 @@ JSON만 출력하세요.`;
         const metricsKo = { moisture: t('beauty.metric_moisture','Moisture'), oil: t('beauty.metric_oil','Oil'), pore: t('beauty.metric_pore','Pore'), wrinkle: t('beauty.metric_wrinkle','Wrinkle'), pigment: t('beauty.metric_pigment','Pigment'), elasticity: t('beauty.metric_elasticity','Elasticity'), overall: t('beauty.metric_overall','Overall') };
         const colors = { moisture: '#8B6914', oil: '#FFB74D', pore: '#BA68C8', wrinkle: '#B54534', pigment: '#A1887F', elasticity: '#5B7B8C', overall: '#B54534' };
 
-        const date = analysis.createdAt?.toDate ? analysis.createdAt.toDate().toLocaleDateString('ko-KR') : new Date().toLocaleDateString('ko-KR');
+        const date = analysis.createdAt ? new Date(analysis.createdAt).toLocaleDateString('ko-KR') : new Date().toLocaleDateString('ko-KR');
         const typeLabel = analysis.type === 'ai' ? '<i data-lucide="sparkles" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> ' + t('beauty.crownygirl_ai','CrownyGirl AI') : t('beauty.expert','Expert');
 
         return `
@@ -426,15 +436,15 @@ JSON만 출력하세요.`;
         if (!container) return;
 
         try {
-            const snap = await db.collection('users').doc(currentUser.uid)
-                .collection('skin_photos').orderBy('createdAt', 'desc').limit(12).get();
+            const res = await fetch('/api/beauty/skin-photos?limit=12', { headers: _authHeaders() });
+            const data = await res.json();
+            const photos = data.photos || [];
 
-            if (snap.empty) return;
+            if (photos.length === 0) return;
 
-            container.innerHTML = snap.docs.map(doc => {
-                const d = doc.data();
-                const zone = ZONES.find(z => z.id === d.zone) || { name: d.zone, emoji: '' };
-                const date = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
+            container.innerHTML = photos.map(d => {
+                const zone = ZONES.find(z => z.id === d.zone) || { name: d.zone, emoji: '📷' };
+                const date = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
                 return `
                     <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;cursor:pointer;" onclick="BEAUTY.viewPhoto('${d.photoURL}','${zone.name}','${date}')">
                         <img src="${d.photoURL}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
@@ -455,17 +465,18 @@ JSON만 출력하세요.`;
         if (!container) return;
 
         try {
-            const snap = await db.collection('users').doc(currentUser.uid)
-                .collection('skin_analyses').orderBy('createdAt', 'desc').limit(10).get();
+            const res = await fetch('/api/beauty/skin-analyses?limit=10', { headers: _authHeaders() });
+            const data = await res.json();
+            const analyses = data.analyses || [];
 
-            if (snap.empty || snap.size < 2) return;
+            if (analyses.length < 2) return;
 
-            const entries = snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
+            const entries = [...analyses].reverse();
 
             container.innerHTML = `
                 <div style="display:flex;flex-direction:column;gap:0.8rem;">
                     ${entries.map((a, i) => {
-                        const date = a.createdAt?.toDate ? a.createdAt.toDate().toLocaleDateString('ko-KR') : '';
+                        const date = a.createdAt ? new Date(a.createdAt).toLocaleDateString('ko-KR') : '';
                         const overall = a.scores?.overall || 0;
                         const prev = i > 0 ? (entries[i - 1].scores?.overall || 0) : overall;
                         const diff = overall - prev;
@@ -506,18 +517,17 @@ JSON만 출력하세요.`;
         if (!container) return;
 
         try {
-            const snap = await db.collection('skin_analysis_requests')
-                .where('status', 'in', ['pending', 'in_progress'])
-                .orderBy('createdAt', 'desc').limit(20).get();
+            const res = await fetch('/api/beauty/analysis-requests?status=pending,in_progress&limit=20', { headers: _authHeaders() });
+            const data = await res.json();
+            const requests = data.requests || [];
 
-            if (snap.empty) {
+            if (requests.length === 0) {
                 container.innerHTML = '<p style="text-align:center;color:#6B5744;padding:1rem;">대기 중인 분석 요청이 없습니다.</p>';
                 return;
             }
 
-            container.innerHTML = snap.docs.map(doc => {
-                const d = doc.data();
-                const date = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString('ko-KR') : '';
+            container.innerHTML = requests.map(d => {
+                const date = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR') : '';
                 return `
                     <div style="border:1px solid #E8E0D8;border-radius:8px;padding:0.8rem;margin-bottom:0.5rem;">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -525,9 +535,9 @@ JSON만 출력하세요.`;
                             <span style="font-size:0.75rem;color:#6B5744;">${date} · camera ${d.photoCount}장</span>
                         </div>
                         <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-                            <button onclick="BEAUTY.adminAnalyze('${doc.id}','${d.userId}')" 
+                            <button onclick="BEAUTY.adminAnalyze('${d.id}','${d.userId}')"
                                 style="flex:1;padding:0.5rem;border:none;border-radius:6px;background:#5B7B8C;color:#FFF8F0;cursor:pointer;font-size:0.8rem;">
-                                 분석 입력
+                                📊 분석 입력
                             </button>
                         </div>
                     </div>`;
@@ -546,7 +556,7 @@ JSON만 출력하세요.`;
 
         modal.innerHTML = `
             <div style="background:#FFF8F0;border-radius:16px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;">
-                <h3> 피부 분석 입력</h3>
+                <h3>📊 피부 분석 입력</h3>
                 <div style="display:grid;gap:0.6rem;margin-top:1rem;">
                     <select id="admin-skin-type" style="padding:0.5rem;border:1px solid #E8E0D8;border-radius:6px;">
                         ${SKIN_TYPES.map(t => `<option value="${t}">${t}</option>`).join('')}
@@ -561,7 +571,7 @@ JSON만 출력하세요.`;
                     <textarea id="admin-summary" placeholder="요약 코멘트" rows="2" style="padding:0.5rem;border:1px solid #E8E0D8;border-radius:6px;"></textarea>
                     <textarea id="admin-advice" placeholder="관리 조언" rows="2" style="padding:0.5rem;border:1px solid #E8E0D8;border-radius:6px;"></textarea>
                     <input type="text" id="admin-recommended" placeholder="추천 제품/서비스" style="padding:0.5rem;border:1px solid #E8E0D8;border-radius:6px;">
-                    <button onclick="BEAUTY.submitAdminAnalysis('${requestId}','${userId}')" 
+                    <button onclick="BEAUTY.submitAdminAnalysis('${requestId}','${userId}')"
                         style="padding:0.8rem;border:none;border-radius:8px;background:#5B7B8C;color:#FFF8F0;font-weight:700;cursor:pointer;">
                         ✅ 분석 결과 저장
                     </button>
@@ -585,22 +595,33 @@ JSON만 출력하세요.`;
             summary: document.getElementById('admin-summary')?.value || '',
             advice: document.getElementById('admin-advice')?.value || '',
             recommended: document.getElementById('admin-recommended')?.value || '',
-            createdAt: new Date()
+            targetUserId: userId,
+            requestId
         };
 
         try {
             showLoading('저장 중...');
-            await db.collection('users').doc(userId).collection('skin_analyses').add(analysis);
-            await db.collection('skin_analysis_requests').doc(requestId).update({
-                status: 'completed', completedAt: new Date()
+            // Save analysis
+            await fetch('/api/beauty/skin-analyses', {
+                method: 'POST', headers: _headers(),
+                body: JSON.stringify(analysis)
             });
 
-            // 알림
-            try {
-                await db.collection('users').doc(userId).collection('notifications').add({
-                    type: 'beauty', message: ' 피부 분석 결과가 도착했습니다!', read: false, createdAt: new Date()
-                });
-            } catch (e) { console.warn(e.message); }
+            // Update request status
+            await fetch(`/api/beauty/analysis-requests/${encodeURIComponent(requestId)}`, {
+                method: 'PATCH', headers: _headers(),
+                body: JSON.stringify({ status: 'completed', completedAt: new Date().toISOString() })
+            });
+
+            // Send notification
+            await fetch('/api/beauty/notify', {
+                method: 'POST', headers: _headers(),
+                body: JSON.stringify({
+                    targetUserId: userId,
+                    type: 'beauty',
+                    message: '📊 피부 분석 결과가 도착했습니다!'
+                })
+            });
 
             hideLoading();
             showToast('✅ 분석 결과 저장 완료!', 'success');
