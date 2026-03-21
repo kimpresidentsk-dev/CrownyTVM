@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" dir="ltr">
 <head>
     <script>
     // SW 강제 해제 + 캐시 전체 삭제 (일회성)
@@ -24,7 +24,7 @@
     });
     </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>CROWNY PLATFORM</title>
     
     <!-- PWA -->
@@ -36,18 +36,18 @@
     <meta name="apple-mobile-web-app-title" content="CROWNY">
     
     <!-- OG Meta -->
-    <meta property="og:title" content="크라우니 — Protecting Beauty, Empowering Safety">
-    <meta property="og:description" content="지갑 · 트레이딩 · 마켓 · 소셜 · 아트 · 에너지 — 올인원 플랫폼">
+    <meta property="og:title" content="CROWNY — Protecting Beauty, Empowering Safety">
+    <meta property="og:description" content="Wallet · Trading · Market · Social · Art · Energy — All-in-One Platform">
     <meta property="og:image" content="/img/og-image.png">
     <meta property="og:url" content="https://crowny.org">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="크라우니 — Protecting Beauty, Empowering Safety">
-    <meta name="twitter:description" content="지갑 · 트레이딩 · 마켓 · 소셜 · 아트 · 에너지 — 올인원 플랫폼">
+    <meta name="twitter:title" content="CROWNY — Protecting Beauty, Empowering Safety">
+    <meta name="twitter:description" content="Wallet · Trading · Market · Social · Art · Energy — All-in-One Platform">
     <meta name="twitter:image" content="/img/og-image.png">
     
     <!-- Lucide Icons (선형 아이콘) -->
-    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.js"></script>
+    <script src="/vendor/lucide.js"></script>
     
     <!-- CSS Modules (organized by section) -->
     <link rel="stylesheet" href="/css/base.css?v=24.4">
@@ -140,6 +140,7 @@
     <link rel="stylesheet" href="/css/settings.css?v=24.4">
     <link rel="stylesheet" href="/css/dark.css?v=24.4">
     <link rel="stylesheet" href="/css/mobile.css?v=24.4">
+    <link rel="stylesheet" href="/css/rtl.css?v=24.4">
     <!-- 🔧 HOTFIX: 로그인 폼 스타일 강제 적용 -->
     <style>
         .btn-primary {
@@ -192,7 +193,7 @@
     </style>
     
     <!-- Lightweight Charts -->
-    <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="/vendor/lightweight-charts.js"></script>
 
     <script>
         // ═══ CrownyTVM DB Client (Firestore-compatible API) ═══
@@ -533,6 +534,7 @@
     </script>
 </head>
 <body>
+<a href="#main-content" class="skip-link" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000;padding:0.5rem;background:#3D2B1F;color:#FFF8F0;text-decoration:none;font-size:0.9rem;" onfocus="this.style.left='0';this.style.width='auto';this.style.height='auto'" onblur="this.style.left='-9999px';this.style.width='1px';this.style.height='1px'">Skip to content</a>
     <!-- Landing Section (로그인 전 전용) -->
     <section id="landing-page" class="hidden">
         <div class="landing-content">
@@ -591,7 +593,7 @@
         <div class="top-actions" id="top-page-actions"></div>
     </div>
     
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar">
         <div class="logo" onclick="showPage('today')">
             <h1>CROWNY</h1>
             <p>PRESENT</p>
@@ -662,7 +664,7 @@
         </div>
     </div>
 
-    <main class="content">
+    <main class="content" role="main" id="main-content">
         <section id="dashboard" class="page">
             <div id="dashboard-content">
                 <div style="padding:2rem 1rem;text-align:center;">
@@ -2546,11 +2548,9 @@
         });
     </script>
     
-    <!-- Kakao SDK 제거됨 — crowny.org 자체 인증 사용 -->
-    <!-- Facebook SDK -->
-    <script async defer crossorigin="anonymous" src="https://connect.facebook.net/ko_KR/sdk.js"></script>
+    <!-- 외부 SDK 전부 제거 — crowny.org 자체 인증 사용 -->
     <!-- ===== BOTTOM TAB BAR (Mobile) ===== -->
-    <nav class="bottom-tab-bar" id="bottom-tab-bar">
+    <nav class="bottom-tab-bar" id="bottom-tab-bar" role="navigation" aria-label="Main navigation">
         <div class="bottom-tab-bar-inner">
             <button class="bottom-tab-item" onclick="showPage('contacts-crm')" data-page="contacts-crm">
                 <span class="tab-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>

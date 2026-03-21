@@ -96,7 +96,7 @@ function runHanSeon(code, command = 'run', timeout = 5000) {
         }, (err, stdout, stderr) => {
             try { fs.unlinkSync(tmpFile); } catch(e) { /* cleanup */ }
             if (err) {
-                if (err.killed) resolve({ output: '', error: '실행 시간 초과 (5초)', timeout: true });
+                if (err.killed) resolve({ output: '', error: 'Execution timeout (5s)', timeout: true });
                 else resolve({ output: stdout || '', error: stderr || err.message });
             } else {
                 resolve({ output: stdout || '', error: stderr || null });
@@ -127,7 +127,7 @@ function crownyBusAPI(method, path, body = null, busToken = null) {
             });
         });
         req.on('error', e => resolve({ status: 0, data: { error: e.message } }));
-        req.on('timeout', () => { req.destroy(); resolve({ status: 0, data: { error: '타임아웃' } }); });
+        req.on('timeout', () => { req.destroy(); resolve({ status: 0, data: { error: 'Timeout' } }); });
         if (postData) req.write(postData);
         req.end();
     });
@@ -164,7 +164,7 @@ async function processSyncQueue() {
 
     for (const item of pending) {
         const user = users[item.username];
-        if (!user || !user.busToken) { item.retries++; item.lastError = 'busToken 없음'; changed = true; continue; }
+        if (!user || !user.busToken) { item.retries++; item.lastError = 'busToken missing'; changed = true; continue; }
 
         let result;
         try {
@@ -233,7 +233,7 @@ async function busRegister(username, password, email, displayName) {
     }
     // 실패 시 큐에 추가
     enqueueBusSync('register', { email, password, displayName }, username);
-    return { success: false, error: r.data?.error || '연결 실패', queued: true };
+    return { success: false, error: r.data?.error || 'Connection failed', queued: true };
 }
 
 async function busLogin(username, password, email) {
@@ -250,7 +250,7 @@ async function busLogin(username, password, email) {
             return { success: true, busToken: token };
         }
     }
-    return { success: false, error: r.data?.error || '연결 실패' };
+    return { success: false, error: r.data?.error || 'Connection failed' };
 }
 
 // ── 토큰 갱신 ──
@@ -337,7 +337,7 @@ async function cloudPush(username, action, method, path, body) {
 // ── Cloud Pull: CrownyBus → 로컬 ──
 async function cloudPull(username) {
     const token = await ensureBusToken(username);
-    if (!token) return { error: 'busToken 없음' };
+    if (!token) return { error: 'busToken missing' };
     const results = { contacts: 0, chats: 0, wallet: null, quiz: null };
 
     // 1. Pull 연락처
@@ -449,14 +449,14 @@ function getServerStatus() {
             heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
         },
         services: {
-            mail: { name: '메일서버', status: 'online', info: `${DOMAIN} 웹메일 (${cells.filter(c => c.type === TY_MAIL).length}통)` },
-            cloud: { name: '클라우드 동기화', status: busStatus.connected ? 'online' : 'offline', info: busStatus.connected ? 'iCloud 패턴 활성' : '오프라인 모드' },
-            blockchain: { name: '블록체인', status: busStatus.connected ? 'online' : 'offline', info: busStatus.connected ? 'crownybus.com 연결됨' : (busStatus.error || '미연결') },
-            wallet: { name: '지갑서버', status: 'online', info: `3통화 (CRN/FNC/CRM)` },
-            chat: { name: '채팅서버', status: 'online', info: `${cells.filter(c => c.type === TY.MESSAGE).length}건` },
-            contacts: { name: '연락처서버', status: 'online', info: `${cells.filter(c => c.type === TY.CONTACT).length}건` },
-            hanseon: { name: '한선씨VM', status: fs.existsSync(CROWNY_BIN) ? 'online' : 'offline', info: fs.existsSync(CROWNY_BIN) ? 'ISA729 준비' : '바이너리 없음' },
-            quiz: { name: '퀴즈서버', status: BIBLE_QUIZ.length > 0 ? 'online' : 'offline', info: `${BIBLE_QUIZ.length}문항` },
+            mail: { name: 'Mail Server', status: 'online', info: `${DOMAIN} webmail (${cells.filter(c => c.type === TY_MAIL).length} msgs)` },
+            cloud: { name: 'Cloud Sync', status: busStatus.connected ? 'online' : 'offline', info: busStatus.connected ? 'iCloud pattern active' : 'Offline mode' },
+            blockchain: { name: 'Blockchain', status: busStatus.connected ? 'online' : 'offline', info: busStatus.connected ? 'crownybus.com connected' : (busStatus.error || 'Not connected') },
+            wallet: { name: 'Wallet Server', status: 'online', info: `3 currencies (CRN/FNC/CRM)` },
+            chat: { name: 'Chat Server', status: 'online', info: `${cells.filter(c => c.type === TY.MESSAGE).length} msgs` },
+            contacts: { name: 'Contacts Server', status: 'online', info: `${cells.filter(c => c.type === TY.CONTACT).length} entries` },
+            hanseon: { name: 'HanSeon VM', status: fs.existsSync(CROWNY_BIN) ? 'online' : 'offline', info: fs.existsSync(CROWNY_BIN) ? 'ISA729 ready' : 'Binary not found' },
+            quiz: { name: 'Quiz Server', status: BIBLE_QUIZ.length > 0 ? 'online' : 'offline', info: `${BIBLE_QUIZ.length} questions` },
         },
         stats: {
             users: Object.keys(users).length,
@@ -493,7 +493,11 @@ function loadJSON(file, def = {}) {
 }
 
 function saveJSON(file, data) {
-    fs.writeFileSync(`${DATA_DIR}/${file}`, JSON.stringify(data, null, 2));
+    // Atomic write: write to tmp file then rename (prevents corruption on crash)
+    const target = `${DATA_DIR}/${file}`;
+    const tmp = target + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, target);
 }
 
 // YouTube ID 추출
@@ -626,7 +630,7 @@ const SESSIONS_FILE = pathModule.join(DATA_DIR, 'sessions.json');
 const SESSION_TTL = 7 * 24 * 60 * 60 * 1000; // 7일 만료
 let sessions = {};
 try { sessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')); } catch(e) { /* first run */ }
-function saveSessions() { try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions)); } catch(e) { console.warn('[SAVE]', e.message); } }
+function saveSessions() { try { const tmp = SESSIONS_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(sessions)); fs.renameSync(tmp, SESSIONS_FILE); } catch(e) { console.warn('[SAVE]', e.message); } }
 
 // ── Rate Limiter (인메모리, IP 기반) ──
 const _rateLimits = {};
@@ -669,8 +673,8 @@ function generateWalletAddress(username) {
 }
 
 function createUser(username, password, displayName) {
-    if (users[username]) return { error: '이미 존재하는 아이디입니다' };
-    if (!/^[a-z0-9._-]{2,20}$/.test(username)) return { error: '아이디: 영문소문자/숫자/._- 2~20자' };
+    if (users[username]) return { error: 'Username already exists' };
+    if (!/^[a-z0-9._-]{2,20}$/.test(username)) return { error: 'Username: lowercase letters/numbers/._- 2-20 chars' };
 
     const email = `${username}@${DOMAIN}`;
 
@@ -703,8 +707,8 @@ function createUser(username, password, displayName) {
 
     // 실제 메일박스 생성 (Postfix/Dovecot 설치된 경우)
     try {
-        const { execSync } = require('child_process');
-        execSync(`crowny-mailbox create ${username} ${password}`, { timeout: 5000 });
+        const { execFileSync } = require('child_process');
+        execFileSync('crowny-mailbox', ['create', username, password], { timeout: 5000 });
         console.log(`[메일] ${email} 메일박스 생성 완료`);
     } catch (e) {
         console.log(`[메일] 메일박스 생성 건너뜀 (Postfix 미설치): ${e.message.split('\n')[0]}`);
@@ -719,7 +723,7 @@ function createUser(username, password, displayName) {
         email,
         cellId: cell.id,
         walletAddress,
-        message: `${email} 생성 완료. 이메일 인증하면 근거+1.`
+        message: `${email} created. Verify email for +1 trust.`
     };
 }
 
@@ -728,7 +732,7 @@ function loginUser(username, password) {
     if (username && username.includes('@')) username = username.split('@')[0];
     const user = users[username];
     if (!user || !verifyPassword(password, user.password))
-        return { error: '아이디 또는 비밀번호가 틀렸습니다' };
+        return { error: 'Invalid username or password' };
 
     // 레거시 SHA-256 → scrypt 자동 마이그레이션
     if (!user.password.startsWith('scrypt:')) {
@@ -756,12 +760,12 @@ function loginUser(username, password) {
 
 function verifyEmail(username) {
     const user = users[username];
-    if (!user || user.verified) return { error: '이미 인증됨' };
+    if (!user || user.verified) return { error: 'Already verified' };
     user.verified = true;
     addEvidence(user.cellId);  // 이메일 인증 = 근거1
     saveJSON('users.json', users);
     const cell = findCell(user.cellId);
-    return { success: true, evidence: cell.evidence, state: cell.state === 2 ? '확정' : '미확인' };
+    return { success: true, evidence: cell.evidence, state: cell.state === 2 ? 'confirmed' : 'unconfirmed' };
 }
 
 function getUser(token) {
@@ -780,7 +784,7 @@ function getUser(token) {
 
 function addContact(ownerUsername, contactName, phone, relation, extra = {}) {
     const owner = users[ownerUsername];
-    if (!owner) return { error: '사용자 없음' };
+    if (!owner) return { error: 'User not found' };
 
     const contact = createCell(contactName, TY.CONTACT, 0, ownerUsername);
     contact.phone = phone;
@@ -820,14 +824,14 @@ function getContacts(username) {
 function sendMessage(fromUsername, toUsername, content, crmmAmount = 0) {
     const from = users[fromUsername];
     const to = users[toUsername];
-    if (!from || !to) return { error: '사용자 없음' };
+    if (!from || !to) return { error: 'User not found' };
 
     // CRM tip if specified
     if (crmmAmount > 0) {
         const wallet = getWallet(fromUsername);
-        if ((wallet.balances.CRM || 0) < crmmAmount) return { error: 'CRM 잔액 부족' };
+        if ((wallet.balances.CRM || 0) < crmmAmount) return { error: 'Insufficient CRM balance' };
         // Process the tip transfer
-        walletTransact(fromUsername, 'send', crmmAmount, toUsername, `맘 선물: ${content.slice(0, 20)}`, 'CRM');
+        walletTransact(fromUsername, 'send', crmmAmount, toUsername, `CRM gift: ${content.slice(0, 20)}`, 'CRM');
     }
 
     const msg = createCell(content.slice(0, 100), TY.MESSAGE, Date.now(), fromUsername);
@@ -860,7 +864,7 @@ function getMessages(username, withUser = null) {
 
 function markRead(messageId, username) {
     const msg = findCell(messageId);
-    if (!msg || msg.to !== username) return { error: '권한 없음' };
+    if (!msg || msg.to !== username) return { error: 'Permission denied' };
     msg.read = true;
     msg.modified = Date.now();
     // 읽음 = 확정 (메시지가 전달되었다는 근거)
@@ -900,7 +904,7 @@ function getQuizState(username) {
 }
 
 function getQuiz(username) {
-    if (BIBLE_QUIZ.length === 0) return { error: '퀴즈 데이터를 로드할 수 없습니다' };
+    if (BIBLE_QUIZ.length === 0) return { error: 'Unable to load quiz data' };
     const state = getQuizState(username);
 
     // Filter by level difficulty
@@ -935,7 +939,7 @@ function getQuiz(username) {
 }
 
 function getAllQuiz(username) {
-    if (BIBLE_QUIZ.length === 0) return { error: '퀴즈 데이터를 로드할 수 없습니다' };
+    if (BIBLE_QUIZ.length === 0) return { error: 'Unable to load quiz data' };
     const state = getQuizState(username);
 
     const maxDifficulty = state.level >= 3 ? 3 : state.level >= 2 ? 2 : 1;
@@ -973,7 +977,7 @@ function answerQuiz(username, quizId, selectedIndex) {
     const qid = typeof quizId === 'string' ? parseInt(quizId) : quizId;
     const sidx = typeof selectedIndex === 'string' ? parseInt(selectedIndex) : selectedIndex;
     const quiz = BIBLE_QUIZ.find(q => q.i === qid);
-    if (!quiz) return { error: '잘못된 퀴즈' };
+    if (!quiz) return { error: 'Invalid quiz' };
 
     const correct = sidx === quiz.a;
     const scoreCell = createCell(`성경:${quiz.r}`, TY.QUIZ_SCORE, qid, username);
@@ -1002,7 +1006,7 @@ function answerQuiz(username, quizId, selectedIndex) {
         const todayRewards = cells.filter(c =>
             c.type === TY.TRANSACTION && c.owner === username &&
             c.currency === 'CRM' && c.txType === 'deposit' &&
-            c.memo && c.memo.startsWith('퀴즈 보상') &&
+            c.memo && (c.memo.startsWith('Quiz reward') || c.memo.startsWith('퀴즈 보상')) &&
             new Date(c.created).toDateString() === today
         );
         const todayCRM = todayRewards.reduce((s, t) => s + t.value, 0);
@@ -1015,11 +1019,11 @@ function answerQuiz(username, quizId, selectedIndex) {
         const withinCap = isAdmin || crmmBalance < WALLET_CAP_BASIC;
 
         if (passed && canReward && withinCap) {
-            walletTransact(username, 'deposit', 1, null, `퀴즈 보상 (${prevCorrect}/${ROUND_SIZE})`, 'CRM');
+            walletTransact(username, 'deposit', 1, null, `Quiz reward (${prevCorrect}/${ROUND_SIZE})`, 'CRM');
         }
         let rewardMsg = passed ? '1 CRM' : null;
-        if (passed && !canReward) rewardMsg = `오늘 한도 초과 (${todayCRM}/${DAILY_QUIZ_REWARD_CAP})`;
-        if (passed && !withinCap) rewardMsg = `지갑 한도 초과 (${crmmBalance}/${WALLET_CAP_BASIC} CRM)`;
+        if (passed && !canReward) rewardMsg = `Daily limit exceeded (${todayCRM}/${DAILY_QUIZ_REWARD_CAP})`;
+        if (passed && !withinCap) rewardMsg = `Wallet cap exceeded (${crmmBalance}/${WALLET_CAP_BASIC} CRM)`;
         roundResult = { completed: true, correct: prevCorrect, total: ROUND_SIZE, passed, reward: rewardMsg, dailyEarned: todayCRM };
     }
 
@@ -1042,7 +1046,7 @@ function answerQuiz(username, quizId, selectedIndex) {
         reference: quiz.r,
         round: { current: state.roundAnswered, total: ROUND_SIZE, correct: state.roundCorrect },
         roundResult,
-        message: correct ? '정답!' : `오답. 정답: ${quiz.o[quiz.a]}`,
+        message: correct ? 'Correct!' : `Wrong. Answer: ${quiz.o[quiz.a]}`,
     };
 }
 
@@ -1173,7 +1177,7 @@ const TY_MAIL = 406;
 
 function sendEmail(fromUsername, toAddress, subject, body, replyTo = null) {
     const from = users[fromUsername];
-    if (!from) return { error: '사용자 없음' };
+    if (!from) return { error: 'User not found' };
 
     // Parse recipient: "user" → "user@crowny.org", "user@crowny.org" → "user@crowny.org"
     let toUsername = toAddress.replace(`@${DOMAIN}`, '');
@@ -1244,7 +1248,7 @@ function getMailCount(username) {
 
 function readMail(mailId, username) {
     const mail = findCell(mailId);
-    if (!mail || mail.owner !== username || mail.type !== TY_MAIL) return { error: '메일 없음' };
+    if (!mail || mail.owner !== username || mail.type !== TY_MAIL) return { error: 'Mail not found' };
     mail.read = true;
     mail.modified = Date.now();
     saveCells();
@@ -1253,7 +1257,7 @@ function readMail(mailId, username) {
 
 function starMail(mailId, username, starred) {
     const mail = findCell(mailId);
-    if (!mail || mail.owner !== username || mail.type !== TY_MAIL) return { error: '메일 없음' };
+    if (!mail || mail.owner !== username || mail.type !== TY_MAIL) return { error: 'Mail not found' };
     mail.starred = !!starred;
     mail.modified = Date.now();
     saveCells();
@@ -1262,7 +1266,7 @@ function starMail(mailId, username, starred) {
 
 function moveMail(mailId, username, folder) {
     const mail = findCell(mailId);
-    if (!mail || mail.owner !== username || mail.type !== TY_MAIL) return { error: '메일 없음' };
+    if (!mail || mail.owner !== username || mail.type !== TY_MAIL) return { error: 'Mail not found' };
     mail.folder = folder;
     mail.modified = Date.now();
     saveCells();
@@ -1487,7 +1491,7 @@ function exportAllData() {
 }
 
 function importAllData(data) {
-    if (!data || !data.version) return { error: '잘못된 데이터 형식' };
+    if (!data || !data.version) return { error: 'Invalid data format' };
     // 머지: 셀 ID 충돌 시 modified가 최신인 쪽 우선 (CRDT 유사)
     let merged = 0, added = 0;
     if (data.cells) {
@@ -1518,14 +1522,20 @@ function importAllData(data) {
 
 // ═══ HTTP 서버 ═══
 
-function parseBody(req) {
+function parseBody(req, maxBytes = 5 * 1024 * 1024) { // 5MB default limit
     return new Promise(resolve => {
         let body = '';
-        req.on('data', chunk => body += chunk);
+        let size = 0;
+        req.on('data', chunk => {
+            size += chunk.length;
+            if (size > maxBytes) { req.destroy(); resolve({}); return; }
+            body += chunk;
+        });
         req.on('end', () => {
             try { resolve(JSON.parse(body)); }
             catch { resolve({}); }
         });
+        req.on('error', () => resolve({}));
     });
 }
 
@@ -1824,10 +1834,8 @@ const server = http.createServer(async (req, res) => {
     const origin = req.headers.origin || '';
     if (ALLOWED_ORIGINS.has(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin);
-    } else if (!origin) {
-        // same-origin 요청 (브라우저가 Origin 안 보냄)
-        res.setHeader('Access-Control-Allow-Origin', '*');
     }
+    // same-origin 요청 (브라우저가 Origin 안 보냄)은 CORS 헤더 불필요
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1837,7 +1845,7 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://crownybus.com https://api.giphy.com wss: ws:; frame-src 'none';");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://crownybus.com wss: ws:; frame-src 'none';");
 
     if (req.method === 'OPTIONS') { res.end(); return; }
 
@@ -1858,6 +1866,28 @@ const server = http.createServer(async (req, res) => {
         if (parts[4] === 'accept' || parts[4] === 'block') { res.end(JSON.stringify({ success: true })); return; }
         path = '/api/contacts';
     }
+    // ── v2 API 스텁 (CrownyOS Rust 서버 대체) ──
+    else if (path.startsWith('/v2/bible/')) {
+        // Bible → CrownyTVM quiz 시스템으로 매핑
+        if (path.includes('/quiz/today')) path = '/api/bible/quiz';
+        else if (path.includes('/quiz/history')) { res.end(JSON.stringify({ history: [] })); return; }
+        else if (path.includes('/quiz/stats')) { res.end(JSON.stringify({ total: 0, correct: 0 })); return; }
+        else if (path.includes('/reflections')) { res.end(JSON.stringify({ reflections: [] })); return; }
+        else if (path.includes('/stats')) { res.end(JSON.stringify({ days: 0 })); return; }
+        else { res.end('{}'); return; }
+    }
+    else if (path.startsWith('/v2/chain/')) {
+        // Chain → CrownyTVM chain API로 매핑
+        if (path.includes('/info') || path.includes('/stats')) path = '/api/chain/status';
+        else if (path.includes('/blocks')) { path = '/api/chain/block'; }
+        else { res.end('{}'); return; }
+    }
+    else if (path.startsWith('/v2/trading/')) { res.end(JSON.stringify({ profiles: [], trades: [] })); return; }
+    else if (path.startsWith('/v2/devops/')) { res.end(JSON.stringify({ items: [] })); return; }
+    else if (path.startsWith('/v2/project/')) { res.end(JSON.stringify({ projects: [] })); return; }
+    else if (path.startsWith('/v2/mind/')) { res.end(JSON.stringify({ usage: { tokens: 0 } })); return; }
+    else if (path.startsWith('/v2/binance/')) { res.end(JSON.stringify({ klines: [] })); return; }
+    else if (path.startsWith('/v2/crm/')) { res.end(JSON.stringify({ persons: [] })); return; }
 
     // ── 소셜 이미지 서빙 ──
     if (path.startsWith('/social-images/')) {
@@ -1948,6 +1978,12 @@ const server = http.createServer(async (req, res) => {
     const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
 
     try {
+        // ── Health check ──
+        if (path === '/api/health') {
+            res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), memory: Math.round(process.memoryUsage().rss / 1024 / 1024) + 'MB', timestamp: Date.now() }));
+            return;
+        }
+
         // ── 인증 ──
         if (path === '/api/register' && req.method === 'POST') {
             if (!rateLimit(clientIp, 'register', 5)) { res.statusCode = 429; res.end('{"error":"Too many requests. Try again later."}'); return; }
@@ -1981,22 +2017,22 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/verify-email' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(verifyEmail(user.username)));
             return;
         }
 
         if (path === '/api/change-password' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const { oldPassword, newPassword } = body;
             if (!newPassword || newPassword.length < 6) {
-                res.end(JSON.stringify({ error: '새 비밀번호는 6자 이상이어야 합니다' }));
+                res.end(JSON.stringify({ error: 'New password must be at least 6 characters' }));
                 return;
             }
             // oldPassword가 있으면 검증 (비밀번호 변경), 없으면 초기 설정
             if (oldPassword && !verifyPassword(oldPassword, user.password)) {
-                res.end(JSON.stringify({ error: '현재 비밀번호가 틀렸습니다' }));
+                res.end(JSON.stringify({ error: 'Current password is incorrect' }));
                 return;
             }
             user.password = hashPasswordSecure(newPassword);
@@ -2008,7 +2044,7 @@ const server = http.createServer(async (req, res) => {
         // ── 프로필 ──
         if (path === '/api/profile' && req.method === 'PATCH') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             if (body.displayName !== undefined) user.displayName = body.displayName;
             if (body.statusMessage !== undefined) user.statusMessage = body.statusMessage;
             if (body.photoURL !== undefined) {
@@ -2032,7 +2068,7 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/profile' && (req.method === 'GET' || req.method === 'POST')) {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const cell = findCell(user.cellId);
             // Generate wallet address for legacy users
             if (!user.walletAddress) {
@@ -2058,7 +2094,7 @@ const server = http.createServer(async (req, res) => {
         // ── 연락처 ──
         if (path === '/api/contacts' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const contacts = getContacts(user.username);
             // v2 호환: CrownyOS 필드 매핑
             if (isV2) {
@@ -2079,7 +2115,7 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/contacts' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(addContact(user.username, body.name, body.phone, body.relation, {
                 email: body.email, company: body.company, position: body.position,
                 address: body.address, birthday: body.birthday, group: body.group,
@@ -2090,11 +2126,11 @@ const server = http.createServer(async (req, res) => {
 
         if (path.startsWith('/api/contacts/') && req.method === 'PATCH') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const id = parseInt(path.split('/')[3]);
             const contact = findCell(id);
             if (!contact || contact.owner !== user.username || contact.type !== TY.CONTACT) {
-                res.end('{"error":"연락처 없음"}'); return;
+                res.end('{"error":"Contact not found"}'); return;
             }
             ['name','phone','email','company','position','address','birthday','group','notes','tags','lastContact'].forEach(k => {
                 if (body[k] !== undefined) contact[k] = body[k];
@@ -2107,11 +2143,11 @@ const server = http.createServer(async (req, res) => {
 
         if (path.startsWith('/api/contacts/') && req.method === 'DELETE') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const id = parseInt(path.split('/')[3]);
             const contact = findCell(id);
             if (!contact || contact.owner !== user.username || contact.type !== TY.CONTACT) {
-                res.end('{"error":"연락처 없음"}'); return;
+                res.end('{"error":"Contact not found"}'); return;
             }
             contact.deleted = true;
             saveCells();
@@ -2122,7 +2158,7 @@ const server = http.createServer(async (req, res) => {
         // ── 회원 검색 ──
         if (path === '/api/users/search' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const q = (url.searchParams.get('q') || '').trim().toLowerCase();
             if (q.length < 1) { res.end('[]'); return; }
             const results = Object.values(users)
@@ -2139,10 +2175,10 @@ const server = http.createServer(async (req, res) => {
         // ── 회원 정보 조회 (프로필 사진 등) ──
         if (path === '/api/users/info' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const username = url.searchParams.get('username') || '';
             const target = users[username];
-            if (!target) { res.end(JSON.stringify({ error: '회원 없음' })); return; }
+            if (!target) { res.end(JSON.stringify({ error: 'Member not found' })); return; }
             res.end(JSON.stringify({
                 username: target.username,
                 displayName: target.displayName || target.username,
@@ -2157,7 +2193,7 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/chat/list' && req.method === 'GET') {
             const user = getAuth(req);
 
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const chatList = chatServer ? chatServer.apiListChats(user.username) : [];
             for (const c of chatList) {
                 if (c.type === 'dm' && c.displayName && users[c.displayName]) {
@@ -2181,30 +2217,30 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/chat/create' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
-            if (!body.to) { res.statusCode = 400; res.end('{"error":"상대방(to) 필수"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!body.to) { res.statusCode = 400; res.end('{"error":"Recipient (to) required"}'); return; }
             // 대상 사용자 존재 확인
             if (body.type !== 'group') {
                 const target = typeof body.to === 'string' ? body.to : body.to[0];
-                if (!users[target]) { res.statusCode = 404; res.end(JSON.stringify({ error: `'${target}' 회원을 찾을 수 없습니다` })); return; }
+                if (!users[target]) { res.statusCode = 404; res.end(JSON.stringify({ error: `User '${target}' not found` })); return; }
             } else if (Array.isArray(body.to)) {
                 const missing = body.to.filter(t => !users[t]);
-                if (missing.length > 0) { res.statusCode = 404; res.end(JSON.stringify({ error: `'${missing.join(', ')}' 회원을 찾을 수 없습니다` })); return; }
+                if (missing.length > 0) { res.statusCode = 404; res.end(JSON.stringify({ error: `User(s) '${missing.join(', ')}' not found` })); return; }
             }
-            res.end(JSON.stringify(chatServer ? chatServer.apiCreateChat(user.username, body.to, body.type, body.groupName) : { error: '메신저 없음' }));
+            res.end(JSON.stringify(chatServer ? chatServer.apiCreateChat(user.username, body.to, body.type, body.groupName) : { error: 'Messenger unavailable' }));
             return;
         }
 
         if (path === '/api/chat/search' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(chatServer ? chatServer.apiSearchMessages(user.username, url.searchParams.get('q') || '') : []));
             return;
         }
 
         if (path.match(/^\/api\/chat\/[^/]+\/messages$/) && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const chatId = path.split('/')[3];
             const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
             const before = url.searchParams.get('before') ? parseInt(url.searchParams.get('before')) : undefined;
@@ -2227,17 +2263,17 @@ const server = http.createServer(async (req, res) => {
 
         if (path.match(/^\/api\/chat\/[^/]+\/info$/) && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const chatId = path.split('/')[3];
-            res.end(JSON.stringify(chatServer ? chatServer.apiGetChatInfo(chatId, user.username) : { error: '메신저 없음' }));
+            res.end(JSON.stringify(chatServer ? chatServer.apiGetChatInfo(chatId, user.username) : { error: 'Messenger unavailable' }));
             return;
         }
 
         if (path.match(/^\/api\/chat\/[^/]+\/read$/) && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const chatId = path.split('/')[3];
-            if (!chatServer) { res.end('{"error":"메신저 없음"}'); return; }
+            if (!chatServer) { res.end('{"error":"Messenger unavailable"}'); return; }
             const chatStore = require('./chat-server/chat-store');
             const count = chatStore.markRead(chatId, user.username);
             res.end(JSON.stringify({ success: true, marked: count }));
@@ -2245,14 +2281,15 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (path.match(/^\/api\/chat\/[^/]+\/send$/) && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'chat-send', 30)) { res.statusCode = 429; res.end('{"error":"Too many requests"}'); return; }
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
-            if (!body.text && !body.fileUrl) { res.statusCode = 400; res.end('{"error":"메시지 내용 필수"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!body.text && !body.fileUrl) { res.statusCode = 400; res.end('{"error":"Message content required"}'); return; }
             const chatId = path.split('/')[3];
-            if (!chatServer) { res.end('{"error":"메신저 없음"}'); return; }
+            if (!chatServer) { res.end('{"error":"Messenger unavailable"}'); return; }
             const chatStore = require('./chat-server/chat-store');
             const chat = chatStore.getChat(chatId);
-            if (!chat || !chat.participants.includes(user.username)) { res.statusCode = 403; res.end('{"error":"권한 없음"}'); return; }
+            if (!chat || !chat.participants.includes(user.username)) { res.statusCode = 403; res.end('{"error":"Permission denied"}'); return; }
             // replyTo 텍스트 가져오기
             let replyToText = null;
             if (body.replyTo) {
@@ -2269,7 +2306,7 @@ const server = http.createServer(async (req, res) => {
             if (body.crmm && body.crmm > 0) {
                 const toUser = chat.participants.find(p => p !== user.username);
                 if (toUser) {
-                    const tipResult = walletTransact(user.username, 'send', body.crmm, toUser, '메시지 팁', 'CRM');
+                    const tipResult = walletTransact(user.username, 'send', body.crmm, toUser, 'Message tip', 'CRM');
                     if (!tipResult.error) {
                         msg.crmmTip = body.crmm;
                         const msgPath = require('path').join(chatStore.MSG_DIR, chatId, msg.id + '.json');
@@ -2291,7 +2328,7 @@ const server = http.createServer(async (req, res) => {
         // ── 메시지 번역 (간단 사전 기반) ──
         if (path === '/api/chat/translate' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const text = (body.text || '').trim();
             const targetLang = (body.targetLang || 'en').slice(0, 5);
             if (!text) { res.end('{"translated":"","sourceLang":"unknown"}'); return; }
@@ -2303,9 +2340,9 @@ const server = http.createServer(async (req, res) => {
         // ── 메시지 삭제 ──
         if (path.match(/^\/api\/chat\/[^/]+\/delete-msg$/) && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const chatId = path.split('/')[3];
-            if (!chatServer) { res.end('{"error":"메신저 없음"}'); return; }
+            if (!chatServer) { res.end('{"error":"Messenger unavailable"}'); return; }
             const result = chatServer.apiDeleteMessage(chatId, user.username, body.msgId);
             if (result.success) {
                 try {
@@ -2322,9 +2359,9 @@ const server = http.createServer(async (req, res) => {
         // ── 메시지 수정 ──
         if (path.match(/^\/api\/chat\/[^/]+\/edit$/) && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const chatId = path.split('/')[3];
-            if (!chatServer) { res.end('{"error":"메신저 없음"}'); return; }
+            if (!chatServer) { res.end('{"error":"Messenger unavailable"}'); return; }
             const result = chatServer.apiEditMessage(chatId, user.username, body.msgId, body.text);
             if (result.success) {
                 try {
@@ -2340,24 +2377,24 @@ const server = http.createServer(async (req, res) => {
 
         if (path.match(/^\/api\/chat\/[^/]+\/group$/) && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const chatId = path.split('/')[3];
-            res.end(JSON.stringify(chatServer ? chatServer.apiUpdateGroup(chatId, user.username, body) : { error: '메신저 없음' }));
+            res.end(JSON.stringify(chatServer ? chatServer.apiUpdateGroup(chatId, user.username, body) : { error: 'Messenger unavailable' }));
             return;
         }
 
         if (path.match(/^\/api\/chat\/[^/]+$/) && req.method === 'DELETE') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const chatId = path.split('/')[3];
-            res.end(JSON.stringify(chatServer ? chatServer.apiDeleteChat(chatId, user.username) : { error: '메신저 없음' }));
+            res.end(JSON.stringify(chatServer ? chatServer.apiDeleteChat(chatId, user.username) : { error: 'Messenger unavailable' }));
             return;
         }
 
         // ── 레거시 메시지 API (호환) ──
         if (path === '/api/messages' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const withUser = url.searchParams.get('with');
             res.end(JSON.stringify(getMessages(user.username, withUser)));
             return;
@@ -2365,14 +2402,14 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/messages' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(sendMessage(user.username, body.to, body.content, body.crmmAmount || 0)));
             return;
         }
 
         if (path === '/api/messages/read' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(markRead(body.messageId, user.username)));
             return;
         }
@@ -2380,21 +2417,21 @@ const server = http.createServer(async (req, res) => {
         // ── 바이블퀴즈 ──
         if (path === '/api/bible/quiz' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(getQuiz(user.username)));
             return;
         }
 
         if (path === '/api/bible/quiz/all' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(getAllQuiz(user.username)));
             return;
         }
 
         if (path === '/api/bible/answer' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(answerQuiz(user.username, body.quizId, body.selectedIndex)));
             return;
         }
@@ -2402,7 +2439,7 @@ const server = http.createServer(async (req, res) => {
         // ── 메일 ──
         if (path === '/api/mail/inbox' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const folder = url.searchParams.get('folder') || 'inbox';
             res.end(JSON.stringify(getMailbox(user.username, folder)));
             return;
@@ -2410,23 +2447,23 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/mail/count' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(getMailCount(user.username)));
             return;
         }
 
         if (path === '/api/mail/send' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
-            if (!body.to) { res.statusCode = 400; res.end('{"error":"수신자(to) 필수"}'); return; }
-            const r = sendEmail(user.username, body.to, body.subject || '(제목 없음)', body.body || '', body.replyTo);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!body.to) { res.statusCode = 400; res.end('{"error":"Recipient (to) required"}'); return; }
+            const r = sendEmail(user.username, body.to, body.subject || '(No subject)', body.body || '', body.replyTo);
             res.end(JSON.stringify(r));
             return;
         }
 
         if (path.match(/^\/api\/mail\/\d+$/) && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const id = parseInt(path.split('/')[3]);
             const r = readMail(id, user.username);
             res.end(JSON.stringify(r));
@@ -2435,7 +2472,7 @@ const server = http.createServer(async (req, res) => {
 
         if (path.match(/^\/api\/mail\/\d+\/star$/) && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const id = parseInt(path.split('/')[3]);
             res.end(JSON.stringify(starMail(id, user.username, body.starred)));
             return;
@@ -2443,7 +2480,7 @@ const server = http.createServer(async (req, res) => {
 
         if (path.match(/^\/api\/mail\/\d+\/move$/) && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const id = parseInt(path.split('/')[3]);
             res.end(JSON.stringify(moveMail(id, user.username, body.folder || 'trash')));
             return;
@@ -2452,7 +2489,7 @@ const server = http.createServer(async (req, res) => {
         // ── 외부 메일 (독립 메일 서버) ──
         if (path === '/api/mail/external' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             if (mailServer) {
                 const folder = url.searchParams.get('folder') || 'inbox';
                 const mails = mailServer.apiListMails(user.username, folder);
@@ -2465,7 +2502,7 @@ const server = http.createServer(async (req, res) => {
 
         if (path.match(/^\/api\/mail\/ext\//) && (req.method === 'GET' || req.method === 'DELETE')) {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             if (mailServer) {
                 const mailId = path.split('/')[4];
                 const folder = url.searchParams.get('folder') || 'inbox';
@@ -2474,17 +2511,17 @@ const server = http.createServer(async (req, res) => {
                     res.end(JSON.stringify({ success: ok }));
                 } else {
                     const mail = mailServer.apiReadMail(mailId, folder);
-                    res.end(JSON.stringify(mail || { error: '메일 없음' }));
+                    res.end(JSON.stringify(mail || { error: 'Mail not found' }));
                 }
             } else {
-                res.end('{"error":"메일서버 없음"}');
+                res.end('{"error":"Mail server unavailable"}');
             }
             return;
         }
 
         if (path === '/api/mail/stats' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             if (mailServer) {
                 res.end(JSON.stringify(mailServer.apiStats(user.username)));
             } else {
@@ -2496,7 +2533,7 @@ const server = http.createServer(async (req, res) => {
         // ── 클라우드 동기화 ──
         if (path === '/api/cloud/pull' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const r = await cloudPull(user.username);
             res.end(JSON.stringify(r));
             return;
@@ -2504,7 +2541,7 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/cloud/status' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const u = users[user.username];
             res.end(JSON.stringify({
                 busLinked: !!u.busLinked,
@@ -2519,14 +2556,15 @@ const server = http.createServer(async (req, res) => {
         // ── 지갑 ──
         if (path === '/api/wallet' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(getWallet(user.username)));
             return;
         }
 
         if (path === '/api/wallet/transact' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'wallet-transact', 10)) { res.statusCode = 429; res.end('{"error":"Too many requests"}'); return; }
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const txAmt = Number(body.amount);
             if (!Number.isFinite(txAmt) || txAmt <= 0 || txAmt > 1000000) { res.statusCode = 400; res.end('{"error":"Invalid amount (0 < amount ≤ 1,000,000)"}'); return; }
             body.amount = Math.round(txAmt * 100) / 100;
@@ -2535,10 +2573,11 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (path === '/api/wallet/earn' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'wallet-earn', 20)) { res.statusCode = 429; res.end('{"error":"Too many requests"}'); return; }
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const { token: tokenKey, amount, reason } = body;
-            if (!tokenKey || !amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"잘못된 요청"}'); return; }
+            if (!tokenKey || !amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"Invalid request"}'); return; }
             const profile = users[user.username] || {};
             if (!profile.offchainBalances) profile.offchainBalances = {};
             profile.offchainBalances[tokenKey] = (profile.offchainBalances[tokenKey] || 0) + amount;
@@ -2549,14 +2588,15 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (path === '/api/wallet/spend' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'wallet-spend', 20)) { res.statusCode = 429; res.end('{"error":"Too many requests"}'); return; }
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const { token: tokenKey, amount, reason } = body;
-            if (!tokenKey || !amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"잘못된 요청"}'); return; }
+            if (!tokenKey || !amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"Invalid request"}'); return; }
             const profile = users[user.username] || {};
             if (!profile.offchainBalances) profile.offchainBalances = {};
             const current = profile.offchainBalances[tokenKey] || 0;
-            if (current < amount) { res.statusCode = 400; res.end('{"error":"잔액 부족"}'); return; }
+            if (current < amount) { res.statusCode = 400; res.end('{"error":"Insufficient balance"}'); return; }
             profile.offchainBalances[tokenKey] = current - amount;
             users[user.username] = profile;
             saveUsers();
@@ -2565,8 +2605,9 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (path === '/api/wallet/swap' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'wallet-swap', 10)) { res.statusCode = 429; res.end('{"error":"Too many requests"}'); return; }
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const swapAmt = Number(body.amount);
             if (!Number.isFinite(swapAmt) || swapAmt <= 0 || swapAmt > 1000000) { res.statusCode = 400; res.end('{"error":"Invalid amount"}'); return; }
             res.end(JSON.stringify(swapTokens(user.username, body.from, body.to, Math.round(swapAmt * 100) / 100)));
@@ -2905,7 +2946,7 @@ const server = http.createServer(async (req, res) => {
         // ── 트레이딩 게임 ──
         if (path === '/api/trading/participation' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const data = getTradingData(user.username);
             if (!data) { res.end('{"participation":null}'); return; }
             res.end(JSON.stringify({ participation: data }));
@@ -2914,11 +2955,11 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/trading/join' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const existing = getTradingData(user.username);
             if (existing && existing.status === 'active') {
                 res.statusCode = 400;
-                res.end('{"error":"이미 참가 중입니다"}');
+                res.end('{"error":"Already participating"}');
                 return;
             }
             const participation = {
@@ -2944,9 +2985,9 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/trading/update' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const existing = getTradingData(user.username);
-            if (!existing) { res.statusCode = 404; res.end('{"error":"참가 데이터 없음"}'); return; }
+            if (!existing) { res.statusCode = 404; res.end('{"error":"Participation data not found"}'); return; }
             const allowed = ['currentBalance', 'trades', 'dailyPnL', 'dailyLocked', 'status', 'tradingTier', 'dailyLossLimit', 'crtdWithdrawn', 'lastDailyReset', 'maxDrawdown', 'defaultSL', 'defaultTP', 'adminSuspended', 'liquidatedAt', 'finalPnL'];
             for (const key of allowed) {
                 if (body[key] !== undefined) existing[key] = body[key];
@@ -2959,14 +3000,14 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/trading/withdraw' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const existing = getTradingData(user.username);
-            if (!existing) { res.statusCode = 404; res.end('{"error":"참가 데이터 없음"}'); return; }
+            if (!existing) { res.statusCode = 404; res.end('{"error":"Participation data not found"}'); return; }
             const amount = Number(body.amount);
-            if (!amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"유효하지 않은 금액"}'); return; }
+            if (!amount || amount <= 0) { res.statusCode = 400; res.end('{"error":"Invalid amount"}'); return; }
             const withdrawn = existing.crtdWithdrawn || 0;
             const available = existing.crtdDeposit - withdrawn;
-            if (amount > available) { res.statusCode = 400; res.end('{"error":"출금 가능 금액 초과"}'); return; }
+            if (amount > available) { res.statusCode = 400; res.end('{"error":"Exceeds available withdrawal amount"}'); return; }
             existing.crtdWithdrawn = withdrawn + amount;
             existing.updatedAt = Date.now();
             saveTradingData(user.username, existing);
@@ -2984,7 +3025,7 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/challenges' && req.method === 'POST') {
             const user = getAuth(req);
             if (!user || !ADMIN_USERS.includes(user.username)) {
-                res.statusCode = 403; res.end('{"error":"관리자 권한 필요"}'); return;
+                res.statusCode = 403; res.end('{"error":"Admin access required"}'); return;
             }
             const challenges = getChallenges();
             const id = 'ch_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
@@ -3001,16 +3042,16 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/challenges/join' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const { challengeId, tierKey } = body;
             const challenges = getChallenges();
             const ch = challenges.find(c => c.id === challengeId && c.status === 'active');
-            if (!ch) { res.statusCode = 404; res.end('{"error":"챌린지를 찾을 수 없습니다"}'); return; }
+            if (!ch) { res.statusCode = 404; res.end('{"error":"Challenge not found"}'); return; }
 
             // 중복 참가 체크
             const existing = getTradingData(user.username);
             if (existing && existing.status === 'active') {
-                res.statusCode = 400; res.end('{"error":"이미 참가 중입니다"}'); return;
+                res.statusCode = 400; res.end('{"error":"Already participating"}'); return;
             }
 
             const tiers = ch.tiers || {};
@@ -3139,7 +3180,7 @@ const server = http.createServer(async (req, res) => {
         // ── 파일 업로드 (Firebase Storage 대체) ──
         if (path === '/api/upload' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
 
             // 허용 확장자 화이트리스트
             const ALLOWED_EXT = new Set(['.jpg','.jpeg','.png','.webp','.gif','.svg','.mp4','.mp3','.pdf','.txt','.csv','.json']);
@@ -3366,7 +3407,7 @@ const server = http.createServer(async (req, res) => {
         // ── 대시보드 ──
         if (path === '/api/dashboard') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const myCells = cells.filter(c => c.owner === user.username);
             const conf = myCells.filter(c => c.state === 2).length;
             const pend = myCells.filter(c => c.state === 0).length;
@@ -3386,14 +3427,14 @@ const server = http.createServer(async (req, res) => {
         // ── 셀 API ──
         if (path === '/api/cells') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(cells.filter(c => c.owner === user.username)));
             return;
         }
 
         if (path === '/api/recommend') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const myCells = cells.filter(c => c.owner === user.username);
             const exec = myCells.filter(c => c.state > 0);
             const verify = myCells.filter(c => c.state === 0).sort((a, b) => b.trust - a.trust);
@@ -3405,7 +3446,7 @@ const server = http.createServer(async (req, res) => {
         // ── 프로젝트 관리 ──
         if (path === '/api/projects' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const projects = cells.filter(c => c.owner === user.username && c.type === TY.PM_PROJECT && c.status !== TASK_STATUS.DROPPED);
             res.end(JSON.stringify(projects.sort((a, b) => b.modified - a.modified)));
             return;
@@ -3413,7 +3454,7 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/projects' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const p = createProject(user.username, body.name, body.notes, body.color);
             res.end(JSON.stringify({ success: true, project: p }));
             return;
@@ -3421,16 +3462,16 @@ const server = http.createServer(async (req, res) => {
 
         if (path.startsWith('/api/projects/') && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const id = parseInt(path.split('/')[3]);
             const gantt = getGanttData(user.username, id);
-            res.end(JSON.stringify(gantt || { error: '프로젝트 없음' }));
+            res.end(JSON.stringify(gantt || { error: 'Project not found' }));
             return;
         }
 
         if (path === '/api/tasks' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const t = createTask(user.username, body.projectId, body.name, {
                 notes: body.notes, startDate: body.startDate, dueDate: body.dueDate,
                 deferDate: body.deferDate, duration: body.duration, priority: body.priority,
@@ -3442,19 +3483,19 @@ const server = http.createServer(async (req, res) => {
 
         if (path.startsWith('/api/tasks/') && path.endsWith('/complete') && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const id = parseInt(path.split('/')[3]);
             const t = completeTask(id);
-            res.end(JSON.stringify(t ? { success: true, task: t } : { error: '작업 없음' }));
+            res.end(JSON.stringify(t ? { success: true, task: t } : { error: 'Task not found' }));
             return;
         }
 
         if (path.startsWith('/api/tasks/') && req.method === 'PATCH') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const id = parseInt(path.split('/')[3]);
             const t = findCell(id);
-            if (!t || t.owner !== user.username) { res.end('{"error":"작업 없음"}'); return; }
+            if (!t || t.owner !== user.username) { res.end('{"error":"Task not found"}'); return; }
             ['name','notes','status','startDate','dueDate','deferDate','duration',
              'priority','contextId','flagged','parentId','progress'].forEach(k => {
                 if (body[k] !== undefined) t[k] = body[k];
@@ -3469,7 +3510,7 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/milestones' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const m = createMilestone(user.username, body.projectId, body.name, body.dueDate);
             res.end(JSON.stringify({ success: true, milestone: m }));
             return;
@@ -3478,14 +3519,14 @@ const server = http.createServer(async (req, res) => {
         // ── 인박스 ──
         if (path === '/api/inbox' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(getInbox(user.username)));
             return;
         }
 
         if (path === '/api/inbox' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const item = addToInbox(user.username, body.text);
             res.end(JSON.stringify({ success: true, item }));
             return;
@@ -3493,9 +3534,9 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/inbox/process' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const item = findCell(body.id);
-            if (!item || item.owner !== user.username) { res.end('{"error":"항목 없음"}'); return; }
+            if (!item || item.owner !== user.username) { res.end('{"error":"Item not found"}'); return; }
             // 프로젝트 작업으로 전환 또는 삭제
             if (body.action === 'convert') {
                 item.type = TY.PM_TASK; item.status = TASK_STATUS.ACTIVE;
@@ -3517,14 +3558,14 @@ const server = http.createServer(async (req, res) => {
         // ── 컨텍스트 ──
         if (path === '/api/contexts' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(cells.filter(c => c.owner === user.username && c.type === TY.PM_CONTEXT)));
             return;
         }
 
         if (path === '/api/contexts' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const ctx = createContext(user.username, body.name, body.icon);
             res.end(JSON.stringify({ success: true, context: ctx }));
             return;
@@ -3533,7 +3574,7 @@ const server = http.createServer(async (req, res) => {
         // ── 아웃라인 ──
         if (path === '/api/outline' && req.method === 'GET') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const parentId = url.searchParams.get('parent') ? parseInt(url.searchParams.get('parent')) : null;
             res.end(JSON.stringify(getOutlineTree(user.username, parentId)));
             return;
@@ -3541,7 +3582,7 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/outline' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const node = createOutlineNode(user.username, body.parentId, body.name, body.notes, body.level);
             res.end(JSON.stringify({ success: true, node }));
             return;
@@ -3549,10 +3590,10 @@ const server = http.createServer(async (req, res) => {
 
         if (path.startsWith('/api/outline/') && req.method === 'PATCH') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const id = parseInt(path.split('/')[3]);
             const node = findCell(id);
-            if (!node || node.owner !== user.username) { res.end('{"error":"노드 없음"}'); return; }
+            if (!node || node.owner !== user.username) { res.end('{"error":"Node not found"}'); return; }
             ['name','notes','collapsed','parentId','value'].forEach(k => {
                 if (body[k] !== undefined) node[k] = body[k];
             });
@@ -3565,14 +3606,14 @@ const server = http.createServer(async (req, res) => {
         // ── 리뷰 / 예측 / 퍼스펙티브 ──
         if (path === '/api/review') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(getReviewItems(user.username)));
             return;
         }
 
         if (path === '/api/review/done' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const cell = findCell(body.id);
             if (cell && cell.owner === user.username) {
                 cell.lastReview = Date.now();
@@ -3585,7 +3626,7 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/forecast') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const days = parseInt(url.searchParams.get('days') || '14');
             res.end(JSON.stringify(getForecast(user.username, days)));
             return;
@@ -3593,7 +3634,7 @@ const server = http.createServer(async (req, res) => {
 
         if (path === '/api/perspective' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             res.end(JSON.stringify(getPerspective(user.username, body)));
             return;
         }
@@ -3642,43 +3683,56 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
-        // ── 백업/복원/싱크 ──
+        // ── 백업/복원/싱크 (관리자 전용) ──
         if (path === '/api/backup') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
             res.end(JSON.stringify(exportAllData()));
             return;
         }
 
         if (path === '/api/restore' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
             res.end(JSON.stringify(importAllData(body)));
             return;
         }
 
         if (path === '/api/sync' && req.method === 'POST') {
-            // 원격 서버와 양방향 싱크
+            // 원격 서버와 양방향 싱크 (관리자 전용)
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
-            if (!body.remoteUrl) { res.end('{"error":"remoteUrl 필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin only"}'); return; }
+            if (!body.remoteUrl) { res.end('{"error":"remoteUrl required"}'); return; }
+            // URL 검증: https만 허용, 도메인 화이트리스트
+            try {
+                const syncUrl = new URL(body.remoteUrl);
+                if (syncUrl.protocol !== 'https:') throw new Error('HTTPS only');
+            } catch(e) { res.statusCode = 400; res.end(JSON.stringify({ error: 'Invalid URL: ' + e.message })); return; }
+            const token = req.headers.authorization?.replace('Bearer ', '') || '';
             try {
                 const myData = exportAllData();
-                // 원격에 내 데이터 보내고 원격 데이터 받기
-                const { execSync } = require('child_process');
-                const remoteData = JSON.parse(execSync(
-                    `curl -s -X POST "${body.remoteUrl}/api/restore" -H "Content-Type:application/json" -H "Authorization:Bearer ${token}" -d '${JSON.stringify(myData).replace(/'/g, "'\\''")}'`,
-                    { timeout: 10000 }
-                ).toString());
+                const https = require('https');
+                // 원격에 내 데이터 보내기
+                const restoreResp = await fetch(body.remoteUrl + '/api/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify(myData),
+                    signal: AbortSignal.timeout(10000)
+                });
+                const remoteData = await restoreResp.json();
                 // 원격 데이터 가져오기
-                const remoteBackup = JSON.parse(execSync(
-                    `curl -s "${body.remoteUrl}/api/backup" -H "Authorization:Bearer ${token}"`,
-                    { timeout: 10000 }
-                ).toString());
+                const backupResp = await fetch(body.remoteUrl + '/api/backup', {
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    signal: AbortSignal.timeout(10000)
+                });
+                const remoteBackup = await backupResp.json();
                 const result = importAllData(remoteBackup);
                 res.end(JSON.stringify({ success: true, sync: result, remote: remoteData }));
             } catch(e) {
-                res.end(JSON.stringify({ error: '싱크 실패: ' + e.message }));
+                res.end(JSON.stringify({ error: 'Sync failed: ' + e.message }));
             }
             return;
         }
@@ -3688,9 +3742,9 @@ const server = http.createServer(async (req, res) => {
         // 한선씨 코드 실행
         if (path === '/api/hanseon/run' && req.method === 'POST') {
             const hsUser = getAuth(req);
-            if (!hsUser) { res.statusCode = 401; res.end(JSON.stringify({ error: '로그인 필요' })); return; }
+            if (!hsUser) { res.statusCode = 401; res.end(JSON.stringify({ error: 'Login required' })); return; }
             const code = body.code || '';
-            if (!code.trim()) { res.end(JSON.stringify({ error: '코드가 비어 있습니다' })); return; }
+            if (!code.trim()) { res.end(JSON.stringify({ error: 'Code is empty' })); return; }
             const result = await runHanSeon(code, 'run', body.timeout || 5000);
             res.end(JSON.stringify(result));
             return;
@@ -3699,9 +3753,9 @@ const server = http.createServer(async (req, res) => {
         // 한선씨 디스어셈블
         if (path === '/api/hanseon/dis' && req.method === 'POST') {
             const hsUser = getAuth(req);
-            if (!hsUser) { res.statusCode = 401; res.end(JSON.stringify({ error: '로그인 필요' })); return; }
+            if (!hsUser) { res.statusCode = 401; res.end(JSON.stringify({ error: 'Login required' })); return; }
             const code = body.code || '';
-            if (!code.trim()) { res.end(JSON.stringify({ error: '코드가 비어 있습니다' })); return; }
+            if (!code.trim()) { res.end(JSON.stringify({ error: 'Code is empty' })); return; }
             const result = await runHanSeon(code, 'dis');
             res.end(JSON.stringify({ disassembly: result.output, error: result.error }));
             return;
@@ -3736,11 +3790,11 @@ const server = http.createServer(async (req, res) => {
         // 셀 브릿지: JS 셀 → 한선씨 코드로 처리
         if (path === '/api/hanseon/cell-bridge' && req.method === 'POST') {
             const hsUser = getAuth(req);
-            if (!hsUser) { res.statusCode = 401; res.end(JSON.stringify({ error: '로그인 필요' })); return; }
+            if (!hsUser) { res.statusCode = 401; res.end(JSON.stringify({ error: 'Login required' })); return; }
             const cellId = body.cellId;
             const code = body.code || '';
             const cell = cells.find(c => c.id === cellId);
-            if (!cell) { res.end(JSON.stringify({ error: '셀을 찾을 수 없습니다' })); return; }
+            if (!cell) { res.end(JSON.stringify({ error: 'Cell not found' })); return; }
 
             // JS 셀 → 한선씨 셀 변수 주입
             const stateMap = { 2: '확', 0: '미', '-2': '오', '-1': '음' };
@@ -3771,7 +3825,7 @@ const server = http.createServer(async (req, res) => {
         // ── CrownyBus.com 프록시 ──
         if (path.startsWith('/api/bus/')) {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const busPath = '/v2/' + path.slice(9);  // /api/bus/xxx → /v2/xxx
             const busToken = user.busToken || null;
             const r = await crownyBusAPI(req.method, busPath, req.method === 'POST' ? body : null, busToken);
@@ -3783,7 +3837,7 @@ const server = http.createServer(async (req, res) => {
         // ── CrownyBus 지갑 동기화 ──
         if (path === '/api/bus/sync-wallet' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             // 로컬 잔액을 crownybus에 동기화 시도
             const wallet = getWallet(user.username);
             const r = await crownyBusAPI('POST', '/v2/transfer', {
@@ -3830,7 +3884,7 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/admin/status' && req.method === 'GET') {
             const user = getAuth(req);
             if (!user || !ADMIN_USERS.includes(user.username)) {
-                res.statusCode = 403; res.end('{"error":"관리자 권한 필요"}'); return;
+                res.statusCode = 403; res.end('{"error":"Admin access required"}'); return;
             }
             res.end(JSON.stringify(getServerStatus()));
             return;
@@ -3839,7 +3893,7 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/admin/users' && req.method === 'GET') {
             const user = getAuth(req);
             if (!user || !ADMIN_USERS.includes(user.username)) {
-                res.statusCode = 403; res.end('{"error":"관리자 권한 필요"}'); return;
+                res.statusCode = 403; res.end('{"error":"Admin access required"}'); return;
             }
             const userList = Object.values(users).map(u => ({
                 username: u.username, email: u.email, displayName: u.displayName,
@@ -3855,7 +3909,7 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/admin/bus-check' && req.method === 'GET') {
             const user = getAuth(req);
             if (!user || !ADMIN_USERS.includes(user.username)) {
-                res.statusCode = 403; res.end('{"error":"관리자 권한 필요"}'); return;
+                res.statusCode = 403; res.end('{"error":"Admin access required"}'); return;
             }
             await syncBusStatus();
             res.end(JSON.stringify(busStatus));
@@ -3866,7 +3920,7 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/admin/sync-queue' && req.method === 'GET') {
             const user = getAuth(req);
             if (!user || !ADMIN_USERS.includes(user.username)) {
-                res.statusCode = 403; res.end('{"error":"관리자 권한 필요"}'); return;
+                res.statusCode = 403; res.end('{"error":"Admin access required"}'); return;
             }
             const failed = loadJSON('bus_sync_failed.json', []);
             res.end(JSON.stringify({ pending: syncQueue, failed: failed.slice(-20), pendingCount: syncQueue.length, failedCount: failed.length }));
@@ -3877,7 +3931,7 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/admin/sync-flush' && req.method === 'POST') {
             const user = getAuth(req);
             if (!user || !ADMIN_USERS.includes(user.username)) {
-                res.statusCode = 403; res.end('{"error":"관리자 권한 필요"}'); return;
+                res.statusCode = 403; res.end('{"error":"Admin access required"}'); return;
             }
             await processSyncQueue();
             res.end(JSON.stringify({ success: true, remaining: syncQueue.length }));
@@ -3888,10 +3942,10 @@ const server = http.createServer(async (req, res) => {
         if (path === '/api/admin/bus-link' && req.method === 'POST') {
             const user = getAuth(req);
             if (!user || !ADMIN_USERS.includes(user.username)) {
-                res.statusCode = 403; res.end('{"error":"관리자 권한 필요"}'); return;
+                res.statusCode = 403; res.end('{"error":"Admin access required"}'); return;
             }
             const targetUser = body.username;
-            if (!users[targetUser]) { res.end('{"error":"사용자 없음"}'); return; }
+            if (!users[targetUser]) { res.end('{"error":"User not found"}'); return; }
             const r = await busLogin(targetUser, body.password || '', users[targetUser].email);
             res.end(JSON.stringify(r));
             return;
@@ -8265,9 +8319,9 @@ const server = http.createServer(async (req, res) => {
             const totalAmount = items.reduce((s, i) => s + (i.price || 0) * (i.qty || 1), 0);
             // Check balance
             const wallet = getWallet(user.username);
-            if (!wallet || (wallet.balances[cur] || 0) < totalAmount) { res.statusCode = 400; res.end(JSON.stringify({ error: `잔액 부족 (${cur})` })); return; }
+            if (!wallet || (wallet.balances[cur] || 0) < totalAmount) { res.statusCode = 400; res.end(JSON.stringify({ error: `Insufficient balance (${cur})` })); return; }
             // Deduct buyer balance
-            walletTransact(user.username, 'send', totalAmount, null, `마켓 결제 (${items.length}건)`, cur);
+            walletTransact(user.username, 'send', totalAmount, null, `Market purchase (${items.length} items)`, cur);
             // Create orders and pay sellers
             const mkDir = pathModule.join(DATA_DIR, 'marketplace');
             if (!fs.existsSync(mkDir)) fs.mkdirSync(mkDir, { recursive: true });
@@ -8281,7 +8335,7 @@ const server = http.createServer(async (req, res) => {
                 newOrders.push(order);
                 // Pay seller
                 if (item.sellerId && item.sellerId !== user.username) {
-                    walletTransact(item.sellerId, 'deposit', item.price * (item.qty || 1), null, `판매 수익: ${item.name || item.productId}`, cur);
+                    walletTransact(item.sellerId, 'deposit', item.price * (item.qty || 1), null, `Sale revenue: ${item.name || item.productId}`, cur);
                 }
             }
             fs.writeFileSync(ordersFile, JSON.stringify(orders, null, 2));
@@ -8317,12 +8371,13 @@ const server = http.createServer(async (req, res) => {
 
         // POST /api/social/post — 게시물 작성
         if (path === '/api/social/post' && req.method === 'POST') {
+            if (!rateLimit(clientIp, 'social-post', 10)) { res.statusCode = 429; res.end('{"error":"Too many requests"}'); return; }
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const text = (body.text || '').trim();
             const youtubeUrl = (body.youtubeUrl || '').trim();
             const imageData = (body.image || '').trim(); // base64 or CIF
-            if (!text && !youtubeUrl && !imageData) { res.statusCode = 400; res.end('{"error":"내용을 입력하세요"}'); return; }
+            if (!text && !youtubeUrl && !imageData) { res.statusCode = 400; res.end('{"error":"Please enter content"}'); return; }
 
             const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
             let posts = [];
@@ -8368,12 +8423,12 @@ const server = http.createServer(async (req, res) => {
         // POST /api/social/like — 좋아요 토글
         if (path === '/api/social/like' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
             let posts = [];
             try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) { /* first run */ }
             const post = posts.find(p => p.id === body.postId);
-            if (!post) { res.statusCode = 404; res.end('{"error":"게시물 없음"}'); return; }
+            if (!post) { res.statusCode = 404; res.end('{"error":"Post not found"}'); return; }
             if (!post.likes) post.likes = [];
             const idx = post.likes.indexOf(user.username);
             if (idx >= 0) post.likes.splice(idx, 1);
@@ -8397,8 +8452,8 @@ const server = http.createServer(async (req, res) => {
         // POST /api/social/comment — 댓글 작성
         if (path === '/api/social/comment' && req.method === 'POST') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
-            if (!body.postId || !body.text?.trim()) { res.statusCode = 400; res.end('{"error":"내용을 입력하세요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            if (!body.postId || !body.text?.trim()) { res.statusCode = 400; res.end('{"error":"Please enter content"}'); return; }
             const commFile = pathModule.join(SOCIAL_DIR, `comments_${body.postId}.json`);
             let comments = [];
             try { comments = JSON.parse(fs.readFileSync(commFile, 'utf8')); } catch(e) { /* first run */ }
@@ -8424,12 +8479,12 @@ const server = http.createServer(async (req, res) => {
         // DELETE /api/social/post — 게시물 삭제
         if (path === '/api/social/post' && req.method === 'DELETE') {
             const user = getAuth(req);
-            if (!user) { res.statusCode = 401; res.end('{"error":"인증필요"}'); return; }
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
             const postsFile = pathModule.join(SOCIAL_DIR, 'posts.json');
             let posts = [];
             try { posts = JSON.parse(fs.readFileSync(postsFile, 'utf8')); } catch(e) { /* first run */ }
             const idx = posts.findIndex(p => p.id === body.postId && p.author === user.username);
-            if (idx < 0) { res.statusCode = 404; res.end('{"error":"게시물 없음 또는 권한 없음"}'); return; }
+            if (idx < 0) { res.statusCode = 404; res.end('{"error":"Post not found or permission denied"}'); return; }
             posts.splice(idx, 1);
             fs.writeFileSync(postsFile, JSON.stringify(posts, null, 1));
             res.end(JSON.stringify({ ok: true }));
