@@ -536,11 +536,11 @@
     <!-- Landing Section (로그인 전 전용) -->
     <section id="landing-page" class="hidden">
         <div class="landing-content">
-            <h1 style="font-size: 3rem; margin-bottom: 0.5rem; color: #3D2B1F; letter-spacing: 3px;">CROWNY</h1>
-            <p style="font-size: 1.2rem; color: #6B5744; margin-bottom: 3rem;">Protecting Beauty, Empowering Safety</p>
+            <h1 style="font-size: 3rem; margin-bottom: 0.5rem; color: var(--primary); letter-spacing: 3px;">CROWNY</h1>
+            <p style="font-size: 1.2rem; color: var(--primary-light); margin-bottom: 3rem;">Protecting Beauty, Empowering Safety</p>
             
             <button onclick="document.getElementById('landing-page').classList.add('hidden'); document.getElementById('auth-modal').style.display='flex'" 
-                    style="padding: 1rem 3rem; font-size: 1.2rem; border-radius: 50px; background: #8B6914; color: #FFF8F0; border: none; cursor: pointer; box-shadow: 0 0 20px rgba(139,105,20,0.3);">
+                    style="padding: 1rem 3rem; font-size: 1.2rem; border-radius: 50px; background: var(--gold); color: var(--bg); border: none; cursor: pointer; box-shadow: 0 0 20px rgba(139,105,20,0.3);">
                 시작하기
             </button>
         </div>
@@ -557,18 +557,18 @@
                 <input type="password" id="login-password" name="password" placeholder="비밀번호" data-i18n-placeholder="placeholder.password" class="input" autocomplete="current-password">
                 <button type="submit" class="btn-primary" data-i18n="auth.login">로그인</button>
                 <p style="margin-top:1rem;" data-i18n-html="auth.no_account_link">계정이 없으신가요? <a href="#" onclick="showSignup()">회원가입</a></p>
-                <p><a href="#" onclick="resetPassword()" style="font-size:0.85rem; color:#6B5744;" data-i18n="auth.forgot_password">비밀번호를 잊으셨나요?</a></p>
+                <p><a href="#" onclick="resetPassword()" style="font-size:0.85rem; color:var(--primary-light);" data-i18n="auth.forgot_password">비밀번호를 잊으셨나요?</a></p>
             </form>
             
             <div id="signup-form" class="auth-form" style="display:none;">
                 <h3 data-i18n="auth.signup">회원가입</h3>
                 <input type="text" id="signup-username" placeholder="아이디 (영문/숫자)" class="input" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._-]/g,''); document.getElementById('signup-email-preview').textContent=this.value?this.value+'@crowny.org':'';" autocomplete="username">
-                <div id="signup-email-preview" style="font-size:0.8rem; color:#8B6914; margin-top:-0.3rem; margin-bottom:0.5rem; min-height:1.2em;"></div>
+                <div id="signup-email-preview" style="font-size:0.8rem; color:var(--gold); margin-top:-0.3rem; margin-bottom:0.5rem; min-height:1.2em;"></div>
                 <input type="text" id="signup-displayname" placeholder="표시 이름 (닉네임)" class="input">
                 <input type="password" id="signup-password" placeholder="비밀번호 (6자 이상)" data-i18n-placeholder="auth.password_hint" class="input">
                 <div id="password-strength" style="font-size:0.75rem; margin-top:-0.3rem; margin-bottom:0.5rem;"></div>
                 <button onclick="signup()" class="btn-primary" data-i18n="auth.signup_btn">가입하기</button>
-                <div style="background:#F5F0E8; border:1px solid #E8D5C4; border-radius:8px; padding:0.8rem; margin-top:0.8rem; font-size:0.85rem; color:#6B5744;">
+                <div style="background:#F5F0E8; border:1px solid #E8D5C4; border-radius:8px; padding:0.8rem; margin-top:0.8rem; font-size:0.85rem; color:var(--primary-light);">
                     <i data-lucide="mail" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"></i>
                     가입 시 <strong>아이디@crowny.org</strong> 이메일이 자동 생성됩니다.
                 </div>
@@ -578,9 +578,9 @@
             <!-- 이메일 인증 안내 -->
             <div id="verify-email-form" class="auth-form" style="display:none;">
                 <h3 data-i18n="auth.email_verify"><i data-lucide="mail"></i> 이메일 인증</h3>
-                <p style="color:#6B5744; margin-bottom:1rem;" data-i18n-html="auth.email_verify_desc">가입하신 이메일로 인증 링크를 보냈습니다.<br>인증 후 아래 버튼을 눌러주세요.</p>
+                <p style="color:var(--primary-light); margin-bottom:1rem;" data-i18n-html="auth.email_verify_desc">가입하신 이메일로 인증 링크를 보냈습니다.<br>인증 후 아래 버튼을 눌러주세요.</p>
                 <button onclick="checkEmailVerified()" class="btn-primary" data-i18n="auth.verify_done"><i data-lucide="check-circle"></i> 인증 완료 확인</button>
-                <button onclick="resendVerification()" style="background:none; border:1px solid #E8E0D8; padding:0.5rem; border-radius:6px; cursor:pointer; width:100%; margin-top:0.5rem; color:#6B5744;" data-i18n="auth.resend_verify">인증 메일 재발송</button>
+                <button onclick="resendVerification()" style="background:none; border:1px solid var(--border); padding:0.5rem; border-radius:6px; cursor:pointer; width:100%; margin-top:0.5rem; color:var(--primary-light);" data-i18n="auth.resend_verify">인증 메일 재발송</button>
             </div>
         </div>
     </div>
@@ -646,7 +646,7 @@
             <a href="#" onclick="showPage('chain-explorer')" class="nav-item"><i data-lucide="blocks" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">CHAIN</span><span class="nav-sub" data-i18n="nav.chain">블록체인</span></a>
             <a href="#" onclick="event.preventDefault();showPage('hanseon-vm')" class="nav-item"><i data-lucide="code-2" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">HANSEON VM</span><span class="nav-sub" data-i18n="nav.hanseon_vm">한선씨</span></a>
             <hr class="nav-divider">
-            <a href="#" onclick="event.preventDefault();showPage('crowny-admin')" class="nav-item" id="admin-nav-item" style="display:none; color:#B54534;"><i data-lucide="shield-check" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">ADMIN</span><span class="nav-sub" data-i18n="nav.admin">관리자</span></a>
+            <a href="#" onclick="event.preventDefault();showPage('crowny-admin')" class="nav-item" id="admin-nav-item" style="display:none; color:var(--error);"><i data-lucide="shield-check" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">ADMIN</span><span class="nav-sub" data-i18n="nav.admin">관리자</span></a>
             <a href="#" onclick="event.preventDefault();showPage('settings')" class="nav-item" style="margin-top:auto;"><i data-lucide="settings" style="width:20px;height:20px;margin-right:8px;"></i><span class="nav-label">SETTINGS</span><span class="nav-sub" data-i18n="nav.settings">설정</span></a>
         </nav>
     </aside>
@@ -667,27 +667,27 @@
             <div id="dashboard-content">
                 <div style="padding:2rem 1rem;text-align:center;">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;max-width:400px;margin:0 auto;">
-                        <button onclick="showPage('wallet')" style="background:#FFF8F0;border:1px solid #E8E0D8;border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:#3D2B1F;font-weight:600;font-size:0.85rem;">
-                            <i data-lucide="coins" style="width:24px;height:24px;color:#8B6914;"></i> WALLET
+                        <button onclick="showPage('wallet')" style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:var(--primary);font-weight:600;font-size:0.85rem;">
+                            <i data-lucide="coins" style="width:24px;height:24px;color:var(--gold);"></i> WALLET
                         </button>
-                        <button onclick="showPage('social')" style="background:#FFF8F0;border:1px solid #E8E0D8;border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:#3D2B1F;font-weight:600;font-size:0.85rem;">
-                            <i data-lucide="tv" style="width:24px;height:24px;color:#8B6914;"></i> TUBE
+                        <button onclick="showPage('social')" style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:var(--primary);font-weight:600;font-size:0.85rem;">
+                            <i data-lucide="tv" style="width:24px;height:24px;color:var(--gold);"></i> TUBE
                         </button>
-                        <button onclick="showPage('mall')" style="background:#FFF8F0;border:1px solid #E8E0D8;border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:#3D2B1F;font-weight:600;font-size:0.85rem;">
-                            <i data-lucide="shopping-cart" style="width:24px;height:24px;color:#8B6914;"></i> MALL
+                        <button onclick="showPage('mall')" style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:var(--primary);font-weight:600;font-size:0.85rem;">
+                            <i data-lucide="shopping-cart" style="width:24px;height:24px;color:var(--gold);"></i> MALL
                         </button>
-                        <button onclick="showPage('reels')" style="background:#FFF8F0;border:1px solid #E8E0D8;border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:#3D2B1F;font-weight:600;font-size:0.85rem;">
-                            <i data-lucide="clapperboard" style="width:24px;height:24px;color:#8B6914;"></i> SHORTS
+                        <button onclick="showPage('reels')" style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.2rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:var(--primary);font-weight:600;font-size:0.85rem;">
+                            <i data-lucide="clapperboard" style="width:24px;height:24px;color:var(--gold);"></i> SHORTS
                         </button>
                     </div>
-                    <p style="margin-top:1.5rem;font-size:0.8rem;color:#8B6914;">로그인하면 대시보드가 활성화됩니다</p>
+                    <p style="margin-top:1.5rem;font-size:0.8rem;color:var(--gold);">로그인하면 대시보드가 활성화됩니다</p>
                 </div>
             </div>
         </section>
 
         <section id="today" class="page active">
             <div class="hero">
-                <div id="home-clock" style="font-size:0.75rem;color:#7A5C47;margin-bottom:4px"></div>
+                <div id="home-clock" style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px"></div>
                 <h2 data-i18n="today.hero_title">GLOBAL BEAUTIE</h2>
                 <div id="slogan-rotator" class="slogan-rotator">
                     <p class="slogan-text"></p>
@@ -716,7 +716,7 @@
                 <div class="service-card" onclick="showPage('ai-assistant')" style="border:2px solid var(--gold)"><span class="icon"><i data-lucide="crown" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.crowny_panel">CROWNY</h3></div>
                 <div class="service-card" onclick="showPage('reels')"><span class="icon"><i data-lucide="video" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.reels">SHORTS</h3></div>
                 <div class="service-card" onclick="showPage('chain-explorer')"><span class="icon"><i data-lucide="blocks" style="width:24px;height:24px;color:var(--primary);"></i></span><h3>CHAIN</h3></div>
-                <div class="service-card" onclick="showPage('bible-quiz')" style="border:2px solid #D4AF37"><span class="icon"><i data-lucide="book-open-check" style="width:24px;height:24px;color:#8B6914;"></i></span><h3 data-i18n="home.bible_quiz">QUIZ</h3></div>
+                <div class="service-card" onclick="showPage('bible-quiz')" style="border:2px solid #D4AF37"><span class="icon"><i data-lucide="book-open-check" style="width:24px;height:24px;color:var(--gold);"></i></span><h3 data-i18n="home.bible_quiz">QUIZ</h3></div>
                 <div class="service-card" onclick="showPage('crowny-mail')"><span class="icon"><i data-lucide="mail" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.mail">MAIL</h3></div>
                 <div class="service-card" onclick="showPage('contacts-crm')"><span class="icon"><i data-lucide="contact" style="width:24px;height:24px;color:var(--primary);"></i></span><h3 data-i18n="home.contacts">CONTACTS</h3></div>
                 <div class="service-card" onclick="showPage('hanseon-vm')"><span class="icon"><i data-lucide="code-2" style="width:24px;height:24px;color:var(--primary);"></i></span><h3>VM</h3></div>
@@ -725,12 +725,12 @@
             </div>
             
             <div style="background:var(--bg); padding:1.5rem; border-radius:12px; margin-top:2rem;">
-                <h3 style="margin-bottom:1rem; font-size:1.1rem;"><i data-lucide="lightbulb" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> <span data-i18n="today.get_started">크라우니 시작하기</span></h3>
+                <h3 style="margin-bottom:1rem; font-size:1.1rem;"><i data-lucide="lightbulb" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> <span data-i18n="today.get_started">크라우니 시작하기</span></h3>
                 <div style="line-height:2; font-size:0.9rem;">
-                    <p><i data-lucide="check-circle" style="width:16px;height:16px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> <span data-i18n-html="today.auto_wallet"><strong>자동 생성된 지갑</strong>으로 바로 시작</span></p>
-                    <p><i data-lucide="check-circle" style="width:16px;height:16px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> <span data-i18n-html="today.no_gas"><strong>가스비 무료</strong> (크라우니 지갑)</span></p>
-                    <p><i data-lucide="check-circle" style="width:16px;height:16px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> <span data-i18n-html="today.seven_tokens"><strong>7가지 토큰</strong>: CRNY, FNC, CRFN + CRTD, CRAC, CRGC, CREB</span></p>
-                    <p><i data-lucide="check-circle" style="width:16px;height:16px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> <span data-i18n-html="today.send_token">메신저로 <strong>토큰 전송</strong> 가능</span></p>
+                    <p><i data-lucide="check-circle" style="width:16px;height:16px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> <span data-i18n-html="today.auto_wallet"><strong>자동 생성된 지갑</strong>으로 바로 시작</span></p>
+                    <p><i data-lucide="check-circle" style="width:16px;height:16px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> <span data-i18n-html="today.no_gas"><strong>가스비 무료</strong> (크라우니 지갑)</span></p>
+                    <p><i data-lucide="check-circle" style="width:16px;height:16px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> <span data-i18n-html="today.seven_tokens"><strong>7가지 토큰</strong>: CRNY, FNC, CRFN + CRTD, CRAC, CRGC, CREB</span></p>
+                    <p><i data-lucide="check-circle" style="width:16px;height:16px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> <span data-i18n-html="today.send_token">메신저로 <strong>토큰 전송</strong> 가능</span></p>
                 </div>
             </div>
         </section>
@@ -738,7 +738,7 @@
         <section id="wallet" class="page">
 
             <!-- Account card -->
-            <div style="background:#3D2B1F;color:#E8D5C4;padding:1rem 1.2rem;border-radius:12px;margin-bottom:0.8rem">
+            <div style="background:var(--primary);color:#E8D5C4;padding:1rem 1.2rem;border-radius:12px;margin-bottom:0.8rem">
                 <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem">
                     <div style="width:32px;height:32px;background:rgba(255,248,240,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center"><i data-lucide="user" style="width:16px;height:16px;color:#E8D5C4"></i></div>
                     <div style="flex:1;min-width:0">
@@ -758,60 +758,60 @@
 
             <!-- Token balances — compact list -->
             <div style="margin-bottom:0.8rem">
-                <div id="token-card-crn" style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #F0E8DC">
-                    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8B6914,#6B5744);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i data-lucide="crown" style="width:18px;height:18px;color:#FFF8F0"></i></div>
-                    <div style="flex:1;min-width:0"><div style="font-size:0.9rem;font-weight:700;color:#3D2B1F">CRN</div><div style="font-size:0.7rem;color:#7A5C47" data-i18n="wallet.token_crn_desc">Crowny · 10 FNC</div></div>
-                    <strong id="crn-balance" style="font-size:1.1rem;font-weight:800;color:#3D2B1F">0</strong>
+                <div id="token-card-crn" style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border)">
+                    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8B6914,#6B5744);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i data-lucide="crown" style="width:18px;height:18px;color:var(--bg)"></i></div>
+                    <div style="flex:1;min-width:0"><div style="font-size:0.9rem;font-weight:700;color:var(--primary)">CRN</div><div style="font-size:0.7rem;color:var(--text-secondary)" data-i18n="wallet.token_crn_desc">Crowny · 10 FNC</div></div>
+                    <strong id="crn-balance" style="font-size:1.1rem;font-weight:800;color:var(--primary)">0</strong>
                 </div>
-                <div id="token-card-fnc" style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #F0E8DC">
-                    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#5B7B8C,#5B7B8C);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i data-lucide="zap" style="width:18px;height:18px;color:#FFF8F0"></i></div>
-                    <div style="flex:1;min-width:0"><div style="font-size:0.9rem;font-weight:700;color:#3D2B1F">FNC</div><div style="font-size:0.7rem;color:#7A5C47" data-i18n="wallet.token_fnc_desc">Fone · 100 CRM</div></div>
-                    <strong id="fnc-balance" style="font-size:1.1rem;font-weight:800;color:#3D2B1F">0</strong>
+                <div id="token-card-fnc" style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border)">
+                    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#5B7B8C,#5B7B8C);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i data-lucide="zap" style="width:18px;height:18px;color:var(--bg)"></i></div>
+                    <div style="flex:1;min-width:0"><div style="font-size:0.9rem;font-weight:700;color:var(--primary)">FNC</div><div style="font-size:0.7rem;color:var(--text-secondary)" data-i18n="wallet.token_fnc_desc">Fone · 100 CRM</div></div>
+                    <strong id="fnc-balance" style="font-size:1.1rem;font-weight:800;color:var(--primary)">0</strong>
                 </div>
-                <div id="token-card-crm" style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #F0E8DC">
-                    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#C4841D,#FF9100);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i data-lucide="heart" style="width:18px;height:18px;color:#FFF8F0"></i></div>
-                    <div style="flex:1;min-width:0"><div style="font-size:0.9rem;font-weight:700;color:#3D2B1F">CRM</div><div style="font-size:0.7rem;color:#7A5C47" data-i18n="wallet.token_crm_desc">Mam · 0.001 CRN</div></div>
-                    <strong id="crm-balance" style="font-size:1.1rem;font-weight:800;color:#3D2B1F">0</strong>
+                <div id="token-card-crm" style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border)">
+                    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#C4841D,#FF9100);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i data-lucide="heart" style="width:18px;height:18px;color:var(--bg)"></i></div>
+                    <div style="flex:1;min-width:0"><div style="font-size:0.9rem;font-weight:700;color:var(--primary)">CRM</div><div style="font-size:0.7rem;color:var(--text-secondary)" data-i18n="wallet.token_crm_desc">Mam · 0.001 CRN</div></div>
+                    <strong id="crm-balance" style="font-size:1.1rem;font-weight:800;color:var(--primary)">0</strong>
                 </div>
             </div>
 
             <!-- Send -->
             <details style="margin-bottom:0.6rem">
-                <summary style="padding:8px 4px;font-size:0.82rem;font-weight:600;color:#3D2B1F;cursor:pointer;border-bottom:1px solid #F0E8DC;display:flex;align-items:center;gap:6px;list-style:none"><i data-lucide="send" style="width:14px;height:14px;color:#7A5C47"></i> <span data-i18n="wallet.send">Send</span><span style="margin-left:auto;font-size:0.65rem;color:#7A5C47">▾</span></summary>
+                <summary style="padding:8px 4px;font-size:0.82rem;font-weight:600;color:var(--primary);cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;list-style:none"><i data-lucide="send" style="width:14px;height:14px;color:var(--text-secondary)"></i> <span data-i18n="wallet.send">Send</span><span style="margin-left:auto;font-size:0.65rem;color:var(--text-secondary)">▾</span></summary>
                 <div style="padding:10px 0;display:flex;flex-direction:column;gap:6px">
                     <div style="position:relative">
-                        <input type="text" id="send-to" placeholder="Recipient ID" data-i18n-placeholder="wallet.recipient_placeholder" style="padding:7px 10px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0;width:100%;box-sizing:border-box;padding-right:36px" oninput="ctvmFilterSendContacts()" onfocus="ctvmFilterSendContacts()">
-                        <button onclick="ctvmToggleSendContacts()" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:#7A5C47"><i data-lucide="contact" style="width:16px;height:16px"></i></button>
-                        <div id="send-contact-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:#FFF8F0;border:1px solid #E8E0D8;border-radius:8px;box-shadow:0 4px 12px rgba(61,43,31,0.12);z-index:10;margin-top:2px"></div>
+                        <input type="text" id="send-to" placeholder="Recipient ID" data-i18n-placeholder="wallet.recipient_placeholder" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg);width:100%;box-sizing:border-box;padding-right:36px" oninput="ctvmFilterSendContacts()" onfocus="ctvmFilterSendContacts()">
+                        <button onclick="ctvmToggleSendContacts()" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:var(--text-secondary)"><i data-lucide="contact" style="width:16px;height:16px"></i></button>
+                        <div id="send-contact-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(61,43,31,0.12);z-index:10;margin-top:2px"></div>
                     </div>
                     <div style="display:flex;gap:6px">
-                        <input type="number" id="send-amount" placeholder="Amount" data-i18n-placeholder="wallet.amount_placeholder" style="flex:1;padding:7px 10px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0">
-                        <select id="send-currency" style="padding:7px 8px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0"><option value="CRN">CRN</option><option value="FNC">FNC</option><option value="CRM">CRM</option></select>
+                        <input type="number" id="send-amount" placeholder="Amount" data-i18n-placeholder="wallet.amount_placeholder" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg)">
+                        <select id="send-currency" style="padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg)"><option value="CRN">CRN</option><option value="FNC">FNC</option><option value="CRM">CRM</option></select>
                     </div>
-                    <input type="text" id="send-memo" placeholder="Memo (optional)" data-i18n-placeholder="wallet.memo_placeholder" style="padding:7px 10px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0">
-                    <button onclick="ctvmSendToken()" style="padding:8px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.78rem"><span data-i18n="wallet.send_btn">Send</span></button>
+                    <input type="text" id="send-memo" placeholder="Memo (optional)" data-i18n-placeholder="wallet.memo_placeholder" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg)">
+                    <button onclick="ctvmSendToken()" style="padding:8px;background:var(--primary);color:var(--bg);border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.78rem"><span data-i18n="wallet.send_btn">Send</span></button>
                 </div>
             </details>
 
             <!-- Swap -->
             <details style="margin-bottom:0.6rem">
-                <summary style="padding:8px 4px;font-size:0.82rem;font-weight:600;color:#3D2B1F;cursor:pointer;border-bottom:1px solid #F0E8DC;display:flex;align-items:center;gap:6px;list-style:none"><i data-lucide="repeat" style="width:14px;height:14px;color:#7A5C47"></i> <span data-i18n="wallet.swap_title">Swap</span><span style="margin-left:auto;font-size:0.65rem;color:#7A5C47">▾</span></summary>
+                <summary style="padding:8px 4px;font-size:0.82rem;font-weight:600;color:var(--primary);cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;list-style:none"><i data-lucide="repeat" style="width:14px;height:14px;color:var(--text-secondary)"></i> <span data-i18n="wallet.swap_title">Swap</span><span style="margin-left:auto;font-size:0.65rem;color:var(--text-secondary)">▾</span></summary>
                 <div style="padding:10px 0;display:flex;flex-direction:column;gap:6px">
-                    <div style="font-size:0.7rem;color:#7A5C47" data-i18n="wallet.swap_rate">100 CRM = 1 FNC · 10 FNC = 1 CRN</div>
+                    <div style="font-size:0.7rem;color:var(--text-secondary)" data-i18n="wallet.swap_rate">100 CRM = 1 FNC · 10 FNC = 1 CRN</div>
                     <div style="display:flex;gap:6px;align-items:center">
-                        <select id="swap-from" style="flex:1;padding:7px 8px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0"><option value="CRM">CRM</option><option value="FNC">FNC</option></select>
-                        <span style="color:#7A5C47;font-size:0.8rem">→</span>
-                        <select id="swap-to" style="flex:1;padding:7px 8px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0"><option value="FNC">FNC</option><option value="CRN">CRN</option></select>
+                        <select id="swap-from" style="flex:1;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg)"><option value="CRM">CRM</option><option value="FNC">FNC</option></select>
+                        <span style="color:var(--text-secondary);font-size:0.8rem">→</span>
+                        <select id="swap-to" style="flex:1;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg)"><option value="FNC">FNC</option><option value="CRN">CRN</option></select>
                     </div>
-                    <input type="number" id="swap-amount" placeholder="Amount" data-i18n-placeholder="wallet.amount_placeholder" style="padding:7px 10px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.78rem;background:#FFF8F0">
-                    <button onclick="ctvmSwapToken()" style="padding:8px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.78rem"><span data-i18n="wallet.swap_exec">Swap</span></button>
+                    <input type="number" id="swap-amount" placeholder="Amount" data-i18n-placeholder="wallet.amount_placeholder" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg)">
+                    <button onclick="ctvmSwapToken()" style="padding:8px;background:var(--primary);color:var(--bg);border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.78rem"><span data-i18n="wallet.swap_exec">Swap</span></button>
                 </div>
             </details>
 
             <!-- Transactions -->
-            <div style="padding:8px 4px;font-size:0.82rem;font-weight:600;color:#3D2B1F;display:flex;align-items:center;gap:6px;border-bottom:1px solid #F0E8DC"><i data-lucide="list" style="width:14px;height:14px;color:#7A5C47"></i> <span data-i18n="wallet.recent_tx">Transactions</span></div>
+            <div style="padding:8px 4px;font-size:0.82rem;font-weight:600;color:var(--primary);display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border)"><i data-lucide="list" style="width:14px;height:14px;color:var(--text-secondary)"></i> <span data-i18n="wallet.recent_tx">Transactions</span></div>
             <div id="wallet-transactions" style="max-height:300px;overflow-y:auto">
-                <p style="color:#7A5C47;font-size:0.8rem;text-align:center;padding:1rem" data-i18n="wallet.no_tx">No transactions yet</p>
+                <p style="color:var(--text-secondary);font-size:0.8rem;text-align:center;padding:1rem" data-i18n="wallet.no_tx">No transactions yet</p>
             </div>
         </section>
 
@@ -837,16 +837,16 @@
                     </div>
                     <div id="chat-typing" class="crny-chat-typing" style="display:none"></div>
                     <div id="chat-crmm-wrap" class="crny-chat-crmm" style="display:none">
-                        <span style="font-size:0.8rem;color:#8B6914;font-weight:600">CRM</span>
-                        <input type="number" id="chat-crmm" placeholder="0" min="1" max="100" style="width:60px;padding:6px 8px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.85rem;text-align:center;background:#FFF8F0">
-                        <span id="chat-crmm-balance" style="font-size:0.75rem;color:#7A5C47;margin-left:auto"></span>
+                        <span style="font-size:0.8rem;color:var(--gold);font-weight:600">CRM</span>
+                        <input type="number" id="chat-crmm" placeholder="0" min="1" max="100" style="width:60px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:0.85rem;text-align:center;background:var(--bg)">
+                        <span id="chat-crmm-balance" style="font-size:0.75rem;color:var(--text-secondary);margin-left:auto"></span>
                     </div>
                     <!-- 답장 미리보기 바 -->
                     <div id="chat-reply-bar" class="chat-context-bar" style="display:none">
                         <div class="chat-context-bar-icon">↩</div>
                         <div class="chat-context-bar-content">
-                            <div class="chat-reply-sender" style="font-weight:600;font-size:0.75rem;color:#8B6914"></div>
-                            <div class="chat-reply-text" style="font-size:0.8rem;color:#7A5C47;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+                            <div class="chat-reply-sender" style="font-weight:600;font-size:0.75rem;color:var(--gold)"></div>
+                            <div class="chat-reply-text" style="font-size:0.8rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
                         </div>
                         <button onclick="chatHideReplyBar()" class="chat-context-bar-close">✕</button>
                     </div>
@@ -854,8 +854,8 @@
                     <div id="chat-edit-bar" class="chat-context-bar" style="display:none">
                         <div class="chat-context-bar-icon">✏</div>
                         <div class="chat-context-bar-content">
-                            <div style="font-weight:600;font-size:0.75rem;color:#8B6914">수정 중</div>
-                            <div class="chat-edit-text" style="font-size:0.8rem;color:#7A5C47;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+                            <div style="font-weight:600;font-size:0.75rem;color:var(--gold)">수정 중</div>
+                            <div class="chat-edit-text" style="font-size:0.8rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
                         </div>
                         <button onclick="chatCancelEdit()" class="chat-context-bar-close">✕</button>
                     </div>
@@ -943,7 +943,7 @@
                     // Show preview & open editor
                     const url = URL.createObjectURL(file);
                     preview.style.display = 'block';
-                    preview.innerHTML = `<div style="position:relative;display:inline-block;"><video src="${url}" style="max-width:200px;max-height:150px;border-radius:8px;" muted></video><button onclick="document.getElementById('post-video').value='';document.getElementById('post-video-preview').style.display='none';" style="position:absolute;top:4px;right:4px;background:rgba(61,43,31,0.6);color:#FFF8F0;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:14px;"><i data-lucide="x"></i></button><button onclick="openVideoEditor()" style="position:absolute;bottom:4px;right:4px;background:rgba(61,43,31,0.6);color:#FFF8F0;border:none;border-radius:12px;padding:2px 8px;cursor:pointer;font-size:12px;"><i data-lucide="scissors"></i> 편집</button></div>`;
+                    preview.innerHTML = `<div style="position:relative;display:inline-block;"><video src="${url}" style="max-width:200px;max-height:150px;border-radius:8px;" muted></video><button onclick="document.getElementById('post-video').value='';document.getElementById('post-video-preview').style.display='none';" style="position:absolute;top:4px;right:4px;background:rgba(61,43,31,0.6);color:var(--bg);border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:14px;"><i data-lucide="x"></i></button><button onclick="openVideoEditor()" style="position:absolute;bottom:4px;right:4px;background:rgba(61,43,31,0.6);color:var(--bg);border:none;border-radius:12px;padding:2px 8px;cursor:pointer;font-size:12px;"><i data-lucide="scissors"></i> 편집</button></div>`;
                     // Validate duration
                     const v = preview.querySelector('video');
                     v.onloadedmetadata = () => {
@@ -970,15 +970,15 @@
             </div>
             
             <div class="section-banner" id="art-banner" style="background:linear-gradient(135deg, #3D2B1F, #6B5744);">
-                <h3 data-i18n="art.banner_title" style="color:#FFF8F0;"><i data-lucide="palette"></i> ART GALLERY — 디지털 아트의 새로운 세계</h3>
+                <h3 data-i18n="art.banner_title" style="color:var(--bg);"><i data-lucide="palette"></i> ART GALLERY — 디지털 아트의 새로운 세계</h3>
                 <p data-i18n="art.banner_desc" style="color:#E8D5C4;">NFT 민팅 · 아티스트 가중치 시스템 · 수량 한정 · 예약 구매 · 기부 자동 연동</p>
             </div>
 
             <!-- ══ <i data-lucide="package"></i> 내 컬렉션 (상단) ══ -->
-            <div id="my-collection-section" style="background:#FFF8F0; padding:1.2rem; border-radius:12px; margin-bottom:1rem;">
+            <div id="my-collection-section" style="background:var(--bg); padding:1.2rem; border-radius:12px; margin-bottom:1rem;">
                 <h3 style="margin-bottom:.8rem; font-size:1rem;"><i data-lucide="package"></i> 내 컬렉션</h3>
                 <div style="display:flex; gap:.4rem; margin-bottom:.8rem; flex-wrap:wrap; overflow-x:auto;">
-                    <button onclick="loadMyCollection('my-artworks')" class="collection-tab-btn active" data-tab="my-artworks" style="padding:.4rem .8rem; border-radius:20px; border:1px solid var(--border); background:var(--text); color:#FFF8F0; cursor:pointer; font-size:.78rem; font-weight:600; white-space:nowrap;"><i data-lucide="palette"></i> 내 작품</button>
+                    <button onclick="loadMyCollection('my-artworks')" class="collection-tab-btn active" data-tab="my-artworks" style="padding:.4rem .8rem; border-radius:20px; border:1px solid var(--border); background:var(--text); color:var(--bg); cursor:pointer; font-size:.78rem; font-weight:600; white-space:nowrap;"><i data-lucide="palette"></i> 내 작품</button>
                     <button onclick="loadMyCollection('my-purchases')" class="collection-tab-btn" data-tab="my-purchases" style="padding:.4rem .8rem; border-radius:20px; border:1px solid var(--border); background:var(--bg); cursor:pointer; font-size:.78rem; font-weight:600; white-space:nowrap;"><i data-lucide="shopping-cart"></i> 구매 작품</button>
                     <button onclick="loadMyCollection('my-nfts')" class="collection-tab-btn" data-tab="my-nfts" style="padding:.4rem .8rem; border-radius:20px; border:1px solid var(--border); background:var(--bg); cursor:pointer; font-size:.78rem; font-weight:600; white-space:nowrap;"><i data-lucide="link"></i> NFT</button>
                     <button onclick="loadMyCollection('my-reservations')" class="collection-tab-btn" data-tab="my-reservations" style="padding:.4rem .8rem; border-radius:20px; border:1px solid var(--border); background:var(--bg); cursor:pointer; font-size:.78rem; font-weight:600; white-space:nowrap;"><i data-lucide="calendar"></i> 예약</button>
@@ -1013,7 +1013,7 @@
                     <option value="nft" data-i18n="art.nft_only"><i data-lucide="link"></i> NFT만</option>
                     <option value="non-nft" data-i18n="art.non_nft">일반만</option>
                 </select>
-                <button onclick="loadArtGallery()" style="background:var(--primary); color:#FFF8F0; border:none; padding:0.5rem 1rem; border-radius:6px; cursor:pointer;"><i data-lucide="refresh-cw"></i></button>
+                <button onclick="loadArtGallery()" style="background:var(--primary); color:var(--bg); border:none; padding:0.5rem 1rem; border-radius:6px; cursor:pointer;"><i data-lucide="refresh-cw"></i></button>
             </div>
             
             <!-- ══ 갤러리 그리드 ══ -->
@@ -1026,30 +1026,30 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                 <h2 style="margin:0;" data-i18n="mall.title"><i data-lucide="shopping-cart"></i> MALL</h2>
                 <div style="display:flex; gap:0.4rem; align-items:center;">
-                    <button onclick="showPage('buyer-orders'); loadBuyerOrders();" style="background:none; border:1px solid #6B8F3C; color:#6B8F3C; padding:0.4rem 0.7rem; border-radius:6px; cursor:pointer; font-size:0.85rem;">내 주문</button>
+                    <button onclick="showPage('buyer-orders'); loadBuyerOrders();" style="background:none; border:1px solid var(--success); color:var(--success); padding:0.4rem 0.7rem; border-radius:6px; cursor:pointer; font-size:0.85rem;">내 주문</button>
                     <button onclick="showPage('wishlist'); loadWishlist();" style="background:none; border:1px solid #e91e63; color:#e91e63; padding:0.4rem 0.7rem; border-radius:6px; cursor:pointer; font-size:0.85rem;"><i data-lucide="heart"></i></button>
-                    <button onclick="showPage('cart'); loadCart();" style="background:none; border:1px solid #3D2B1F; color:#3D2B1F; padding:0.4rem 0.7rem; border-radius:6px; cursor:pointer; font-size:0.85rem; position:relative;"><i data-lucide="shopping-cart"></i> <span id="cart-badge" style="display:none; position:absolute; top:-6px; right:-6px; background:#e53935; color:#FFF8F0; font-size:0.6rem; border-radius:50%; width:16px; height:16px; line-height:16px; text-align:center;">0</span></button>
-                    <button onclick="showPage('my-shop'); loadMyShopDashboard();" style="background:none; border:1px solid #C4841D; color:#C4841D; padding:0.4rem 0.7rem; border-radius:6px; cursor:pointer; font-size:0.85rem;"><i data-lucide="store"></i></button>
+                    <button onclick="showPage('cart'); loadCart();" style="background:none; border:1px solid var(--primary); color:var(--primary); padding:0.4rem 0.7rem; border-radius:6px; cursor:pointer; font-size:0.85rem; position:relative;"><i data-lucide="shopping-cart"></i> <span id="cart-badge" style="display:none; position:absolute; top:-6px; right:-6px; background:#e53935; color:var(--bg); font-size:0.6rem; border-radius:50%; width:16px; height:16px; line-height:16px; text-align:center;">0</span></button>
+                    <button onclick="showPage('my-shop'); loadMyShopDashboard();" style="background:none; border:1px solid #C4841D; color:var(--warning); padding:0.4rem 0.7rem; border-radius:6px; cursor:pointer; font-size:0.85rem;"><i data-lucide="store"></i></button>
                     <button class="admin-register-btn" id="mall-register-btn" onclick="openRegisterModal('mall')" data-i18n="mall.register"><i data-lucide="plus"></i> 상품 등록</button>
                 </div>
             </div>
             
             <div class="section-banner" id="mall-banner" style="background:linear-gradient(135deg, #3D2B1F, #6B5744);">
-                <h3 data-i18n="mall.banner_title" style="color:#FFF8F0;"><i data-lucide="shopping-cart"></i> CROWNY MALL — 크라우니 생태계 마켓플레이스</h3>
+                <h3 data-i18n="mall.banner_title" style="color:var(--bg);"><i data-lucide="shopping-cart"></i> CROWNY MALL — 크라우니 생태계 마켓플레이스</h3>
                 <p data-i18n="mall.banner_desc" style="color:#E8D5C4;">CRGC 토큰으로 결제</p>
             </div>
             
             <!-- 브랜드 카테고리 -->
             <div id="mall-brand-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:0.5rem; margin-bottom:1rem;">
-                <div onclick="filterMallBrand(null)" class="mall-brand-card active" data-brand="all" style="background:#6B5744; color:#FFF8F0; padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong><i data-lucide="store"></i> 전체</strong><br><span style="opacity:0.7;">ALL</span></div>
-                <div onclick="filterMallBrand('present')" class="mall-brand-card" data-brand="present" style="background:#F7F3ED; padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong>프레즌트 프레즌트</strong><br><span style="color:var(--accent);">화장품</span></div>
-                <div onclick="filterMallBrand('doctor')" class="mall-brand-card" data-brand="doctor" style="background:#F7F3ED; padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong>포닥터 포닥터</strong><br><span style="color:var(--accent);">건강기능식품</span></div>
-                <div onclick="filterMallBrand('medical')" class="mall-brand-card" data-brand="medical" style="background:#F7F3ED; padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong>메디컬 메디컬</strong><br><span style="color:var(--accent);">의료기기</span></div>
-                <div onclick="filterMallBrand('avls')" class="mall-brand-card" data-brand="avls" style="background:#F7F3ED; padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong><i data-lucide="clapperboard"></i> AVLs</strong><br><span style="color:var(--accent);">음향/영상/조명</span></div>
-                <div onclick="filterMallBrand('solution')" class="mall-brand-card" data-brand="solution" style="background:#F7F3ED; padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong>프라이빗 프라이빗</strong><br><span style="color:var(--accent);">방송/보안</span></div>
-                <div onclick="filterMallBrand('architect')" class="mall-brand-card" data-brand="architect" style="background:#F7F3ED; padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong>아키텍트 아키텍트</strong><br><span style="color:var(--accent);">건축</span></div>
-                <div onclick="filterMallBrand('mall')" class="mall-brand-card" data-brand="mall" style="background:#F7F3ED; padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong><i data-lucide="shopping-cart"></i> 크라우니몰</strong><br><span style="color:var(--accent);">식품/가전</span></div>
-                <div onclick="filterMallBrand('designers')" class="mall-brand-card" data-brand="designers" style="background:#F7F3ED; padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong><i data-lucide="shirt"></i> 디자이너스</strong><br><span style="color:var(--accent);">의류/잡화</span></div>
+                <div onclick="filterMallBrand(null)" class="mall-brand-card active" data-brand="all" style="background:var(--primary-light); color:var(--bg); padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong><i data-lucide="store"></i> 전체</strong><br><span style="opacity:0.7;">ALL</span></div>
+                <div onclick="filterMallBrand('present')" class="mall-brand-card" data-brand="present" style="background:var(--bg-card); padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong>프레즌트 프레즌트</strong><br><span style="color:var(--accent);">화장품</span></div>
+                <div onclick="filterMallBrand('doctor')" class="mall-brand-card" data-brand="doctor" style="background:var(--bg-card); padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong>포닥터 포닥터</strong><br><span style="color:var(--accent);">건강기능식품</span></div>
+                <div onclick="filterMallBrand('medical')" class="mall-brand-card" data-brand="medical" style="background:var(--bg-card); padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong>메디컬 메디컬</strong><br><span style="color:var(--accent);">의료기기</span></div>
+                <div onclick="filterMallBrand('avls')" class="mall-brand-card" data-brand="avls" style="background:var(--bg-card); padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong><i data-lucide="clapperboard"></i> AVLs</strong><br><span style="color:var(--accent);">음향/영상/조명</span></div>
+                <div onclick="filterMallBrand('solution')" class="mall-brand-card" data-brand="solution" style="background:var(--bg-card); padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong>프라이빗 프라이빗</strong><br><span style="color:var(--accent);">방송/보안</span></div>
+                <div onclick="filterMallBrand('architect')" class="mall-brand-card" data-brand="architect" style="background:var(--bg-card); padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong>아키텍트 아키텍트</strong><br><span style="color:var(--accent);">건축</span></div>
+                <div onclick="filterMallBrand('mall')" class="mall-brand-card" data-brand="mall" style="background:var(--bg-card); padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong><i data-lucide="shopping-cart"></i> 크라우니몰</strong><br><span style="color:var(--accent);">식품/가전</span></div>
+                <div onclick="filterMallBrand('designers')" class="mall-brand-card" data-brand="designers" style="background:var(--bg-card); padding:0.8rem; border-radius:8px; text-align:center; cursor:pointer; font-size:0.8rem;"><strong><i data-lucide="shirt"></i> 디자이너스</strong><br><span style="color:var(--accent);">의류/잡화</span></div>
             </div>
             
             <!-- 검색/정렬 -->
@@ -1065,11 +1065,11 @@
                     <option value="popular" data-i18n="mall.sort.popular">인기순</option>
                     <option value="rating" data-i18n="mall.sort.rating">평점순</option>
                 </select>
-                <button onclick="toggleMallFilters()" style="padding:0.6rem 0.8rem; border:1px solid var(--border); border-radius:6px; background:#FFF8F0; cursor:pointer; font-size:0.85rem;">▾ 필터</button>
+                <button onclick="toggleMallFilters()" style="padding:0.6rem 0.8rem; border:1px solid var(--border); border-radius:6px; background:var(--bg); cursor:pointer; font-size:0.85rem;">▾ 필터</button>
             </div>
             
             <!-- 필터 패널 -->
-            <div id="mall-filter-panel" style="display:none; background:#FFF8F0; padding:1rem; border-radius:8px; margin-bottom:0.8rem; box-shadow:0 2px 8px rgba(61,43,31,0.08);">
+            <div id="mall-filter-panel" style="display:none; background:var(--bg); padding:1rem; border-radius:8px; margin-bottom:0.8rem; box-shadow:0 2px 8px rgba(61,43,31,0.08);">
                 <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:0.5rem; align-items:end;">
                     <div>
                         <label style="font-size:0.7rem; color:var(--accent);">카테고리</label>
@@ -1088,8 +1088,8 @@
                     <div style="grid-column:1/-1;">
                         <label style="font-size:0.7rem; color:var(--accent);">가격 범위: <span id="mall-price-range-label">0 ~ ∞ CRGC</span></label>
                         <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.3rem;">
-                            <input type="range" id="mall-filter-price-min" min="0" max="10000" step="100" value="0" oninput="updatePriceRangeLabel()" style="flex:1;accent-color:#3D2B1F;">
-                            <input type="range" id="mall-filter-price-max" min="0" max="10000" step="100" value="10000" oninput="updatePriceRangeLabel()" style="flex:1;accent-color:#3D2B1F;">
+                            <input type="range" id="mall-filter-price-min" min="0" max="10000" step="100" value="0" oninput="updatePriceRangeLabel()" style="flex:1;accent-color:var(--primary);">
+                            <input type="range" id="mall-filter-price-max" min="0" max="10000" step="100" value="10000" oninput="updatePriceRangeLabel()" style="flex:1;accent-color:var(--primary);">
                         </div>
                     </div>
                     <div>
@@ -1107,8 +1107,8 @@
                     </div>
                 </div>
                 <div style="display:flex; gap:0.5rem; margin-top:0.8rem;">
-                    <button onclick="applyMallFilters()" style="flex:1; background:#3D2B1F; color:#FFF8F0; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600;">적용</button>
-                    <button onclick="resetMallFilters()" style="flex:1; background:#E8E0D8; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; font-size:0.8rem;">초기화</button>
+                    <button onclick="applyMallFilters()" style="flex:1; background:var(--primary); color:var(--bg); border:none; padding:0.5rem; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600;">적용</button>
+                    <button onclick="resetMallFilters()" style="flex:1; background:var(--border); border:none; padding:0.5rem; border-radius:6px; cursor:pointer; font-size:0.8rem;">초기화</button>
                 </div>
             </div>
             
@@ -1118,12 +1118,12 @@
 
             <div id="mall-products" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:0.8rem;"></div>
             
-            <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-top:1.5rem;">
+            <div style="background:var(--bg); padding:1.5rem; border-radius:12px; margin-top:1.5rem;">
                 <h3 style="margin-bottom:1rem;" data-i18n="mall.my_orders_title">내 주문 내 주문/판매</h3>
                 <div style="display:flex; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap;">
                     <button onclick="loadMyOrders()" class="btn-primary" style="flex:1;" data-i18n="mall.my_orders"><i data-lucide="shopping-cart"></i> 주문 내역</button>
                     <button onclick="loadMyProducts()" class="btn-secondary" style="flex:1;" data-i18n="mall.my_products"><i data-lucide="package"></i> 내 상품</button>
-                    <button onclick="loadSellerOrders()" style="flex:1; background:#C4841D; color:#FFF8F0; border:none; padding:0.6rem; border-radius:6px; cursor:pointer; font-weight:600;" data-i18n="mall.seller_orders"><i data-lucide="mailbox"></i> 받은 주문</button>
+                    <button onclick="loadSellerOrders()" style="flex:1; background:#C4841D; color:var(--bg); border:none; padding:0.6rem; border-radius:6px; cursor:pointer; font-weight:600;" data-i18n="mall.seller_orders"><i data-lucide="mailbox"></i> 받은 주문</button>
                 </div>
                 <div id="mall-my-list"></div>
             </div>
@@ -1172,12 +1172,12 @@
                     <button onclick="showPage('mall')" style="background:none; border:none; font-size:1.2rem; cursor:pointer;"><i data-lucide="arrow-left"></i> 쇼핑 계속</button>
                 </div>
                 <div id="cart-items" style="margin-bottom:1rem;"></div>
-                <div id="cart-summary" style="display:none; background:#FFF8F0; padding:1rem; border-radius:12px; box-shadow:0 2px 8px rgba(61,43,31,0.08);">
+                <div id="cart-summary" style="display:none; background:var(--bg); padding:1rem; border-radius:12px; box-shadow:0 2px 8px rgba(61,43,31,0.08);">
                     <div style="display:flex; justify-content:space-between; font-size:1.1rem; font-weight:700; margin-bottom:1rem;">
                         <span>총 결제 금액</span>
-                        <span id="cart-total" style="color:#3D2B1F;">0 CRGC</span>
+                        <span id="cart-total" style="color:var(--primary);">0 CRGC</span>
                     </div>
-                    <button onclick="checkoutCart()" style="background:#3D2B1F; color:#FFF8F0; border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700; width:100%; font-size:1rem;"><i data-lucide="credit-card"></i> 일괄 결제</button>
+                    <button onclick="checkoutCart()" style="background:var(--primary); color:var(--bg); border:none; padding:0.8rem; border-radius:8px; cursor:pointer; font-weight:700; width:100%; font-size:1rem;"><i data-lucide="credit-card"></i> 일괄 결제</button>
                 </div>
             </div>
         </section>
@@ -1233,7 +1233,7 @@
             
             <!-- 캠페인 상세 모달 -->
             <div id="campaign-detail-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(61,43,31,0.85); z-index:10000; display:none; align-items:center; justify-content:center; padding:1rem;">
-                <div id="campaign-detail-content" style="background:#FFF8F0; border-radius:12px; max-width:550px; width:100%; max-height:90vh; overflow-y:auto; padding:1.5rem;"></div>
+                <div id="campaign-detail-content" style="background:var(--bg); border-radius:12px; max-width:550px; width:100%; max-height:90vh; overflow-y:auto; padding:1.5rem;"></div>
             </div>
         </section>
 
@@ -1251,16 +1251,16 @@
             
             <!-- 카테고리 탭 -->
             <div id="creb-category-tabs" style="display:flex; gap:0.4rem; margin-bottom:1rem; overflow-x:auto; padding-bottom:0.3rem;">
-                <button onclick="filterCrebCategory('all')" class="creb-tab active" data-cat="all" style="padding:0.5rem 1rem; border-radius:20px; border:2px solid #E8E0D8; background:#F7F3ED; cursor:pointer; white-space:nowrap; font-size:0.85rem;"><i data-lucide="globe"></i> 전체</button>
-                <button onclick="filterCrebCategory('energy')" class="creb-tab" data-cat="energy" style="padding:0.5rem 1rem; border-radius:20px; border:2px solid #E8E0D8; background:#F7F3ED; cursor:pointer; white-space:nowrap; font-size:0.85rem; color:#8B6914;"><i data-lucide="zap"></i> 에너지</button>
-                <button onclick="filterCrebCategory('genetics')" class="creb-tab" data-cat="genetics" style="padding:0.5rem 1rem; border-radius:20px; border:2px solid #E8E0D8; background:#F7F3ED; cursor:pointer; white-space:nowrap; font-size:0.85rem; color:#8B6914;"><i data-lucide="dna"></i> 유전공학</button>
-                <button onclick="filterCrebCategory('biotech')" class="creb-tab" data-cat="biotech" style="padding:0.5rem 1rem; border-radius:20px; border:2px solid #E8E0D8; background:#F7F3ED; cursor:pointer; white-space:nowrap; font-size:0.85rem; color:#8B6914;"><i data-lucide="beaker"></i> 생명공학</button>
-                <button onclick="filterCrebCategory('ai_robotics')" class="creb-tab" data-cat="ai_robotics" style="padding:0.5rem 1rem; border-radius:20px; border:2px solid #E8E0D8; background:#F7F3ED; cursor:pointer; white-space:nowrap; font-size:0.85rem; color:#8B6914;">AI AI·로보틱스</button>
+                <button onclick="filterCrebCategory('all')" class="creb-tab active" data-cat="all" style="padding:0.5rem 1rem; border-radius:20px; border:2px solid var(--border); background:var(--bg-card); cursor:pointer; white-space:nowrap; font-size:0.85rem;"><i data-lucide="globe"></i> 전체</button>
+                <button onclick="filterCrebCategory('energy')" class="creb-tab" data-cat="energy" style="padding:0.5rem 1rem; border-radius:20px; border:2px solid var(--border); background:var(--bg-card); cursor:pointer; white-space:nowrap; font-size:0.85rem; color:var(--gold);"><i data-lucide="zap"></i> 에너지</button>
+                <button onclick="filterCrebCategory('genetics')" class="creb-tab" data-cat="genetics" style="padding:0.5rem 1rem; border-radius:20px; border:2px solid var(--border); background:var(--bg-card); cursor:pointer; white-space:nowrap; font-size:0.85rem; color:var(--gold);"><i data-lucide="dna"></i> 유전공학</button>
+                <button onclick="filterCrebCategory('biotech')" class="creb-tab" data-cat="biotech" style="padding:0.5rem 1rem; border-radius:20px; border:2px solid var(--border); background:var(--bg-card); cursor:pointer; white-space:nowrap; font-size:0.85rem; color:var(--gold);"><i data-lucide="beaker"></i> 생명공학</button>
+                <button onclick="filterCrebCategory('ai_robotics')" class="creb-tab" data-cat="ai_robotics" style="padding:0.5rem 1rem; border-radius:20px; border:2px solid var(--border); background:var(--bg-card); cursor:pointer; white-space:nowrap; font-size:0.85rem; color:var(--gold);">AI AI·로보틱스</button>
             </div>
             
             <!-- 시뮬레이션 모드 배지 -->
-            <div style="background:#F7F3ED; border:2px solid #8B6914; padding:0.8rem; border-radius:8px; margin-bottom:1rem; text-align:center;">
-                <span style="font-weight:700; color:#8B6914;" data-i18n="energy.simulation_mode"><i data-lucide="flask-conical"></i> 현재 시뮬레이션 모드</span>
+            <div style="background:var(--bg-card); border:2px solid var(--gold); padding:0.8rem; border-radius:8px; margin-bottom:1rem; text-align:center;">
+                <span style="font-weight:700; color:var(--gold);" data-i18n="energy.simulation_mode"><i data-lucide="flask-conical"></i> 현재 시뮬레이션 모드</span>
                 <p style="font-size:0.8rem; color:var(--accent); margin-top:0.3rem;" data-i18n="energy.simulation_desc">실제 구축 전 시뮬레이션으로 투자 구조를 체험합니다</p>
             </div>
             
@@ -1268,23 +1268,23 @@
             <div id="creb-impact-dashboard" style="background:linear-gradient(135deg,#f8f9fa,#F7F3ED); padding:1.2rem; border-radius:12px; margin-bottom:1rem; display:none;">
                 <h4 style="margin:0 0 0.8rem 0;"><i data-lucide="globe"></i> 당신의 투자가 만든 변화</h4>
                 <div style="display:flex; gap:0.8rem; flex-wrap:wrap; margin-bottom:0.8rem;">
-                    <div style="flex:1; min-width:80px; background:#FFF8F0; padding:0.6rem; border-radius:8px; text-align:center;">
+                    <div style="flex:1; min-width:80px; background:var(--bg); padding:0.6rem; border-radius:8px; text-align:center;">
                         <div style="font-size:0.7rem; color:var(--accent);">총 투자</div>
                         <div id="impact-total-creb" style="font-weight:700;">0 CREB</div>
                     </div>
-                    <div style="flex:1; min-width:80px; background:#FFF8F0; padding:0.6rem; border-radius:8px; text-align:center;">
+                    <div style="flex:1; min-width:80px; background:var(--bg); padding:0.6rem; border-radius:8px; text-align:center;">
                         <div style="font-size:0.7rem; color:var(--accent);">참여 프로젝트</div>
                         <div id="impact-project-count" style="font-weight:700;">0개</div>
                     </div>
                 </div>
                 <div id="impact-category-bars" style="margin-bottom:0.8rem;"></div>
-                <div id="impact-messages" style="font-size:0.8rem; color:#6B5744;"></div>
+                <div id="impact-messages" style="font-size:0.8rem; color:var(--primary-light);"></div>
                 <div id="impact-sdg-badges" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;"></div>
             </div>
             
             <!-- 수익 현황 -->
-            <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-bottom:1rem;">
-                <h3 style="margin-bottom:1rem;" data-i18n="energy.my_investment"><i data-lucide="bar-chart-3" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> 내 투자 현황</h3>
+            <div style="background:var(--bg); padding:1.5rem; border-radius:12px; margin-bottom:1rem;">
+                <h3 style="margin-bottom:1rem;" data-i18n="energy.my_investment"><i data-lucide="bar-chart-3" style="width:18px;height:18px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> 내 투자 현황</h3>
                 <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;">
                     <div style="flex:1; min-width:100px; background:#FFF8E1; padding:0.8rem; border-radius:8px; text-align:center;">
                         <div style="font-size:0.75rem; color:var(--accent);" data-i18n="energy.total_invested">총 투자</div>
@@ -1292,17 +1292,17 @@
                     </div>
                     <div style="flex:1; min-width:100px; background:#E8F5E9; padding:0.8rem; border-radius:8px; text-align:center;">
                         <div style="font-size:0.75rem; color:var(--accent);" data-i18n="energy.monthly_return">월 수익</div>
-                        <div id="energy-monthly" style="font-weight:700; font-size:1.2rem; color:#6B8F3C;">0 CREB</div>
+                        <div id="energy-monthly" style="font-weight:700; font-size:1.2rem; color:var(--success);">0 CREB</div>
                     </div>
-                    <div style="flex:1; min-width:100px; background:#F7F3ED; padding:0.8rem; border-radius:8px; text-align:center;">
+                    <div style="flex:1; min-width:100px; background:var(--bg-card); padding:0.8rem; border-radius:8px; text-align:center;">
                         <div style="font-size:0.75rem; color:var(--accent);" data-i18n="energy.total_return">누적 수익</div>
-                        <div id="energy-total-return" style="font-weight:700; font-size:1.2rem; color:#8B6914;">0 CREB</div>
+                        <div id="energy-total-return" style="font-weight:700; font-size:1.2rem; color:var(--gold);">0 CREB</div>
                     </div>
                 </div>
             </div>
             
             <!-- 프로젝트 -->
-            <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px;">
+            <div style="background:var(--bg); padding:1.5rem; border-radius:12px;">
                 <h3 style="margin-bottom:1rem;" data-i18n="energy.projects_title"><i data-lucide="beaker"></i> CREB LABS 프로젝트</h3>
                 <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
                     <button onclick="loadEnergyProjects()" class="btn-primary" style="flex:1;" data-i18n="energy.refresh_projects"><i data-lucide="refresh-cw"></i> 프로젝트 새로고침</button>
@@ -1349,8 +1349,8 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                 <h2 style="margin:0;" data-i18n="books.title"><i data-lucide="book-open"></i> BOOKS</h2>
                 <div style="display:flex;gap:0.5rem;">
-                    <button onclick="showMyLibrary()" style="background:#3D2B1F;color:#FFF8F0;border:none;padding:0.5rem 0.8rem;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:700;"><i data-lucide="book-open"></i> 내 서재</button>
-                    <button onclick="showBookCreator()" style="background:#8B6914;color:#FFF8F0;border:none;padding:0.5rem 0.8rem;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:700;"><i data-lucide="pen-tool"></i> 집필하기</button>
+                    <button onclick="showMyLibrary()" style="background:var(--primary);color:var(--bg);border:none;padding:0.5rem 0.8rem;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:700;"><i data-lucide="book-open"></i> 내 서재</button>
+                    <button onclick="showBookCreator()" style="background:var(--gold);color:var(--bg);border:none;padding:0.5rem 0.8rem;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:700;"><i data-lucide="pen-tool"></i> 집필하기</button>
                 </div>
             </div>
             
@@ -1532,10 +1532,10 @@
 
         <!-- Prop Trading Page -->
         <section id="prop-trading" class="page" data-feature="trading">
-            <h2 data-i18n="trading.title"><i data-lucide="trending-up" style="width:24px;height:24px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> TRADING GAME</h2>
+            <h2 data-i18n="trading.title"><i data-lucide="trending-up" style="width:24px;height:24px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> TRADING GAME</h2>
             
             <!-- 초기화 버튼 -->
-            <button id="trading-reload-btn" onclick="reloadTradingSystem()" style="margin-bottom:1rem; padding:0.6rem 1.2rem; background:#3D2B1F; color:#FFF8F0; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600;">
+            <button id="trading-reload-btn" onclick="reloadTradingSystem()" style="margin-bottom:1rem; padding:0.6rem 1.2rem; background:var(--primary); color:var(--bg); border:none; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600;">
                 <i data-lucide="refresh-cw"></i> <span data-i18n="trading.reload">트레이딩 초기화</span>
             </button>
             <span id="trading-reload-status" style="margin-left:0.5rem; font-size:0.8rem; color:var(--accent);"></span>
@@ -1549,7 +1549,7 @@
             
             <!-- Trading Dashboard (참가 후 표시) -->
             <div id="trading-dashboard" style="display:none; margin-bottom:2rem;">
-                <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-bottom:1rem;">
+                <div style="background:var(--bg); padding:1.5rem; border-radius:12px; margin-bottom:1rem;">
                     <h3 data-i18n="trading.my_account"><i data-lucide="briefcase"></i> 내 트레이딩 계좌</h3>
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-top:1rem;">
                         <div style="text-align:center;">
@@ -1567,40 +1567,40 @@
                     </div>
                     
                     <!-- ★ CRTD 트레이딩 상태 -->
-                    <div id="crtd-balance-display" style="margin-top:0.8rem; padding:0.8rem 1rem; background:linear-gradient(135deg, #3D2B1F, #6B5744); border-radius:8px; color:#E8E0D8; font-size:0.82rem;">
+                    <div id="crtd-balance-display" style="margin-top:0.8rem; padding:0.8rem 1rem; background:linear-gradient(135deg, #3D2B1F, #6B5744); border-radius:8px; color:var(--border); font-size:0.82rem;">
                         <i data-lucide="gem"></i> CRTD 트레이딩 상태 로딩...
                     </div>
                 </div>
                 
                 <!-- 통합 차트 (탭 시스템) -->
-                <div id="chart-dark-wrapper" style="background:#3D2B1F; padding:0.5rem; border-radius:12px; margin-bottom:1rem;">
+                <div id="chart-dark-wrapper" style="background:var(--primary); padding:0.5rem; border-radius:12px; margin-bottom:1rem;">
                     <!-- 차트 탭 바 -->
-                    <div id="chart-tab-bar" style="display:flex; gap:2px; padding:4px 6px; background:#F7F3ED; border-radius:8px; margin-bottom:4px; overflow-x:auto; align-items:center;"></div>
+                    <div id="chart-tab-bar" style="display:flex; gap:2px; padding:4px 6px; background:var(--bg-card); border-radius:8px; margin-bottom:4px; overflow-x:auto; align-items:center;"></div>
                     
                     <!-- 탭 설정 + 타임존 -->
-                    <div style="display:flex; flex-wrap:wrap; gap:4px; padding:6px 10px; background:#F7F3ED; border-radius:8px; margin-bottom:4px; align-items:center;">
-                        <select id="tab-symbol" onchange="updateTabSetting('symbol')" style="background:#6B5744; color:#6B8F3C; border:1px solid #3D2B1F; border-radius:4px; padding:3px 6px; font-size:0.75rem; font-weight:700;">
+                    <div style="display:flex; flex-wrap:wrap; gap:4px; padding:6px 10px; background:var(--bg-card); border-radius:8px; margin-bottom:4px; align-items:center;">
+                        <select id="tab-symbol" onchange="updateTabSetting('symbol')" style="background:var(--primary-light); color:var(--success); border:1px solid var(--primary); border-radius:4px; padding:3px 6px; font-size:0.75rem; font-weight:700;">
                             <option value="NQ">NQ ×$20</option>
                             <option value="MNQ" selected>MNQ ×$2</option>
                         </select>
-                        <select id="tab-chart-type" onchange="updateTabSetting('chartType')" style="background:#6B5744; color:#E8E0D8; border:1px solid #3D2B1F; border-radius:4px; padding:3px 6px; font-size:0.75rem;">
+                        <select id="tab-chart-type" onchange="updateTabSetting('chartType')" style="background:var(--primary-light); color:var(--border); border:1px solid var(--primary); border-radius:4px; padding:3px 6px; font-size:0.75rem;">
                             <option value="time" data-i18n="trading.chart_time">⏱ Time</option>
                             <option value="tick" data-i18n="trading.chart_tick">Tick</option>
                         </select>
-                        <select id="tab-interval" onchange="updateTabSetting('interval')" style="background:#6B5744; color:#E8E0D8; border:1px solid #3D2B1F; border-radius:4px; padding:3px 6px; font-size:0.75rem;">
+                        <select id="tab-interval" onchange="updateTabSetting('interval')" style="background:var(--primary-light); color:var(--border); border:1px solid var(--primary); border-radius:4px; padding:3px 6px; font-size:0.75rem;">
                             <option value="60" data-i18n="trading.interval_1m">1m</option>
                             <option value="180" data-i18n="trading.interval_3m">3m</option>
                             <option value="300" data-i18n="trading.interval_5m">5m</option>
                             <option value="900" data-i18n="trading.interval_15m">15m</option>
                         </select>
-                        <select id="tab-tick-count" onchange="updateTabSetting('tickCount')" style="display:none; background:#6B5744; color:#E8E0D8; border:1px solid #3D2B1F; border-radius:4px; padding:3px 6px; font-size:0.75rem;">
+                        <select id="tab-tick-count" onchange="updateTabSetting('tickCount')" style="display:none; background:var(--primary-light); color:var(--border); border:1px solid var(--primary); border-radius:4px; padding:3px 6px; font-size:0.75rem;">
                             <option value="50">50T</option>
                             <option value="100">100T</option>
                             <option value="200">200T</option>
                             <option value="500">500T</option>
                         </select>
                         <div style="flex:1;"></div>
-                        <select id="tz-selector" onchange="changeTimezone(this.value)" style="background:#6B5744; color:#E8E0D8; border:1px solid #3D2B1F; border-radius:4px; padding:2px 6px; font-size:0.7rem;">
+                        <select id="tz-selector" onchange="changeTimezone(this.value)" style="background:var(--primary-light); color:var(--border); border:1px solid var(--primary); border-radius:4px; padding:2px 6px; font-size:0.7rem;">
                             <option value="KR" data-i18n="trading.timezone.seoul"><i data-lucide="flag"></i> 서울</option>
                             <option value="US" data-i18n="trading.timezone.newyork"><i data-lucide="flag"></i> 뉴욕</option>
                             <option value="JP" data-i18n="trading.timezone.tokyo"><i data-lucide="flag"></i> 도쿄</option>
@@ -1608,42 +1608,42 @@
                             <option value="UTC"><i data-lucide="globe"></i> UTC</option>
                         </select>
                         <div style="display:flex; gap:4px; margin-left:auto;">
-                            <button onclick="scrollToLatest()" style="background:#6B5744; color:#6B8F3C; border:1px solid #3D2B1F; border-radius:4px; padding:2px 8px; font-size:0.7rem; cursor:pointer;">▶ <span data-i18n="trading.scroll_latest">Latest</span></button>
-                            <button onclick="toggleMASettings()" style="background:#6B5744; color:#C4841D; border:1px solid #3D2B1F; border-radius:4px; padding:2px 8px; font-size:0.7rem; cursor:pointer;">MA</button>
+                            <button onclick="scrollToLatest()" style="background:var(--primary-light); color:var(--success); border:1px solid var(--primary); border-radius:4px; padding:2px 8px; font-size:0.7rem; cursor:pointer;">▶ <span data-i18n="trading.scroll_latest">Latest</span></button>
+                            <button onclick="toggleMASettings()" style="background:var(--primary-light); color:var(--warning); border:1px solid var(--primary); border-radius:4px; padding:2px 8px; font-size:0.7rem; cursor:pointer;">MA</button>
                         </div>
                     </div>
                     
                     <!-- MA 세팅 패널 -->
-                    <div id="ma-settings" style="display:none; padding:8px 10px; background:#F7F3ED; border-radius:8px; margin-bottom:4px;">
-                        <span style="color:#6B8F3C; font-size:0.7rem; font-weight:700;" data-i18n="trading.ma_title">Moving Average</span>
-                        <label style="float:right; font-size:0.65rem; color:#6B5744; cursor:pointer;"><input type="checkbox" id="nq-ma-label-show" onchange="applyMASettings()" style="margin:0 2px 0 0; vertical-align:middle;"> <span data-i18n="trading.ma_labels">Labels</span></label>
+                    <div id="ma-settings" style="display:none; padding:8px 10px; background:var(--bg-card); border-radius:8px; margin-bottom:4px;">
+                        <span style="color:var(--success); font-size:0.7rem; font-weight:700;" data-i18n="trading.ma_title">Moving Average</span>
+                        <label style="float:right; font-size:0.65rem; color:var(--primary-light); cursor:pointer;"><input type="checkbox" id="nq-ma-label-show" onchange="applyMASettings()" style="margin:0 2px 0 0; vertical-align:middle;"> <span data-i18n="trading.ma_labels">Labels</span></label>
                         <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-top:4px;">
                             <input type="checkbox" id="nq-ma1-show" checked onchange="applyMASettings()" style="margin:0;">
-                            <select id="nq-ma1-type" onchange="applyMASettings()" style="background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
-                            <input type="number" id="nq-ma1-period" value="5" style="width:32px; background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 3px; font-size:0.7rem; text-align:center;">
+                            <select id="nq-ma1-type" onchange="applyMASettings()" style="background:var(--primary-light); color:var(--bg); border:1px solid var(--primary); border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
+                            <input type="number" id="nq-ma1-period" value="5" style="width:32px; background:var(--primary-light); color:var(--bg); border:1px solid var(--primary); border-radius:3px; padding:1px 3px; font-size:0.7rem; text-align:center;">
                             <input type="color" id="nq-ma1-color" value="#ffeb3b" onchange="applyMASettings()" style="width:20px; height:20px; border:none; cursor:pointer; padding:0;">
                             <span style="margin-left:2px;"></span>
                             <input type="checkbox" id="nq-ma2-show" checked onchange="applyMASettings()" style="margin:0;">
-                            <select id="nq-ma2-type" onchange="applyMASettings()" style="background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
-                            <input type="number" id="nq-ma2-period" value="20" style="width:32px; background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 3px; font-size:0.7rem; text-align:center;">
+                            <select id="nq-ma2-type" onchange="applyMASettings()" style="background:var(--primary-light); color:var(--bg); border:1px solid var(--primary); border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
+                            <input type="number" id="nq-ma2-period" value="20" style="width:32px; background:var(--primary-light); color:var(--bg); border:1px solid var(--primary); border-radius:3px; padding:1px 3px; font-size:0.7rem; text-align:center;">
                             <input type="color" id="nq-ma2-color" value="#FFA500" onchange="applyMASettings()" style="width:20px; height:20px; border:none; cursor:pointer; padding:0;">
                             <span style="margin-left:2px;"></span>
                             <input type="checkbox" id="nq-ma3-show" checked onchange="applyMASettings()" style="margin:0;">
-                            <select id="nq-ma3-type" onchange="applyMASettings()" style="background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
-                            <input type="number" id="nq-ma3-period" value="60" style="width:32px; background:#6B5744; color:#FFF8F0; border:1px solid #3D2B1F; border-radius:3px; padding:1px 3px; font-size:0.7rem; text-align:center;">
+                            <select id="nq-ma3-type" onchange="applyMASettings()" style="background:var(--primary-light); color:var(--bg); border:1px solid var(--primary); border-radius:3px; padding:1px 2px; font-size:0.65rem;"><option value="SMA">SMA</option><option value="EMA">EMA</option></select>
+                            <input type="number" id="nq-ma3-period" value="60" style="width:32px; background:var(--primary-light); color:var(--bg); border:1px solid var(--primary); border-radius:3px; padding:1px 3px; font-size:0.7rem; text-align:center;">
                             <input type="color" id="nq-ma3-color" value="#FF3333" onchange="applyMASettings()" style="width:20px; height:20px; border:none; cursor:pointer; padding:0;">
                         </div>
-                        <button onclick="applyMASettings(); this.innerHTML='✔ Saved!'; setTimeout(()=>{this.innerHTML='✔ Apply'; },1500);" style="background:#6B5744; color:#E8E0D8; border:none; border-radius:4px; padding:8px 12px; font-size:0.8rem; cursor:pointer; margin-top:6px; width:100%; touch-action:manipulation; -webkit-tap-highlight-color:transparent;" data-i18n="trading.ma_apply"><i data-lucide="check-circle"></i> Apply</button>
+                        <button onclick="applyMASettings(); this.innerHTML='✔ Saved!'; setTimeout(()=>{this.innerHTML='✔ Apply'; },1500);" style="background:var(--primary-light); color:var(--border); border:none; border-radius:4px; padding:8px 12px; font-size:0.8rem; cursor:pointer; margin-top:6px; width:100%; touch-action:manipulation; -webkit-tap-highlight-color:transparent;" data-i18n="trading.ma_apply"><i data-lucide="check-circle"></i> Apply</button>
                     </div>
                     
                     <!-- 가격 + 시간 바 -->
-                    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; padding:8px 10px; background:#6B5744; border-radius:8px; margin-bottom:4px; gap:6px;">
+                    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--primary-light); border-radius:8px; margin-bottom:4px; gap:6px;">
                         <div>
                             <div style="display:flex; align-items:baseline; gap:8px;">
                                 <span id="chart-symbol-label" style="color:#E8D5C4; font-size:0.7rem;">MNQ 1m (×$2)</span>
-                                <span id="live-clock" style="font-size:0.75rem; color:#6B8F3C;">--:--:--</span>
+                                <span id="live-clock" style="font-size:0.75rem; color:var(--success);">--:--:--</span>
                             </div>
-                            <div id="live-price" style="font-size:1.4rem; font-weight:700; color:#6B8F3C;">--</div>
+                            <div id="live-price" style="font-size:1.4rem; font-weight:700; color:var(--success);">--</div>
                         </div>
                         <div style="display:flex; gap:12px;">
                             <div style="text-align:center;">
@@ -1656,11 +1656,11 @@
                             </div>
                             <div style="text-align:center;">
                                 <span style="color:#E8D5C4; font-size:0.65rem;">SPREAD</span>
-                                <div id="live-spread" style="color:#C4841D; font-weight:600; font-size:0.85rem;">--</div>
+                                <div id="live-spread" style="color:var(--warning); font-weight:600; font-size:0.85rem;">--</div>
                             </div>
                         </div>
                         <div style="text-align:right;">
-                            <span id="live-status-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#B54534; margin-right:4px;"></span>
+                            <span id="live-status-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--error); margin-right:4px;"></span>
                             <span id="live-status-text" style="color:#E8D5C4; font-size:0.65rem;" data-i18n="trading.connecting">연결 중...</span>
                         </div>
                     </div>
@@ -1669,34 +1669,34 @@
                     <div id="live-candle-chart" style="height:500px;max-height:60vh;min-height:300px;"></div>
                     
                     <!-- ★ 퀵 SL/TP 설정 바 -->
-                    <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#3D2B1F; border-radius:6px; margin-top:4px; font-size:0.75rem;">
-                        <span style="color:#B54534; font-weight:600;">SL</span>
-                        <input type="number" id="stop-loss-points" value="50" step="5" min="1" style="width:50px; background:#0f0f23; color:#B54534; border:1px solid #3D2B1F; border-radius:3px; padding:3px 5px; text-align:center; font-size:0.8rem;">
+                    <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:var(--primary); border-radius:6px; margin-top:4px; font-size:0.75rem;">
+                        <span style="color:var(--error); font-weight:600;">SL</span>
+                        <input type="number" id="stop-loss-points" value="50" step="5" min="1" style="width:50px; background:#0f0f23; color:var(--error); border:1px solid var(--primary); border-radius:3px; padding:3px 5px; text-align:center; font-size:0.8rem;">
                         <span style="color:#B8A090;">pt</span>
                         <span style="color:#B8A090;">|</span>
                         <span style="color:#00cc00; font-weight:600;">TP</span>
-                        <input type="number" id="take-profit-points" value="100" step="5" min="1" style="width:50px; background:#0f0f23; color:#00cc00; border:1px solid #3D2B1F; border-radius:3px; padding:3px 5px; text-align:center; font-size:0.8rem;">
+                        <input type="number" id="take-profit-points" value="100" step="5" min="1" style="width:50px; background:#0f0f23; color:#00cc00; border:1px solid var(--primary); border-radius:3px; padding:3px 5px; text-align:center; font-size:0.8rem;">
                         <span style="color:#B8A090;">pt</span>
                         <span style="color:#B8A090;">|</span>
                         <label style="display:flex; align-items:center; gap:3px; cursor:pointer;">
-                            <input type="checkbox" id="use-trailing-stop" style="accent-color:#C4841D;">
-                            <span style="color:#C4841D; font-size:0.7rem;" data-i18n="trading.trailing">Trail</span>
+                            <input type="checkbox" id="use-trailing-stop" style="accent-color:var(--warning);">
+                            <span style="color:var(--warning); font-size:0.7rem;" data-i18n="trading.trailing">Trail</span>
                         </label>
                     </div>
                     
                     <!-- BUY / SELL / CLOSE -->
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:4px; padding:0 4px;">
-                        <button id="btn-chart-buy" onclick="quickChartTrade('BUY')" style="background:#1E88E5; color:#FFF8F0; padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;">BUY</button>
-                        <button id="btn-chart-sell" onclick="quickChartTrade('SELL')" style="background:#cc0000; color:#FFF8F0; padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;">SELL</button>
-                        <button onclick="closeAllPositions(getActiveTabSymbol())" style="background:#6B5744; color:#FFF8F0; padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;"><i data-lucide="x"></i> CLOSE</button>
+                        <button id="btn-chart-buy" onclick="quickChartTrade('BUY')" style="background:#1E88E5; color:var(--bg); padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;">BUY</button>
+                        <button id="btn-chart-sell" onclick="quickChartTrade('SELL')" style="background:#cc0000; color:var(--bg); padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;">SELL</button>
+                        <button onclick="closeAllPositions(getActiveTabSymbol())" style="background:var(--primary-light); color:var(--bg); padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;"><i data-lucide="x"></i> CLOSE</button>
                     </div>
                     
                     <!-- 실시간 손익 -->
-                    <div id="live-pnl-bar" style="text-align:center; padding:8px; margin-top:8px; background:#F7F3ED; border-radius:8px; display:none;">
-                        <span style="color:#6B5744; font-size:0.75rem;" data-i18n="trading.live_pnl">실시간 손익</span>
+                    <div id="live-pnl-bar" style="text-align:center; padding:8px; margin-top:8px; background:var(--bg-card); border-radius:8px; display:none;">
+                        <span style="color:var(--primary-light); font-size:0.75rem;" data-i18n="trading.live_pnl">실시간 손익</span>
                         <div style="display:flex; justify-content:center; align-items:baseline; gap:12px;">
-                            <div id="live-pnl" style="font-size:1.3rem; font-weight:700; color:#3D2B1F;">$0.00</div>
-                            <div id="live-crtd-est" style="font-size:0.85rem; font-weight:600; color:#8B6914;"><i data-lucide="gem"></i>0 CRTD</div>
+                            <div id="live-pnl" style="font-size:1.3rem; font-weight:700; color:var(--primary);">$0.00</div>
+                            <div id="live-crtd-est" style="font-size:0.85rem; font-weight:600; color:var(--gold);"><i data-lucide="gem"></i>0 CRTD</div>
                         </div>
                     </div>
                     
@@ -1712,17 +1712,17 @@
                             <input type="checkbox" id="mentor-toggle-notif" checked onchange="toggleMentorSetting('notif')" style="width:14px;height:14px;accent-color:#C9A84C;" data-i18n="trading.mentor_notif"> 알림
                         </label>
                     </div>
-                    <div id="mentor-panel" style="margin-top:4px; padding:8px; background:#F7F3ED; border-radius:8px;">
-                        <div style="color:#6B5744; font-size:0.7rem; text-align:center; padding:8px;" data-i18n="mentor.loading">AI 멘토 분석 로딩 중...</div>
+                    <div id="mentor-panel" style="margin-top:4px; padding:8px; background:var(--bg-card); border-radius:8px;">
+                        <div style="color:var(--primary-light); font-size:0.7rem; text-align:center; padding:8px;" data-i18n="mentor.loading">AI 멘토 분석 로딩 중...</div>
                     </div>
                 </div>
                 
                 <!-- Trading Controls -->
-                <div id="trading-order-panel" style="background:#FFF8F0; padding:1.5rem; border-radius:12px; max-width:400px; margin-left:auto;">
+                <div id="trading-order-panel" style="background:var(--bg); padding:1.5rem; border-radius:12px; max-width:400px; margin-left:auto;">
                     <h4 style="margin-bottom:0.5rem;" data-i18n="trading.order_title">NQ100 Futures Trading</h4>
                     
                     <!-- ★ 거래 권한 배지 -->
-                    <div id="trading-permission-badge" style="display:none; padding:0.5rem 0.8rem; background:linear-gradient(135deg,#3D2B1F,#6B5744); border-radius:8px; margin-bottom:1rem; font-size:0.75rem; color:#E8E0D8;">
+                    <div id="trading-permission-badge" style="display:none; padding:0.5rem 0.8rem; background:linear-gradient(135deg,#3D2B1F,#6B5744); border-radius:8px; margin-bottom:1rem; font-size:0.75rem; color:var(--border);">
                     </div>
                     
                     <!-- Contract and Quantity -->
@@ -1799,25 +1799,25 @@
                     </div>
                     
                     <!-- 카피트레이딩 & 수수료 표시 -->
-                    <div id="copy-trade-display" style="display:none; padding:0.6rem 0.8rem; background:#F7F3ED; border-radius:6px; margin-bottom:0.5rem; font-size:0.85rem; color:#C4841D; border:1px solid #ffcc80;"></div>
+                    <div id="copy-trade-display" style="display:none; padding:0.6rem 0.8rem; background:var(--bg-card); border-radius:6px; margin-bottom:0.5rem; font-size:0.85rem; color:var(--warning); border:1px solid #ffcc80;"></div>
                     <div id="trade-fee-display" style="padding:0.5rem 0.8rem; background:var(--bg); border-radius:6px; margin-bottom:0.8rem; font-size:0.82rem; color:var(--accent);"></div>
                     
                     <!-- Buy/Sell Buttons -->
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
-                        <button id="btn-buy" onclick="executeFuturesTrade('BUY')" style="background:#1E88E5; color:#FFF8F0; padding:1.2rem; border:none; border-radius:6px; cursor:pointer; font-size:1.1rem; font-weight:bold;">
+                        <button id="btn-buy" onclick="executeFuturesTrade('BUY')" style="background:#1E88E5; color:var(--bg); padding:1.2rem; border:none; border-radius:6px; cursor:pointer; font-size:1.1rem; font-weight:bold;">
                             BUY
                         </button>
-                        <button id="btn-sell" onclick="executeFuturesTrade('SELL')" style="background:#cc0000; color:#FFF8F0; padding:1.2rem; border:none; border-radius:6px; cursor:pointer; font-size:1.1rem; font-weight:bold;">
+                        <button id="btn-sell" onclick="executeFuturesTrade('SELL')" style="background:#cc0000; color:var(--bg); padding:1.2rem; border:none; border-radius:6px; cursor:pointer; font-size:1.1rem; font-weight:bold;">
                             SELL
                         </button>
                     </div>
                     
                     <!-- Close / Flatten Buttons -->
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; margin-top:0.8rem;">
-                        <button id="btn-close-last" onclick="closeLastPosition()" style="background:#C4841D; color:#FFF8F0; padding:0.9rem; border:none; border-radius:6px; cursor:pointer; font-size:0.95rem; font-weight:bold;">
+                        <button id="btn-close-last" onclick="closeLastPosition()" style="background:#C4841D; color:var(--bg); padding:0.9rem; border:none; border-radius:6px; cursor:pointer; font-size:0.95rem; font-weight:bold;">
                             <i data-lucide="x"></i> CLOSE
                         </button>
-                        <button id="btn-flatten" onclick="flattenAllPositions()" style="background:#b71c1c; color:#FFF8F0; padding:0.9rem; border:none; border-radius:6px; cursor:pointer; font-size:0.95rem; font-weight:bold;">
+                        <button id="btn-flatten" onclick="flattenAllPositions()" style="background:#b71c1c; color:var(--bg); padding:0.9rem; border:none; border-radius:6px; cursor:pointer; font-size:0.95rem; font-weight:bold;">
                             <i data-lucide="alert-circle"></i> FLATTEN
                         </button>
                     </div>
@@ -1829,13 +1829,13 @@
                 </div>
                 
                 <!-- Open Positions -->
-                <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-top:1rem;">
-                    <h4 style="margin-bottom:1rem;" data-i18n="trading.open_positions"><i data-lucide="bar-chart-3" style="width:16px;height:16px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> 오픈 포지션</h4>
+                <div style="background:var(--bg); padding:1.5rem; border-radius:12px; margin-top:1rem;">
+                    <h4 style="margin-bottom:1rem;" data-i18n="trading.open_positions"><i data-lucide="bar-chart-3" style="width:16px;height:16px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> 오픈 포지션</h4>
                     <div id="open-positions"></div>
                 </div>
                 
                 <!-- Trade History -->
-                <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; margin-top:1rem;">
+                <div style="background:var(--bg); padding:1.5rem; border-radius:12px; margin-top:1rem;">
                     <h4 style="margin-bottom:1rem;" data-i18n="trading.trade_history">내 주문 거래 내역</h4>
                     <div id="trade-history"></div>
                 </div>
@@ -1866,10 +1866,10 @@
         <!-- BRAIN -->
         <section id="brain" class="page" data-feature="brain">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                <h2 style="margin:0;"><i data-lucide="brain" style="width:20px;height:20px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> 크라우니브레인</h2>
+                <h2 style="margin:0;"><i data-lucide="brain" style="width:20px;height:20px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> 크라우니브레인</h2>
             </div>
             <div class="section-banner" style="background:linear-gradient(135deg, #3D2B1F, #6B5744);">
-                <h3><i data-lucide="brain" style="width:20px;height:20px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> 크라우니브레인 — 나를 발견하는 3단계</h3>
+                <h3><i data-lucide="brain" style="width:20px;height:20px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> 크라우니브레인 — 나를 발견하는 3단계</h3>
                 <p>4기질 <i data-lucide="arrow-right"></i> 243유형(애니어그램) <i data-lucide="arrow-right"></i> 8,192유형(브레인OS)</p>
             </div>
             <div id="brain-content" style="margin-top:1rem;">
@@ -1923,14 +1923,14 @@
 
         <section id="bible-quiz" class="page">
 
-            <div id="ctvm-quiz-round-bar" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 16px;background:#FFF8F0;border-radius:10px;border:1px solid rgba(139,105,20,.12)"></div>
-            <div id="ctvm-quiz-area" style="padding:0 4px;"><p style="text-align:center;padding:2rem;color:#7A5C47;" data-i18n="common.loading">Loading...</p></div>
+            <div id="ctvm-quiz-round-bar" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 16px;background:var(--bg);border-radius:10px;border:1px solid rgba(139,105,20,.12)"></div>
+            <div id="ctvm-quiz-area" style="padding:0 4px;"><p style="text-align:center;padding:2rem;color:var(--text-secondary);" data-i18n="common.loading">Loading...</p></div>
         </section>
 
         <section id="crowny-mail" class="page">
-            <div id="ctvm-mail-sub" style="font-size:0.85rem;color:#7A5C47;margin-bottom:12px;"></div>
+            <div id="ctvm-mail-sub" style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;"></div>
             <div id="ctvm-mail-folders" style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;"></div>
-            <div id="ctvm-mail-area"><p style="text-align:center;padding:2rem;color:#7A5C47;">로딩 중...</p></div>
+            <div id="ctvm-mail-area"><p style="text-align:center;padding:2rem;color:var(--text-secondary);">로딩 중...</p></div>
         </section>
 
         <section id="contacts-crm" class="page">
@@ -1940,49 +1940,49 @@
                     <option value="" data-i18n="contacts.all_groups">All Groups</option>
                 </select>
             </div>
-            <div id="ctvm-contact-count" style="font-size:0.8rem;color:#7A5C47;margin-bottom:0.5rem;padding:0 4px"></div>
-            <div id="ctvm-contacts-area"><p style="text-align:center;padding:2rem;color:#7A5C47" data-i18n="common.loading">Loading...</p></div>
+            <div id="ctvm-contact-count" style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.5rem;padding:0 4px"></div>
+            <div id="ctvm-contacts-area"><p style="text-align:center;padding:2rem;color:var(--text-secondary)" data-i18n="common.loading">Loading...</p></div>
         </section>
 
         <!-- ========== BLOCK EXPLORER + CONTRACT IDE ========== -->
         <section id="chain-explorer" class="page">
             <div style="display:flex;gap:8px;margin-bottom:0.8rem">
-                <button onclick="chainLoadStatus()" class="chain-tab active" data-tab="status" style="flex:1;padding:8px;border:1px solid #E8E0D8;border-radius:8px;background:#3D2B1F;color:#FFF8F0;font-size:0.8rem;font-weight:600;cursor:pointer" data-i18n="chain.status">Status</button>
-                <button onclick="chainLoadBlocks()" class="chain-tab" data-tab="blocks" style="flex:1;padding:8px;border:1px solid #E8E0D8;border-radius:8px;background:none;color:#3D2B1F;font-size:0.8rem;cursor:pointer" data-i18n="chain.blocks">Blocks</button>
-                <button onclick="chainLoadContracts()" class="chain-tab" data-tab="contracts" style="flex:1;padding:8px;border:1px solid #E8E0D8;border-radius:8px;background:none;color:#3D2B1F;font-size:0.8rem;cursor:pointer" data-i18n="chain.contracts">Contracts</button>
+                <button onclick="chainLoadStatus()" class="chain-tab active" data-tab="status" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--primary);color:var(--bg);font-size:0.8rem;font-weight:600;cursor:pointer" data-i18n="chain.status">Status</button>
+                <button onclick="chainLoadBlocks()" class="chain-tab" data-tab="blocks" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;background:none;color:var(--primary);font-size:0.8rem;cursor:pointer" data-i18n="chain.blocks">Blocks</button>
+                <button onclick="chainLoadContracts()" class="chain-tab" data-tab="contracts" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;background:none;color:var(--primary);font-size:0.8rem;cursor:pointer" data-i18n="chain.contracts">Contracts</button>
             </div>
-            <div id="chain-content"><p style="text-align:center;padding:2rem;color:#7A5C47" data-i18n="common.loading">Loading...</p></div>
+            <div id="chain-content"><p style="text-align:center;padding:2rem;color:var(--text-secondary)" data-i18n="common.loading">Loading...</p></div>
         </section>
 
         <section id="hanseon-vm" class="page">
             <div class="section-header">
                 <h2><i data-lucide="code-2"></i> HANSEON VM</h2>
-                <span style="font-size:0.75rem;color:#7A5C47;">CrownyTVM v0.32.0 — ISA729</span>
+                <span style="font-size:0.75rem;color:var(--text-secondary);">CrownyTVM v0.32.0 — ISA729</span>
             </div>
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-                <select id="ctvm-hs-examples" onchange="ctvmLoadHsExample(this.value)" style="flex:1;min-width:140px;padding:8px 12px;border-radius:8px;border:1px solid #E8E0D8;font-size:0.85rem;background:#FFF8F0;"></select>
-                <button onclick="ctvmRunHs()" style="background:#8B6914;color:#FFF8F0;border:none;padding:8px 18px;border-radius:8px;font-size:0.85rem;cursor:pointer;font-weight:600;">&#9654; 실행</button>
-                <button onclick="ctvmDisHs()" style="background:#3D2B1F;color:#FFF8F0;border:none;padding:8px 14px;border-radius:8px;font-size:0.85rem;cursor:pointer;">디스어셈블</button>
+                <select id="ctvm-hs-examples" onchange="ctvmLoadHsExample(this.value)" style="flex:1;min-width:140px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);font-size:0.85rem;background:var(--bg);"></select>
+                <button onclick="ctvmRunHs()" style="background:var(--gold);color:var(--bg);border:none;padding:8px 18px;border-radius:8px;font-size:0.85rem;cursor:pointer;font-weight:600;">&#9654; 실행</button>
+                <button onclick="ctvmDisHs()" style="background:var(--primary);color:var(--bg);border:none;padding:8px 14px;border-radius:8px;font-size:0.85rem;cursor:pointer;">디스어셈블</button>
             </div>
             <div style="display:flex;gap:0;border-radius:10px;overflow:hidden;border:1px solid rgba(139,105,20,.12);min-height:300px;">
                 <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
-                    <textarea id="ctvm-hs-editor" style="flex:1;min-height:200px;background:#3D2B1F;color:#F0E4C8;font-family:'JetBrains Mono','Fira Code',monospace;font-size:13px;line-height:1.6;padding:16px;border:none;resize:none;tab-size:2;outline:none;" spellcheck="false" placeholder="// 한선씨 코드를 작성하세요&#10;변수 x = 42&#10;출력(x)"></textarea>
+                    <textarea id="ctvm-hs-editor" style="flex:1;min-height:200px;background:var(--primary);color:#F0E4C8;font-family:'JetBrains Mono','Fira Code',monospace;font-size:13px;line-height:1.6;padding:16px;border:none;resize:none;tab-size:2;outline:none;" spellcheck="false" placeholder="// 한선씨 코드를 작성하세요&#10;변수 x = 42&#10;출력(x)"></textarea>
                 </div>
                 <div style="flex:1;display:flex;flex-direction:column;min-width:0;border-left:1px solid rgba(139,105,20,.12);">
-                    <div style="padding:6px 16px;font-size:0.7rem;font-weight:600;color:#7A5C47;background:#FFF8F0;border-bottom:1px solid rgba(139,105,20,.12);text-transform:uppercase;letter-spacing:.5px;">출력</div>
-                    <div id="ctvm-hs-output" style="flex:1;background:#FFF8F0;font-family:'JetBrains Mono','Fira Code',monospace;font-size:13px;line-height:1.6;padding:16px;overflow:auto;white-space:pre-wrap;color:#3D2B1F;">한선씨 VM 준비 완료.</div>
+                    <div style="padding:6px 16px;font-size:0.7rem;font-weight:600;color:var(--text-secondary);background:var(--bg);border-bottom:1px solid rgba(139,105,20,.12);text-transform:uppercase;letter-spacing:.5px;">출력</div>
+                    <div id="ctvm-hs-output" style="flex:1;background:var(--bg);font-family:'JetBrains Mono','Fira Code',monospace;font-size:13px;line-height:1.6;padding:16px;overflow:auto;white-space:pre-wrap;color:var(--primary);">한선씨 VM 준비 완료.</div>
                 </div>
             </div>
-            <div id="ctvm-hs-status" style="padding:6px 12px;font-size:0.75rem;color:#7A5C47;margin-top:6px;">준비</div>
+            <div id="ctvm-hs-status" style="padding:6px 12px;font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">준비</div>
         </section>
 
         <section id="crowny-admin" class="page" style="display:none;">
             <div class="section-header"><h2><i data-lucide="server"></i> 서버 관리</h2></div>
-            <div id="ctvm-admin-area"><p style="text-align:center;padding:2rem;color:#7A5C47;">로딩 중...</p></div>
+            <div id="ctvm-admin-area"><p style="text-align:center;padding:2rem;color:var(--text-secondary);">로딩 중...</p></div>
         </section>
 
         <section id="settings" class="page">
-            <h2><i data-lucide="settings" style="width:24px;height:24px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> SETTINGS</h2>
+            <h2><i data-lucide="settings" style="width:24px;height:24px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> SETTINGS</h2>
             <div id="settings-content"><p style="text-align:center;padding:2rem;color:var(--accent);">Loading...</p></div>
         </section>
 
@@ -2018,7 +2018,7 @@
                 <div style="display:grid; grid-template-columns:1fr auto; gap:0.5rem;">
                     <input type="number" id="product-price" placeholder="가격 (CRGC)" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
                     <input type="hidden" id="product-token" value="CRGC">
-                    <span style="padding:0.7rem; background:var(--bg); border-radius:6px; font-weight:700; color:#6B8F3C;">CRGC</span>
+                    <span style="padding:0.7rem; background:var(--bg); border-radius:6px; font-weight:700; color:var(--success);">CRGC</span>
                 </div>
                 <div>
                     <label style="font-size:0.8rem; color:var(--accent); margin-bottom:0.3rem; display:block;">사진 상품 이미지 (최대 5장, 첫번째가 대표)</label>
@@ -2104,7 +2104,7 @@
                                 <label style="font-size:0.75rem; color:var(--accent); margin-bottom:0.2rem; display:block;">에디션 수량</label>
                                 <input type="number" id="art-edition-count" value="10" min="1" max="10000" style="padding:0.6rem; border:1px solid var(--border); border-radius:6px; width:100%;">
                             </div>
-                            <div style="font-size:0.72rem; color:#6B5744; line-height:1.5;">
+                            <div style="font-size:0.72rem; color:var(--primary-light); line-height:1.5;">
                                 ⛓ Polygon 네트워크 · MetaMask 필요<br>
                                 <i data-lucide="pin"></i> 이미지는 IPFS에 영구 저장됩니다<br>
                                 <i data-lucide="coins"></i> 로열티: 2차 판매 시 작가에게 자동 지급
@@ -2143,7 +2143,7 @@
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem;">
                     <input type="number" id="fund-days" value="30" placeholder="기간(일)" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
                     <input type="hidden" id="fund-token" value="CRGC">
-                    <span style="padding:0.7rem; background:var(--bg); border-radius:6px; font-weight:700; color:#6B8F3C;">CRGC</span>
+                    <span style="padding:0.7rem; background:var(--bg); border-radius:6px; font-weight:700; color:var(--success);">CRGC</span>
                     <select id="fund-country" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
                         <option value="KR"><i data-lucide="flag"></i></option>
                         <option value="US"><i data-lucide="flag"></i></option>
@@ -2157,7 +2157,7 @@
                     <label style="font-size:0.8rem; color:var(--accent);">플랫폼 수수료 (%)</label>
                     <input type="number" id="fund-fee" value="2.5" min="0" max="50" step="0.5" style="padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
                 </div>
-                <p style="font-size:0.75rem; color:var(--accent);"><i data-lucide="lightbulb" style="width:14px;height:14px;display:inline;vertical-align:text-bottom;color:#8B6914;stroke-width:2;"></i> 수수료는 재단 운영비로 투명하게 사용됩니다</p>
+                <p style="font-size:0.75rem; color:var(--accent);"><i data-lucide="lightbulb" style="width:14px;height:14px;display:inline;vertical-align:text-bottom;color:var(--gold);stroke-width:2;"></i> 수수료는 재단 운영비로 투명하게 사용됩니다</p>
                 <button onclick="createCampaign(); closeRegisterModal('fundraise');" class="btn-primary" data-i18n="fundraise.donate_btn"><i data-lucide="heart"></i> 캠페인 시작</button>
             </div>
         </div>
@@ -2278,7 +2278,7 @@
                     <div style="display:flex; gap:0.3rem;">
                         <input type="number" id="book-price" placeholder="가격 (CRGC)" style="flex:1; padding:0.7rem; border:1px solid var(--border); border-radius:6px;">
                         <input type="hidden" id="book-token" value="CRGC">
-                        <span style="padding:0.7rem; background:var(--bg); border-radius:6px; font-weight:700; color:#6B8F3C;">CRGC</span>
+                        <span style="padding:0.7rem; background:var(--bg); border-radius:6px; font-weight:700; color:var(--success);">CRGC</span>
                     </div>
                 </div>
                 <input type="file" id="book-cover" accept="image/*" style="padding:0.5rem; border:1px solid var(--border); border-radius:6px;">
@@ -2314,20 +2314,20 @@
     
     <!-- 로딩 오버레이 -->
     <div id="loading-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(61,43,31,0.5); z-index:99998; align-items:center; justify-content:center;">
-        <div style="background:#FFF8F0; padding:2rem; border-radius:12px; text-align:center;">
-            <div style="width:40px; height:40px; border:4px solid #E8E0D8; border-top:4px solid #3D2B1F; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 1rem;"></div>
-            <p id="loading-text" style="color:#3D2B1F;" data-i18n="common.processing">처리 중...</p>
+        <div style="background:var(--bg); padding:2rem; border-radius:12px; text-align:center;">
+            <div style="width:40px; height:40px; border:4px solid var(--border); border-top:4px solid var(--primary); border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 1rem;"></div>
+            <p id="loading-text" style="color:var(--primary);" data-i18n="common.processing">처리 중...</p>
         </div>
     </div>
     
     <!-- 범용 확인 모달 -->
     <div id="confirm-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(61,43,31,0.6); z-index:99997; align-items:center; justify-content:center; padding:1rem;">
-        <div style="background:#FFF8F0; padding:1.5rem; border-radius:12px; max-width:400px; width:100%;">
+        <div style="background:var(--bg); padding:1.5rem; border-radius:12px; max-width:400px; width:100%;">
             <h3 id="confirm-title" style="margin-bottom:0.8rem;"></h3>
-            <p id="confirm-message" style="color:#6B5744; margin-bottom:1.2rem; white-space:pre-line;"></p>
+            <p id="confirm-message" style="color:var(--primary-light); margin-bottom:1.2rem; white-space:pre-line;"></p>
             <div style="display:flex; gap:0.5rem;">
-                <button id="confirm-cancel" onclick="closeConfirmModal(false)" style="flex:1; padding:0.7rem; border:1px solid #E8E0D8; border-radius:8px; cursor:pointer; background:#FFF8F0;" data-i18n="common.cancel">취소</button>
-                <button id="confirm-ok" onclick="closeConfirmModal(true)" style="flex:1; padding:0.7rem; border:none; border-radius:8px; cursor:pointer; background:#3D2B1F; color:#FFF8F0; font-weight:700;" data-i18n="common.confirm">확인</button>
+                <button id="confirm-cancel" onclick="closeConfirmModal(false)" style="flex:1; padding:0.7rem; border:1px solid var(--border); border-radius:8px; cursor:pointer; background:var(--bg);" data-i18n="common.cancel">취소</button>
+                <button id="confirm-ok" onclick="closeConfirmModal(true)" style="flex:1; padding:0.7rem; border:none; border-radius:8px; cursor:pointer; background:var(--primary); color:var(--bg); font-weight:700;" data-i18n="common.confirm">확인</button>
             </div>
         </div>
     </div>
@@ -2772,7 +2772,7 @@
 
     async function ctvmLoadQuiz() {
         ctvmToken = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
-        if (!ctvmToken) { document.getElementById('ctvm-quiz-area').innerHTML='<p style="text-align:center;padding:2rem;color:#7A5C47">'+t('common.login_required','Login required')+'</p>'; return; }
+        if (!ctvmToken) { document.getElementById('ctvm-quiz-area').innerHTML='<p style="text-align:center;padding:2rem;color:var(--text-secondary)">'+t('common.login_required','Login required')+'</p>'; return; }
 
         // Try to load all questions; fallback to single-question repeated fetch
         let questions = [];
@@ -2790,12 +2790,12 @@
                     if (questions.length === 0 && q && q.complete) {
                         const area = document.getElementById('ctvm-quiz-area');
                         const bar = document.getElementById('ctvm-quiz-round-bar');
-                        area.innerHTML=`<div style="padding:40px;text-align:center"><div style="font-size:48px;margin-bottom:16px;color:#8B6914">\u2713</div><p style="font-size:1.1rem;font-weight:600">${t('quiz.all_complete','All quizzes completed!')}</p><p style="color:#7A5C47;margin-top:8px">${q.correct||0}/${q.total||0} ${t('quiz.correct','correct')}</p></div>`;
+                        area.innerHTML=`<div style="padding:40px;text-align:center"><div style="font-size:48px;margin-bottom:16px;color:var(--gold)">\u2713</div><p style="font-size:1.1rem;font-weight:600">${t('quiz.all_complete','All quizzes completed!')}</p><p style="color:var(--text-secondary);margin-top:8px">${q.correct||0}/${q.total||0} ${t('quiz.correct','correct')}</p></div>`;
                         if(bar) bar.innerHTML='';
                         return;
                     }
                     if (questions.length === 0 && q && q.error) {
-                        document.getElementById('ctvm-quiz-area').innerHTML=`<div style="padding:40px;text-align:center;color:#7A5C47">${ctvmEsc(q.error)}</div>`;
+                        document.getElementById('ctvm-quiz-area').innerHTML=`<div style="padding:40px;text-align:center;color:var(--text-secondary)">${ctvmEsc(q.error)}</div>`;
                         return;
                     }
                     break;
@@ -2810,7 +2810,7 @@
         if (allResp && !Array.isArray(allResp) && allResp.complete) {
             const area = document.getElementById('ctvm-quiz-area');
             const bar = document.getElementById('ctvm-quiz-round-bar');
-            area.innerHTML=`<div style="padding:40px;text-align:center"><div style="font-size:48px;margin-bottom:16px;color:#8B6914">\u2713</div><p style="font-size:1.1rem;font-weight:600">${t('quiz.all_complete','All quizzes completed!')}</p><p style="color:#7A5C47;margin-top:8px">${allResp.correct||0}/${allResp.total||0} ${t('quiz.correct','correct')}</p></div>`;
+            area.innerHTML=`<div style="padding:40px;text-align:center"><div style="font-size:48px;margin-bottom:16px;color:var(--gold)">\u2713</div><p style="font-size:1.1rem;font-weight:600">${t('quiz.all_complete','All quizzes completed!')}</p><p style="color:var(--text-secondary);margin-top:8px">${allResp.correct||0}/${allResp.total||0} ${t('quiz.correct','correct')}</p></div>`;
             if(bar) bar.innerHTML='';
             return;
         }
@@ -2820,22 +2820,22 @@
         const bar = document.getElementById('ctvm-quiz-round-bar');
         const total = questions.length;
 
-        if(bar) bar.innerHTML=`<span style="font-size:0.85rem;font-weight:600;color:#3D2B1F">${total} ${t('quiz.questions','questions')}</span><div style="flex:1"></div><span id="quiz-answered-count" style="font-size:0.8rem;color:#7A5C47">0/${total} ${t('quiz.answered','answered')}</span>`;
+        if(bar) bar.innerHTML=`<span style="font-size:0.85rem;font-weight:600;color:var(--primary)">${total} ${t('quiz.questions','questions')}</span><div style="flex:1"></div><span id="quiz-answered-count" style="font-size:0.8rem;color:var(--text-secondary)">0/${total} ${t('quiz.answered','answered')}</span>`;
 
         const optLabels = ['A','B','C','D'];
         let html = '';
         questions.forEach((q, qIdx) => {
-            html += `<div class="quiz-scroll-item" id="quiz-item-${qIdx}" style="padding:12px 0;border-bottom:1px solid #F0E8DC">
+            html += `<div class="quiz-scroll-item" id="quiz-item-${qIdx}" style="padding:12px 0;border-bottom:1px solid var(--border)">
                 <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
-                    <span style="font-size:0.8rem;font-weight:700;color:#8B6914;flex-shrink:0">${qIdx+1}.</span>
+                    <span style="font-size:0.8rem;font-weight:700;color:var(--gold);flex-shrink:0">${qIdx+1}.</span>
                     <div>
-                        <div style="font-size:0.65rem;color:#7A5C47;margin-bottom:2px">${ctvmEsc(q.reference||'')} \u00b7 ${ctvmEsc(q.category||'')} \u00b7 ${'\u2605'.repeat(q.difficulty||1)}${'\u2606'.repeat(3-(q.difficulty||1))}</div>
-                        <div style="font-size:0.9rem;font-weight:600;color:#3D2B1F;line-height:1.5">${ctvmEsc(q.question)}</div>
+                        <div style="font-size:0.65rem;color:var(--text-secondary);margin-bottom:2px">${ctvmEsc(q.reference||'')} \u00b7 ${ctvmEsc(q.category||'')} \u00b7 ${'\u2605'.repeat(q.difficulty||1)}${'\u2606'.repeat(3-(q.difficulty||1))}</div>
+                        <div style="font-size:0.9rem;font-weight:600;color:var(--primary);line-height:1.5">${ctvmEsc(q.question)}</div>
                     </div>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:4px;margin-left:24px">
-                    ${(q.options||[]).map((o,i) => `<button class="quiz-opt" data-qidx="${qIdx}" data-oidx="${i}" onclick="ctvmSelectQuizOption(${qIdx},${i},'${q.quizId}')" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border:1.5px solid #F0E8DC;border-radius:8px;cursor:pointer;text-align:left;font-size:0.82rem;color:#3D2B1F;transition:all .15s">
-                        <span style="width:22px;height:22px;border-radius:50%;border:2px solid #E8E0D8;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0">${optLabels[i]}</span>
+                    ${(q.options||[]).map((o,i) => `<button class="quiz-opt" data-qidx="${qIdx}" data-oidx="${i}" onclick="ctvmSelectQuizOption(${qIdx},${i},'${q.quizId}')" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;text-align:left;font-size:0.82rem;color:var(--primary);transition:all .15s">
+                        <span style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0">${optLabels[i]}</span>
                         <span>${ctvmEsc(o)}</span>
                     </button>`).join('')}
                 </div>
@@ -2844,7 +2844,7 @@
         });
 
         html += `<div style="padding:16px 0;text-align:center">
-            <button id="quiz-submit-all" onclick="ctvmSubmitAllQuiz()" style="padding:12px 40px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;opacity:0.4" disabled>${t('quiz.submit_all','Submit All')}</button>
+            <button id="quiz-submit-all" onclick="ctvmSubmitAllQuiz()" style="padding:12px 40px;background:var(--primary);color:var(--bg);border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;opacity:0.4" disabled>${t('quiz.submit_all','Submit All')}</button>
         </div>`;
 
         area.innerHTML = html;
@@ -2907,17 +2907,17 @@
 
             if (r.correct) {
                 correctCount++;
-                if(resultEl) resultEl.innerHTML = `<span style="font-size:0.75rem;color:#6B8F3C;font-weight:600">\u2713 ${t('quiz.correct_answer','Correct!')}</span>`;
+                if(resultEl) resultEl.innerHTML = `<span style="font-size:0.75rem;color:var(--success);font-weight:600">\u2713 ${t('quiz.correct_answer','Correct!')}</span>`;
             } else {
-                if(resultEl) resultEl.innerHTML = `<span style="font-size:0.75rem;color:#B54534">${ctvmEsc(r.message||t('quiz.wrong','Wrong'))}</span>`;
+                if(resultEl) resultEl.innerHTML = `<span style="font-size:0.75rem;color:var(--error)">${ctvmEsc(r.message||t('quiz.wrong','Wrong'))}</span>`;
             }
         }
 
         // Show final score
         if(btn) {
             btn.outerHTML = `<div style="padding:16px;background:rgba(139,105,20,0.08);border-radius:10px;text-align:center">
-                <div style="font-size:1.2rem;font-weight:700;color:#3D2B1F">${correctCount}/${questions.length} ${t('quiz.correct','correct')}</div>
-                <button onclick="ctvmLoadQuiz()" style="margin-top:8px;padding:8px 20px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem">${t('quiz.retry','Next Round')}</button>
+                <div style="font-size:1.2rem;font-weight:700;color:var(--primary)">${correctCount}/${questions.length} ${t('quiz.correct','correct')}</div>
+                <button onclick="ctvmLoadQuiz()" style="margin-top:8px;padding:8px 20px;background:var(--primary);color:var(--bg);border:none;border-radius:8px;cursor:pointer;font-size:0.85rem">${t('quiz.retry','Next Round')}</button>
             </div>`;
         }
     }
@@ -2944,34 +2944,34 @@
     async function chainLoadStatus() {
         chainSetTab('status');
         const el = document.getElementById('chain-content');
-        el.innerHTML = '<p style="text-align:center;padding:1rem;color:#7A5C47">Loading...</p>';
+        el.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--text-secondary)">Loading...</p>';
         const s = await chainApi('/api/chain/status');
-        if (!s.chain) { el.innerHTML = '<p style="text-align:center;color:#B54534">Chain not available</p>'; return; }
+        if (!s.chain) { el.innerHTML = '<p style="text-align:center;color:var(--error)">Chain not available</p>'; return; }
         el.innerHTML = `
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:1rem">
-                <div style="text-align:center;padding:12px;background:#F7F3ED;border-radius:10px">
-                    <div style="font-size:0.65rem;color:#7A5C47">HEIGHT</div>
-                    <div style="font-size:1.3rem;font-weight:800;color:#3D2B1F">${s.chain.height}</div>
+                <div style="text-align:center;padding:12px;background:var(--bg-card);border-radius:10px">
+                    <div style="font-size:0.65rem;color:var(--text-secondary)">HEIGHT</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:var(--primary)">${s.chain.height}</div>
                 </div>
-                <div style="text-align:center;padding:12px;background:#F7F3ED;border-radius:10px">
-                    <div style="font-size:0.65rem;color:#7A5C47">ACCOUNTS</div>
-                    <div style="font-size:1.3rem;font-weight:800;color:#3D2B1F">${s.chain.accounts}</div>
+                <div style="text-align:center;padding:12px;background:var(--bg-card);border-radius:10px">
+                    <div style="font-size:0.65rem;color:var(--text-secondary)">ACCOUNTS</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:var(--primary)">${s.chain.accounts}</div>
                 </div>
-                <div style="text-align:center;padding:12px;background:#F7F3ED;border-radius:10px">
-                    <div style="font-size:0.65rem;color:#7A5C47">MEMPOOL</div>
-                    <div style="font-size:1.3rem;font-weight:800;color:#3D2B1F">${s.chain.mempoolSize}</div>
+                <div style="text-align:center;padding:12px;background:var(--bg-card);border-radius:10px">
+                    <div style="font-size:0.65rem;color:var(--text-secondary)">MEMPOOL</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:var(--primary)">${s.chain.mempoolSize}</div>
                 </div>
             </div>
-            <div style="padding:8px 4px;border-bottom:1px solid #F0E8DC">
-                <div style="font-size:0.65rem;color:#7A5C47">LATEST HASH</div>
-                <div style="font-family:monospace;font-size:0.7rem;word-break:break-all;color:#3D2B1F">${s.chain.latestHash}</div>
+            <div style="padding:8px 4px;border-bottom:1px solid var(--border)">
+                <div style="font-size:0.65rem;color:var(--text-secondary)">LATEST HASH</div>
+                <div style="font-family:monospace;font-size:0.7rem;word-break:break-all;color:var(--primary)">${s.chain.latestHash}</div>
             </div>
-            <div style="padding:8px 4px;border-bottom:1px solid #F0E8DC">
-                <div style="font-size:0.65rem;color:#7A5C47">STATE ROOT</div>
-                <div style="font-family:monospace;font-size:0.7rem;word-break:break-all;color:#3D2B1F">${s.chain.stateRoot}</div>
+            <div style="padding:8px 4px;border-bottom:1px solid var(--border)">
+                <div style="font-size:0.65rem;color:var(--text-secondary)">STATE ROOT</div>
+                <div style="font-family:monospace;font-size:0.7rem;word-break:break-all;color:var(--primary)">${s.chain.stateRoot}</div>
             </div>
             <div style="padding:8px 4px">
-                <div style="font-size:0.65rem;color:#7A5C47">STATUS</div>
+                <div style="font-size:0.65rem;color:var(--text-secondary)">STATUS</div>
                 <div style="font-size:0.85rem;color:${s.chain.running ? '#6B8F3C' : '#B54534'}">${s.chain.running ? '● Running (solo)' : '○ Stopped'}</div>
             </div>`;
     }
@@ -2979,7 +2979,7 @@
     async function chainLoadBlocks() {
         chainSetTab('blocks');
         const el = document.getElementById('chain-content');
-        el.innerHTML = '<p style="text-align:center;padding:1rem;color:#7A5C47">Loading...</p>';
+        el.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--text-secondary)">Loading...</p>';
         const s = await chainApi('/api/chain/status');
         if (!s.chain) return;
         let html = '';
@@ -2988,13 +2988,13 @@
             const b = await chainApi('/api/chain/block?height=' + h);
             if (!b || b.error) continue;
             const time = b.timestamp ? new Date(b.timestamp * 1000).toLocaleString() : '';
-            html += '<div onclick="chainShowBlock(' + h + ')" style="display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;border-bottom:1px solid #F0E8DC">' +
-                '<div style="font-weight:700;font-size:0.9rem;min-width:40px;color:#8B6914">#' + b.height + '</div>' +
-                '<div style="flex:1;min-width:0"><div style="font-size:0.8rem;color:#3D2B1F">' + (b.txCount||0) + ' txs</div>' +
-                '<div style="font-size:0.65rem;color:#7A5C47">' + time + '</div></div>' +
-                '<div style="font-family:monospace;font-size:0.6rem;color:#7A5C47">' + (b.hash||'').slice(0,12) + '...</div></div>';
+            html += '<div onclick="chainShowBlock(' + h + ')" style="display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;border-bottom:1px solid var(--border)">' +
+                '<div style="font-weight:700;font-size:0.9rem;min-width:40px;color:var(--gold)">#' + b.height + '</div>' +
+                '<div style="flex:1;min-width:0"><div style="font-size:0.8rem;color:var(--primary)">' + (b.txCount||0) + ' txs</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-secondary)">' + time + '</div></div>' +
+                '<div style="font-family:monospace;font-size:0.6rem;color:var(--text-secondary)">' + (b.hash||'').slice(0,12) + '...</div></div>';
         }
-        el.innerHTML = html || '<p style="text-align:center;color:#7A5C47">No blocks</p>';
+        el.innerHTML = html || '<p style="text-align:center;color:var(--text-secondary)">No blocks</p>';
     }
 
     async function chainShowBlock(height) {
@@ -3006,15 +3006,15 @@
         let txHtml = (b.transactions||[]).map(tx => {
             const tn = tx.typeName || txTypes[tx.type] || tx.type;
             const cn = tx.currencyName || curNames[String(tx.currency)] || '';
-            return '<div style="padding:6px 8px;background:#F7F3ED;border-radius:6px;margin-bottom:4px;font-size:0.75rem">' +
-                '<span style="background:#E8E0D8;padding:1px 6px;border-radius:4px;font-size:0.65rem;font-weight:600">' + tn + '</span> ' +
+            return '<div style="padding:6px 8px;background:var(--bg-card);border-radius:6px;margin-bottom:4px;font-size:0.75rem">' +
+                '<span style="background:var(--border);padding:1px 6px;border-radius:4px;font-size:0.65rem;font-weight:600">' + tn + '</span> ' +
                 (tx.amount ? tx.amount + ' ' + cn : '') +
-                '<div style="font-family:monospace;font-size:0.6rem;color:#7A5C47;margin-top:2px">' + (tx.from||'').slice(0,24) + '→' + (tx.to||'').slice(0,24) + '</div></div>';
+                '<div style="font-family:monospace;font-size:0.6rem;color:var(--text-secondary);margin-top:2px">' + (tx.from||'').slice(0,24) + '→' + (tx.to||'').slice(0,24) + '</div></div>';
         }).join('');
-        el.innerHTML = '<div><button onclick="chainLoadBlocks()" style="padding:6px 12px;background:none;border:1px solid #E8E0D8;border-radius:6px;font-size:0.75rem;cursor:pointer;margin-bottom:8px">← Blocks</button></div>' +
-            '<div style="padding:8px 0"><span style="font-weight:700;color:#8B6914">Block #' + b.height + '</span> · ' + (b.txCount||0) + ' txs</div>' +
-            '<div style="font-family:monospace;font-size:0.6rem;color:#7A5C47;padding:4px 0;border-bottom:1px solid #F0E8DC;word-break:break-all">Hash: ' + b.hash + '</div>' +
-            '<div style="font-family:monospace;font-size:0.6rem;color:#7A5C47;padding:4px 0;border-bottom:1px solid #F0E8DC;word-break:break-all">Prev: ' + b.previousHash + '</div>' +
+        el.innerHTML = '<div><button onclick="chainLoadBlocks()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:6px;font-size:0.75rem;cursor:pointer;margin-bottom:8px">← Blocks</button></div>' +
+            '<div style="padding:8px 0"><span style="font-weight:700;color:var(--gold)">Block #' + b.height + '</span> · ' + (b.txCount||0) + ' txs</div>' +
+            '<div style="font-family:monospace;font-size:0.6rem;color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border);word-break:break-all">Hash: ' + b.hash + '</div>' +
+            '<div style="font-family:monospace;font-size:0.6rem;color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border);word-break:break-all">Prev: ' + b.previousHash + '</div>' +
             '<div style="padding:8px 0">' + txHtml + '</div>';
     }
 
@@ -3023,16 +3023,16 @@
     async function chainLoadContracts() {
         chainSetTab('contracts');
         const el = document.getElementById('chain-content');
-        el.innerHTML = '<p style="text-align:center;padding:1rem;color:#7A5C47">Loading...</p>';
+        el.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--text-secondary)">Loading...</p>';
         const list = await chainApi('/api/chain/contract/list');
-        let html = '<div style="margin-bottom:1rem"><button onclick="chainShowContractEditor()" style="padding:8px 16px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer"><i data-lucide="plus" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i> New Contract</button></div>';
+        let html = '<div style="margin-bottom:1rem"><button onclick="chainShowContractEditor()" style="padding:8px 16px;background:var(--primary);color:var(--bg);border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer"><i data-lucide="plus" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i> New Contract</button></div>';
         if (Array.isArray(list) && list.length > 0) {
-            html += list.map(c => '<div onclick="chainRunContract(\'' + c.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;border-bottom:1px solid #F0E8DC">' +
-                '<div style="flex:1"><div style="font-size:0.85rem;font-weight:600;color:#3D2B1F">' + (c.name||c.id) + '</div>' +
-                '<div style="font-size:0.7rem;color:#7A5C47">' + c.codeSize + 'B · ' + (c.calls||0) + ' calls</div></div>' +
-                '<div style="font-size:0.6rem;color:#7A5C47">' + c.id + '</div></div>').join('');
+            html += list.map(c => '<div onclick="chainRunContract(\'' + c.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;border-bottom:1px solid var(--border)">' +
+                '<div style="flex:1"><div style="font-size:0.85rem;font-weight:600;color:var(--primary)">' + (c.name||c.id) + '</div>' +
+                '<div style="font-size:0.7rem;color:var(--text-secondary)">' + c.codeSize + 'B · ' + (c.calls||0) + ' calls</div></div>' +
+                '<div style="font-size:0.6rem;color:var(--text-secondary)">' + c.id + '</div></div>').join('');
         } else {
-            html += '<p style="text-align:center;color:#7A5C47;padding:1rem">No contracts deployed</p>';
+            html += '<p style="text-align:center;color:var(--text-secondary);padding:1rem">No contracts deployed</p>';
         }
         el.innerHTML = html;
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -3040,13 +3040,13 @@
 
     function chainShowContractEditor() {
         const el = document.getElementById('chain-content');
-        el.innerHTML = '<div style="margin-bottom:8px"><button onclick="chainLoadContracts()" style="padding:6px 12px;background:none;border:1px solid #E8E0D8;border-radius:6px;font-size:0.75rem;cursor:pointer">← Back</button></div>' +
-            '<input id="contract-name" placeholder="Contract name" style="width:100%;padding:8px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.85rem;margin-bottom:6px;background:#FFF8F0">' +
-            '<textarea id="contract-code" placeholder="// 한선씨 코드 작성...\n출력(&quot;안녕 크라우니셀&quot;)" style="width:100%;min-height:150px;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-family:monospace;font-size:0.82rem;background:#FFF8F0;resize:vertical;line-height:1.5"></textarea>' +
+        el.innerHTML = '<div style="margin-bottom:8px"><button onclick="chainLoadContracts()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:6px;font-size:0.75rem;cursor:pointer">← Back</button></div>' +
+            '<input id="contract-name" placeholder="Contract name" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.85rem;margin-bottom:6px;background:var(--bg)">' +
+            '<textarea id="contract-code" placeholder="// 한선씨 코드 작성...\n출력(&quot;안녕 크라우니셀&quot;)" style="width:100%;min-height:150px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.82rem;background:var(--bg);resize:vertical;line-height:1.5"></textarea>' +
             '<div style="display:flex;gap:6px;margin-top:6px">' +
-            '<button onclick="chainDeployContract()" style="flex:1;padding:8px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer">Deploy</button>' +
-            '<button onclick="chainExecuteCode()" style="flex:1;padding:8px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer">Run</button></div>' +
-            '<div id="contract-output" style="margin-top:8px;padding:8px;background:#F7F3ED;border-radius:8px;font-family:monospace;font-size:0.75rem;min-height:40px;white-space:pre-wrap;display:none"></div>';
+            '<button onclick="chainDeployContract()" style="flex:1;padding:8px;background:var(--primary);color:var(--bg);border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer">Deploy</button>' +
+            '<button onclick="chainExecuteCode()" style="flex:1;padding:8px;background:var(--gold);color:var(--bg);border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer">Run</button></div>' +
+            '<div id="contract-output" style="margin-top:8px;padding:8px;background:var(--bg-card);border-radius:8px;font-family:monospace;font-size:0.75rem;min-height:40px;white-space:pre-wrap;display:none"></div>';
     }
 
     async function chainDeployContract() {
@@ -3083,15 +3083,15 @@
     async function chainRunContract(contractId) {
         const el = document.getElementById('chain-content');
         const token = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
-        el.innerHTML = '<p style="text-align:center;padding:1rem;color:#7A5C47">Executing...</p>';
+        el.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--text-secondary)">Executing...</p>';
         const r = await fetch('/api/chain/contract/execute', {
             method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
             body: JSON.stringify({ contractId })
         });
         const data = await r.json();
-        el.innerHTML = '<div><button onclick="chainLoadContracts()" style="padding:6px 12px;background:none;border:1px solid #E8E0D8;border-radius:6px;font-size:0.75rem;cursor:pointer;margin-bottom:8px">← Back</button></div>' +
+        el.innerHTML = '<div><button onclick="chainLoadContracts()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:6px;font-size:0.75rem;cursor:pointer;margin-bottom:8px">← Back</button></div>' +
             '<div style="font-weight:600;margin-bottom:8px">' + contractId + '</div>' +
-            '<div style="padding:10px;background:#F7F3ED;border-radius:8px;font-family:monospace;font-size:0.75rem;white-space:pre-wrap">' +
+            '<div style="padding:10px;background:var(--bg-card);border-radius:8px;font-family:monospace;font-size:0.75rem;white-space:pre-wrap">' +
             (data.success ? (data.output||[]).join('\n') || '(no output)' : 'Error: ' + (data.error||'')) + '</div>';
     }
 
@@ -3110,7 +3110,7 @@
     async function ctvmLoadMail(folder) {
         if(folder) ctvmMailFolder=folder;
         ctvmToken = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
-        if(!ctvmToken) { document.getElementById('ctvm-mail-area').innerHTML='<p style="text-align:center;padding:2rem;color:#7A5C47">CrownyTVM 로그인 필요</p>'; return; }
+        if(!ctvmToken) { document.getElementById('ctvm-mail-area').innerHTML='<p style="text-align:center;padding:2rem;color:var(--text-secondary)">CrownyTVM 로그인 필요</p>'; return; }
         if(ctvmMe) document.getElementById('ctvm-mail-sub').textContent=ctvmMe.email||'';
         // 내부 셀 메일 + 독립 메일 서버 동시 조회
         const [mails,cnt,extMails] = await Promise.all([
@@ -3126,10 +3126,10 @@
         const extUnread=extList.filter(m=>!m.read).length;
         const totalUnread=(c.unread||0)+extUnread;
         const folders=[{id:'inbox',l:'받은편지함',n:totalUnread},{id:'sent',l:'보낸편지함',n:0},{id:'starred',l:'별표',n:c.starred||0},{id:'trash',l:'휴지통',n:c.trash||0}];
-        document.getElementById('ctvm-mail-folders').innerHTML=folders.map(f=>`<button class="ctvm-folder-btn${ctvmMailFolder===f.id?' active':''}" onclick="ctvmLoadMail('${f.id}')">${f.l}${f.n>0?` <span style="background:#B54534;color:#fff;font-size:0.65rem;padding:1px 5px;border-radius:8px;margin-left:3px">${f.n}</span>`:''}</button>`).join('');
+        document.getElementById('ctvm-mail-folders').innerHTML=folders.map(f=>`<button class="ctvm-folder-btn${ctvmMailFolder===f.id?' active':''}" onclick="ctvmLoadMail('${f.id}')">${f.l}${f.n>0?` <span style="background:var(--error);color:#fff;font-size:0.65rem;padding:1px 5px;border-radius:8px;margin-left:3px">${f.n}</span>`:''}</button>`).join('');
         const area=document.getElementById('ctvm-mail-area');
-        if(list.length===0){area.innerHTML=`<div style="padding:40px;text-align:center;color:#7A5C47"><div style="font-size:40px;margin-bottom:12px">✉</div><p>${ctvmMailFolder==='inbox'?'받은 메일이 없습니다':'메일이 없습니다'}</p><button onclick="ctvmShowCompose()" style="margin-top:12px;padding:10px 24px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer">새 메일 작성</button></div>`;return;}
-        area.innerHTML=list.map(m=>{const isExt=m._ext;const from=m.folder==='sent'||ctvmMailFolder==='sent'?'→ '+(m.mailTo||''):m.mailFrom||m.from||'';const extBadge=isExt&&m.mailFrom&&!m.mailFrom.endsWith('@crowny.org')?'<span style="background:#6B8F3C;color:#fff;font-size:0.55rem;padding:1px 4px;border-radius:4px;margin-left:4px">외부</span>':'';return`<div class="ctvm-mail-item${!m.read?' unread':''}" onclick="ctvmOpenMail('${isExt?m.id:m.id}',${isExt})"><div class="ctvm-avatar" style="background:${ctvmColor(from)};width:40px;height:40px;font-size:14px">${ctvmInitial(from.replace(/→\s*/,'').replace(/@.*/,''))}</div><div style="flex:1;min-width:0"><div style="font-size:0.9rem;font-weight:${m.read?500:700};color:#3D2B1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ctvmEsc(m.subject||'(제목 없음)')}${extBadge}</div><div style="font-size:0.75rem;color:#7A5C47;margin-top:2px">${ctvmEsc(from)}</div><div style="font-size:0.8rem;color:#A08060;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ctvmEsc((m.body||'').slice(0,60))}</div></div><div style="text-align:right;flex-shrink:0;font-size:0.7rem;color:#A08060">${ctvmFmtDate(m.created)}</div></div>`}).join('');
+        if(list.length===0){area.innerHTML=`<div style="padding:40px;text-align:center;color:var(--text-secondary)"><div style="font-size:40px;margin-bottom:12px">✉</div><p>${ctvmMailFolder==='inbox'?'받은 메일이 없습니다':'메일이 없습니다'}</p><button onclick="ctvmShowCompose()" style="margin-top:12px;padding:10px 24px;background:var(--gold);color:var(--bg);border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer">새 메일 작성</button></div>`;return;}
+        area.innerHTML=list.map(m=>{const isExt=m._ext;const from=m.folder==='sent'||ctvmMailFolder==='sent'?'→ '+(m.mailTo||''):m.mailFrom||m.from||'';const extBadge=isExt&&m.mailFrom&&!m.mailFrom.endsWith('@crowny.org')?'<span style="background:var(--success);color:#fff;font-size:0.55rem;padding:1px 4px;border-radius:4px;margin-left:4px">외부</span>':'';return`<div class="ctvm-mail-item${!m.read?' unread':''}" onclick="ctvmOpenMail('${isExt?m.id:m.id}',${isExt})"><div class="ctvm-avatar" style="background:${ctvmColor(from)};width:40px;height:40px;font-size:14px">${ctvmInitial(from.replace(/→\s*/,'').replace(/@.*/,''))}</div><div style="flex:1;min-width:0"><div style="font-size:0.9rem;font-weight:${m.read?500:700};color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ctvmEsc(m.subject||'(제목 없음)')}${extBadge}</div><div style="font-size:0.75rem;color:var(--text-secondary);margin-top:2px">${ctvmEsc(from)}</div><div style="font-size:0.8rem;color:var(--text-muted-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ctvmEsc((m.body||'').slice(0,60))}</div></div><div style="text-align:right;flex-shrink:0;font-size:0.7rem;color:var(--text-muted-light)">${ctvmFmtDate(m.created)}</div></div>`}).join('');
     }
 
     async function ctvmOpenMail(id, isExternal) {
@@ -3143,11 +3143,11 @@
         }
         const fromAddr=m.mailFrom||m.from||'';
         const replyTo=fromAddr.includes('@crowny.org')?fromAddr.replace(/@crowny\.org/,''):fromAddr;
-        document.getElementById('ctvm-mail-area').innerHTML=`<div style="margin-bottom:12px"><button onclick="ctvmLoadMail()" style="padding:8px 16px;background:#F7F3ED;border:none;border-radius:8px;font-size:0.85rem;cursor:pointer">← 목록</button></div><div style="background:#fff;border-radius:10px;padding:20px;border:1px solid rgba(139,105,20,.12)"><div style="font-size:1.1rem;font-weight:700;color:#3D2B1F;margin-bottom:8px">${ctvmEsc(m.subject||'')}</div><div style="font-size:0.8rem;color:#7A5C47;margin-bottom:16px;display:flex;justify-content:space-between"><div><b>${ctvmEsc(fromAddr)}</b> → ${ctvmEsc(m.mailTo||'')}</div><div>${new Date(m.created).toLocaleString('ko-KR')}</div></div><div style="font-size:0.95rem;line-height:1.7;color:#3D2B1F;white-space:pre-wrap">${ctvmEsc(m.body||'')}</div>${m.attachments&&m.attachments.length>0?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(139,105,20,.12)"><div style="font-size:0.8rem;color:#7A5C47;margin-bottom:6px">첨부파일 (${m.attachments.length})</div>${m.attachments.map(a=>`<span style="display:inline-block;background:#F7F3ED;padding:4px 10px;border-radius:6px;font-size:0.8rem;margin:2px">${ctvmEsc(a.filename)}</span>`).join('')}</div>`:''}<div style="display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid rgba(139,105,20,.12)"><button onclick="ctvmShowCompose('${ctvmEsc(replyTo)}','Re: ${ctvmEsc(m.subject||'')}',${isExternal?'null':m.id})" style="padding:8px 18px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.85rem;cursor:pointer;font-weight:600">답장</button><button onclick="${isExternal?`ctvmApi('/mail/ext/${m.id}?folder=${ctvmMailFolder}',{method:'DELETE'}).then(()=>ctvmLoadMail())`:`ctvmApi('/mail/${m.id}/move',{method:'POST',body:{folder:'trash'}}).then(()=>ctvmLoadMail())`}" style="padding:8px 18px;background:#F7F3ED;border:none;border-radius:8px;font-size:0.85rem;cursor:pointer">삭제</button></div></div>`;
+        document.getElementById('ctvm-mail-area').innerHTML=`<div style="margin-bottom:12px"><button onclick="ctvmLoadMail()" style="padding:8px 16px;background:var(--bg-card);border:none;border-radius:8px;font-size:0.85rem;cursor:pointer">← 목록</button></div><div style="background:#fff;border-radius:10px;padding:20px;border:1px solid rgba(139,105,20,.12)"><div style="font-size:1.1rem;font-weight:700;color:var(--primary);margin-bottom:8px">${ctvmEsc(m.subject||'')}</div><div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:16px;display:flex;justify-content:space-between"><div><b>${ctvmEsc(fromAddr)}</b> → ${ctvmEsc(m.mailTo||'')}</div><div>${new Date(m.created).toLocaleString('ko-KR')}</div></div><div style="font-size:0.95rem;line-height:1.7;color:var(--primary);white-space:pre-wrap">${ctvmEsc(m.body||'')}</div>${m.attachments&&m.attachments.length>0?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(139,105,20,.12)"><div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:6px">첨부파일 (${m.attachments.length})</div>${m.attachments.map(a=>`<span style="display:inline-block;background:var(--bg-card);padding:4px 10px;border-radius:6px;font-size:0.8rem;margin:2px">${ctvmEsc(a.filename)}</span>`).join('')}</div>`:''}<div style="display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid rgba(139,105,20,.12)"><button onclick="ctvmShowCompose('${ctvmEsc(replyTo)}','Re: ${ctvmEsc(m.subject||'')}',${isExternal?'null':m.id})" style="padding:8px 18px;background:var(--gold);color:var(--bg);border:none;border-radius:8px;font-size:0.85rem;cursor:pointer;font-weight:600">답장</button><button onclick="${isExternal?`ctvmApi('/mail/ext/${m.id}?folder=${ctvmMailFolder}',{method:'DELETE'}).then(()=>ctvmLoadMail())`:`ctvmApi('/mail/${m.id}/move',{method:'POST',body:{folder:'trash'}}).then(()=>ctvmLoadMail())`}" style="padding:8px 18px;background:var(--bg-card);border:none;border-radius:8px;font-size:0.85rem;cursor:pointer">삭제</button></div></div>`;
     }
 
     function ctvmShowCompose(to,subject,replyTo) {
-        document.getElementById('ctvm-mail-area').innerHTML=`<div style="margin-bottom:12px"><button onclick="ctvmLoadMail()" style="padding:8px 16px;background:#F7F3ED;border:none;border-radius:8px;font-size:0.85rem;cursor:pointer">← 목록</button></div><div style="background:#fff;border-radius:10px;padding:16px;border:1px solid rgba(139,105,20,.12)"><h4 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:#3D2B1F">${replyTo?'답장':'새 메일'}</h4><input id="ctvm-compose-to" placeholder="받는 사람 (예: alice 또는 user@gmail.com)" value="${ctvmEsc(to||'')}" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0;"><input id="ctvm-compose-subj" placeholder="제목" value="${ctvmEsc(subject||'')}" style="width:100%;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0;"><textarea id="ctvm-compose-body" placeholder="내용을 입력하세요..." style="width:100%;min-height:120px;padding:10px 12px;border:1px solid #E8E0D8;border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0;resize:vertical;line-height:1.6"></textarea><div style="display:flex;gap:8px;justify-content:flex-end"><button onclick="ctvmLoadMail()" style="padding:10px 20px;background:#F7F3ED;border:none;border-radius:8px;font-size:0.9rem;cursor:pointer">취소</button><button onclick="ctvmSendMail(${replyTo||'null'})" style="padding:10px 20px;background:#8B6914;color:#FFF8F0;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer">보내기</button></div></div>`;
+        document.getElementById('ctvm-mail-area').innerHTML=`<div style="margin-bottom:12px"><button onclick="ctvmLoadMail()" style="padding:8px 16px;background:var(--bg-card);border:none;border-radius:8px;font-size:0.85rem;cursor:pointer">← 목록</button></div><div style="background:#fff;border-radius:10px;padding:16px;border:1px solid rgba(139,105,20,.12)"><h4 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--primary)">${replyTo?'답장':'새 메일'}</h4><input id="ctvm-compose-to" placeholder="받는 사람 (예: alice 또는 user@gmail.com)" value="${ctvmEsc(to||'')}" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:var(--bg);"><input id="ctvm-compose-subj" placeholder="제목" value="${ctvmEsc(subject||'')}" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:var(--bg);"><textarea id="ctvm-compose-body" placeholder="내용을 입력하세요..." style="width:100%;min-height:120px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;margin-bottom:8px;background:var(--bg);resize:vertical;line-height:1.6"></textarea><div style="display:flex;gap:8px;justify-content:flex-end"><button onclick="ctvmLoadMail()" style="padding:10px 20px;background:var(--bg-card);border:none;border-radius:8px;font-size:0.9rem;cursor:pointer">취소</button><button onclick="ctvmSendMail(${replyTo||'null'})" style="padding:10px 20px;background:var(--gold);color:var(--bg);border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer">보내기</button></div></div>`;
     }
 
     async function ctvmSendMail(replyTo) {
@@ -3172,7 +3172,7 @@
     // ═══ Contacts CRM ═══
     async function ctvmLoadContacts() {
         ctvmToken = localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token') || ctvmToken;
-        if(!ctvmToken){document.getElementById('ctvm-contacts-area').innerHTML=`<p style="text-align:center;padding:2rem;color:#7A5C47">${t('contacts.login_required','Please log in to CrownyTVM')}</p>`;return;}
+        if(!ctvmToken){document.getElementById('ctvm-contacts-area').innerHTML=`<p style="text-align:center;padding:2rem;color:var(--text-secondary)">${t('contacts.login_required','Please log in to CrownyTVM')}</p>`;return;}
         const contacts=await ctvmApi('/contacts');
         const list=Array.isArray(contacts)?contacts:[];
         window._ctvmContacts = list;
@@ -3193,7 +3193,7 @@
         if(countEl) countEl.textContent = list.length + ' ' + t('contacts.count_suffix','contacts');
         const area=document.getElementById('ctvm-contacts-area');
         if(list.length===0){
-            area.innerHTML=`<div style="padding:40px;text-align:center;color:#7A5C47"><p>${t('contacts.empty','No contacts yet')}</p><button onclick="ctvmShowAddContact()" style="margin-top:12px;padding:10px 24px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer">${t('contacts.add_first','Add Contact')}</button></div>`;
+            area.innerHTML=`<div style="padding:40px;text-align:center;color:var(--text-secondary)"><p>${t('contacts.empty','No contacts yet')}</p><button onclick="ctvmShowAddContact()" style="margin-top:12px;padding:10px 24px;background:var(--primary);color:var(--bg);border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer">${t('contacts.add_first','Add Contact')}</button></div>`;
             return;
         }
         area.innerHTML=list.map((c)=>{
@@ -3202,13 +3202,13 @@
             const initial=ctvmInitial(c.name);
             const name=ctvmEsc(c.name);
             const sub=[c.company,c.position].filter(Boolean).join(' · ')||c.phone||c.email||'';
-            const groupBadge=c.group?`<span style="font-size:0.6rem;background:rgba(139,105,20,.08);color:#8B6914;padding:1px 6px;border-radius:8px;margin-left:4px">${ctvmEsc(c.group)}</span>`:'';
-            const chatBtn=c.isUser?`<button onclick="event.stopPropagation();if(typeof chatNewDmWith==='function')chatNewDmWith('${c.crownyUsername||''}');if(typeof showPage==='function')showPage('messenger')" style="padding:4px 10px;background:none;border:1px solid #E8E0D8;border-radius:8px;font-size:0.7rem;color:#3D2B1F;cursor:pointer;white-space:nowrap">${t('contacts.chat','Chat')}</button>`:'';
-            return `<div onclick="ctvmShowContactDetail(${idx})" style="display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;border-bottom:1px solid #F0E8DC">
-    <div style="width:40px;height:40px;border-radius:50%;background:${color};color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0">${initial}</div>
+            const groupBadge=c.group?`<span style="font-size:0.6rem;background:rgba(139,105,20,.08);color:var(--gold);padding:1px 6px;border-radius:8px;margin-left:4px">${ctvmEsc(c.group)}</span>`:'';
+            const chatBtn=c.isUser?`<button onclick="event.stopPropagation();if(typeof chatNewDmWith==='function')chatNewDmWith('${c.crownyUsername||''}');if(typeof showPage==='function')showPage('messenger')" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:8px;font-size:0.7rem;color:var(--primary);cursor:pointer;white-space:nowrap">${t('contacts.chat','Chat')}</button>`:'';
+            return `<div onclick="ctvmShowContactDetail(${idx})" style="display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;border-bottom:1px solid var(--border)">
+    <div style="width:40px;height:40px;border-radius:50%;background:${color};color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0">${initial}</div>
     <div style="flex:1;min-width:0">
-        <div style="font-size:0.9rem;font-weight:600;color:#3D2B1F">${name}${groupBadge}</div>
-        <div style="font-size:0.75rem;color:#7A5C47;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ctvmEsc(sub)}</div>
+        <div style="font-size:0.9rem;font-weight:600;color:var(--primary)">${name}${groupBadge}</div>
+        <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ctvmEsc(sub)}</div>
     </div>
     ${chatBtn}
 </div>`;
@@ -3233,13 +3233,13 @@
 
     function ctvmShowAddContact() {
         const area=document.getElementById('ctvm-contacts-area');
-        const inputStyle = 'width:100%;padding:10px 14px;border:1px solid #E8E0D8;border-radius:10px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0;outline:none';
-        area.innerHTML=`<div style="background:#fff;border-radius:14px;padding:20px;border:1px solid #F0E8DC;margin-bottom:16px">
-<h4 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:#3D2B1F;display:flex;align-items:center;gap:8px"><i data-lucide="user-plus" style="width:18px;height:18px"></i> ${t('contacts.add_title','Add Contact')}</h4>
+        const inputStyle = 'width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-size:0.9rem;margin-bottom:8px;background:var(--bg);outline:none';
+        area.innerHTML=`<div style="background:#fff;border-radius:14px;padding:20px;border:1px solid var(--border);margin-bottom:16px">
+<h4 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--primary);display:flex;align-items:center;gap:8px"><i data-lucide="user-plus" style="width:18px;height:18px"></i> ${t('contacts.add_title','Add Contact')}</h4>
 <input id="ctvm-cf-name" placeholder="${t('contacts.name','Name')} *" style="${inputStyle}">
 <input id="ctvm-cf-phone" placeholder="${t('contacts.phone','Phone')}" style="${inputStyle}">
 <input id="ctvm-cf-email" placeholder="${t('contacts.email','Email')}" style="${inputStyle}">
-<div style="position:relative;margin-bottom:8px"><input id="ctvm-cf-crowny" placeholder="${t('contacts.crowny_id','Crowny ID (optional)')}" style="${inputStyle};margin-bottom:0" oninput="ctvmSearchContactUser(this.value)"><div id="ctvm-cf-crowny-results" style="position:absolute;top:100%;left:0;right:0;z-index:10;background:#fff;border:1px solid #E8E0D8;border-radius:10px;max-height:150px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div></div>
+<div style="position:relative;margin-bottom:8px"><input id="ctvm-cf-crowny" placeholder="${t('contacts.crowny_id','Crowny ID (optional)')}" style="${inputStyle};margin-bottom:0" oninput="ctvmSearchContactUser(this.value)"><div id="ctvm-cf-crowny-results" style="position:absolute;top:100%;left:0;right:0;z-index:10;background:#fff;border:1px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div></div>
 <input id="ctvm-cf-company" placeholder="${t('contacts.company','Company')}" style="${inputStyle}">
 <input id="ctvm-cf-position" placeholder="${t('contacts.position','Position')}" style="${inputStyle}">
 <input id="ctvm-cf-address" placeholder="${t('contacts.address','Address')}" style="${inputStyle}">
@@ -3256,8 +3256,8 @@
 </select>
 <textarea id="ctvm-cf-notes" placeholder="${t('contacts.notes','Notes')}" rows="2" style="${inputStyle};resize:vertical"></textarea>
 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-    <button onclick="ctvmLoadContacts()" style="padding:10px 20px;background:#F7F3ED;border:none;border-radius:10px;font-size:0.9rem;cursor:pointer;color:#3D2B1F">${t('common.cancel','Cancel')}</button>
-    <button onclick="ctvmAddContact()" style="padding:10px 20px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer">${t('common.save','Save')}</button>
+    <button onclick="ctvmLoadContacts()" style="padding:10px 20px;background:var(--bg-card);border:none;border-radius:10px;font-size:0.9rem;cursor:pointer;color:var(--primary)">${t('common.cancel','Cancel')}</button>
+    <button onclick="ctvmAddContact()" style="padding:10px 20px;background:var(--primary);color:var(--bg);border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer">${t('common.save','Save')}</button>
 </div></div>`;
         if(typeof lucide!=='undefined') lucide.createIcons();
     }
@@ -3276,7 +3276,7 @@
                 const users=await r.json();
                 if(!Array.isArray(users)||users.length===0){box.style.display='none';return;}
                 box.style.display='block';
-                box.innerHTML=users.map(u=>`<div style="padding:8px 12px;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #F0E8DC;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#F7F3ED'" onmouseout="this.style.background=''" onclick="ctvmPickContactUser('${u.username}','${(u.displayName||u.username).replace(/'/g,'\\&#39;')}')"><div style="width:28px;height:28px;border-radius:50%;background:#3D2B1F;color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;flex-shrink:0">${(u.username[0]||'?').toUpperCase()}</div><div><span style="font-weight:600;color:#3D2B1F">${u.displayName||u.username}</span> <span style="color:#7A5C47">@${u.username}</span></div></div>`).join('');
+                box.innerHTML=users.map(u=>`<div style="padding:8px 12px;cursor:pointer;font-size:0.85rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#F7F3ED'" onmouseout="this.style.background=''" onclick="ctvmPickContactUser('${u.username}','${(u.displayName||u.username).replace(/'/g,'\\&#39;')}')"><div style="width:28px;height:28px;border-radius:50%;background:var(--primary);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;flex-shrink:0">${(u.username[0]||'?').toUpperCase()}</div><div><span style="font-weight:600;color:var(--primary)">${u.displayName||u.username}</span> <span style="color:var(--text-secondary)">@${u.username}</span></div></div>`).join('');
             }catch{box.style.display='none';}
         },300);
     }
@@ -3352,7 +3352,7 @@
         const el=Date.now()-t0;
         let html='';
         if(r.output) html+=ctvmEsc(r.output).replace(/▲/g,'<span class="trit-ti">▲</span>').replace(/■/g,'<span class="trit-om">■</span>').replace(/▼/g,'<span class="trit-ta">▼</span>');
-        if(r.error) html+=`<span style="color:#B54534">${ctvmEsc(r.error)}</span>\n`;
+        if(r.error) html+=`<span style="color:var(--error)">${ctvmEsc(r.error)}</span>\n`;
         if(!html) html='(출력 없음)';
         out.innerHTML=html;
         st.textContent=r.error&&!r.output?'오류':`완료 (${el}ms)`;
@@ -3366,20 +3366,20 @@
         const r=await ctvmApi('/hanseon/dis',{method:'POST',body:{code}});
         let html='';
         if(r.disassembly) html+=ctvmEsc(r.disassembly).replace(/▲/g,'<span class="trit-ti">▲</span>').replace(/■/g,'<span class="trit-om">■</span>').replace(/▼/g,'<span class="trit-ta">▼</span>');
-        if(r.error) html+=`<span style="color:#B54534">${ctvmEsc(r.error)}</span>`;
+        if(r.error) html+=`<span style="color:var(--error)">${ctvmEsc(r.error)}</span>`;
         out.innerHTML=html||'(결과 없음)';
     }
 
     // ═══ Admin ═══
     async function ctvmLoadAdmin() {
         ctvmToken = ctvmToken || localStorage.getItem('crowny_token') || localStorage.getItem('ctvm_token');
-        if(!ctvmToken||!ctvmMe?.isAdmin){document.getElementById('ctvm-admin-area').innerHTML='<p style="text-align:center;padding:2rem;color:#7A5C47">관리자 권한 필요</p>';return;}
+        if(!ctvmToken||!ctvmMe?.isAdmin){document.getElementById('ctvm-admin-area').innerHTML='<p style="text-align:center;padding:2rem;color:var(--text-secondary)">관리자 권한 필요</p>';return;}
         const [status,userList]=await Promise.all([ctvmApi('/admin/status'),ctvmApi('/admin/users')]);
-        if(status.error){document.getElementById('ctvm-admin-area').innerHTML=`<p style="color:#B54534">${ctvmEsc(status.error)}</p>`;return;}
+        if(status.error){document.getElementById('ctvm-admin-area').innerHTML=`<p style="color:var(--error)">${ctvmEsc(status.error)}</p>`;return;}
         const svcs=status.services||{};const stats=status.stats||{};
-        let svcHtml=Object.entries(svcs).map(([k,s])=>`<div style="background:#fff;border-radius:10px;padding:14px;border:1px solid rgba(139,105,20,.12)"><div style="display:flex;align-items:center;gap:8px;font-size:0.9rem;font-weight:600;color:#3D2B1F;margin-bottom:4px"><div style="width:10px;height:10px;border-radius:50%;background:${s.status==='online'?'#6B8F3C':s.status==='standby'?'#D4AF37':'#B54534'}"></div>${ctvmEsc(s.name)}</div><div style="font-size:0.75rem;color:#7A5C47">${ctvmEsc(s.info)}</div></div>`).join('');
-        let statsHtml=[{n:stats.users,l:'사용자'},{n:stats.cells,l:'셀'},{n:stats.messages,l:'메시지'},{n:stats.contacts,l:'연락처'},{n:stats.transactions,l:'거래'},{n:stats.quizAnswered,l:'퀴즈'}].map(s=>`<div style="background:#fff;border-radius:10px;padding:12px 16px;border:1px solid rgba(139,105,20,.12);text-align:center;min-width:80px"><div style="font-size:1.3rem;font-weight:700;color:#8B6914">${ctvmFmtNum(s.n)}</div><div style="font-size:0.7rem;color:#7A5C47;margin-top:2px">${s.l}</div></div>`).join('');
-        document.getElementById('ctvm-admin-area').innerHTML=`<div style="margin-bottom:16px"><h4 style="font-size:0.95rem;font-weight:700;margin-bottom:8px;color:#3D2B1F">서비스 상태</h4><div style="font-size:0.8rem;color:#7A5C47;margin-bottom:8px">업타임: ${ctvmEsc(status.uptimeStr)} | 메모리: ${ctvmEsc(status.memory?.heap)}</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">${svcHtml}</div></div><div style="margin-bottom:16px"><h4 style="font-size:0.95rem;font-weight:700;margin-bottom:8px;color:#3D2B1F">통계</h4><div style="display:flex;gap:8px;flex-wrap:wrap">${statsHtml}</div></div>`;
+        let svcHtml=Object.entries(svcs).map(([k,s])=>`<div style="background:#fff;border-radius:10px;padding:14px;border:1px solid rgba(139,105,20,.12)"><div style="display:flex;align-items:center;gap:8px;font-size:0.9rem;font-weight:600;color:var(--primary);margin-bottom:4px"><div style="width:10px;height:10px;border-radius:50%;background:${s.status==='online'?'#6B8F3C':s.status==='standby'?'#D4AF37':'#B54534'}"></div>${ctvmEsc(s.name)}</div><div style="font-size:0.75rem;color:var(--text-secondary)">${ctvmEsc(s.info)}</div></div>`).join('');
+        let statsHtml=[{n:stats.users,l:'사용자'},{n:stats.cells,l:'셀'},{n:stats.messages,l:'메시지'},{n:stats.contacts,l:'연락처'},{n:stats.transactions,l:'거래'},{n:stats.quizAnswered,l:'퀴즈'}].map(s=>`<div style="background:#fff;border-radius:10px;padding:12px 16px;border:1px solid rgba(139,105,20,.12);text-align:center;min-width:80px"><div style="font-size:1.3rem;font-weight:700;color:var(--gold)">${ctvmFmtNum(s.n)}</div><div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px">${s.l}</div></div>`).join('');
+        document.getElementById('ctvm-admin-area').innerHTML=`<div style="margin-bottom:16px"><h4 style="font-size:0.95rem;font-weight:700;margin-bottom:8px;color:var(--primary)">서비스 상태</h4><div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:8px">업타임: ${ctvmEsc(status.uptimeStr)} | 메모리: ${ctvmEsc(status.memory?.heap)}</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">${svcHtml}</div></div><div style="margin-bottom:16px"><h4 style="font-size:0.95rem;font-weight:700;margin-bottom:8px;color:var(--primary)">통계</h4><div style="display:flex;gap:8px;flex-wrap:wrap">${statsHtml}</div></div>`;
     }
 
     // onclick에서 접근 가능하도록 window에 노출
@@ -3414,21 +3414,21 @@
         modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(61,43,31,0.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;';
         modal.onclick = e => { if (e.target === modal) modal.remove(); };
         const color = ctvmColor(name);
-        modal.innerHTML = `<div style="background:#F7F3ED;padding:1.5rem;border-radius:16px;max-width:400px;width:100%;color:#3D2B1F;max-height:90vh;overflow-y:auto">
+        modal.innerHTML = `<div style="background:var(--bg-card);padding:1.5rem;border-radius:16px;max-width:400px;width:100%;color:var(--primary);max-height:90vh;overflow-y:auto">
             <div style="text-align:center;margin-bottom:1rem;">
-                <div style="width:64px;height:64px;border-radius:50%;background:${color};color:#FFF8F0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;margin:0 auto 8px;">${ctvmInitial(name)}</div>
+                <div style="width:64px;height:64px;border-radius:50%;background:${color};color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;margin:0 auto 8px;">${ctvmInitial(name)}</div>
                 <h3 style="margin:0;font-size:1.1rem;">${ctvmEsc(name)}</h3>
-                ${c.isUser ? `<span style="font-size:0.75rem;color:#6B8F3C;">${t('contacts.crowny_member','Crowny Member')}</span>` : `<span style="font-size:0.75rem;color:#7A5C47;">${t('contacts.external','External')}</span>`}
+                ${c.isUser ? `<span style="font-size:0.75rem;color:var(--success);">${t('contacts.crowny_member','Crowny Member')}</span>` : `<span style="font-size:0.75rem;color:var(--text-secondary);">${t('contacts.external','External')}</span>`}
             </div>
             <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:1rem;">
-                ${fields.map(f => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#FFF8F0;border-radius:10px;">
-                    <i data-lucide="${f.icon}" style="width:16px;height:16px;color:#7A5C47;flex-shrink:0;"></i>
-                    <div style="flex:1;min-width:0"><div style="font-size:0.7rem;color:#7A5C47;margin-bottom:1px;">${f.label}</div><div style="font-size:0.9rem;word-break:break-word;">${ctvmEsc(f.value)}</div></div>
+                ${fields.map(f => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border-radius:10px;">
+                    <i data-lucide="${f.icon}" style="width:16px;height:16px;color:var(--text-secondary);flex-shrink:0;"></i>
+                    <div style="flex:1;min-width:0"><div style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:1px;">${f.label}</div><div style="font-size:0.9rem;word-break:break-word;">${ctvmEsc(f.value)}</div></div>
                 </div>`).join('')}
             </div>
             <div style="display:flex;gap:8px;">
-                ${c.crownyUsername ? `<button onclick="if(typeof chatNewDmWith==='function')chatNewDmWith('${c.crownyUsername}');document.getElementById('ctvm-contact-detail').remove();showPage('messenger')" style="flex:1;padding:0.6rem;border:none;border-radius:10px;background:#3D2B1F;color:#FFF8F0;cursor:pointer;font-weight:600;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:4px"><i data-lucide="message-circle" style="width:14px;height:14px"></i>${t('contacts.chat','Chat')}</button>` : ''}
-                <button onclick="ctvmEditContact(${idx})" style="flex:1;padding:0.6rem;border:1px solid #3D2B1F;border-radius:10px;background:none;color:#3D2B1F;cursor:pointer;font-weight:600;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:4px"><i data-lucide="pencil" style="width:14px;height:14px"></i>${t('contacts.edit','Edit')}</button>
+                ${c.crownyUsername ? `<button onclick="if(typeof chatNewDmWith==='function')chatNewDmWith('${c.crownyUsername}');document.getElementById('ctvm-contact-detail').remove();showPage('messenger')" style="flex:1;padding:0.6rem;border:none;border-radius:10px;background:var(--primary);color:var(--bg);cursor:pointer;font-weight:600;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:4px"><i data-lucide="message-circle" style="width:14px;height:14px"></i>${t('contacts.chat','Chat')}</button>` : ''}
+                <button onclick="ctvmEditContact(${idx})" style="flex:1;padding:0.6rem;border:1px solid var(--primary);border-radius:10px;background:none;color:var(--primary);cursor:pointer;font-weight:600;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:4px"><i data-lucide="pencil" style="width:14px;height:14px"></i>${t('contacts.edit','Edit')}</button>
                 <button onclick="ctvmDeleteContact(${c.id})" style="flex:1;padding:0.6rem;border:1px solid #c0392b;border-radius:10px;background:none;color:#c0392b;cursor:pointer;font-weight:600;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:4px"><i data-lucide="trash-2" style="width:14px;height:14px"></i>${t('contacts.delete','Delete')}</button>
             </div>
         </div>`;
@@ -3442,38 +3442,38 @@
         const dm = document.getElementById('ctvm-contact-detail');
         if (dm) dm.remove();
         const area = document.getElementById('ctvm-contacts-area');
-        const inputStyle = 'width:100%;padding:10px 14px;border:1px solid #E8E0D8;border-radius:10px;font-size:0.9rem;margin-bottom:8px;background:#FFF8F0;outline:none';
+        const inputStyle = 'width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-size:0.9rem;margin-bottom:8px;background:var(--bg);outline:none';
         const groupOptions = ['Family','Friends','Work','Clients','Partners','Church','Other'];
         const groupKeys = ['group_family','group_friends','group_work','group_clients','group_partners','group_church','group_other'];
         const groupLabels = ['Family','Friends','Work','Clients','Partners','Church','Other'];
-        area.innerHTML = `<div style="background:#fff;border-radius:14px;padding:20px;border:1px solid #F0E8DC;margin-bottom:16px">
-<h4 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:#3D2B1F;display:flex;align-items:center;gap:8px"><i data-lucide="pencil" style="width:18px;height:18px"></i> ${t('contacts.edit_title','Edit Contact')}</h4>
-<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.name','Name')} *</label>
+        area.innerHTML = `<div style="background:#fff;border-radius:14px;padding:20px;border:1px solid var(--border);margin-bottom:16px">
+<h4 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--primary);display:flex;align-items:center;gap:8px"><i data-lucide="pencil" style="width:18px;height:18px"></i> ${t('contacts.edit_title','Edit Contact')}</h4>
+<label style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;display:block">${t('contacts.name','Name')} *</label>
 <input id="ctvm-ef-name" value="${ctvmEsc(c.name||'')}" placeholder="${t('contacts.name','Name')} *" style="${inputStyle}">
-<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.phone','Phone')}</label>
+<label style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;display:block">${t('contacts.phone','Phone')}</label>
 <input id="ctvm-ef-phone" value="${ctvmEsc(c.phone||'')}" placeholder="${t('contacts.phone','Phone')}" style="${inputStyle}">
-<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.email','Email')}</label>
+<label style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;display:block">${t('contacts.email','Email')}</label>
 <input id="ctvm-ef-email" value="${ctvmEsc(c.email||'')}" placeholder="${t('contacts.email','Email')}" style="${inputStyle}">
-<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.company','Company')}</label>
+<label style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;display:block">${t('contacts.company','Company')}</label>
 <input id="ctvm-ef-company" value="${ctvmEsc(c.company||'')}" placeholder="${t('contacts.company','Company')}" style="${inputStyle}">
-<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.position','Position')}</label>
+<label style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;display:block">${t('contacts.position','Position')}</label>
 <input id="ctvm-ef-position" value="${ctvmEsc(c.position||'')}" placeholder="${t('contacts.position','Position')}" style="${inputStyle}">
-<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.address','Address')}</label>
+<label style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;display:block">${t('contacts.address','Address')}</label>
 <input id="ctvm-ef-address" value="${ctvmEsc(c.address||'')}" placeholder="${t('contacts.address','Address')}" style="${inputStyle}">
-<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.birthday','Birthday')}</label>
+<label style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;display:block">${t('contacts.birthday','Birthday')}</label>
 <input id="ctvm-ef-birthday" type="date" value="${ctvmEsc(c.birthday||'')}" style="${inputStyle}">
-<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.group','Group')}</label>
+<label style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;display:block">${t('contacts.group','Group')}</label>
 <select id="ctvm-ef-group" style="${inputStyle}">
     <option value="">${t('contacts.select_group','Select Group...')}</option>
     ${groupOptions.map((g,i) => `<option value="${g}" ${c.group===g?'selected':''}>${t('contacts.'+groupKeys[i],groupLabels[i])}</option>`).join('\n    ')}
 </select>
-<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.notes','Notes')}</label>
+<label style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;display:block">${t('contacts.notes','Notes')}</label>
 <textarea id="ctvm-ef-notes" rows="3" placeholder="${t('contacts.notes','Notes')}" style="${inputStyle};resize:vertical">${ctvmEsc(c.notes||'')}</textarea>
-<label style="font-size:0.75rem;color:#7A5C47;margin-bottom:2px;display:block">${t('contacts.tags','Tags')}</label>
+<label style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;display:block">${t('contacts.tags','Tags')}</label>
 <input id="ctvm-ef-tags" value="${ctvmEsc(c.tags||'')}" placeholder="${t('contacts.tags_placeholder','Comma-separated tags')}" style="${inputStyle}">
 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-    <button onclick="ctvmLoadContacts()" style="padding:10px 20px;background:#F7F3ED;border:none;border-radius:10px;font-size:0.9rem;cursor:pointer;color:#3D2B1F">${t('common.cancel','Cancel')}</button>
-    <button onclick="ctvmSaveContact(${c.id})" style="padding:10px 20px;background:#3D2B1F;color:#FFF8F0;border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer">${t('common.save','Save')}</button>
+    <button onclick="ctvmLoadContacts()" style="padding:10px 20px;background:var(--bg-card);border:none;border-radius:10px;font-size:0.9rem;cursor:pointer;color:var(--primary)">${t('common.cancel','Cancel')}</button>
+    <button onclick="ctvmSaveContact(${c.id})" style="padding:10px 20px;background:var(--primary);color:var(--bg);border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer">${t('common.save','Save')}</button>
 </div></div>`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
     };
