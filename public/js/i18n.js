@@ -52,6 +52,9 @@ async function loadLanguage(lang) {
         currentLang = lang;
         localStorage.setItem('crowny_lang', lang);
         document.documentElement.lang = lang;
+        // Set text direction for RTL languages
+        const rtlLangs = ['ar', 'he'];
+        document.documentElement.dir = rtlLangs.includes(lang) ? 'rtl' : 'ltr';
         i18nReady = true;
         console.log(`🌐 [i18n] Loaded: ${lang} (${Object.keys(langData).length} keys)`);
     } catch (e) {

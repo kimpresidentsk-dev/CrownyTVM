@@ -1,0 +1,10 @@
+data/
+logs/
+.env
+.git/
+node_modules/
+foundry/
+crownycode/
+*.md
+*.output
+*.jsonl

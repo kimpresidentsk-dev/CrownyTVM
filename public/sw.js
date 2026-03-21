@@ -1,17 +1,19 @@
-// CrownyTVM Service Worker v1.0
-// Handles: push notifications, background sync, offline cache
+// CrownyTVM Service Worker v2.0
+// Handles: push notifications, offline cache, network-first strategy
 
-const CACHE_NAME = 'crowny-v1';
+const CACHE_NAME = 'crowny-v2';
 const OFFLINE_URL = '/offline.html';
 
-// Minimal cache - only critical assets
+// Precache critical assets
 const PRECACHE = [
   '/',
+  '/offline.html',
   '/css/base.css',
+  '/css/home.css',
   '/img/icons/icon-192x192.png',
 ];
 
-// Install
+// Install — precache + offline page
 self.addEventListener('install', (e) => {
   self.skipWaiting();
   e.waitUntil(
@@ -19,7 +21,7 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// Activate - clean old caches
+// Activate — clean old caches
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -28,26 +30,37 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Fetch - network first, cache fallback
+// Fetch — network first, cache fallback, offline page for navigation
 self.addEventListener('fetch', (e) => {
-  // Skip non-GET and API requests
   if (e.request.method !== 'GET') return;
   if (e.request.url.includes('/api/')) return;
   if (e.request.url.includes('/ws/')) return;
 
+  const isNavigation = e.request.mode === 'navigate';
+
   e.respondWith(
     fetch(e.request).then(res => {
-      // Cache successful responses for static assets
-      if (res.ok && (e.request.url.endsWith('.css') || e.request.url.endsWith('.js') || e.request.url.endsWith('.png'))) {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone)).catch(() => {});
+      // Cache successful static assets
+      if (res.ok) {
+        const url = e.request.url;
+        if (url.endsWith('.css') || url.endsWith('.js') || url.endsWith('.png') || url.endsWith('.json') || isNavigation) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone)).catch(() => {});
+        }
       }
       return res;
-    }).catch(() => caches.match(e.request))
+    }).catch(() => {
+      // Offline: try cache first, then offline page for navigation
+      return caches.match(e.request).then(cached => {
+        if (cached) return cached;
+        if (isNavigation) return caches.match(OFFLINE_URL);
+        return cached;
+      });
+    })
   );
 });
 
-// Push notification received
+// Push notification
 self.addEventListener('push', (e) => {
   let data = { title: 'CROWNY', body: 'New message', tag: 'crowny-msg' };
   try {
@@ -74,7 +87,6 @@ self.addEventListener('notificationclick', (e) => {
 
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-      // Focus existing window if available
       for (const client of clients) {
         if (client.url.includes(self.registration.scope)) {
           client.focus();
@@ -84,7 +96,6 @@ self.addEventListener('notificationclick', (e) => {
           return;
         }
       }
-      // Open new window
       return self.clients.openWindow('/');
     })
   );

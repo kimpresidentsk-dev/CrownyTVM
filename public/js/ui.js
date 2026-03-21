@@ -1,4 +1,12 @@
 // ===== ui.js - UI 헬퍼, 페이지 네비게이션 =====
+
+// ── Global HTML escape to prevent XSS in innerHTML ──
+function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+window.escHtml = escHtml;
+
 // ========== UI HELPERS ==========
 function updateLandingState(user) {
     const landing = document.getElementById('landing-page');

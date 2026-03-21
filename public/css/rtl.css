@@ -1,0 +1,172 @@
+/* ===== RTL (Right-to-Left) Overrides for Arabic & Hebrew ===== */
+/* Applied when document.documentElement.dir="rtl" */
+
+/* ── Base direction ── */
+[dir="rtl"] body {
+    text-align: right;
+    direction: rtl;
+}
+
+/* ── Sidebar ── */
+[dir="rtl"] .sidebar {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+}
+
+[dir="rtl"] .sidebar.active {
+    transform: translateX(0);
+}
+
+[dir="rtl"] .nav-item.active {
+    border-left: none;
+    border-right: 3px solid var(--gold);
+}
+
+[dir="rtl"] .logo {
+    text-align: left;
+}
+
+/* ── Top Bar ── */
+[dir="rtl"] #crowny-top-bar .top-actions {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+/* ── Main Content ── */
+[dir="rtl"] .content {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* ── User Info ── */
+[dir="rtl"] .user-info {
+    padding: 1rem 2rem;
+}
+
+/* ── Chat / Messenger ── */
+[dir="rtl"] .crny-chat-sidebar {
+    border-right: none;
+    border-left: 1px solid #F0E8DC;
+}
+
+[dir="rtl"] .chat-item-time {
+    margin-left: 0;
+    margin-right: 8px;
+}
+
+[dir="rtl"] .chat-badge {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+[dir="rtl"] .chat-status {
+    margin-left: 0;
+    margin-right: 8px;
+}
+
+[dir="rtl"] .chat-tip-badge {
+    margin-left: 0;
+    margin-right: 8px;
+}
+
+/* Chat bubbles: flip alignment */
+[dir="rtl"] .chat-msg.mine {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+
+[dir="rtl"] .chat-msg.theirs {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+[dir="rtl"] .chat-msg.mine .chat-bubble {
+    border-bottom-right-radius: 16px;
+    border-bottom-left-radius: 4px;
+}
+
+[dir="rtl"] .chat-msg.theirs .chat-bubble {
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 4px;
+}
+
+[dir="rtl"] .chat-msg-sender {
+    padding-left: 0;
+    padding-right: 4px;
+}
+
+[dir="rtl"] .chat-reply-ref {
+    border-left: none;
+    border-right: 2px solid #8B6914;
+    border-radius: 4px 0 0 4px;
+}
+
+[dir="rtl"] .chat-context-bar {
+    border-left: none;
+    border-right: 3px solid #8B6914;
+    border-radius: 8px 0 0 8px;
+}
+
+/* ── Chat panel mobile slide ── */
+@media (max-width: 768px) {
+    [dir="rtl"] .crny-chat-panel {
+        transform: translateX(-100%);
+    }
+
+    [dir="rtl"] .crny-chat-panel.open {
+        transform: translateX(0);
+    }
+
+    [dir="rtl"] .crny-chat-sidebar {
+        border-left: none;
+    }
+}
+
+/* ── Input text direction ── */
+[dir="rtl"] input,
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+    text-align: right;
+    direction: rtl;
+}
+
+[dir="rtl"] .crny-chat-input input {
+    text-align: right;
+}
+
+/* ── Messenger grid: flip sidebar position ── */
+[dir="rtl"] .messenger-container {
+    direction: rtl;
+}
+
+/* ── Buttons with icons: flip icon gap order ── */
+[dir="rtl"] .hdr-btn {
+    flex-direction: row-reverse;
+}
+
+/* ── Nav group labels and dividers ── */
+[dir="rtl"] .sidebar .nav-group-label {
+    text-align: right;
+}
+
+/* ── Search input ── */
+[dir="rtl"] .crny-search-input {
+    text-align: right;
+}
+
+/* ── Auth form ── */
+[dir="rtl"] .auth-form .input {
+    text-align: right;
+}
+
+/* ── Chat avatar online indicator ── */
+[dir="rtl"] .chat-avatar.online::after {
+    right: auto;
+    left: 1px;
+}
+
+/* ── Language selector within sidebar ── */
+[dir="rtl"] #lang-switcher {
+    text-align: right;
+}

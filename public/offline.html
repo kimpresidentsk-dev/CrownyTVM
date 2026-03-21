@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>CROWNY — Offline</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FFF8F0; color: #3D2B1F;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; min-height: 100dvh; padding: 1.5rem;
+            text-align: center;
+        }
+        .offline-card {
+            max-width: 360px; width: 100%;
+            padding: 2.5rem 1.5rem; border-radius: 16px;
+            background: #fff; box-shadow: 0 2px 16px rgba(61,43,31,0.08);
+        }
+        .offline-icon {
+            width: 64px; height: 64px; margin: 0 auto 1.2rem;
+            background: #F7F3ED; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem;
+        }
+        h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.6rem; }
+        p { font-size: 0.9rem; color: #7A5C47; line-height: 1.5; margin-bottom: 1.2rem; }
+        button {
+            padding: 0.7rem 1.5rem; border: none; border-radius: 8px;
+            background: #3D2B1F; color: #FFF8F0; font-size: 0.9rem;
+            font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.85; }
+        @media (prefers-color-scheme: dark) {
+            body { background: #1a1a2e; color: #E8D5C4; }
+            .offline-card { background: #252540; box-shadow: 0 2px 16px rgba(0,0,0,0.3); }
+            .offline-icon { background: #2a2a45; }
+            p { color: #a89585; }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-card">
+        <div class="offline-icon">&#x1F4F6;</div>
+        <h1>You're Offline</h1>
+        <p>Please check your internet connection and try again. CROWNY needs a network connection to work.</p>
+        <button onclick="location.reload()">Retry</button>
+    </div>
+</body>
+</html>
