@@ -20,8 +20,10 @@ const path = require('path');
 const ALGO = 'aria-256-cbc';
 const IV_LEN = 16;
 
-function deriveKey(password) {
-  return crypto.scryptSync(password, 'crownycore-defense-salt', 32);
+function deriveKey(password, salt) {
+  // salt가 없으면 password 자체에서 유도 (배포별 고유)
+  const s = salt || crypto.createHash('sha256').update('crownycore:' + password).digest('hex').slice(0, 32);
+  return crypto.scryptSync(password, s, 32);
 }
 
 function encrypt(text, password) {

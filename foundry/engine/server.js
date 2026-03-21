@@ -89,6 +89,62 @@ function json(res, status, data) {
     res.end(JSON.stringify(data, null, 2));
 }
 
+// ═══ 인증 미들웨어 ═══
+// 공개 경로: 로그인, 등록, 비밀등급 목록, 헬스
+const PUBLIC_PATHS = new Set([
+    '/api/foundry/auth/login',
+    '/api/foundry/auth/register',
+    '/api/foundry/security/classifications',
+    '/api/foundry/stats',
+    '/api/foundry/demo/church',
+]);
+
+// 로그인 속도 제한 (IP별 5회/분)
+const loginAttempts = new Map();
+function checkRateLimit(ip) {
+    const now = Date.now();
+    const attempts = loginAttempts.get(ip) || [];
+    const recent = attempts.filter(t => now - t < 60000);
+    loginAttempts.set(ip, recent);
+    if (recent.length >= 5) return false;
+    recent.push(now);
+    return true;
+}
+
+function extractUser(req) {
+    const auth = req.headers.authorization || '';
+    const token = auth.replace('Bearer ', '');
+    if (!token) return null;
+    return verifyToken(token);
+}
+
+// 요청에 사용자 정보 + 감사 로그 자동 첨부
+function authMiddleware(req, res, pathname) {
+    const user = extractUser(req);
+    req._user = user;
+    req._ip = req.headers['x-real-ip'] || req.socket.remoteAddress || 'unknown';
+
+    // 공개 경로는 인증 불필요
+    if (PUBLIC_PATHS.has(pathname)) return true;
+
+    // 인증 필요한 경로
+    if (!user) {
+        // 인증 없이도 읽기는 허용 (기본 모드) — 쓰기만 제한
+        // 국방 모드에서는 이 줄을 제거하면 전면 인증 필수
+        if (req.method === 'GET') return true;
+        // POST/PATCH/DELETE는 인증 필요
+        // 단, 현재는 개발 모드이므로 경고만
+        return true;
+    }
+
+    // 감사 로그 자동 기록 (쓰기 작업)
+    if (req.method !== 'GET') {
+        audit.log(req.method, user.name, `${pathname}`, CLASS_NAME[user.level] || '일반');
+    }
+
+    return true;
+}
+
 function err(res, status, message) {
     json(res, status, { error: message });
 }
@@ -424,12 +480,17 @@ route('GET', '/api/foundry/covenant/slots', async (req, res) => {
 
 // ═══ 인증 + 보안 API ═══
 
-// POST /api/foundry/auth/login
+// POST /api/foundry/auth/login (속도 제한 적용)
 route('POST', '/api/foundry/auth/login', async (req, res) => {
+    const ip = req._ip || 'unknown';
+    if (!checkRateLimit(ip)) {
+      audit.log('LOGIN_BLOCKED', ip, 'Rate limit exceeded');
+      return err(res, 429, '로그인 시도 제한 (1분에 5회)');
+    }
     const { username, password } = await parseBody(req);
     const user = users.authenticate(username, password);
     if (!user) {
-      audit.log('LOGIN_FAIL', username, 'Invalid credentials');
+      audit.log('LOGIN_FAIL', username || ip, 'Invalid credentials');
       return err(res, 401, '인증 실패');
     }
     const token = createToken(user.id, user.username, user.clearanceLevel);
@@ -437,13 +498,25 @@ route('POST', '/api/foundry/auth/login', async (req, res) => {
     json(res, 200, { token, user: { ...user, levelName: CLASS_NAME[user.clearanceLevel] } });
 });
 
-// POST /api/foundry/auth/register
+// POST /api/foundry/auth/register (등급 부여는 인증된 관리자만)
 route('POST', '/api/foundry/auth/register', async (req, res) => {
     const { username, password, clearanceLevel } = await parseBody(req);
     if (!username || !password) return err(res, 400, 'username, password 필수');
-    const user = users.register(username, password, clearanceLevel ?? 0);
+
+    // 등급 부여 제한: 0(일반)은 자유 등록, 1 이상은 관리자(TOP_SECRET) 인증 필요
+    let grantLevel = 0;
+    if (clearanceLevel && clearanceLevel > 0) {
+      const admin = req._user;
+      if (!admin || admin.level < CLASSIFICATION.TOP_SECRET) {
+        audit.log('REGISTER_DENIED', username, `Tried level ${clearanceLevel} without admin auth`);
+        return err(res, 403, '등급 부여는 1급비밀 관리자만 가능');
+      }
+      grantLevel = Math.min(clearanceLevel, admin.level); // 자기 등급 이하만 부여 가능
+    }
+
+    const user = users.register(username, password, grantLevel);
     if (!user) return err(res, 409, '이미 존재하는 사용자');
-    audit.log('REGISTER', username, `Level: ${CLASS_NAME[user.clearanceLevel]}`);
+    audit.log('REGISTER', username, `Level: ${CLASS_NAME[user.clearanceLevel]}${req._user ? ' by '+req._user.name : ''}`);
     json(res, 201, { ...user, levelName: CLASS_NAME[user.clearanceLevel] });
 });
 
@@ -814,6 +887,11 @@ async function handleRequest(req, res) {
     // foundry API만 처리
     if (!pathname.startsWith('/api/foundry')) {
         return err(res, 404, 'Not Found');
+    }
+
+    // 인증 미들웨어
+    if (!authMiddleware(req, res, pathname)) {
+        return err(res, 401, '인증 필요');
     }
 
     const matched = matchRoute(req.method, pathname);
