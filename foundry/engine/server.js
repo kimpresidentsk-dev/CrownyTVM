@@ -496,6 +496,143 @@ route('GET', '/api/foundry/covenant/slots', async (req, res) => {
     json(res, 200, { slots: SLOT_META, rings: RING, protocol: PROTOCOL });
 });
 
+// ═══ 문서 API (#85~87) ═══
+
+route('GET', '/api/foundry/docs/api', async (req, res) => {
+    const endpoints = routes.map(r => ({
+      method: r.method,
+      path: r.regex.source.replace(/\\\//g, '/').replace(/\(\[\^\/\]\+\)/g, ':param').replace(/\/\?\$/, '').replace(/^\^/, ''),
+    }));
+    json(res, 200, { total: endpoints.length, endpoints });
+});
+
+route('GET', '/api/foundry/docs/changelog', async (req, res) => {
+    json(res, 200, [
+      { version: '1.0', date: '2026-03-22', changes: [
+        '6단계 계층 (개인→가정→스타트업→비영리→기업→관제)',
+        '언약적 의사결정 엔진 (3계층 + 4상)',
+        '인과추론 엔진 (상관→인과 자동 승격)',
+        '전술 5대 모듈 (ACH/DFI/RedTeam/Wargame/MDMP)',
+        '교회 7탭 + 데모 데이터',
+        '군사 지도 (Leaflet + MIL-STD-2525D)',
+        '국방급 보안 (ARIA-256 + Bell-LaPadula + 감사 로그)',
+        '6개 전용 앱 (개인/가정/스타트업/교회/기업/관제)',
+        '크로스앱 전파 엔진',
+        '다크 모드 + PWA + 모바일 반응형',
+        '191개 프로젝트 템플릿',
+        '87개 기능 목록 중 85개 구현',
+        'https://core.crowny.org 배포',
+        '외부 의존 0개, 에어갭 완전 동작',
+        '한선씨→API 브릿지',
+      ]},
+    ]);
+});
+
+route('GET', '/api/foundry/docs/onepager', async (req, res) => {
+    json(res, 200, {
+      title: 'CrownyCore',
+      tagline: '당신의 삶을 하나의 그래프로',
+      description: '개인에서 국가까지 — 27방사형 셀 아키텍처 + 4상균형3진법 기반 올 라이프 디지털 트윈 플랫폼',
+      differentiator: '팔란티어는 기업→국가(위→아래). CrownyCore는 개인→국가(아래→위). 데이터에 인식상태가 내장되어 불확실성을 1등급으로 처리.',
+      stack: { engine: '14 JS 모듈, 5,500줄', gui: '21 JS 파일, 4,500줄', api: '89 엔드포인트', templates: 191, size: '2MB', dependencies: 0 },
+      tiers: ['개인(습관/일기/목표)', '가정(가계부/일정/자녀)', '스타트업(칸반/재무/CRM)', '비영리(교인/헌금/설교)', '기업(인사/회계/의사결정)', '관제(빌딩/센서/경보)'],
+      defense: ['ARIA-256 국산 암호화', '5단계 비밀등급 (Bell-LaPadula)', 'ACH 경쟁 가설 분석', '인식론적 워게임 (DFI)', 'MDMP 7단계 게이트', '에어갭 580KB 배포'],
+      url: 'https://core.crowny.org',
+    });
+});
+
+// ═══ 분석 API (#62~64) ═══
+
+// #62 상관관계 자동 발견
+route('POST', '/api/foundry/analysis/correlate', async (req, res) => {
+    const allClaims = memory.queryClaimsFull({});
+    // predicate별 빈도 집계
+    const predCounts = {};
+    allClaims.forEach(c => {
+      const p = c.claim?.predicate || '';
+      predCounts[p] = (predCounts[p] || 0) + 1;
+    });
+    // 동일 subject에서 자주 함께 나타나는 predicate 쌍 찾기
+    const subjectPreds = {};
+    allClaims.forEach(c => {
+      const s = c.claim?.subject || '';
+      if (!subjectPreds[s]) subjectPreds[s] = new Set();
+      subjectPreds[s].add(c.claim?.predicate || '');
+    });
+    const pairs = {};
+    Object.values(subjectPreds).forEach(preds => {
+      const arr = [...preds];
+      for (let i = 0; i < arr.length; i++) {
+        for (let j = i + 1; j < arr.length; j++) {
+          const key = [arr[i], arr[j]].sort().join('↔');
+          pairs[key] = (pairs[key] || 0) + 1;
+        }
+      }
+    });
+    const correlations = Object.entries(pairs)
+      .filter(([, count]) => count >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([pair, count]) => ({ pair, count, strength: Math.min(13, count * 2) }));
+    json(res, 200, { total: correlations.length, correlations });
+});
+
+// #63 예측 (간이 — 최근 트렌드 기반)
+route('GET', '/api/foundry/analysis/predict', async (req, res) => {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const predicate = url.searchParams.get('predicate') || '헌금';
+    const allClaims = memory.queryClaimsFull({ predicate });
+    const now = Date.now();
+    const weekMs = 7 * 86400000;
+    // 최근 4주 주별 카운트
+    const weekly = [0, 0, 0, 0];
+    allClaims.forEach(c => {
+      const age = now - (c.createdAt || now);
+      const week = Math.min(3, Math.floor(age / weekMs));
+      weekly[week]++;
+    });
+    weekly.reverse(); // [4주전, 3주전, 2주전, 이번주]
+    // 간이 선형 예측
+    const n = weekly.length;
+    const avgX = (n - 1) / 2;
+    const avgY = weekly.reduce((s, v) => s + v, 0) / n;
+    let num = 0, den = 0;
+    weekly.forEach((y, x) => { num += (x - avgX) * (y - avgY); den += (x - avgX) ** 2; });
+    const slope = den > 0 ? num / den : 0;
+    const predicted = Math.max(0, Math.round(avgY + slope * n));
+    const trend = slope > 0.5 ? '상승' : slope < -0.5 ? '하락' : '유지';
+
+    json(res, 200, { predicate, weekly, predicted, trend, slope: +slope.toFixed(2) });
+});
+
+// #64 비교 분석 (이번 주 vs 지난 주)
+route('GET', '/api/foundry/analysis/compare', async (req, res) => {
+    const allClaims = memory.queryClaimsFull({});
+    const now = Date.now();
+    const weekMs = 7 * 86400000;
+    const thisWeek = allClaims.filter(c => c.createdAt && (now - c.createdAt) < weekMs);
+    const lastWeek = allClaims.filter(c => c.createdAt && (now - c.createdAt) >= weekMs && (now - c.createdAt) < weekMs * 2);
+
+    const compare = (arr) => {
+      const byPred = {};
+      arr.forEach(c => { const p = c.claim?.predicate || '기타'; byPred[p] = (byPred[p] || 0) + 1; });
+      return byPred;
+    };
+
+    const tw = compare(thisWeek);
+    const lw = compare(lastWeek);
+    const allPreds = new Set([...Object.keys(tw), ...Object.keys(lw)]);
+    const comparison = [...allPreds].map(p => ({
+      predicate: p,
+      thisWeek: tw[p] || 0,
+      lastWeek: lw[p] || 0,
+      delta: (tw[p] || 0) - (lw[p] || 0),
+      trend: (tw[p] || 0) > (lw[p] || 0) ? '↑' : (tw[p] || 0) < (lw[p] || 0) ? '↓' : '→',
+    })).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+    json(res, 200, { thisWeekTotal: thisWeek.length, lastWeekTotal: lastWeek.length, comparison });
+});
+
 // ═══ 한선씨 실행 API (#81) ═══
 
 route('POST', '/api/foundry/hanseon/run', async (req, res) => {

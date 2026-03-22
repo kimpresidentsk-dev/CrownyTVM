@@ -28,7 +28,7 @@
 </header>
 
 <!-- Left Nav Rail -->
-<nav class="nav" id="mainNav">
+<nav class="nav" id="mainNav" role="navigation" aria-label="메인 네비게이션">
   <button class="nav-btn active" data-v="home"><span class="ic">⌂</span><span class="label">홈</span></button>
   <button class="nav-btn" data-v="dashboard"><span class="ic">◉</span><span class="label">대시보드</span></button>
   <button class="nav-btn" data-v="graph"><span class="ic">≡</span><span class="label">작업 공간</span></button>
@@ -54,13 +54,14 @@
 </nav>
 
 <!-- Center Canvas -->
-<main class="canvas">
+<main class="canvas" role="main" aria-label="콘텐츠">
   <div class="canvas-bar">
     <span class="canvas-title" id="viewTitle">셀 그래프</span>
     <div style="margin-left:auto;display:flex;gap:4px">
       <button class="btn" id="sampleBtn">예제 넣기</button>
       <button class="btn" id="refreshBtn">새로고침</button>
-      <button class="help-btn" onclick="showHelp()" title="도움말">?</button>
+      <button class="help-btn" onclick="showHelp()" title="도움말" aria-label="도움말">?</button>
+      <button class="help-btn" onclick="openHanSeonREPL()" title="한선씨 콘솔 (h키)" aria-label="한선씨">H</button>
     </div>
   </div>
   <div class="canvas-body">

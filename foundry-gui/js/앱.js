@@ -57,6 +57,37 @@ window.showHelp = function(topic) {
   }
 };
 
+// 한선씨 REPL (#80)
+window.openHanSeonREPL = function() {
+  const modal = document.getElementById('helpModal');
+  const content = document.getElementById('helpContent');
+  if (!modal || !content) return;
+  content.innerHTML = `
+    <div style="font-weight:700;font-size:12px;margin-bottom:8px">한선씨 콘솔</div>
+    <textarea id="_replCode" rows="6" style="width:100%;font-family:monospace;font-size:11px;resize:vertical" placeholder='출력("안녕 크라우니코어!")'></textarea>
+    <div style="display:flex;gap:4px;margin-top:6px">
+      <button class="btn btn-p" id="_replRun">실행 (Ctrl+Enter)</button>
+      <button class="btn" onclick="document.getElementById('helpModal').classList.remove('open')">닫기</button>
+    </div>
+    <pre id="_replOutput" style="margin-top:8px;font-size:10px;background:var(--bg);padding:8px;border-radius:4px;max-height:200px;overflow-y:auto;white-space:pre-wrap"></pre>
+  `;
+  modal.classList.add('open');
+
+  const run = async () => {
+    const code = document.getElementById('_replCode')?.value;
+    if (!code) return;
+    document.getElementById('_replOutput').textContent = '실행 중...';
+    const r = await fetch(`${API}/hanseon/run`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code}) });
+    const d = await r.json();
+    document.getElementById('_replOutput').textContent = d.success ? d.output : `오류: ${d.error}`;
+  };
+
+  document.getElementById('_replRun')?.addEventListener('click', run);
+  document.getElementById('_replCode')?.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); }
+  });
+};
+
 // 키보드 단축키 (#50)
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
@@ -67,6 +98,7 @@ document.addEventListener('keydown', (e) => {
     'n': 'create', '/': 'search',
   };
   if (shortcuts[e.key]) { e.preventDefault(); go(shortcuts[e.key]); }
+  if (e.key === 'h') { e.preventDefault(); openHanSeonREPL(); }
   // Ctrl+K → 검색
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); go('search'); document.getElementById('searchQ')?.focus(); }
 });

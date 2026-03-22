@@ -84,6 +84,13 @@
   box-shadow: 0 8px 32px rgba(0,0,0,.15);
 }
 
+/* ── 접근성 (#59) ── */
+.nav-btn:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--확정); outline-offset: 2px;
+}
+[role="button"] { cursor: pointer; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
 /* ── 인쇄 (#60) ── */
 @media print {
   .nav, .hdr, .toast, .loading, .notif-panel { display: none !important; }
