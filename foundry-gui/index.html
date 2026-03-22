@@ -60,6 +60,7 @@
     <div style="margin-left:auto;display:flex;gap:4px">
       <button class="btn" id="sampleBtn">예제 넣기</button>
       <button class="btn" id="refreshBtn">새로고침</button>
+      <button class="help-btn" onclick="showHelp()" title="도움말">?</button>
     </div>
   </div>
   <div class="canvas-body">
@@ -243,6 +244,9 @@
 </aside>
 
 <div class="notif-panel" id="notifPanel"></div>
+<div class="help-modal" id="helpModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="help-content" id="helpContent"></div>
+</div>
 <div class="loading" id="loadingBar"><div class="loading-bar"></div></div>
 <div id="toast" class="toast"></div>
 

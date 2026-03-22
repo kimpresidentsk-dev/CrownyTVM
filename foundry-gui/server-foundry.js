@@ -210,8 +210,54 @@ function dailyBackup() {
 dailyBackup();
 setInterval(dailyBackup, 6 * 3600 * 1000);
 
+// ═══ 로그 로테이션 (#78) ═══
+const AUDIT_DIR = path.join(__dirname, '..', 'data', 'audit');
+function rotateAuditLogs() {
+  if (!fs.existsSync(AUDIT_DIR)) return;
+  const files = fs.readdirSync(AUDIT_DIR).filter(f => f.endsWith('.log')).sort();
+  while (files.length > 90) { // 90일 보관
+    fs.unlinkSync(path.join(AUDIT_DIR, files.shift()));
+  }
+}
+rotateAuditLogs();
+setInterval(rotateAuditLogs, 24 * 3600 * 1000);
+
+// ═══ IP 화이트리스트 (#73) ═══
+const IP_WHITELIST = process.env.CROWNY_IP_WHITELIST ? process.env.CROWNY_IP_WHITELIST.split(',') : null;
+
 // ═══ 서버 시작 ═══
-server.listen(PORT, () => {
+
+// HTTPS 자체서명 지원 (#71)
+const https = require('https');
+const crypto = require('crypto');
+
+let actualServer = server;
+if (process.env.CROWNY_HTTPS === 'self') {
+  try {
+    const certDir = path.join(__dirname, '..', 'data', 'certs');
+    if (!fs.existsSync(certDir)) fs.mkdirSync(certDir, { recursive: true });
+    const keyPath = path.join(certDir, 'self-key.pem');
+    const certPath = path.join(certDir, 'self-cert.pem');
+
+    if (!fs.existsSync(keyPath)) {
+      // 자체서명 인증서 생성 (openssl 없이 Node.js로)
+      const { execSync } = require('child_process');
+      execSync(`openssl req -x509 -newkey rsa:2048 -keyout ${keyPath} -out ${certPath} -days 365 -nodes -subj "/CN=CrownyCore"`, { stdio: 'ignore' });
+      console.log('  자체서명 인증서 생성');
+    }
+
+    actualServer = https.createServer({
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    }, server._events?.request || server.listeners('request')[0]);
+    console.log('  HTTPS 모드 (자체서명)');
+  } catch (e) {
+    console.warn('  HTTPS 실패, HTTP로 전환:', e.message);
+    actualServer = server;
+  }
+}
+
+actualServer.listen(PORT, () => {
   console.log(`═══════════════════════════════════════════`);
   console.log(`  CrownyCore v1.0`);
   console.log(`  GUI:  http://localhost:${PORT}/`);

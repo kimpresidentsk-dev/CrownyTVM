@@ -37,6 +37,40 @@ window.hideLoading = () => { const el = document.getElementById('loadingBar'); e
 // PWA 서비스 워커 (#55)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 
+// 도움말 (#84)
+window.showHelp = function(topic) {
+  const helps = {
+    graph: '셀 그래프에서 데이터를 시각화합니다.\n\n• 동그라미 = 셀 (데이터 단위)\n• 선 = 연결 (시냅스)\n• 클릭 → 오른쪽에 상세\n• 드래그 → 다른 셀 위에 놓으면 연결\n\n하단 액션 바: 주장 추가, 의사결정, 인과 분석, CSV 내보내기',
+    life: '개인 앱 — 나의 디지털 트윈\n\n• 습관: 12가지 기본 + 커스텀\n• 내 활동: 교회 출석/헌금이 자동 표시\n• 일정: 월간 캘린더 + 교회 공지 통합\n• 재정: 수입/지출 + 헌금 자동 포함\n• 일기: 날짜 + 기분 + 자유 텍스트\n• 목표: 카테고리별 설정 + 달성 추적',
+    church: '교회 앱 — 7탭 교회 관리\n\n• 교인: 등록, 검색, 출석, 프로필\n• 출석 체크: 카드 1클릭, 이름 검색→Enter\n• 소그룹: 배정 + 모임 기록\n• 헌금: 5종 입력, 리포트, CSV\n• 기도: 제목 + 응답 추적\n• 설교: 등록 → 공지 자동 전파\n• 공지: 게시 + 목록',
+    tactical: '전술 엔진 — 팔란티어가 못 하는 것\n\n• ACH: 경쟁 가설 매트릭스 (반박 기반)\n• 워게임: COA 비교 + DFI 취약도\n• MDMP: 7단계 인식론 게이트\n• 적 모델링: 기만 기회 + 정보 우위',
+    security: '보안 — 국방급\n\n• ARIA-256 국산 암호화\n• 비밀등급 5단계 (Bell-LaPadula)\n• SHA-256 감사 로그 체인\n• JWT 인증 + 속도 제한',
+    shortcuts: '키보드 단축키\n\n1~9: 앱 전환\nd: 의사결정\nt: 전술\nm: 지도\ns: 보안\nn: 만들기\n/: 검색\nCtrl+K: 검색 포커스\n◐: 다크 모드',
+  };
+  const content = helps[topic] || `CrownyCore\n\n당신의 삶을 하나의 그래프로.\n개인 → 가정 → 조직 → 도시.\n\n키보드: 숫자 1~9로 앱 전환\nCtrl+K: 검색`;
+  const el = document.getElementById('helpContent');
+  const modal = document.getElementById('helpModal');
+  if (el && modal) {
+    el.innerHTML = `<div style="white-space:pre-wrap;font-size:12px;line-height:1.6">${content}</div>
+      <button class="btn" style="margin-top:10px" onclick="document.getElementById('helpModal').classList.remove('open')">닫기</button>`;
+    modal.classList.add('open');
+  }
+};
+
+// 키보드 단축키 (#50)
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  const shortcuts = {
+    '1': 'home', '2': 'dashboard', '3': 'graph', '4': 'life', '5': 'family',
+    '6': 'startup', '7': 'church', '8': 'enterprise', '9': 'city',
+    'd': 'decide', 't': 'tactical', 'm': 'map', 's': 'security',
+    'n': 'create', '/': 'search',
+  };
+  if (shortcuts[e.key]) { e.preventDefault(); go(shortcuts[e.key]); }
+  // Ctrl+K → 검색
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); go('search'); document.getElementById('searchQ')?.focus(); }
+});
+
 // ── View switching ──
 function go(name, params) {
   // params: { tab, highlight } 등 딥링크 파라미터

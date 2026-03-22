@@ -496,6 +496,35 @@ route('GET', '/api/foundry/covenant/slots', async (req, res) => {
     json(res, 200, { slots: SLOT_META, rings: RING, protocol: PROTOCOL });
 });
 
+// ═══ 한선씨 실행 API (#81) ═══
+
+route('POST', '/api/foundry/hanseon/run', async (req, res) => {
+    const { code, file } = await parseBody(req);
+    const { execFile } = require('child_process');
+    const fs = require('fs');
+    const path = require('path');
+
+    const crownyBin = path.join(__dirname, '..', '..', 'target', 'release', 'crowny');
+    if (!fs.existsSync(crownyBin)) return err(res, 500, 'crowny 바이너리 없음');
+
+    let tmpFile = null;
+    const target = file || (() => {
+      tmpFile = path.join(__dirname, '..', '..', 'data', `tmp_${Date.now()}.han`);
+      fs.writeFileSync(tmpFile, code || '', 'utf8');
+      return tmpFile;
+    })();
+
+    execFile(crownyBin, [target], { encoding: 'utf8', timeout: 10000, cwd: path.join(__dirname, '..', '..') }, (error, stdout, stderr) => {
+      if (tmpFile) try { fs.unlinkSync(tmpFile); } catch {}
+      if (error) {
+        json(res, 200, { success: false, output: stdout || '', error: stderr || error.message });
+      } else {
+        json(res, 200, { success: true, output: stdout || '', error: stderr || null });
+      }
+      if (req._user) audit.log('HANSEON', req._user.name, `${(code||'').slice(0,50)}...`);
+    });
+});
+
 // ═══ 전술 API ═══
 
 // ACH
