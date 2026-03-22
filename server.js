@@ -58,6 +58,28 @@ try {
     console.warn('[CELL] CrownyCell Core load failed:', e.message);
 }
 
+// 3중 은행 시스템
+let bankSystem = null;
+try {
+    const { BankSystem } = require('./bank-system');
+    bankSystem = new BankSystem();
+    // 초기 은행 생성 (없으면)
+    if (bankSystem.listBanks().length === 0) {
+        bankSystem.createBank('bank-kr', { label: 'Korea Bank', category: 'country', region: 'kr' });
+        bankSystem.createBank('bank-global', { label: 'Global Bank', category: 'country', region: 'global' });
+        bankSystem.createBank('bank-education', { label: 'Education Fund', category: 'concept' });
+        bankSystem.createBank('bank-charity', { label: 'Charity Fund', category: 'concept' });
+        bankSystem.createBank('bank-trading', { label: 'Trading Pool', category: 'service' });
+        bankSystem.createBank('bank-quiz', { label: 'Quiz Rewards', category: 'service' });
+    }
+    if (!bankSystem.getAdmin('kps')) {
+        bankSystem.registerAdmin('kps', { role: 'super', permissions: ['all'] });
+    }
+    console.log('[BANK] 3-tier bank system loaded:', bankSystem.stats().banksCount, 'banks');
+} catch (e) {
+    console.warn('[BANK] Bank system load failed:', e.message);
+}
+
 // 독립 메신저 (WebSocket + 파일 저장)
 let chatServer = null;
 try {
@@ -4081,6 +4103,61 @@ const server = http.createServer(async (req, res) => {
                 saveJSON('cells.json', cells);
             }
             res.end(JSON.stringify({ ...result, cell: { id: cell.id, name: cell.name, state: cell.state, evidence: cell.evidence } }));
+            return;
+        }
+
+        // ── 3중 은행 시스템 API ──
+        if (path === '/api/bank/stats' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            res.end(JSON.stringify(bankSystem ? bankSystem.stats() : { error: 'not initialized' }));
+            return;
+        }
+        if (path === '/api/bank/treasury' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin required"}'); return; }
+            res.end(JSON.stringify(bankSystem ? bankSystem.getTreasury() : {}));
+            return;
+        }
+        if (path === '/api/bank/list' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            res.end(JSON.stringify(bankSystem ? bankSystem.listBanks() : []));
+            return;
+        }
+        if (path === '/api/bank/distribute' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin required"}'); return; }
+            if (!bankSystem) { res.end('{"error":"not initialized"}'); return; }
+            if (!bankSystem.canAdmin(user.username, 'transfer', body.bankId)) { res.end('{"error":"permission denied"}'); return; }
+            const result = bankSystem.treasuryToBank(body.bankId, body.currency, body.amount, user.username);
+            res.end(JSON.stringify(result));
+            return;
+        }
+        if (path === '/api/bank/send' && req.method === 'POST') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin required"}'); return; }
+            if (!bankSystem) { res.end('{"error":"not initialized"}'); return; }
+            if (!bankSystem.canAdmin(user.username, 'transfer', body.bankId)) { res.end('{"error":"permission denied"}'); return; }
+            // Bank → User (실제 지갑에도 반영)
+            const result = bankSystem.bankToUser(body.bankId, body.to, body.currency, body.amount, user.username, body.memo);
+            if (result.success) {
+                // 실제 사용자 지갑에 입금
+                walletTransact(body.to, 'deposit', body.amount, null, body.memo || 'bank distribution', body.currency);
+            }
+            res.end(JSON.stringify(result));
+            return;
+        }
+        if (path === '/api/bank/audit' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user || !ADMIN_USERS.includes(user.username)) { res.statusCode = 403; res.end('{"error":"admin required"}'); return; }
+            res.end(JSON.stringify(bankSystem ? bankSystem.getAuditLog(parseInt(url.searchParams.get('limit') || '50')) : []));
+            return;
+        }
+        if (path === '/api/bank/donation' && req.method === 'GET') {
+            const user = getAuth(req);
+            if (!user) { res.statusCode = 401; res.end('{"error":"auth required"}'); return; }
+            res.end(JSON.stringify(bankSystem ? bankSystem.getDonationPool() : { balances: {} }));
             return;
         }
 
