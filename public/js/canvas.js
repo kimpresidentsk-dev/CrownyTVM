@@ -26,7 +26,7 @@ const CANVAS = (function() {
         { id: 'synergy',  label: 'Synergy',   icon: 'link' },
         { id: 'mind',     label: 'Mind',      icon: 'brain' },
         { id: 'bible',    label: 'Bible',     icon: 'book-open' },
-        { id: 'admin',    label: 'Admin',     icon: 'shield', hidden: true },
+        { id: 'admin',    label: 'Admin',     icon: 'shield' },
         { id: 'om',       label: 'Om',        icon: 'circle' },
     ];
 
