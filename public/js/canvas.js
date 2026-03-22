@@ -187,8 +187,8 @@ const CANVAS = (function() {
                 break;
             case 'admin':
                 leftTitle.textContent = 'Menu';
-                centerTitle.textContent = 'Dashboard';
-                rightTitle.textContent = 'Logs';
+                centerTitle.textContent = 'Token Management';
+                rightTitle.textContent = 'Monitoring';
                 loadAdminWorkspace(left, center, right);
                 break;
             case 'om':
@@ -1315,27 +1315,34 @@ const CANVAS = (function() {
         } catch {}
     }
 
-    // ── 워크스페이스: Admin ──
+    // ── 워크스페이스: Admin (토큰 관리 + 모니터링) ──
+    let _adminAuthed = false;
+
     async function loadAdminWorkspace(left, center, right) {
-        left.innerHTML = ['Users', 'System', 'Chain', 'Cells', 'Backup'].map(m => `<div class="cv-list-item" onclick="CANVAS.adminSection('${m.toLowerCase()}')">${m}</div>`).join('');
+        _adminAuthed = false;
+        left.innerHTML = ['Tokens', 'Transfer', 'Users', 'Transactions', 'Chain', 'Cells', 'Backup'].map(m =>
+            `<div class="cv-list-item" onclick="CANVAS.adminSection('${m.toLowerCase()}')">${m}</div>`
+        ).join('');
+
+        // 기본: 토큰 총괄 뷰
+        adminSection('tokens');
+
+        // 우측: 실시간 모니터링
+        _loadAdminMonitor(right);
+    }
+
+    async function _adminAuth() {
+        if (_adminAuthed) return true;
+        const pw = prompt('Admin password:');
+        if (!pw) return false;
         const token = localStorage.getItem('crowny_token');
         try {
-            const [chainR, cellR] = await Promise.all([
-                fetch('/api/chain/status', { headers: { 'Authorization': 'Bearer ' + token } }),
-                fetch('/api/cell/stats', { headers: { 'Authorization': 'Bearer ' + token } }),
-            ]);
-            const chain = await chainR.json();
-            const cells = await cellR.json();
-            center.innerHTML = `<div style="padding:1rem">
-                <h4>System Dashboard</h4>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:0.5rem">
-                    <div style="padding:10px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.6rem;color:var(--text-secondary)">CHAIN</div><div style="font-size:1.2rem;font-weight:800">${chain.chain?.height ?? '?'}</div><div style="font-size:0.6rem">blocks</div></div>
-                    <div style="padding:10px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.6rem;color:var(--text-secondary)">CELLS</div><div style="font-size:1.2rem;font-weight:800">${cells.totalCells ?? '?'}</div><div style="font-size:0.6rem">total</div></div>
-                    <div style="padding:10px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.6rem;color:var(--text-secondary)">STATUS</div><div style="font-size:1.2rem;font-weight:800;color:${chain.chain?.running ? 'var(--info)' : 'var(--error)'}">${chain.chain?.running ? 'ON' : 'OFF'}</div></div>
-                    <div style="padding:10px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.6rem;color:var(--text-secondary)">MEMPOOL</div><div style="font-size:1.2rem;font-weight:800">${chain.chain?.mempoolSize ?? 0}</div></div>
-                </div></div>`;
-        } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
-        right.innerHTML = '<div class="cv-mono" style="padding:8px">System logs</div>';
+            const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: localStorage.getItem('crowny_username') || 'kps', password: pw }) });
+            const d = await r.json();
+            if (d.token) { _adminAuthed = true; return true; }
+        } catch {}
+        if (typeof showToast === 'function') showToast('Authentication failed', 'error');
+        return false;
     }
 
     async function adminSection(section) {
@@ -1344,51 +1351,197 @@ const CANVAS = (function() {
         const token = localStorage.getItem('crowny_token');
         if (!center) return;
 
-        if (section === 'users') {
+        if (section === 'tokens') {
+            // 토큰 총괄 (인증 불필요)
+            try {
+                const r = await fetch('/api/wallet', { headers: { 'Authorization': 'Bearer ' + token } });
+                const w = await r.json();
+                const b = w.balances || {};
+                const prices = w.prices || { CRN: 25500, FNC: 2550, CRM: 25.5 };
+                const totalKRW = (b.CRN||0) * prices.CRN + (b.FNC||0) * prices.FNC + (b.CRM||0) * prices.CRM;
+                center.innerHTML = `<div style="padding:0.5rem">
+                    <div style="font-size:0.65rem;color:var(--text-secondary);margin-bottom:2px">TOTAL SUPPLY VALUE</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:var(--gold);margin-bottom:1rem">${totalKRW.toLocaleString()} KRW</div>
+                    ${[
+                        { name: 'CRN', full: 'Crowny', bal: b.CRN||0, price: prices.CRN, supply: 23100000000 },
+                        { name: 'FNC', full: 'Fone', bal: b.FNC||0, price: prices.FNC, supply: 77700000000 },
+                        { name: 'CRM', full: 'Mam', bal: b.CRM||0, price: prices.CRM, supply: 77700000000 },
+                    ].map(t => {
+                        const pct = t.supply > 0 ? (t.bal / t.supply * 100).toFixed(2) : 0;
+                        const value = (t.bal * t.price).toLocaleString();
+                        return `<div style="padding:8px;background:var(--bg-card);border-radius:8px;margin-bottom:6px">
+                            <div style="display:flex;justify-content:space-between;align-items:baseline">
+                                <div><strong style="font-size:0.9rem">${t.name}</strong> <span style="font-size:0.65rem;color:var(--text-secondary)">${t.full}</span></div>
+                                <div style="text-align:right"><div style="font-size:1rem;font-weight:700">${t.bal.toLocaleString()}</div><div style="font-size:0.6rem;color:var(--text-secondary)">${value} KRW</div></div>
+                            </div>
+                            <div style="margin-top:4px;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--gold);border-radius:2px"></div></div>
+                            <div style="font-size:0.55rem;color:var(--text-secondary);margin-top:2px">${pct}% of ${t.supply.toLocaleString()} total · ${t.price.toLocaleString()} KRW/unit</div>
+                        </div>`;
+                    }).join('')}
+                </div>`;
+            } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        }
+
+        else if (section === 'transfer') {
+            // 토큰 전송 (암호 필요)
+            if (!await _adminAuth()) { center.innerHTML = '<div class="cv-mono" style="padding:2rem;text-align:center">Authentication required</div>'; return; }
+            center.innerHTML = `<div style="padding:0.5rem">
+                <h4>Token Transfer</h4>
+                <div style="margin-top:8px">
+                    <label style="font-size:0.7rem;color:var(--text-secondary)">Recipient</label>
+                    <input id="cv-admin-to" class="cv-input" placeholder="Username" style="width:100%;margin-bottom:6px">
+                    <label style="font-size:0.7rem;color:var(--text-secondary)">Amount</label>
+                    <div style="display:flex;gap:4px;margin-bottom:6px">
+                        <input id="cv-admin-amount" class="cv-input" type="number" placeholder="0" style="flex:1">
+                        <select id="cv-admin-currency" class="cv-select"><option value="CRM">CRM</option><option value="FNC">FNC</option><option value="CRN">CRN</option></select>
+                    </div>
+                    <label style="font-size:0.7rem;color:var(--text-secondary)">Memo</label>
+                    <input id="cv-admin-memo" class="cv-input" placeholder="Transfer reason" style="width:100%;margin-bottom:6px">
+                    <button class="cv-btn" onclick="CANVAS.adminTransfer()" style="width:100%">Execute Transfer</button>
+                </div>
+                <div style="margin-top:1rem;font-size:0.6rem;color:var(--text-secondary)">Quick distribute:</div>
+                <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
+                    <button class="cv-btn" style="font-size:0.6rem;padding:3px 8px" onclick="CANVAS.adminQuickSend('alice',1000,'CRM')">alice 1K CRM</button>
+                    <button class="cv-btn" style="font-size:0.6rem;padding:3px 8px" onclick="CANVAS.adminQuickSend('bob',1000,'CRM')">bob 1K CRM</button>
+                    <button class="cv-btn" style="font-size:0.6rem;padding:3px 8px" onclick="CANVAS.adminQuickSend('lino',1000,'CRM')">lino 1K CRM</button>
+                </div>
+            </div>`;
+        }
+
+        else if (section === 'transactions') {
+            // 거래 내역 모니터링
+            try {
+                const r = await fetch('/api/cell/query?type=404&limit=30', { headers: { 'Authorization': 'Bearer ' + token } });
+                const txCells = await r.json();
+                // chain TX도 조회
+                const chainR = await fetch('/api/chain/block?height=-1', { headers: { 'Authorization': 'Bearer ' + token } });
+                const block = await chainR.json();
+                const chainTxs = block.transactions || [];
+
+                center.innerHTML = `<div style="padding:0.5rem">
+                    <h4>Transaction Monitor</h4>
+                    <div style="font-size:0.65rem;color:var(--text-secondary);margin-bottom:4px">CHAIN TRANSACTIONS (Block #${block.height || 0})</div>
+                    ${chainTxs.length > 0 ? chainTxs.map(tx => `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:0.7rem">
+                        <div style="display:flex;justify-content:space-between"><span style="font-weight:600">${tx.typeName || tx.type}</span><span style="color:var(--gold)">${tx.amount || 0} ${tx.currencyName || ''}</span></div>
+                        <div style="font-size:0.6rem;color:var(--text-secondary)">${(tx.from||'').slice(0,16)}... → ${(tx.to||'').slice(0,16)||'self'}...</div>
+                    </div>`).join('') : '<div class="cv-mono">No chain transactions yet</div>'}
+                    <div style="font-size:0.65rem;color:var(--text-secondary);margin:8px 0 4px">LEGACY TRANSACTIONS</div>
+                    ${txCells.length > 0 ? txCells.slice(0,10).map(c => `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:0.7rem">
+                        <div style="display:flex;justify-content:space-between"><span>${escHtml(c.data?.[0] || c.subject || '')}</span><span style="color:var(--gold)">${c.value || 0}</span></div>
+                        <div style="font-size:0.55rem;color:var(--text-secondary)">${new Date(c.timestamp*1000).toLocaleString()}</div>
+                    </div>`).join('') : '<div class="cv-mono">No transactions</div>'}
+                </div>`;
+            } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        }
+
+        else if (section === 'users') {
             try {
                 const r = await fetch('/api/admin/users', { headers: { 'Authorization': 'Bearer ' + token } });
                 const data = await r.json();
                 const users = data.users || data || [];
                 center.innerHTML = `<div style="padding:0.5rem"><h4>Users (${users.length})</h4>
-                    ${users.map(u => `<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.75rem">
-                        <div style="flex:1"><strong>${escHtml(u.username)}</strong><div style="font-size:0.6rem;color:var(--text-secondary)">${u.email || ''} · Level ${u.level || 0}</div></div>
-                        <span style="font-size:0.6rem;color:var(--text-secondary)">${u.walletAddress?.slice(0,12) || ''}...</span>
-                    </div>`).join('')}</div>`;
-            } catch { center.innerHTML = '<div class="cv-mono">Access denied or load failed</div>'; }
-        } else if (section === 'chain') {
+                    ${users.map(u => {
+                        const bal = u.balances || {};
+                        return `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.7rem">
+                            <div style="display:flex;justify-content:space-between"><strong>${escHtml(u.username)}</strong><span style="font-size:0.6rem;color:var(--text-secondary)">Lv${u.level||0}</span></div>
+                            <div style="font-size:0.6rem;color:var(--text-secondary)">${u.email||''}</div>
+                            <div style="font-size:0.6rem;color:var(--gold);margin-top:2px">CRN:${(bal.CRN||0).toLocaleString()} FNC:${(bal.FNC||0).toLocaleString()} CRM:${(bal.CRM||0).toLocaleString()}</div>
+                            <div style="font-size:0.5rem;color:var(--text-secondary);font-family:monospace">${u.walletAddress?.slice(0,24)||''}...</div>
+                        </div>`;
+                    }).join('')}</div>`;
+            } catch { center.innerHTML = '<div class="cv-mono">Access denied</div>'; }
+        }
+
+        else if (section === 'chain') {
             try {
                 const r = await fetch('/api/chain/status', { headers: { 'Authorization': 'Bearer ' + token } });
                 const s = await r.json();
-                center.innerHTML = `<div style="padding:0.5rem"><h4>Chain Status</h4>
-                    <div class="cv-mono" style="line-height:1.8">Running: ${s.chain?.running ? 'YES' : 'NO'}
+                center.innerHTML = `<div style="padding:0.5rem"><h4>Chain</h4>
+                    <div class="cv-mono" style="line-height:1.8">Running: ${s.chain?.running}
 Height: ${s.chain?.height}
 Accounts: ${s.chain?.accounts}
 Mempool: ${s.chain?.mempoolSize}
-State Root: ${s.chain?.stateRoot?.slice(0, 32)}...
-Latest Hash: ${s.chain?.latestHash?.slice(0, 32)}...</div></div>`;
+State Root: ${s.chain?.stateRoot?.slice(0,32)}...
+Latest Hash: ${s.chain?.latestHash?.slice(0,32)}...</div></div>`;
             } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
-        } else if (section === 'cells') {
+        }
+        else if (section === 'cells') {
             try {
                 const r = await fetch('/api/cell/stats', { headers: { 'Authorization': 'Bearer ' + token } });
                 const stats = await r.json();
-                center.innerHTML = `<div style="padding:0.5rem"><h4>Cell Database</h4>
-                    <div style="font-size:1.5rem;font-weight:800;margin:0.5rem 0">${stats.totalCells} cells</div>
-                    ${Object.entries(stats.byType || {}).map(([n, c]) => `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-size:0.75rem"><span>${n}</span><strong>${c}</strong></div>`).join('')}</div>`;
+                center.innerHTML = `<div style="padding:0.5rem"><h4>Cells (${stats.totalCells})</h4>
+                    ${Object.entries(stats.byType||{}).map(([n,c])=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-size:0.7rem"><span>${n}</span><strong>${c}</strong></div>`).join('')}</div>`;
             } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
-        } else if (section === 'backup') {
-            center.innerHTML = `<div style="padding:1rem"><h4>Backup & Restore</h4>
-                <button class="cv-btn" onclick="window.open('/api/backup','_blank')" style="width:100%;margin-top:0.5rem">Download Full Backup</button>
-                <div style="margin-top:1rem;font-size:0.7rem;color:var(--text-secondary)">Includes: users, cells, chat data, chain state</div></div>`;
-        } else if (section === 'system') {
-            center.innerHTML = `<div style="padding:0.5rem"><h4>System</h4>
-                <div class="cv-mono" style="line-height:1.8">Server: CrownyTVM
-Port: 7730
-Node.js: ${typeof process !== 'undefined' ? 'active' : 'browser'}
-Canvas: v1.0 (1,500+ lines)
-CellCore: 27-slot radial
-Chain: CrownyCell (9s blocks)
-VM: ISA729 (43 opcodes)</div></div>`;
         }
+        else if (section === 'backup') {
+            center.innerHTML = `<div style="padding:1rem"><h4>Backup</h4>
+                <button class="cv-btn" onclick="window.open('/api/backup','_blank')" style="width:100%;margin-top:0.5rem">Download Backup</button></div>`;
+        }
+    }
+
+    async function adminTransfer() {
+        const to = document.getElementById('cv-admin-to')?.value?.trim();
+        const amount = parseFloat(document.getElementById('cv-admin-amount')?.value) || 0;
+        const currency = document.getElementById('cv-admin-currency')?.value || 'CRM';
+        const memo = document.getElementById('cv-admin-memo')?.value || '';
+        if (!to || amount <= 0) { if (typeof showToast === 'function') showToast('Enter recipient and amount', 'error'); return; }
+        if (!await _adminAuth()) return;
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch('/api/wallet/transact', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'send', amount, to, memo: memo || 'admin transfer', currency }) });
+        const data = await r.json();
+        if (data.success) {
+            if (typeof showToast === 'function') showToast(`Sent ${amount.toLocaleString()} ${currency} → ${to}`, 'success');
+            adminSection('tokens'); // 잔액 새로고침
+            _loadAdminMonitor(document.getElementById('cv-right-content'));
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Transfer failed', 'error');
+        }
+    }
+
+    async function adminQuickSend(to, amount, currency) {
+        if (!await _adminAuth()) return;
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch('/api/wallet/transact', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'send', amount, to, memo: 'quick distribute', currency }) });
+        const data = await r.json();
+        if (typeof showToast === 'function') showToast(data.success ? `${amount} ${currency} → ${to}` : data.error || 'Failed', data.success ? 'success' : 'error');
+        if (data.success) adminSection('tokens');
+    }
+
+    async function _loadAdminMonitor(el) {
+        if (!el) return;
+        const token = localStorage.getItem('crowny_token');
+        try {
+            const [walletR, chainR, cellR] = await Promise.all([
+                fetch('/api/wallet', { headers: { 'Authorization': 'Bearer ' + token } }),
+                fetch('/api/chain/status', { headers: { 'Authorization': 'Bearer ' + token } }),
+                fetch('/api/cell/stats', { headers: { 'Authorization': 'Bearer ' + token } }),
+            ]);
+            const w = await walletR.json();
+            const chain = await chainR.json();
+            const cells = await cellR.json();
+            const b = w.balances || {};
+
+            el.innerHTML = `<div style="padding:4px">
+                <div style="font-size:0.6rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">LIVE MONITOR</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
+                    <div style="padding:6px;background:var(--bg-card);border-radius:4px;text-align:center"><div style="font-size:0.5rem;color:var(--text-secondary)">CHAIN</div><div style="font-weight:700">${chain.chain?.height ?? 0}</div></div>
+                    <div style="padding:6px;background:var(--bg-card);border-radius:4px;text-align:center"><div style="font-size:0.5rem;color:var(--text-secondary)">CELLS</div><div style="font-weight:700">${cells.totalCells ?? 0}</div></div>
+                </div>
+                <div style="font-size:0.6rem;font-weight:700;color:var(--text-secondary);margin:4px 0">HOLDINGS</div>
+                <div style="font-size:0.7rem;line-height:1.6;font-family:monospace">
+                    CRN: ${(b.CRN||0).toLocaleString()}<br>
+                    FNC: ${(b.FNC||0).toLocaleString()}<br>
+                    CRM: ${(b.CRM||0).toLocaleString()}
+                </div>
+                <div style="font-size:0.6rem;font-weight:700;color:var(--text-secondary);margin:8px 0 4px">STATUS</div>
+                <div style="font-size:0.65rem">
+                    Chain: ${chain.chain?.running ? '<span style="color:var(--info)">● Running</span>' : '<span style="color:var(--error)">● Stopped</span>'}<br>
+                    Mempool: ${chain.chain?.mempoolSize ?? 0}<br>
+                    Accounts: ${chain.chain?.accounts ?? 0}
+                </div>
+                <button class="cv-btn" onclick="CANVAS._loadAdminMonitor(document.getElementById('cv-right-content'))" style="width:100%;margin-top:8px;font-size:0.6rem;background:var(--text-secondary)">Refresh</button>
+            </div>`;
+        } catch { el.innerHTML = '<div class="cv-mono">Monitor unavailable</div>'; }
     }
 
     // ── 워크스페이스: Om (옴 — 관조/명상/일기) ──
@@ -1660,7 +1813,7 @@ VM: ISA729 (43 opcodes)</div></div>`;
         // Content
         createContent, viewContent,
         // Admin
-        adminSection,
+        adminSection, adminTransfer, adminQuickSend, _loadAdminMonitor,
         // Canvas (4-step pipeline)
         runNL, setJP, cycleJP, runVM, resetVM, reloadNL,
         canvasToWorkbench, canvasToNote,
