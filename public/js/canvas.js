@@ -1367,14 +1367,20 @@ const CANVAS = (function() {
 
     async function loadAdminWorkspace(left, center, right) {
         _adminAuthed = false;
-        left.innerHTML = ['Tokens', 'Transfer', 'Users', 'Transactions', 'Chain', 'Cells', 'Backup'].map(m =>
-            `<div class="cv-list-item" onclick="CANVAS.adminSection('${m.toLowerCase()}')">${m}</div>`
-        ).join('');
+        left.innerHTML = [
+            { id: 'tokens', label: 'Token Overview' },
+            { id: 'distribute', label: 'Distribute' },
+            { id: 'banks', label: 'Banks' },
+            { id: 'transfer', label: 'Direct Transfer' },
+            { id: 'users', label: 'Users' },
+            { id: 'transactions', label: 'Transactions' },
+            { id: 'audit', label: 'Audit Log' },
+            { id: 'chain', label: 'Chain' },
+            { id: 'cells', label: 'Cells' },
+            { id: 'backup', label: 'Backup' },
+        ].map(m => `<div class="cv-list-item" onclick="CANVAS.adminSection('${m.id}')">${m.label}</div>`).join('');
 
-        // 기본: 토큰 총괄 뷰
         adminSection('tokens');
-
-        // 우측: 실시간 모니터링
         _loadAdminMonitor(right);
     }
 
@@ -1398,33 +1404,119 @@ const CANVAS = (function() {
         const token = localStorage.getItem('crowny_token');
         if (!center) return;
 
-        if (section === 'tokens') {
-            // 토큰 총괄 (인증 불필요)
+        if (section === 'tokens' || section === 'bank') {
             try {
-                const r = await fetch('/api/wallet', { headers: { 'Authorization': 'Bearer ' + token } });
-                const w = await r.json();
-                const b = w.balances || {};
-                const prices = w.prices || { CRN: 25500, FNC: 2550, CRM: 25.5 };
-                const totalKRW = (b.CRN||0) * prices.CRN + (b.FNC||0) * prices.FNC + (b.CRM||0) * prices.CRM;
+                const [bankR, chainR] = await Promise.all([
+                    fetch('/api/bank/stats', { headers: { 'Authorization': 'Bearer ' + token } }),
+                    fetch('/api/chain/status', { headers: { 'Authorization': 'Bearer ' + token } }),
+                ]);
+                const bank = await bankR.json();
+                const chain = await chainR.json();
+                const t = bank.treasury || {};
+                const bTotal = bank.banksTotalBalance || {};
+                const remaining = bank.treasuryDailyRemaining || {};
+                const donation = bank.donationPool || {};
+                const prices = { CRN: 25500, FNC: 2550, CRM: 25.5 };
+                const totalKRW = (t.CRN||0)*prices.CRN + (t.FNC||0)*prices.FNC + (t.CRM||0)*prices.CRM;
+
                 center.innerHTML = `<div style="padding:0.5rem">
-                    <div style="font-size:0.65rem;color:var(--text-secondary);margin-bottom:2px">TOTAL SUPPLY VALUE</div>
-                    <div style="font-size:1.3rem;font-weight:800;color:var(--gold);margin-bottom:1rem">${totalKRW.toLocaleString()} KRW</div>
-                    ${[
-                        { name: 'CRN', full: 'Crowny', bal: b.CRN||0, price: prices.CRN, supply: 23100000000 },
-                        { name: 'FNC', full: 'Fone', bal: b.FNC||0, price: prices.FNC, supply: 77700000000 },
-                        { name: 'CRM', full: 'Mam', bal: b.CRM||0, price: prices.CRM, supply: 77700000000 },
-                    ].map(t => {
-                        const pct = t.supply > 0 ? (t.bal / t.supply * 100).toFixed(2) : 0;
-                        const value = (t.bal * t.price).toLocaleString();
-                        return `<div style="padding:8px;background:var(--bg-card);border-radius:8px;margin-bottom:6px">
-                            <div style="display:flex;justify-content:space-between;align-items:baseline">
-                                <div><strong style="font-size:0.9rem">${t.name}</strong> <span style="font-size:0.65rem;color:var(--text-secondary)">${t.full}</span></div>
-                                <div style="text-align:right"><div style="font-size:1rem;font-weight:700">${t.bal.toLocaleString()}</div><div style="font-size:0.6rem;color:var(--text-secondary)">${value} KRW</div></div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+                        <div><div style="font-size:0.6rem;color:var(--text-secondary)">CROWNY NETWORK</div><div style="font-size:1.1rem;font-weight:800;color:var(--gold)">${totalKRW.toLocaleString()} KRW</div></div>
+                        <div style="text-align:right"><div style="font-size:0.55rem;color:var(--text-secondary)">CHAIN</div><div style="font-size:0.8rem;font-weight:700">Block #${chain.chain?.height ?? 0}</div></div>
+                    </div>
+                    ${['CRN','FNC','CRM'].map(c => {
+                        const supply = c === 'CRN' ? 23100000000 : 77700000000;
+                        const bal = t[c] || 0;
+                        const inBanks = bTotal[c] || 0;
+                        const distributed = supply - bal - inBanks;
+                        const pctTreasury = (bal/supply*100).toFixed(1);
+                        const pctBanks = (inBanks/supply*100).toFixed(1);
+                        const pctUsers = (distributed/supply*100).toFixed(1);
+                        return `<div style="padding:6px;background:var(--bg-card);border-radius:6px;margin-bottom:4px">
+                            <div style="display:flex;justify-content:space-between;font-size:0.8rem"><strong>${c}</strong><span style="font-weight:700">${supply.toLocaleString()}</span></div>
+                            <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin:4px 0">
+                                <div style="width:${pctTreasury}%;background:var(--gold)" title="Treasury"></div>
+                                <div style="width:${pctBanks}%;background:var(--info)" title="Banks"></div>
+                                <div style="width:${pctUsers}%;background:var(--primary)" title="Users"></div>
+                                <div style="flex:1;background:var(--border)"></div>
                             </div>
-                            <div style="margin-top:4px;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--gold);border-radius:2px"></div></div>
-                            <div style="font-size:0.55rem;color:var(--text-secondary);margin-top:2px">${pct}% of ${t.supply.toLocaleString()} total · ${t.price.toLocaleString()} KRW/unit</div>
+                            <div style="display:flex;gap:8px;font-size:0.55rem;color:var(--text-secondary)">
+                                <span style="color:var(--gold)">● Treasury ${pctTreasury}%</span>
+                                <span style="color:var(--info)">● Banks ${pctBanks}%</span>
+                                <span style="color:var(--primary)">● Users ${pctUsers}%</span>
+                            </div>
                         </div>`;
                     }).join('')}
+                    <div style="display:flex;gap:4px;margin-top:6px">
+                        <div style="flex:1;padding:6px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.5rem;color:var(--text-secondary)">BANKS</div><div style="font-weight:700;font-size:0.85rem">${bank.banksCount}</div></div>
+                        <div style="flex:1;padding:6px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.5rem;color:var(--text-secondary)">ADMINS</div><div style="font-weight:700;font-size:0.85rem">${bank.adminsCount}</div></div>
+                        <div style="flex:1;padding:6px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.5rem;color:var(--text-secondary)">DAILY CRM LEFT</div><div style="font-weight:700;font-size:0.85rem">${(remaining.CRM||0).toLocaleString()}</div></div>
+                        <div style="flex:1;padding:6px;background:var(--bg-card);border-radius:6px;text-align:center"><div style="font-size:0.5rem;color:var(--text-secondary)">DONATION</div><div style="font-weight:700;font-size:0.85rem">${(donation.CRM||0).toLocaleString()}</div></div>
+                    </div>
+                </div>`;
+            } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        }
+
+        else if (section === 'distribute') {
+            if (!await _adminAuth()) { center.innerHTML = '<div class="cv-mono" style="padding:2rem;text-align:center">Authentication required</div>'; return; }
+            try {
+                const bankR = await fetch('/api/bank/list', { headers: { 'Authorization': 'Bearer ' + token } });
+                const banks = await bankR.json();
+                center.innerHTML = `<div style="padding:0.5rem">
+                    <h4>Distribution Workflow</h4>
+                    <div style="font-size:0.65rem;color:var(--text-secondary);margin:4px 0 8px">Step 1: Treasury → Bank · Step 2: Bank → Users</div>
+                    <div style="padding:8px;background:var(--bg-card);border-radius:6px;margin-bottom:8px">
+                        <div style="font-size:0.7rem;font-weight:700;margin-bottom:4px">Step 1: Treasury → Bank</div>
+                        <select id="cv-dist-bank" class="cv-select" style="width:100%;margin-bottom:4px">${banks.map(b => `<option value="${b.id}">${b.label} (${b.category}) — CRM: ${(b.balances?.CRM||0).toLocaleString()}</option>`).join('')}</select>
+                        <div style="display:flex;gap:4px">
+                            <input id="cv-dist-amount" class="cv-input" type="number" placeholder="Amount" style="flex:1">
+                            <select id="cv-dist-currency" class="cv-select"><option value="CRM">CRM</option><option value="FNC">FNC</option><option value="CRN">CRN</option></select>
+                        </div>
+                        <button class="cv-btn" onclick="CANVAS.doDistribute()" style="width:100%;margin-top:4px">Fund Bank</button>
+                    </div>
+                    <div style="padding:8px;background:var(--bg-card);border-radius:6px">
+                        <div style="font-size:0.7rem;font-weight:700;margin-bottom:4px">Step 2: Bank → User</div>
+                        <select id="cv-send-bank" class="cv-select" style="width:100%;margin-bottom:4px">${banks.map(b => `<option value="${b.id}">${b.label} — CRM: ${(b.balances?.CRM||0).toLocaleString()}</option>`).join('')}</select>
+                        <input id="cv-send-to" class="cv-input" placeholder="Username" style="width:100%;margin-bottom:4px">
+                        <div style="display:flex;gap:4px">
+                            <input id="cv-send-amount" class="cv-input" type="number" placeholder="Amount" style="flex:1">
+                            <select id="cv-send-currency" class="cv-select"><option value="CRM">CRM</option><option value="FNC">FNC</option><option value="CRN">CRN</option></select>
+                        </div>
+                        <input id="cv-send-memo" class="cv-input" placeholder="Memo (reason)" style="width:100%;margin-top:4px">
+                        <button class="cv-btn" onclick="CANVAS.doSendFromBank()" style="width:100%;margin-top:4px">Send to User</button>
+                    </div>
+                </div>`;
+            } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        }
+
+        else if (section === 'banks') {
+            try {
+                const bankR = await fetch('/api/bank/list', { headers: { 'Authorization': 'Bearer ' + token } });
+                const banks = await bankR.json();
+                center.innerHTML = `<div style="padding:0.5rem"><h4>Banks (${banks.length})</h4>
+                    ${banks.map(b => `<div style="padding:6px;background:var(--bg-card);border-radius:6px;margin-bottom:4px">
+                        <div style="display:flex;justify-content:space-between"><strong style="font-size:0.8rem">${b.label}</strong><span style="font-size:0.6rem;padding:1px 6px;border-radius:4px;background:var(--border)">${b.category}</span></div>
+                        <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px">${b.region ? 'Region: ' + b.region + ' · ' : ''}ID: ${b.id}</div>
+                        <div style="display:flex;gap:8px;margin-top:4px;font-size:0.7rem">
+                            <span style="color:var(--gold)">CRN: ${(b.balances?.CRN||0).toLocaleString()}</span>
+                            <span>FNC: ${(b.balances?.FNC||0).toLocaleString()}</span>
+                            <span>CRM: ${(b.balances?.CRM||0).toLocaleString()}</span>
+                        </div>
+                        <div style="font-size:0.55rem;color:var(--text-secondary);margin-top:2px">Distributed: CRM ${(b.totalDistributed?.CRM||0).toLocaleString()}</div>
+                    </div>`).join('')}
+                </div>`;
+            } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
+        }
+
+        else if (section === 'audit') {
+            try {
+                const r = await fetch('/api/bank/audit?limit=30', { headers: { 'Authorization': 'Bearer ' + token } });
+                const logs = await r.json();
+                center.innerHTML = `<div style="padding:0.5rem"><h4>Audit Log (${logs.length})</h4>
+                    ${logs.map(a => `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:0.7rem">
+                        <div style="display:flex;justify-content:space-between"><span style="font-weight:600">${a.action}</span><span style="color:var(--text-secondary)">${a.date?.slice(0,16)}</span></div>
+                        <div style="font-size:0.6rem;color:var(--text-secondary)">by ${a.user} · ${JSON.stringify(a.details).slice(0,60)}</div>
+                    </div>`).join('')}
                 </div>`;
             } catch { center.innerHTML = '<div class="cv-mono">Load failed</div>'; }
         }
@@ -1552,6 +1644,44 @@ Latest Hash: ${s.chain?.latestHash?.slice(0,32)}...</div></div>`;
         const data = await r.json();
         if (typeof showToast === 'function') showToast(data.success ? `${amount} ${currency} → ${to}` : data.error || 'Failed', data.success ? 'success' : 'error');
         if (data.success) adminSection('tokens');
+    }
+
+    async function doDistribute() {
+        const bankId = document.getElementById('cv-dist-bank')?.value;
+        const amount = parseFloat(document.getElementById('cv-dist-amount')?.value) || 0;
+        const currency = document.getElementById('cv-dist-currency')?.value || 'CRM';
+        if (!bankId || amount <= 0) { if (typeof showToast === 'function') showToast('Select bank and enter amount', 'error'); return; }
+        if (!await _adminAuth()) return;
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch('/api/bank/distribute', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ bankId, currency, amount }) });
+        const data = await r.json();
+        if (data.success) {
+            if (typeof showToast === 'function') showToast(`${amount.toLocaleString()} ${currency} → ${bankId}`, 'success');
+            adminSection('distribute');
+            _loadAdminMonitor(document.getElementById('cv-right-content'));
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Failed', 'error');
+        }
+    }
+
+    async function doSendFromBank() {
+        const bankId = document.getElementById('cv-send-bank')?.value;
+        const to = document.getElementById('cv-send-to')?.value?.trim();
+        const amount = parseFloat(document.getElementById('cv-send-amount')?.value) || 0;
+        const currency = document.getElementById('cv-send-currency')?.value || 'CRM';
+        const memo = document.getElementById('cv-send-memo')?.value || '';
+        if (!bankId || !to || amount <= 0) { if (typeof showToast === 'function') showToast('Fill all fields', 'error'); return; }
+        if (!await _adminAuth()) return;
+        const token = localStorage.getItem('crowny_token');
+        const r = await fetch('/api/bank/send', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ bankId, to, currency, amount, memo }) });
+        const data = await r.json();
+        if (data.success) {
+            if (typeof showToast === 'function') showToast(`${amount.toLocaleString()} ${currency} → ${to} from ${bankId}`, 'success');
+            adminSection('distribute');
+            _loadAdminMonitor(document.getElementById('cv-right-content'));
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Failed', 'error');
+        }
     }
 
     async function _loadAdminMonitor(el) {
@@ -1860,7 +1990,7 @@ Latest Hash: ${s.chain?.latestHash?.slice(0,32)}...</div></div>`;
         // Content
         createContent, viewContent,
         // Admin
-        adminSection, adminTransfer, adminQuickSend, _loadAdminMonitor,
+        adminSection, adminTransfer, adminQuickSend, doDistribute, doSendFromBank, _loadAdminMonitor,
         // Canvas (4-step pipeline)
         runNL, setJP, cycleJP, runVM, resetVM, reloadNL,
         canvasToWorkbench, canvasToNote,
