@@ -43,8 +43,8 @@
     <meta name="twitter:description" content="Wallet · Trading · Market · Social · Art · Energy — All-in-One Platform">
     <meta name="twitter:image" content="/img/og-image.png">
     
-    <!-- Lucide Icons (선형 아이콘) -->
-    <script src="/vendor/lucide.js"></script>
+    <!-- Crowny Icons (lucide 588K → 30K 자체 경량 렌더러) -->
+    <script src="/vendor/crowny-icons.js?v=25.1"></script>
     
     <!-- CSS Bundle (all styles in one request) -->
     <link rel="stylesheet" href="/css/bundle.css?v=25.1">
@@ -178,8 +178,8 @@
         }
     </style>
     
-    <!-- Lightweight Charts -->
-    <script src="/vendor/lightweight-charts.js"></script>
+    <!-- Crowny Chart (lightweight-charts 160K → 23K 자체 Canvas2D 엔진) -->
+    <script src="/vendor/crowny-chart.js?v=25.1"></script>
 
     <script>
         // ═══ CrownyTVM DB Client (Firestore-compatible API) ═══
@@ -786,11 +786,11 @@
             <details style="margin-bottom:0.6rem">
                 <summary style="padding:8px 4px;font-size:0.82rem;font-weight:600;color:var(--primary);cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;list-style:none"><i data-lucide="repeat" style="width:14px;height:14px;color:var(--text-secondary)"></i> <span data-i18n="wallet.swap_title">Swap</span><span style="margin-left:auto;font-size:0.65rem;color:var(--text-secondary)">▾</span></summary>
                 <div style="padding:10px 0;display:flex;flex-direction:column;gap:6px">
-                    <div style="font-size:0.7rem;color:var(--text-secondary)" data-i18n="wallet.swap_rate">100 CRM = 1 FNC · 10 FNC = 1 CRN</div>
+                    <div style="font-size:0.7rem;color:var(--text-secondary)" data-i18n="wallet.swap_rate">Up: free · Down: 7% donation</div>
                     <div style="display:flex;gap:6px;align-items:center">
-                        <select id="swap-from" style="flex:1;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg)"><option value="CRM">CRM</option><option value="FNC">FNC</option></select>
+                        <select id="swap-from" style="flex:1;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg)"><option value="CRM">CRM</option><option value="FNC">FNC</option><option value="CRN">CRN</option></select>
                         <span style="color:var(--text-secondary);font-size:0.8rem">→</span>
-                        <select id="swap-to" style="flex:1;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg)"><option value="FNC">FNC</option><option value="CRN">CRN</option></select>
+                        <select id="swap-to" style="flex:1;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg)"><option value="FNC">FNC</option><option value="CRN">CRN</option><option value="CRM">CRM</option></select>
                     </div>
                     <input type="number" id="swap-amount" placeholder="Amount" data-i18n-placeholder="wallet.amount_placeholder" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg)">
                     <button onclick="ctvmSwapToken()" style="padding:8px;background:var(--primary);color:var(--bg);border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.78rem"><span data-i18n="wallet.swap_exec">Swap</span></button>
@@ -1657,6 +1657,32 @@
                     <!-- 통합 차트 -->
                     <div id="live-candle-chart" style="height:500px;max-height:60vh;min-height:300px;"></div>
                     
+                    <!-- ★ 지표 토글 + 크로스헤어 툴팁 -->
+                    <div style="display:flex; align-items:center; gap:4px; padding:4px 8px; margin-top:2px;">
+                        <div id="indicator-toggle-panel" style="display:flex; gap:3px; flex-wrap:wrap;"></div>
+                        <span id="indicator-tooltip" style="display:none; font-size:0.65rem; color:var(--text-secondary,#8B7355); margin-left:auto; font-family:monospace;"></span>
+                    </div>
+
+                    <!-- ★ Rule Finder 패널 -->
+                    <div id="rf-toolbar" style="display:flex; align-items:center; gap:6px; padding:6px 8px; background:var(--primary); border-radius:6px; margin-top:4px; font-size:0.75rem;">
+                        <button id="rf-toggle-btn" onclick="toggleRuleFinderMode()" style="background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:4px; padding:4px 10px; cursor:pointer; font-size:0.75rem; font-weight:600;">Rule Finder</button>
+                        <button onclick="showHotkeyHelp()" style="background:none; border:1px solid var(--border); color:#B8A090; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.7rem; margin-left:auto;" title="Keyboard Shortcuts">Keys ?</button>
+                        <div id="rf-controls" style="display:none; gap:4px; align-items:center;">
+                            <button id="rf-buy-btn" onclick="setMarkerSide('BUY')" style="background:#1E88E5; color:#FFF; border:none; border-radius:3px; padding:3px 8px; cursor:pointer; font-size:0.7rem; opacity:1;">B</button>
+                            <button id="rf-sell-btn" onclick="setMarkerSide('SELL')" style="background:#B54534; color:#FFF; border:none; border-radius:3px; padding:3px 8px; cursor:pointer; font-size:0.7rem; opacity:0.5;">S</button>
+                            <span id="rf-marker-count" style="color:#B8A090; font-size:0.7rem;">B:0 S:0</span>
+                            <button onclick="undoLastMarker()" style="background:none; border:1px solid var(--border); color:#B8A090; border-radius:3px; padding:2px 6px; cursor:pointer; font-size:0.65rem;">Undo</button>
+                            <button onclick="clearMarkers()" style="background:none; border:1px solid var(--border); color:#B8A090; border-radius:3px; padding:2px 6px; cursor:pointer; font-size:0.65rem;">Clear</button>
+                            <button onclick="runRuleFinder()" style="background:var(--gold,#C4841D); color:#FFF8F0; border:none; border-radius:4px; padding:4px 12px; cursor:pointer; font-weight:600; font-size:0.75rem;">Find Rules</button>
+                        </div>
+                        <span id="rf-status" style="color:#B8A090; font-size:0.65rem; margin-left:auto;"></span>
+                    </div>
+                    <div id="rf-panel" style="display:none; max-height:300px; overflow-y:auto; margin-top:4px;">
+                        <div id="rf-results"></div>
+                        <div id="rf-backtest"></div>
+                        <div id="rf-code" style="display:none;"></div>
+                    </div>
+
                     <!-- ★ 퀵 SL/TP 설정 바 -->
                     <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:var(--primary); border-radius:6px; margin-top:4px; font-size:0.75rem;">
                         <span style="color:var(--error); font-weight:600;">SL</span>
@@ -1673,10 +1699,18 @@
                         </label>
                     </div>
                     
-                    <!-- BUY / SELL / CLOSE -->
+                    <!-- 수량 프리셋 + 차트클릭주문 + 평균단가 -->
+                    <div style="display:flex; align-items:center; gap:6px; padding:4px 8px; margin-top:4px; font-size:0.75rem;">
+                        <span style="color:#B8A090; font-size:0.65rem;">Qty:</span>
+                        <div id="qty-presets" style="display:flex; gap:3px;"></div>
+                        <button id="chart-click-order-btn" onclick="toggleChartClickOrder()" style="background:none; border:1px solid var(--border); color:#B8A090; border-radius:4px; padding:3px 8px; cursor:pointer; font-size:0.65rem; margin-left:auto;" title="Click chart to place limit order">Click Order</button>
+                        <div id="avg-entry-display" style="display:none;"></div>
+                    </div>
+
+                    <!-- BUY / SELL / CLOSE + BRACKET -->
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:4px; padding:0 4px;">
-                        <button id="btn-chart-buy" onclick="quickChartTrade('BUY')" style="background:#1E88E5; color:var(--bg); padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;">BUY</button>
-                        <button id="btn-chart-sell" onclick="quickChartTrade('SELL')" style="background:#cc0000; color:var(--bg); padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;">SELL</button>
+                        <button id="btn-chart-buy" onclick="placeBracketOrder('BUY')" style="background:#1E88E5; color:var(--bg); padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;">BUY</button>
+                        <button id="btn-chart-sell" onclick="placeBracketOrder('SELL')" style="background:#cc0000; color:var(--bg); padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;">SELL</button>
                         <button onclick="closeAllPositions(getActiveTabSymbol())" style="background:var(--primary-light); color:var(--bg); padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;"><i data-lucide="x"></i> CLOSE</button>
                     </div>
                     
@@ -1689,6 +1723,13 @@
                         </div>
                     </div>
                     
+                    <!-- ★ 리스크 & 포지션 정보 -->
+                    <div style="padding:6px 8px; margin-top:4px;">
+                        <div id="drawdown-gauge"></div>
+                        <div id="risk-info-panel" style="margin-top:4px;"></div>
+                        <div id="equity-curve" style="height:50px; margin-top:4px;"></div>
+                    </div>
+
                     <!-- AI 멘토 패널 -->
                     <div id="mentor-settings-bar" style="margin-top:8px; display:flex; gap:6px; justify-content:flex-end; align-items:center;">
                         <label style="font-size:0.65rem; color:#E8D5C4; display:flex; align-items:center; gap:3px; cursor:pointer;">
@@ -2424,6 +2465,11 @@
     <script src="/js/marketplace.js?v=25.1" defer></script>
     <script src="/js/books.js?v=25.0" defer></script>
     <script src="/js/trading.js?v=25.2" defer></script>
+    <script src="/js/rule-finder.js?v=25.3" defer></script>
+    <script src="/js/trading-hotkeys.js?v=25.3" defer></script>
+    <script src="/js/trading-orders.js?v=25.3" defer></script>
+    <script src="/js/trading-indicators.js?v=25.3" defer></script>
+    <script src="/js/trading-risk.js?v=25.3" defer></script>
     <script src="/js/mentor-learning.js?v=24.4" defer></script>
     <script src="/js/mentors.js?v=24.4" defer></script>
     <script src="/js/dashboard.js?v=25.0" defer></script>

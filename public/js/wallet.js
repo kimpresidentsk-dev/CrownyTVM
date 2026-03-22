@@ -136,9 +136,21 @@ async function ctvmSwapToken() {
 
     if (!amount || amount <= 0) { showToast(t('wallet.enter_amount','수량을 입력하세요'), 'warning'); return; }
 
+    // 하향 스왑 감지 → 기부 경고
+    const downRates = { 'CRN→FNC': 10, 'FNC→CRM': 100, 'CRN→CRM': 1000 };
+    const dKey = `${from}→${to}`;
+    let confirmMsg = `${amount} ${from} → ${to}`;
+    if (downRates[dKey]) {
+        const gross = amount * downRates[dKey];
+        const donation = Math.floor(gross * 0.07);
+        const received = gross - donation;
+        confirmMsg = `${amount} ${from} → ${received.toLocaleString()} ${to}\n\n` +
+            t('wallet.donation_warning', `7% of the converted amount (${donation.toLocaleString()} ${to}) will be donated to the Crowny Foundation.\n\nUpward swaps are free. Proceed?`);
+    }
+
     const confirmed = typeof showConfirmModal === 'function'
-        ? await showConfirmModal(t('wallet.confirm_swap','Confirm Swap'), `${amount} ${from} → ${to} ${t('wallet.swap','Swap')}`)
-        : confirm(`${amount} ${from} → ${to} ${t('wallet.swap','Swap')}?`);
+        ? await showConfirmModal(t('wallet.confirm_swap','Swap Confirmation'), confirmMsg)
+        : confirm(confirmMsg);
     if (!confirmed) return;
 
     try {
@@ -150,7 +162,10 @@ async function ctvmSwapToken() {
         const data = await res.json();
         if (data.error) { showToast(data.error, 'error'); return; }
 
-        showToast(`${data.sent} ${data.sentCurrency} → ${data.received} ${data.receivedCurrency} ${t('wallet.swap_success','스왑 완료!')}`, 'success');
+        const msg = data.donation > 0
+            ? `${data.sent} ${data.sentCurrency} → ${data.received} ${data.receivedCurrency} (${data.donation} ${data.donationCurrency} ${t('wallet.donated','donated')})`
+            : `${data.sent} ${data.sentCurrency} → ${data.received} ${data.receivedCurrency}`;
+        showToast(msg + ' ' + t('wallet.swap_success','Swap complete!'), 'success');
         document.getElementById('swap-amount').value = '';
         await ctvmLoadWallet();
     } catch (e) {

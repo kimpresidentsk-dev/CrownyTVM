@@ -398,9 +398,10 @@ const CANVAS = (function() {
         } catch { left.innerHTML = '<div class="cv-mono">Load failed</div>'; }
         center.innerHTML = `<div style="padding:1rem">
             <h4 style="margin-bottom:0.5rem">Swap</h4>
-            <select id="cv-swap-from" class="cv-select"><option value="CRM">CRM</option><option value="FNC">FNC</option></select>
+            <div style="font-size:0.65rem;color:var(--text-secondary);margin-bottom:6px">Up: free · Down: 7% donated to Crowny Foundation</div>
+            <select id="cv-swap-from" class="cv-select"><option value="CRM">CRM</option><option value="FNC">FNC</option><option value="CRN">CRN</option></select>
             <span style="margin:0 0.5rem">→</span>
-            <select id="cv-swap-to" class="cv-select"><option value="FNC">FNC</option><option value="CRN">CRN</option></select>
+            <select id="cv-swap-to" class="cv-select"><option value="FNC">FNC</option><option value="CRN">CRN</option><option value="CRM">CRM</option></select>
             <input type="number" id="cv-swap-amt" class="cv-input" placeholder="Amount" style="margin-top:0.5rem">
             <button class="cv-btn" onclick="CANVAS.execSwap()" style="margin-top:0.5rem;width:100%">Execute Swap</button>
         </div>`;
@@ -816,11 +817,57 @@ const CANVAS = (function() {
         const to = document.getElementById('cv-swap-to')?.value || 'FNC';
         const amt = parseFloat(document.getElementById('cv-swap-amt')?.value) || 0;
         if (amt <= 0) return;
+
+        // 하향 스왑 감지 → 기부 경고 모달
+        const downward = { 'CRN→FNC': 10, 'FNC→CRM': 100, 'CRN→CRM': 1000 };
+        const dKey = `${from}→${to}`;
+        if (downward[dKey]) {
+            const gross = amt * downward[dKey];
+            const donation = Math.floor(gross * 0.07);
+            const received = gross - donation;
+            const confirmed = await _showDonationConfirm(from, to, amt, received, donation);
+            if (!confirmed) return;
+        }
+
         const token = localStorage.getItem('crowny_token');
         const r = await fetch('/api/wallet/swap', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to, amount: amt }) });
         const data = await r.json();
-        if (typeof showToast === 'function') showToast(data.success ? `Swapped ${data.sent} ${data.sentCurrency} → ${data.received} ${data.receivedCurrency}` : data.error || 'Failed', data.success ? 'success' : 'error');
-        if (data.success) openWs('dex');
+        if (data.success) {
+            const msg = data.donation > 0
+                ? `${data.sent} ${data.sentCurrency} → ${data.received} ${data.receivedCurrency} (${data.donation} ${data.donationCurrency} donated)`
+                : `${data.sent} ${data.sentCurrency} → ${data.received} ${data.receivedCurrency}`;
+            if (typeof showToast === 'function') showToast(msg, 'success');
+            openWs('dex');
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Failed', 'error');
+        }
+    }
+
+    function _showDonationConfirm(from, to, amount, received, donation) {
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem';
+            overlay.innerHTML = `<div style="background:var(--bg,#FFF8F0);padding:1.5rem;border-radius:12px;max-width:360px;width:100%;color:var(--text,#3D2B1F)">
+                <h3 style="margin-bottom:0.8rem">Downward Swap</h3>
+                <div style="font-size:0.85rem;line-height:1.6;margin-bottom:1rem">
+                    <div style="margin-bottom:0.5rem">${amount.toLocaleString()} <strong>${from}</strong> → ${received.toLocaleString()} <strong>${to}</strong></div>
+                    <div style="padding:0.6rem;background:rgba(181,69,52,0.08);border-radius:8px;border-left:3px solid var(--error,#B54534)">
+                        7% of the converted amount (<strong>${donation.toLocaleString()} ${to}</strong>) will be donated to the Crowny Foundation.
+                    </div>
+                </div>
+                <div style="font-size:0.75rem;color:var(--text-secondary,#6B5744);margin-bottom:1rem">
+                    Upward swaps (${to}→${from}) are free. Downward swaps include a 7% social contribution.
+                </div>
+                <div style="display:flex;gap:0.5rem">
+                    <button id="_dc_cancel" style="flex:1;padding:0.6rem;border:1px solid var(--border,#E8E0D8);border-radius:8px;background:none;cursor:pointer;color:var(--text);font-size:0.85rem">Cancel</button>
+                    <button id="_dc_ok" style="flex:1;padding:0.6rem;border:none;border-radius:8px;background:var(--primary,#3D2B1F);color:var(--bg,#FFF8F0);cursor:pointer;font-weight:700;font-size:0.85rem">Confirm Swap</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            overlay.querySelector('#_dc_cancel').onclick = () => { overlay.remove(); resolve(false); };
+            overlay.querySelector('#_dc_ok').onclick = () => { overlay.remove(); resolve(true); };
+            overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(false); } };
+        });
     }
 
     // ── 워크스페이스: Canvas (4단계 재진술 파이프라인) ──
