@@ -1196,27 +1196,47 @@ function swapTokens(username, fromCurrency, toCurrency, amount) {
     if (!user) return { error: 'user not found' };
     if (amount <= 0) return { error: 'amount must be positive' };
 
-    const allowed = { 'CRM->FNC': true, 'FNC->CRN': true };
-    if (!allowed[`${fromCurrency}->${toCurrency}`]) return { error: `swap ${fromCurrency} → ${toCurrency} not allowed` };
+    const SWAP_RULES = {
+        'CRM->FNC': { divisor: 100 },
+        'FNC->CRN': { divisor: 10 },
+        'CRN->FNC': { multiplier: 10,   fee: 0.07 },
+        'FNC->CRM': { multiplier: 100,  fee: 0.07 },
+        'CRN->CRM': { multiplier: 1000, fee: 0.07 },
+    };
+    const rule = SWAP_RULES[`${fromCurrency}->${toCurrency}`];
+    if (!rule) return { error: `swap ${fromCurrency} → ${toCurrency} not allowed` };
 
     const wallet = getWallet(username);
     if ((wallet.balances[fromCurrency] || 0) < amount) return { error: `insufficient ${fromCurrency}` };
 
     const slippage = 1 + (Math.random() * 0.04 - 0.02);
-    let received;
-    if (fromCurrency === 'CRM' && toCurrency === 'FNC') received = Math.floor(amount / 100 * slippage * 1000) / 1000;
-    else if (fromCurrency === 'FNC' && toCurrency === 'CRN') received = Math.floor(amount / 10 * slippage * 1000) / 1000;
+    let received, donation = 0;
+    if (rule.divisor) {
+        // 상향
+        received = Math.floor(amount / rule.divisor * slippage * 1000) / 1000;
+    } else {
+        // 하향 (7% 기부)
+        const gross = amount * rule.multiplier * slippage;
+        donation = Math.floor(gross * rule.fee);
+        received = Math.floor((gross - donation) * 1000) / 1000;
+    }
     if (received <= 0) return { error: 'swap amount too small' };
 
     const outTxn = createCell(`swap:${amount} ${fromCurrency} → ${received} ${toCurrency}`, TY.TRANSACTION, amount, username);
     outTxn.txType = 'swap_out'; outTxn.currency = fromCurrency;
     const inTxn = createCell(`swap:${received} ${toCurrency}`, TY.TRANSACTION, received, username);
+    // 하향 기부금 기록
+    if (donation > 0) {
+        const donTxn = createCell(`donation:${donation} ${toCurrency} (7% swap fee)`, TY.TRANSACTION, donation, 'donation-pool');
+        donTxn.txType = 'donation'; donTxn.currency = toCurrency;
+        donTxn.fromUser = username; donTxn.memo = `${fromCurrency}→${toCurrency} downward swap`;
+    }
     inTxn.txType = 'swap_in'; inTxn.currency = toCurrency;
     saveCells();
     syncSwap(username, fromCurrency, toCurrency, amount);
 
     const updated = getWallet(username);
-    return { success: true, sent: amount, sentCurrency: fromCurrency, received, receivedCurrency: toCurrency, slippage: Math.round((slippage - 1) * 10000) / 100, balances: updated.balances };
+    return { success: true, sent: amount, sentCurrency: fromCurrency, received, receivedCurrency: toCurrency, donation, donationCurrency: donation > 0 ? toCurrency : null, slippage: Math.round((slippage - 1) * 10000) / 100, balances: updated.balances };
 }
 
 // ═══ 메일 시스템 (username@crowny.org 웹메일) ═══

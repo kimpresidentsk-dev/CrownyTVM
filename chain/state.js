@@ -11,10 +11,15 @@
 const { sha256hex } = require('./crypto');
 const { TX_TYPE, CURRENCY, tritToCurrency, SLOT } = require('./cell');
 
-// ── 스왑 비율 (상향만) ──
+// ── 스왑 비율 (상향 + 하향 7% 기부) ──
 const SWAP_RATES = {
-    'CRM:FNC': { divisor: 100, min: 100 },
-    'FNC:CRN': { divisor: 10,  min: 10 },
+    // 상향 (수수료 없음)
+    'CRM:FNC': { divisor: 100, min: 100, fee: 0 },
+    'FNC:CRN': { divisor: 10,  min: 10,  fee: 0 },
+    // 하향 (7% 기부)
+    'CRN:FNC': { multiplier: 10,   min: 1, fee: 0.07, down: true },
+    'FNC:CRM': { multiplier: 100,  min: 1, fee: 0.07, down: true },
+    'CRN:CRM': { multiplier: 1000, min: 1, fee: 0.07, down: true },
 };
 
 class Account {
@@ -154,7 +159,20 @@ class StateManager {
         if (fromAmount < rate.min) return { success: false, error: `minimum swap: ${rate.min} ${fromCur}` };
         if ((from.balances[fromCur] || 0) < fromAmount) return { success: false, error: `insufficient ${fromCur}` };
 
-        const expectedTo = fromAmount / rate.divisor;
+        let expectedTo;
+        if (rate.down) {
+            // 하향 스왑: multiplier × (1 - fee)
+            const gross = fromAmount * rate.multiplier;
+            const donation = Math.floor(gross * (rate.fee || 0.07));
+            expectedTo = gross - donation;
+            // 기부풀에 적립
+            const pool = this.getAccount('donation-pool');
+            pool.balances[toCur] = (pool.balances[toCur] || 0) + donation;
+        } else {
+            // 상향 스왑
+            expectedTo = fromAmount / rate.divisor;
+        }
+
         if (toAmount > expectedTo * 1.03 || toAmount < expectedTo * 0.97) {
             return { success: false, error: 'swap amount out of range' };
         }

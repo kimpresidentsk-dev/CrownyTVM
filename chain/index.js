@@ -126,12 +126,20 @@ class CrownyCellNode {
         }
         const nonce = maxNonce + 1;
 
-        // 스왑 비율 계산
-        const rates = { 'CRM:FNC': 100, 'FNC:CRN': 10 };
+        // 스왑 비율 계산 (상향 + 하향)
+        const upRates = { 'CRM:FNC': 100, 'FNC:CRN': 10 };
+        const downRates = { 'CRN:FNC': { mult: 10, fee: 0.07 }, 'FNC:CRM': { mult: 100, fee: 0.07 }, 'CRN:CRM': { mult: 1000, fee: 0.07 } };
         const rateKey = `${fromCurrency}:${toCurrency}`;
-        const divisor = rates[rateKey];
-        if (!divisor) return { success: false, error: `invalid swap: ${rateKey}` };
-        const toAmount = Math.floor((fromAmount / divisor) * 1000) / 1000;
+        let toAmount;
+        if (upRates[rateKey]) {
+            toAmount = Math.floor((fromAmount / upRates[rateKey]) * 1000) / 1000;
+        } else if (downRates[rateKey]) {
+            const d = downRates[rateKey];
+            const gross = fromAmount * d.mult;
+            toAmount = Math.floor((gross * (1 - d.fee)) * 1000) / 1000;
+        } else {
+            return { success: false, error: `invalid swap: ${rateKey}` };
+        }
 
         const tx = Transaction.swap(fromAddr, fromCurrency, toCurrency, fromAmount, toAmount, nonce, fromKeypair.publicKey);
         tx.sign(fromKeypair.privateKey);
